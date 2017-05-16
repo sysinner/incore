@@ -206,6 +206,11 @@ func (c AppInst) ListOpResAction() {
 			continue
 		}
 
+		if inst.Spec.Meta.Name != "los-httplb" &&
+			inst.Spec.Meta.Name != "nginx" {
+			continue
+		}
+
 		hit := false
 		for _, v := range inst.Spec.ServicePorts {
 			if v.Name == "http" {
@@ -264,9 +269,10 @@ func (c AppInst) OpResSetAction() {
 		return
 	}
 
-	if res.Operate.AppId != "" {
-		set.Operate.AppId = res.Operate.AppId // TODO
-	}
+	// TODO
+	// if res.Operate.AppId != "" {
+	// 	set.Operate.AppId = res.Operate.AppId // TODO
+	// }
 
 	//
 	var app losapi.AppInstance
@@ -287,7 +293,7 @@ func (c AppInst) OpResSetAction() {
 	opt := losapi.AppOption{
 		Name:    types.NewNameIdentifier("res/" + res.Meta.Name),
 		User:    c.us.UserName,
-		Updated: uint64(res.Meta.Updated),
+		Updated: uint64(types.MetaTimeNow()),
 	}
 	for _, v := range res.Bounds {
 		if v.Action == 1 {
@@ -299,17 +305,19 @@ func (c AppInst) OpResSetAction() {
 
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if res.Operate.AppId == "" {
+		// if res.Operate.AppId == "" { // TODO
 
-			res.Operate.AppId = app.Meta.ID
-			//
-			if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalResInstance(res.Meta.Name), res, &skv.PvWriteOptions{
-				Force: true,
-			}); !rs.OK() {
-				rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, rs.Bytex().String())
-				return
-			}
+		res.Operate.AppId = app.Meta.ID
+		res.Meta.Updated = types.MetaTime(opt.Updated)
+
+		//
+		if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalResInstance(res.Meta.Name), res, &skv.PvWriteOptions{
+			Force: true,
+		}); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, rs.Bytex().String())
+			return
 		}
+		// }
 
 		if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PvWriteOptions{
 			Force: true,
