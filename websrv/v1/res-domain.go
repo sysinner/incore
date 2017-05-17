@@ -16,7 +16,11 @@ package v1
 
 import (
 	"fmt"
+	"net"
+	"net/url"
+	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"code.hooto.com/lessos/iam/iamapi"
@@ -33,6 +37,8 @@ var (
 	resDomainRe1    = regexp.MustCompile("\\.+")
 	resDomainRe2    = regexp.MustCompile("\\-+")
 	resDomainPrefix = losapi.ResourceTypeDomain + "/"
+	resDomainTypes  = types.ArrayString([]string{"pod", "upstream", "redirect"})
+	resDomainPodRe2 = regexp.MustCompile("^[0-9a-f]{12,16}$")
 )
 
 func (c Resource) DomainListAction() {
@@ -248,6 +254,71 @@ func (c Resource) DomainBoundAction() {
 	var sync bool
 
 	for _, bd := range set.Bounds {
+
+		bd.Value = strings.TrimSpace(strings.Replace(bd.Value, " ", "", -1))
+
+		pi := strings.Index(bd.Value, ":")
+		if pi < 1 {
+			continue
+		}
+
+		var (
+			bdtype  = bd.Value[:pi]
+			bdvalue = bd.Value[pi+1:]
+		)
+
+		switch bdtype {
+		case "pod":
+			ups := strings.Split(bdvalue, ":")
+			if len(ups) != 2 {
+				set.Error = types.NewErrorMeta("400", "Invalid Pod ID:Port")
+				return
+			}
+			if !resDomainPodRe2.MatchString(ups[0]) {
+				set.Error = types.NewErrorMeta("400", "Invalid Pod ID:Port")
+				return
+			}
+			if port, err := strconv.Atoi(ups[1]); err != nil || port < 80 || port > 65505 {
+				set.Error = types.NewErrorMeta("400", "Invalid Pod ID:Port")
+				return
+			}
+
+		case "upstream":
+			ups := strings.Split(bdvalue, ";")
+			for _, upv := range ups {
+
+				vs := strings.Split(upv, ":")
+				if len(vs) != 2 {
+					set.Error = types.NewErrorMeta("400", "Invalid IP:Port")
+					return
+				}
+
+				if ip := net.ParseIP(vs[0]); ip == nil || ip.To4() == nil {
+					set.Error = types.NewErrorMeta("400", "Invalid IP:Port")
+					return
+				}
+				if port, err := strconv.Atoi(vs[1]); err != nil || port < 80 || port > 65505 {
+					set.Error = types.NewErrorMeta("400", "Invalid IP:Port")
+					return
+				}
+			}
+
+		case "redirect":
+			uri, err := url.ParseRequestURI(bdvalue)
+			if err != nil {
+				set.Error = types.NewErrorMeta("400", "Invalid Redirect URL or Path: "+err.Error())
+				return
+			}
+			uri.Path = filepath.Clean(uri.Path)
+			if uri.Path == "." {
+				uri.Path = "/"
+			}
+			bd.Value = "redirect:" + uri.String()
+
+		default:
+			set.Error = types.NewErrorMeta("400", "Invalid Bound Type")
+			return
+		}
 
 		if chg, err := prev.Bounds.Sync(*bd); err != nil {
 			set.Error = types.NewErrorMeta("400", err.Error())

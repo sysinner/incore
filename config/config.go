@@ -15,6 +15,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -23,6 +24,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"code.hooto.com/lynkdb/iomix/connect"
 	"github.com/lessos/lessgo/crypto/idhash"
@@ -42,14 +44,15 @@ type HostMember struct {
 }
 
 type ConfigCommon struct {
-	filepath      string
-	Host          HostMember               `json:"host"`
-	Masters       []losapi.HostNodeAddress `json:"masters"`
-	IoConnectors  connect.MultiConnOptions `json:"io_connects"`
-	PodHomeDir    string                   `json:"pod_home_dir"`
-	Options       types.Labels             `json:"items,omitempty"`
-	PprofHttpPort uint16                   `json:"pprof_http_port,omitempty"`
-	LpsServiceUrl string                   `json:"lps_service_url,omitempty"`
+	filepath              string
+	Host                  HostMember               `json:"host"`
+	Masters               []losapi.HostNodeAddress `json:"masters"`
+	IoConnectors          connect.MultiConnOptions `json:"io_connects"`
+	PodHomeDir            string                   `json:"pod_home_dir"`
+	Options               types.Labels             `json:"items,omitempty"`
+	PprofHttpPort         uint16                   `json:"pprof_http_port,omitempty"`
+	LpsServiceUrl         string                   `json:"lps_service_url,omitempty"`
+	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty"`
 }
 
 func (cfg *ConfigCommon) Sync() error {
@@ -97,6 +100,10 @@ func Init() error {
 	//
 	if Config.PodHomeDir == "" {
 		Config.PodHomeDir = Prefix + "/var/pods"
+	}
+
+	if Config.IamServiceUrlFrontend != "" && !strings.HasPrefix(Config.IamServiceUrlFrontend, "http") {
+		return fmt.Errorf("Invalid iam_service_url_frontend")
 	}
 
 	if err := init_user(); err != nil {
