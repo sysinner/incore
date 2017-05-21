@@ -150,7 +150,7 @@ const (
 
 type AppConfigField struct {
 	Name      string        `json:"name"`
-	Title     string        `json:"title"`
+	Title     string        `json:"title,omitempty"`
 	Prompt    string        `json:"prompt,omitempty"`
 	Type      uint16        `json:"type,omitempty"`
 	Default   string        `json:"default,omitempty"`

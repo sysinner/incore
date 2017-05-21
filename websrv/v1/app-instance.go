@@ -58,6 +58,13 @@ func (c AppInst) ListAction() {
 	// TODO pager
 	rs := los_db.ZoneMaster.PvScan(losapi.NsGlobalAppInstance(""), "", "", 1000)
 	rss := rs.KvList()
+
+	var fields types.ArrayPathTree
+	if fns := c.Params.Get("fields"); fns != "" {
+		fields.Set(fns)
+		fields.Sort()
+	}
+
 	for _, v := range rss {
 
 		var inst losapi.AppInstance
@@ -82,7 +89,66 @@ func (c AppInst) ListAction() {
 			continue
 		}
 
-		ls.Items = append(ls.Items, inst)
+		if len(fields) > 0 {
+
+			instf := losapi.AppInstance{
+				Meta: types.InnerObjectMeta{
+					ID: inst.Meta.ID,
+				},
+			}
+
+			if fields.Has("meta/name") {
+				instf.Meta.Name = inst.Meta.Name
+			}
+
+			if fields.Has("meta/updated") {
+				instf.Meta.Updated = inst.Meta.Updated
+			}
+
+			if fields.Has("spec") {
+
+				if fields.Has("spec/meta/id") {
+					instf.Spec.Meta.ID = inst.Spec.Meta.ID
+				}
+
+				if fields.Has("spec/meta/name") {
+					instf.Spec.Meta.Name = inst.Spec.Meta.Name
+				}
+
+				if fields.Has("spec/meta/version") {
+					instf.Spec.Meta.Version = inst.Spec.Meta.Version
+				}
+			}
+
+			if fields.Has("operate") {
+
+				if fields.Has("operate/action") {
+					instf.Operate.Action = inst.Operate.Action
+				}
+
+				if fields.Has("operate/pod_id") {
+					instf.Operate.PodId = inst.Operate.PodId
+				}
+
+				if fields.Has("operate/options") {
+
+					for _, opt := range inst.Operate.Options {
+
+						optf := &losapi.AppOption{}
+						if fields.Has("operate/options/name") {
+							optf.Name = opt.Name
+						}
+
+						instf.Operate.Options = append(instf.Operate.Options, optf)
+					}
+				}
+			}
+
+			ls.Items = append(ls.Items, instf)
+
+		} else {
+			ls.Items = append(ls.Items, inst)
+		}
 	}
 
 	ls.Kind = "AppList"

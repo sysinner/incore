@@ -55,7 +55,7 @@ type Executor struct {
 	Dir       string               `json:"dir,omitempty"`   // /home/action/apps/demo
 	User      string               `json:"user,omitempty"`  // default: action
 	Group     string               `json:"group,omitempty"` // default: action
-	ExecStart string               `json:"exec_start"`
+	ExecStart string               `json:"exec_start,omitempty"`
 	ExecStop  string               `json:"exec_stop,omitempty"`
 	Priority  uint8                `json:"priority,omitempty"`
 	Plan      ExecPlanner          `json:"plan,omitempty"`

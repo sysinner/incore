@@ -57,6 +57,13 @@ func (c AppSpec) ListAction() {
 
 	rs := data.ZoneMaster.PvScan(losapi.NsGlobalAppSpec(""), "", "", 200)
 	rss := rs.KvList()
+
+	var fields types.ArrayPathTree
+	if fns := c.Params.Get("fields"); fns != "" {
+		fields.Set(fns)
+		fields.Sort()
+	}
+
 	for _, v := range rss {
 
 		var spec losapi.AppSpec
@@ -74,7 +81,73 @@ func (c AppSpec) ListAction() {
 			continue
 		}
 
-		ls.Items = append(ls.Items, spec)
+		if len(fields) > 0 {
+
+			specf := losapi.AppSpec{
+				Meta: types.InnerObjectMeta{
+					ID: spec.Meta.ID,
+				},
+			}
+
+			if fields.Has("meta/name") {
+				specf.Meta.Name = spec.Meta.Name
+			}
+
+			if fields.Has("meta/user") {
+				specf.Meta.User = spec.Meta.User
+			}
+
+			if fields.Has("meta/version") {
+				specf.Meta.Version = spec.Meta.Version
+			}
+
+			if fields.Has("meta/updated") {
+				specf.Meta.Updated = spec.Meta.Updated
+			}
+
+			if fields.Has("packages") {
+				for _, pkg := range spec.Packages {
+					pkgf := losapi.VolumePackage{}
+					if fields.Has("packages/name") {
+						pkgf.Name = pkg.Name
+					}
+					specf.Packages = append(specf.Packages, pkgf)
+				}
+			}
+
+			if fields.Has("executors") {
+				for _, ev := range spec.Executors {
+					evf := losapi.Executor{}
+					if fields.Has("executors/name") {
+						evf.Name = ev.Name
+					}
+					specf.Executors = append(specf.Executors, evf)
+				}
+			}
+
+			if fields.Has("configurator") && spec.Configurator != nil {
+
+				specf.Configurator = &losapi.AppConfigurator{}
+
+				if fields.Has("configurator/name") {
+					specf.Configurator.Name = spec.Configurator.Name
+				}
+
+				if fields.Has("configurator/fields") {
+					for _, cfv := range spec.Configurator.Fields {
+						cff := &losapi.AppConfigField{}
+						if fields.Has("configurator/fields/name") {
+							cff.Name = cfv.Name
+						}
+						specf.Configurator.Fields = append(specf.Configurator.Fields, cff)
+					}
+				}
+			}
+
+			ls.Items = append(ls.Items, specf)
+		} else {
+			ls.Items = append(ls.Items, spec)
+		}
 	}
 
 	ls.Kind = "AppSpecList"

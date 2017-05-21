@@ -172,9 +172,9 @@ type VolumePackage struct {
 	// Package Name form an identifier that is assumed to be completely unique
 	Name string `json:"name"`
 	// Package Version
-	Version string `json:"version"`
+	Version string `json:"version,omitempty"`
 	// Package Release
-	Release string `json:"release"`
+	Release string `json:"release,omitempty"`
 	// Distribution indicates the type of operating system.
 	Dist string `json:"dist,omitempty"`
 	// Architecture indicates the type of hardware.

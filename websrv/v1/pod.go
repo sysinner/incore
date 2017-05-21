@@ -64,6 +64,13 @@ func (c Pod) ListAction() {
 		rs = data.ZoneMaster.PvScan(losapi.NsGlobalPodInstance(""), "", "", 1000)
 	}
 	rss := rs.KvList()
+
+	var fields types.ArrayPathTree
+	if fns := c.Params.Get("fields"); fns != "" {
+		fields.Set(fns)
+		fields.Sort()
+	}
+
 	for _, v := range rss {
 
 		var pod losapi.Pod
@@ -80,7 +87,71 @@ func (c Pod) ListAction() {
 			// 	Force: true,
 			// })
 
-			ls.Items = append(ls.Items, pod)
+			if len(fields) > 0 {
+
+				podfs := losapi.Pod{
+					Meta: types.InnerObjectMeta{
+						ID: pod.Meta.ID,
+					},
+				}
+
+				if fields.Has("meta/name") {
+					podfs.Meta.Name = pod.Meta.Name
+				}
+
+				if fields.Has("meta/updated") {
+					podfs.Meta.Updated = pod.Meta.Updated
+				}
+
+				if fields.Has("spec") && pod.Spec != nil {
+					podfs.Spec = &losapi.PodSpecBound{}
+
+					if fields.Has("spec/ref/name") {
+						podfs.Spec.Ref.Name = pod.Spec.Ref.Name
+					}
+
+					if fields.Has("spec/zone") {
+						podfs.Spec.Zone = pod.Spec.Zone
+					}
+
+					if fields.Has("spec/cell") {
+						podfs.Spec.Cell = pod.Spec.Cell
+					}
+				}
+
+				if fields.Has("apps") {
+
+					for _, a := range pod.Apps {
+
+						afs := losapi.AppInstance{}
+
+						if fields.Has("apps/meta/id") {
+							afs.Meta.ID = a.Meta.ID
+						}
+
+						podfs.Apps = append(podfs.Apps, afs)
+					}
+				}
+
+				if fields.Has("operate") {
+
+					if fields.Has("operate/action") {
+						podfs.Operate.Action = pod.Operate.Action
+					}
+
+					if fields.Has("operate/node") {
+						podfs.Operate.Node = pod.Operate.Node
+					}
+
+					if fields.Has("operate/ports") {
+						podfs.Operate.Ports = pod.Operate.Ports
+					}
+				}
+
+				ls.Items = append(ls.Items, podfs)
+			} else {
+				ls.Items = append(ls.Items, pod)
+			}
 		}
 	}
 

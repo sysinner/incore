@@ -58,6 +58,13 @@ func (c Resource) ListAction() {
 
 	rs := data.ZoneMaster.PvScan(losapi.NsGlobalResInstance(c.Params.Get("type")), "", "", 1000)
 	rss := rs.KvList()
+
+	var fields types.ArrayPathTree
+	if fns := c.Params.Get("fields"); fns != "" {
+		fields.Set(fns)
+		fields.Sort()
+	}
+
 	for _, v := range rss {
 
 		var inst losapi.Resource
@@ -67,8 +74,53 @@ func (c Resource) ListAction() {
 			if inst.Meta.User != c.us.UserName {
 				continue
 			}
+			if len(fields) > 0 {
 
-			ls.Items = append(ls.Items, inst)
+				instf := losapi.Resource{
+					Meta: types.InnerObjectMeta{
+						ID: inst.Meta.ID,
+					},
+				}
+
+				if fields.Has("meta/name") {
+					instf.Meta.Name = inst.Meta.Name
+				}
+				if fields.Has("meta/user") {
+					instf.Meta.User = inst.Meta.User
+				}
+				if fields.Has("meta/created") {
+					instf.Meta.Created = inst.Meta.Created
+				}
+				if fields.Has("meta/updated") {
+					instf.Meta.Updated = inst.Meta.Updated
+				}
+
+				if fields.Has("operate/app_id") {
+					instf.Operate.AppId = inst.Operate.AppId
+				}
+
+				if fields.Has("action") {
+					instf.Action = inst.Action
+				}
+
+				if fields.Has("description") {
+					instf.Description = inst.Description
+				}
+
+				if fields.Has("bounds") {
+					for _, bd := range inst.Bounds {
+						bdf := &losapi.ResourceBound{}
+						if fields.Has("bounds/name") {
+							bdf.Name = bd.Name
+						}
+						instf.Bounds = append(instf.Bounds, bdf)
+					}
+				}
+
+				ls.Items = append(ls.Items, instf)
+			} else {
+				ls.Items = append(ls.Items, inst)
+			}
 		}
 	}
 

@@ -52,8 +52,8 @@ type ResOperate struct {
 
 type ResourceBound struct {
 	Name   string `json:"name"`
-	Value  string `json:"value"`
-	Action uint8  `json:"action"`
+	Value  string `json:"value,omitempty"`
+	Action uint8  `json:"action,omitempty"`
 }
 
 type ResourceBounds []*ResourceBound
