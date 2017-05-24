@@ -16,9 +16,14 @@ package losapi
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/lessos/lessgo/types"
+)
+
+var (
+	PodIdReg = regexp.MustCompile("^[a-f0-9]{12,20}$")
 )
 
 type PodSpecBoxImageDriver string

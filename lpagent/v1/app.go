@@ -16,28 +16,14 @@ package v1
 
 import (
 	"github.com/lessos/lessgo/httpsrv"
+	"github.com/lessos/lessgo/types"
 )
 
-func NewModule() httpsrv.Module {
+type App struct {
+	*httpsrv.Controller
+}
 
-	module := httpsrv.NewModule("los_v1")
-
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/podbound/:pod_id/:pod_controller/:pod_action",
-		Params: map[string]string{
-			"controller": "podbound",
-			"action":     "index",
-		},
-	})
-
-	module.ControllerRegister(new(PodSpec))
-	module.ControllerRegister(new(Pod))
-	module.ControllerRegister(new(AppSpec))
-	module.ControllerRegister(new(AppInst))
-	module.ControllerRegister(new(Host))
-	module.ControllerRegister(new(Resource))
-	module.ControllerRegister(new(Podbound))
-
-	return module
+func (c App) SetupAction() {
+	set := types.TypeMeta{}
+	defer c.RenderJson(&set)
 }

@@ -115,3 +115,7 @@ func NsZoneHostBoundPodStatus(zone_id, host_id, pod_id string) string {
 func NsZonePodServiceMap(pod_id string) string {
 	return fmt.Sprintf("/nsz/ps/%s", pod_id)
 }
+
+func NsLocalCacheBoundPod(pod_id string) string {
+	return fmt.Sprintf("/lc/bound/pod/%s", pod_id)
+}

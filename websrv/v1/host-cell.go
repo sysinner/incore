@@ -26,21 +26,33 @@ func (c Host) CellListAction() {
 	var sets losapi.GeneralObjectList
 	defer c.RenderJson(&sets)
 
-	zoneid := c.Params.Get("zoneid")
+	zones := []string{}
 
-	//
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(zoneid)); !rs.OK() {
-		sets.Error = types.NewErrorMeta("404", "Zone Not Found")
-		return
+	if zoneid := c.Params.Get("zoneid"); zoneid != "" {
+		if rs := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(zoneid)); !rs.OK() {
+			sets.Error = types.NewErrorMeta("404", "Zone Not Found")
+			return
+		}
+		zones = append(zones, zoneid)
+	} else {
+
+		rss := data.ZoneMaster.PvScan(losapi.NsGlobalSysZone(""), "", "", 100).KvList()
+		for _, v := range rss {
+			var zone losapi.ResZone
+			if err := v.Decode(&zone); err == nil {
+				zones = append(zones, zone.Meta.Id)
+			}
+		}
 	}
 
 	//
-	rss := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(zoneid, ""), "", "", 100).KvList()
-	for _, v := range rss {
-
-		var cell losapi.ResCell
-		if err := v.Decode(&cell); err == nil {
-			sets.Items = append(sets.Items, cell)
+	for _, z := range zones {
+		rss := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(z, ""), "", "", 100).KvList()
+		for _, v := range rss {
+			var cell losapi.ResCell
+			if err := v.Decode(&cell); err == nil {
+				sets.Items = append(sets.Items, cell)
+			}
 		}
 	}
 

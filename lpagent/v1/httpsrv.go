@@ -20,24 +20,17 @@ import (
 
 func NewModule() httpsrv.Module {
 
-	module := httpsrv.NewModule("los_v1")
+	module := httpsrv.NewModule("lp-boxlet")
 
 	module.RouteSet(httpsrv.Route{
 		Type: httpsrv.RouteTypeBasic,
-		Path: "/podbound/:pod_id/:pod_controller/:pod_action",
-		Params: map[string]string{
-			"controller": "podbound",
-			"action":     "index",
-		},
+		Path: "/podbound/:podid/:controller/:action",
 	})
 
-	module.ControllerRegister(new(PodSpec))
+	module.ControllerRegister(new(Fs))
+	module.ControllerRegister(new(App))
+	module.ControllerRegister(new(Terminal))
 	module.ControllerRegister(new(Pod))
-	module.ControllerRegister(new(AppSpec))
-	module.ControllerRegister(new(AppInst))
-	module.ControllerRegister(new(Host))
-	module.ControllerRegister(new(Resource))
-	module.ControllerRegister(new(Podbound))
 
 	return module
 }

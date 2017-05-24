@@ -204,8 +204,10 @@ func pod_status_pushing() {
 
 		for _, spec := range pod.Spec.Boxes {
 
-			box_inst_name := fmt.Sprintf("%s-%s-%s",
-				pod.Operate.Node, pod.Meta.ID, spec.Name)
+			box_inst_name := fmt.Sprintf("%s-0000-%s",
+				pod.Meta.ID,
+				spec.Name,
+			)
 
 			inst, ok := box_keeper.instances[box_inst_name]
 			if !ok {

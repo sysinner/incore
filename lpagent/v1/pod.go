@@ -16,28 +16,33 @@ package v1
 
 import (
 	"github.com/lessos/lessgo/httpsrv"
+
+	"code.hooto.com/lessos/loscore/losapi"
+	"code.hooto.com/lessos/loscore/lpagent/status"
 )
 
-func NewModule() httpsrv.Module {
+type Pod struct {
+	*httpsrv.Controller
+}
 
-	module := httpsrv.NewModule("los_v1")
+func (c Pod) ExecutorListAction() {
 
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/podbound/:pod_id/:pod_controller/:pod_action",
-		Params: map[string]string{
-			"controller": "podbound",
-			"action":     "index",
-		},
-	})
+	set := losapi.ExecutorList{
+		Items: status.Executors,
+	}
 
-	module.ControllerRegister(new(PodSpec))
-	module.ControllerRegister(new(Pod))
-	module.ControllerRegister(new(AppSpec))
-	module.ControllerRegister(new(AppInst))
-	module.ControllerRegister(new(Host))
-	module.ControllerRegister(new(Resource))
-	module.ControllerRegister(new(Podbound))
+	set.Kind = "PodExecutorList"
 
-	return module
+	c.RenderJson(set)
+}
+
+func (c Pod) ExecutorStatusListAction() {
+
+	set := losapi.PodExecutorStatus{
+		Items: status.Statuses,
+	}
+
+	set.Kind = "PodExecutorStatusList"
+
+	c.RenderJson(set)
 }
