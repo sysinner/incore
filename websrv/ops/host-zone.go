@@ -223,7 +223,7 @@ func (c Host) ZoneSetAction() {
 
 	set.Meta.Updated = uint64(types.MetaTimeNow())
 
-	data.ZoneMaster.PvPut(losapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, &skv.PvWriteOptions{
+	data.ZoneMaster.PvPut(losapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, &skv.PathWriteOptions{
 		PrevVersion: prevVersion,
 	})
 

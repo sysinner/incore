@@ -86,7 +86,7 @@ func (c Podbound) IndexAction() {
 		json.DecodeFile(fmt.Sprintf(lpagent_pod_json, config.Config.PodHomeDir, pod_id), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.PvPut(losapi.NsLocalCacheBoundPod(pod_id), pod, &skv.PvWriteOptions{
+			data.LocalDB.PvPut(losapi.NsLocalCacheBoundPod(pod_id), pod, &skv.PathWriteOptions{
 				Ttl: 3600000,
 			})
 		}
@@ -174,7 +174,7 @@ func pbPodInstanceSpec(pod_id string) *losapi.Pod {
 		json.DecodeFile(fmt.Sprintf(lpagent_pod_json, config.Config.PodHomeDir, pod_id), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.PvPut(losapi.NsLocalCacheBoundPod(pod_id), pod, &skv.PvWriteOptions{
+			data.LocalDB.PvPut(losapi.NsLocalCacheBoundPod(pod_id), pod, &skv.PathWriteOptions{
 				Ttl: 3600000,
 			})
 		}

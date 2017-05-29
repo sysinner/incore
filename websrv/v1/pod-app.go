@@ -75,7 +75,7 @@ func (c Pod) AppSetAction() {
 	pod.OperateRefresh()
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PvWriteOptions{
+	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
 		PrevVersion: obj.Meta().Version,
 	}); !rs.OK() {
 		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
@@ -84,7 +84,7 @@ func (c Pod) AppSetAction() {
 
 	// Pod Map to Cell Queue
 	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PvWriteOptions{
+	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {
 		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
@@ -184,7 +184,7 @@ func (c Pod) AppExecutorSetAction() {
 	//
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(set.PodId), pod, &skv.PvWriteOptions{
+	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(set.PodId), pod, &skv.PathWriteOptions{
 		PrevVersion: pod_version,
 	}); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
@@ -192,7 +192,7 @@ func (c Pod) AppExecutorSetAction() {
 	}
 
 	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PvWriteOptions{
+	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())

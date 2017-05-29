@@ -271,7 +271,7 @@ func (c AppSpec) SetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(losapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PvWriteOptions{
+	if obj := data.ZoneMaster.PvPut(losapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
 		set.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
@@ -363,7 +363,7 @@ func (c AppSpec) CfgSetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(losapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PvWriteOptions{
+	if obj := data.ZoneMaster.PvPut(losapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
 		set.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())

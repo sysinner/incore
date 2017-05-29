@@ -148,7 +148,7 @@ func (c Resource) DomainNewAction() {
 	}
 
 	//
-	data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), inst, &skv.PvWriteOptions{
+	data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), inst, &skv.PathWriteOptions{
 		Force: true,
 	})
 
@@ -203,7 +203,7 @@ func (c Resource) DomainSetAction() {
 		prev.Meta.Updated = types.MetaTimeNow()
 
 		//
-		data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), prev, &skv.PvWriteOptions{
+		data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
 			Force: true,
 		})
 	}
@@ -332,7 +332,7 @@ func (c Resource) DomainBoundAction() {
 
 		prev.Meta.Updated = types.MetaTimeNow()
 		//
-		data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), prev, &skv.PvWriteOptions{
+		data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
 			Force: true,
 		})
 	}

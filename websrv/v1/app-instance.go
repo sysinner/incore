@@ -237,7 +237,7 @@ func (c AppInst) SetAction() {
 		prev.Spec = spec
 	}
 
-	if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.PvWriteOptions{
+	if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
 		rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
@@ -377,7 +377,7 @@ func (c AppInst) OpResSetAction() {
 		res.Meta.Updated = types.MetaTime(opt.Updated)
 
 		//
-		if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalResInstance(res.Meta.Name), res, &skv.PvWriteOptions{
+		if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalResInstance(res.Meta.Name), res, &skv.PathWriteOptions{
 			Force: true,
 		}); !rs.OK() {
 			rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, rs.Bytex().String())
@@ -385,7 +385,7 @@ func (c AppInst) OpResSetAction() {
 		}
 		// }
 
-		if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PvWriteOptions{
+		if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
 			Force: true,
 		}); !obj.OK() {
 			rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
@@ -405,7 +405,7 @@ func (c AppInst) OpResSetAction() {
 					pod.OperateRefresh()
 					pod.Meta.Updated = types.MetaTimeNow()
 
-					if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PvWriteOptions{
+					if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
 						PrevVersion: rs.Meta().Version,
 					}); !rs.OK() {
 						rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
@@ -414,7 +414,7 @@ func (c AppInst) OpResSetAction() {
 
 					// Pod Map to Cell Queue
 					qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-					if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PvWriteOptions{
+					if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 						Force: true,
 					}); !rs.OK() {
 						rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
@@ -553,7 +553,7 @@ func (c AppInst) ConfigAction() {
 							app_refp_opt.Subs.Remove(app.Meta.ID)
 							app_refp.Operate.Options.Sync(*app_refp_opt)
 
-							if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, &skv.PvWriteOptions{
+							if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, &skv.PathWriteOptions{
 								Force: true,
 							}); !obj.OK() {
 								rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
@@ -574,7 +574,7 @@ func (c AppInst) ConfigAction() {
 				opt_ref.Subs.Insert(app.Meta.ID)
 				app_ref.Operate.Options.Sync(*opt_ref)
 
-				if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, &skv.PvWriteOptions{
+				if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, &skv.PathWriteOptions{
 					Force: true,
 				}); !obj.OK() {
 					rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
@@ -600,7 +600,7 @@ func (c AppInst) ConfigAction() {
 	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PvWriteOptions{
+	if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
 		rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())

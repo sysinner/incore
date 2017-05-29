@@ -389,7 +389,7 @@ func (c Pod) SetInfoAction() {
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PvWriteOptions{
+	data.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		PrevVersion: prev_version,
 	})
 
@@ -401,7 +401,7 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
-	data.ZoneMaster.PvPut(qstr, prev, &skv.PvWriteOptions{
+	data.ZoneMaster.PvPut(qstr, prev, &skv.PathWriteOptions{
 		Force: true,
 	})
 

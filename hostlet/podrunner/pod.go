@@ -312,7 +312,7 @@ func pod_status_pushing() {
 
 			pod.Status.Updated = types.MetaTimeNow()
 
-			if rs := los_db.HiMaster.PvPut(path, *pod.Status, &skv.PvWriteOptions{
+			if rs := los_db.HiMaster.PvPut(path, *pod.Status, &skv.PathWriteOptions{
 				Force: true,
 			}); !rs.OK() {
 				logger.Printf("error", "hostlet/pod StatusSync %s SET Failed %s",

@@ -100,8 +100,8 @@ func TokenValid(ctx context.Context) error {
 	}
 
 	//
-	key, ok := status.ZoneHostSecretKeys.Get(client_id[0])
-	if !ok || len(key) == 0 {
+	key := status.ZoneHostSecretKeys.Get(client_id[0])
+	if key == nil || len(key) == 0 {
 		return grpc.Errorf(codes.Unauthenticated, "No SecretKey Found")
 	}
 

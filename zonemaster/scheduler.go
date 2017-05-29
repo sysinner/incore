@@ -253,7 +253,7 @@ func scheduler_exec_cell(cell_id string) {
 
 			if nsz.SyncChanged() {
 				nsz.Updated = uint64(types.MetaTimeNow())
-				data.ZoneMaster.PvPut(losapi.NsZonePodServiceMap(pod.Meta.ID), nsz, &skv.PvWriteOptions{
+				data.ZoneMaster.PvPut(losapi.NsZonePodServiceMap(pod.Meta.ID), nsz, &skv.PathWriteOptions{
 					Force: true,
 				})
 			}
@@ -266,7 +266,7 @@ func scheduler_exec_cell(cell_id string) {
 			host.OpPortSort()
 
 			if rs := data.ZoneMaster.PvPut(
-				losapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, &skv.PvWriteOptions{
+				losapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, &skv.PathWriteOptions{
 					Force: true,
 				},
 			); !rs.OK() {
@@ -283,7 +283,7 @@ func scheduler_exec_cell(cell_id string) {
 			losapi.NsZoneHostBoundPod(status.ZoneId, pod.Operate.Node, pod.Meta.ID),
 		} {
 
-			if rs := data.ZoneMaster.PvPut(k, pod, &skv.PvWriteOptions{
+			if rs := data.ZoneMaster.PvPut(k, pod, &skv.PathWriteOptions{
 				Force: true,
 			}); !rs.OK() {
 				logger.Printf("error", "zone/pod saved %s, err (%s)", k, rs.Bytex().String())
@@ -298,7 +298,7 @@ func scheduler_exec_cell(cell_id string) {
 			}
 		*/
 
-		data.ZoneMaster.PvDel(losapi.NsZonePodSetQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), &skv.PvWriteOptions{
+		data.ZoneMaster.PvDel(losapi.NsZonePodSetQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), &skv.PathWriteOptions{
 			Force: true,
 		})
 	}

@@ -55,7 +55,7 @@ func zone_tracker() {
 		if rs2 := data.ZoneMaster.PvNew(
 			leader_path,
 			status.Host.Meta.Id,
-			&skv.PvWriteOptions{
+			&skv.PathWriteOptions{
 				Ttl: 12000,
 			},
 		); rs2.OK() {
@@ -86,7 +86,7 @@ func zone_tracker() {
 	if rs := data.ZoneMaster.PvPut(
 		leader_path,
 		status.Host.Meta.Id,
-		&skv.PvWriteOptions{
+		&skv.PathWriteOptions{
 			PrevValue: status.Host.Meta.Id,
 			Ttl:       12000,
 		},
@@ -237,7 +237,7 @@ func zone_tracker() {
 						data.ZoneMaster.PvPut(
 							losapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
 							host,
-							&skv.PvWriteOptions{
+							&skv.PathWriteOptions{
 								Force: true,
 							},
 						)

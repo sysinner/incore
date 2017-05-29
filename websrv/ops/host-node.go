@@ -196,7 +196,7 @@ func (c Host) NodeSetAction() {
 		prev.Meta.Name = node.Meta.Name
 	}
 
-	data.ZoneMaster.PvPut(losapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), prev, &skv.PvWriteOptions{
+	data.ZoneMaster.PvPut(losapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), prev, &skv.PathWriteOptions{
 		PrevVersion: obj.Meta().Version,
 	})
 

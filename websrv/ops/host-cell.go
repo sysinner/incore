@@ -126,7 +126,7 @@ func (c Host) CellSetAction() {
 	}
 
 	data.ZoneMaster.PvPut(losapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
-		cell, &skv.PvWriteOptions{
+		cell, &skv.PathWriteOptions{
 			PrevVersion: prevVersion,
 		})
 
@@ -142,7 +142,7 @@ func (c Host) CellSetAction() {
 		}
 	}
 
-	data.ZoneMaster.PvPut(losapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell, &skv.PvWriteOptions{
+	data.ZoneMaster.PvPut(losapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell, &skv.PathWriteOptions{
 		PrevVersion: rsp.Meta().Version,
 	})
 
