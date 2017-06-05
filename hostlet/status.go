@@ -22,7 +22,6 @@ import (
 	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/logger"
-	"github.com/lessos/lessgo/types"
 	"github.com/shirou/gopsutil/mem"
 	"golang.org/x/net/context"
 
@@ -82,31 +81,30 @@ func status_tracker() {
 }
 
 var (
-	sync_nsz_last uint64
+	sync_nsz_lasts = map[string]uint64{}
 )
 
 func sync_nsz() {
 
 	os.MkdirAll("/dev/shm/los/nsz", 0755)
 
-	var nsz losapi.NsPodServiceMap
-
 	rs := data.HiMaster.PvScan(losapi.NsZonePodServiceMap(""), "", "", 10000)
 
 	rs.KvEach(func(v *skv.ResultEntry) int {
 
-		if nsz.Updated < sync_nsz_last {
+		var nsz losapi.NsPodServiceMap
+		if err := v.Decode(&nsz); err != nil {
 			return 0
 		}
 
-		if err := v.Decode(&nsz); err == nil {
+		last, ok := sync_nsz_lasts[string(v.Key)]
+		if !ok || nsz.Updated > last {
 			json.EncodeToFile(nsz, "/dev/shm/los/nsz/"+string(v.Key), "")
+			sync_nsz_lasts[string(v.Key)] = nsz.Updated
 		}
 
 		return 0
 	})
-
-	sync_nsz_last = uint64(types.MetaTimeNow())
 }
 
 func msgZoneMasterHostStatusSync() (*losapi.ResZoneMasterList, error) {
