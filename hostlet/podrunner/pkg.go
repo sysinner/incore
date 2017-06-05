@@ -124,7 +124,10 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	c := httpclient.Get(url)
 	defer c.Close()
 
-	var pkg lpapi.Package
+	var pkg struct {
+		types.TypeMeta
+		lpapi.Package
+	}
 	if err := c.ReplyJson(&pkg); err != nil {
 		logger.Printf("error", "nodelet/Package Sync %s", url)
 		return err

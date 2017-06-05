@@ -63,6 +63,8 @@ func Runner(home_dir string) {
 
 				logger.Printf("debug", "AppExec %s", ve.Name)
 
+				ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.Name, ve.Name))
+
 				status.Executors.Sync(ve)
 				executor_action(ve, data_maps)
 			}

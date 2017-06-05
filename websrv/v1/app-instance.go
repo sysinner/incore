@@ -171,7 +171,10 @@ func (c AppInst) EntryAction() {
 
 func (c AppInst) SetAction() {
 
-	rsp := types.TypeMeta{}
+	var rsp struct {
+		types.TypeMeta `json:",inline"`
+		Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	}
 	defer c.RenderJson(&rsp)
 
 	//
@@ -244,6 +247,7 @@ func (c AppInst) SetAction() {
 		return
 	}
 
+	rsp.Meta.ID = prev.Meta.ID
 	rsp.Kind = "App"
 }
 
