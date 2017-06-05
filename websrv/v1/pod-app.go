@@ -18,9 +18,119 @@ import (
 	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/lessos/lessgo/types"
 
+	"code.hooto.com/lessos/iam/iamapi"
 	los_db "code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"
 )
+
+func (c Pod) AppSyncAction() {
+
+	set := types.TypeMeta{}
+	defer c.RenderJson(&set)
+
+	app_id := c.Params.Get("app_id")
+	if app_id == "" {
+		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	//
+	var (
+		app      losapi.AppInstance
+		app_sync = false
+	)
+	rs := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(app_id))
+	if rs.OK() {
+		rs.Decode(&app)
+	}
+	if app.Meta.ID != app_id {
+		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+	if app.Meta.User != c.us.UserName {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
+		return
+	}
+
+	if app.Operate.PodId == "" {
+		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+	if c.Params.Get("operate_action") == "start" {
+
+		if app.Operate.Action != losapi.AppOperateStart {
+			app.Operate.Action = losapi.AppOperateStart
+			app_sync = true
+		}
+	}
+
+	//
+	for i, srvport := range app.Spec.ServicePorts {
+
+		if srvport.HostPort > 0 && srvport.HostPort <= 1024 {
+			if c.us.UserName != "sysadmin" {
+				set.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
+				return
+			}
+		} else {
+			// TODO
+			app.Spec.ServicePorts[i].HostPort = 0
+			app_sync = true
+		}
+	}
+
+	if app_sync {
+		app.Meta.Updated = types.MetaTimeNow()
+		if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app_id), app, &skv.PathWriteOptions{
+			Force: true,
+		}); !rs.OK() {
+			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+			return
+		}
+	}
+
+	app.Spec.Configurator = nil
+
+	//
+	var pod losapi.Pod
+	obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(app.Operate.PodId))
+	if obj.OK() {
+		obj.Decode(&pod)
+	}
+	if pod.Meta.ID == "" ||
+		pod.Meta.ID != app.Operate.PodId ||
+		pod.Meta.User != c.us.UserName {
+		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	if pod.Spec.Zone == "" || pod.Spec.Cell == "" {
+		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	pod.Apps.Sync(app)
+	pod.OperateRefresh()
+	pod.Meta.Updated = types.MetaTimeNow()
+
+	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
+		PrevVersion: obj.Meta().Version,
+	}); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		return
+	}
+
+	// Pod Map to Cell Queue
+	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
+		Force: true,
+	}); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		return
+	}
+
+	set.Kind = "App"
+}
 
 func (c Pod) AppSetAction() {
 
