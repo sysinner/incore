@@ -337,19 +337,28 @@ func (c AppSpec) CfgSetAction() {
 		// TODO
 
 		item := losapi.AppConfigField{
-			Name:    v.Name,
-			Title:   v.Title,
-			Prompt:  v.Prompt,
-			Type:    v.Type,
-			Default: v.Default,
+			Name:     v.Name,
+			Title:    v.Title,
+			Prompt:   v.Prompt,
+			Type:     v.Type,
+			Default:  v.Default,
+			AutoFill: v.AutoFill,
 		}
 
-		for _, ve := range v.Enums {
-			item.Enums.Set(ve.Name, ve.Value)
+		if item.AutoFill != "" && !losapi.AppConfigFieldAutoFillValid(item.AutoFill) {
+			set.Error = types.NewErrorMeta("400", "Invalid AutoFill Value")
+			return
 		}
 
-		for _, vv := range v.Validates {
-			item.Validates.Set(vv.Key, vv.Value)
+		if item.AutoFill == "" {
+
+			for _, ve := range v.Enums {
+				item.Enums.Set(ve.Name, ve.Value)
+			}
+
+			for _, vv := range v.Validates {
+				item.Validates.Set(vv.Key, vv.Value)
+			}
 		}
 
 		prev.Configurator.Fields.Sync(item)

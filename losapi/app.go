@@ -146,7 +146,26 @@ const (
 	AppConfigFieldTypeString     uint16 = 1
 	AppConfigFieldTypeSelect     uint16 = 2
 	AppConfigFieldTypeAppOpBound uint16 = 10
+
+	AppConfigFieldAutoFillDefaultValue = "defval"
+	AppConfigFieldAutoFillHexString_32 = "hexstr_32"
+	AppConfigFieldAutoFillBase64_48    = "base64_48"
 )
+
+func AppConfigFieldAutoFillValid(v string) bool {
+
+	switch v {
+
+	case AppConfigFieldAutoFillDefaultValue,
+		AppConfigFieldAutoFillHexString_32,
+		AppConfigFieldAutoFillBase64_48:
+
+	default:
+		return false
+	}
+
+	return true
+}
 
 type AppConfigField struct {
 	Name      string        `json:"name"`
@@ -154,6 +173,7 @@ type AppConfigField struct {
 	Prompt    string        `json:"prompt,omitempty"`
 	Type      uint16        `json:"type,omitempty"`
 	Default   string        `json:"default,omitempty"`
+	AutoFill  string        `json:"auto_fill,omitempty"`
 	Enums     types.Labels  `json:"enums,omitempty"`
 	Validates types.KvPairs `json:"validates,omitempty"`
 }

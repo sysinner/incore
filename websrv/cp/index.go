@@ -15,6 +15,8 @@
 package cp
 
 import (
+	"code.hooto.com/lessos/iam/iamclient"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/httpsrv"
 )
 
@@ -24,15 +26,24 @@ type Index struct {
 
 func (c Index) IndexAction() {
 
+	c.AutoRender = false
+	c.Response.Out.Header().Set("Cache-Control", "no-cache")
+
+	login := "false"
+	if !iamclient.SessionIsLogin(c.Session) {
+		login = "true"
+	}
+
+	reqid := idhash.RandHexString(8)
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
   <title>CP</title>
-  <script src="/los/cp/~/lessui/js/sea.js"></script>
-  <script src="/los/cp/~/cp/js/main.js"></script>
+  <script src="/los/cp/~/lessui/js/sea.js?v=` + reqid + `"></script>
+  <script src="/los/cp/~/cp/js/main.js?v=` + reqid + `"></script>
   <script type="text/javascript">
-    window.onload = losCp.Boot();
+    window.onload = losCp.Boot(` + login + `);
   </script>
 </head>
 

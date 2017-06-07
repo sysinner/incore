@@ -492,10 +492,46 @@ func (c AppInst) ConfigAction() {
 
 	for _, field := range app.Spec.Configurator.Fields {
 
-		value := ""
-
+		var (
+			value      = ""
+			value_prev = ""
+		)
 		if v, ok := set.Option.Items.Get(field.Name); ok {
 			value = v.String()
+		}
+		if v, ok := app_op_opt.Items.Get(field.Name); ok {
+			value_prev = v.String()
+		}
+
+		if field.AutoFill != "" {
+
+			switch field.AutoFill {
+
+			case losapi.AppConfigFieldAutoFillDefaultValue:
+				if len(field.Default) < 1 {
+					rsp.Error = types.NewErrorMeta("500", "Server Error")
+					return
+				}
+				value = field.Default
+
+			case losapi.AppConfigFieldAutoFillHexString_32:
+				if len(value_prev) < 32 {
+					value = idhash.RandHexString(32)
+				} else {
+					value = value_prev
+				}
+
+			case losapi.AppConfigFieldAutoFillBase64_48:
+				if len(value_prev) < 44 {
+					value = idhash.RandBase64String(48)
+				} else {
+					value = value_prev
+				}
+
+			default:
+				rsp.Error = types.NewErrorMeta("500", "Server Error")
+				return
+			}
 		}
 
 		for _, validator := range field.Validates {
