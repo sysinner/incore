@@ -41,10 +41,6 @@ const (
 type OpType string
 
 const (
-	OpActionStart   OpType = "start"
-	OpActionStop    OpType = "stop"
-	OpActionDestroy OpType = "destroy"
-
 	OpStatusPending   OpType = "pending"
 	OpStatusRunning   OpType = "running"
 	OpStatusStopped   OpType = "stopped"
@@ -495,7 +491,7 @@ func (s *PodSpecPlanSetup) Valid(plan PodSpecPlan) error {
 }
 
 type PodOperate struct {
-	Action OpType       `json:"action,omitempty"`
+	Action uint32       `json:"action,omitempty"`
 	Node   string       `json:"node,omitempty"`
 	Ports  ServicePorts `json:"ports,omitempty"`
 }

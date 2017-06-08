@@ -342,6 +342,66 @@ func (c Pod) NewAction() {
 	set.Kind = "PodInstance"
 }
 
+func (c Pod) OpActionSetAction() {
+
+	set := types.TypeMeta{}
+	defer c.RenderJson(&set)
+
+	var (
+		pod_id    = c.Params.Get("pod_id")
+		op_action = uint32(c.Params.Uint64("op_action"))
+	)
+
+	if !losapi.PodIdReg.MatchString(pod_id) {
+		set.Error = types.NewErrorMeta("400", "Invalid Pod ID")
+		return
+	}
+
+	if !losapi.OpActionValid(op_action) {
+		set.Error = types.NewErrorMeta("400", "Invalid OpAction")
+		return
+	}
+
+	var prev losapi.Pod
+	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+		set.Error = types.NewErrorMeta("400", "Pod Not Found")
+		return
+	} else {
+		rs.Decode(&prev)
+	}
+
+	if prev.Meta.ID != pod_id ||
+		prev.Meta.User != c.us.UserName {
+		set.Error = types.NewErrorMeta("400", "Pod Not Found or Access Denied")
+		return
+	}
+
+	//
+	if prev.Operate.Action == op_action {
+		set.Kind = "PodInstance"
+		return
+	}
+
+	prev.Operate.Action = op_action
+	prev.Meta.Updated = types.MetaTimeNow()
+
+	data.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
+		Force: true,
+	})
+
+	// Pod Map to Cell Queue
+	qstr := losapi.NsZonePodSetQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+		set.Error = types.NewErrorMeta(losapi.ErrCodeBadArgument, "ObjectAlreadyExists")
+		return
+	}
+	data.ZoneMaster.PvPut(qstr, prev, &skv.PathWriteOptions{
+		Force: true,
+	})
+
+	set.Kind = "PodInstance"
+}
+
 func (c Pod) SetInfoAction() {
 
 	var (
@@ -357,8 +417,12 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
+	if set.Operate.Action > 0 && !losapi.OpActionValid(set.Operate.Action) {
+		set.Error = types.NewErrorMeta("400", "Invalid OpAction")
+		return
+	}
 
+	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
@@ -384,7 +448,9 @@ func (c Pod) SetInfoAction() {
 	}
 
 	prev.Meta.Name = set.Meta.Name
-	prev.Operate.Action = set.Operate.Action
+	if set.Operate.Action > 0 {
+		prev.Operate.Action = set.Operate.Action
+	}
 
 	//
 	prev.Meta.Updated = types.MetaTimeNow()

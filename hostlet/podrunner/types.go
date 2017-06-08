@@ -25,7 +25,7 @@ type BoxInstance struct {
 	ID          string
 	Name        string
 	PodID       string
-	PodOpAction losapi.OpType
+	PodOpAction uint32
 	Spec        losapi.PodSpecBoxBound
 	Apps        losapi.AppInstances
 	Status      losapi.PodBoxStatus

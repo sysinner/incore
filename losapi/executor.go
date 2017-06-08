@@ -110,11 +110,12 @@ func (ls *Executors) Remove(name types.NameIdentifier) {
 type ExecutorAction uint64
 
 const (
-	ExecutorActionRun     ExecutorAction = 1 << 1
-	ExecutorActionRunning ExecutorAction = 1 << 3
-	ExecutorActionDone    ExecutorAction = 1 << 4
-	ExecutorActionSuccess ExecutorAction = 1 << 5
-	ExecutorActionFailed  ExecutorAction = 1 << 6
+	ExecutorActionStart   ExecutorAction = 1 << 1
+	ExecutorActionStarted ExecutorAction = 1 << 2
+	ExecutorActionStop    ExecutorAction = 1 << 3
+	ExecutorActionStopped ExecutorAction = 1 << 4
+	ExecutorActionPending ExecutorAction = 1 << 10
+	ExecutorActionFailed  ExecutorAction = 1 << 11
 )
 
 func (a ExecutorAction) Allow(as ExecutorAction) bool {
@@ -133,16 +134,16 @@ func (a ExecutorAction) String() string {
 
 	as := []string{}
 
-	if a.Allow(ExecutorActionRunning) {
-		as = append(as, "running")
+	if a.Allow(ExecutorActionPending) {
+		as = append(as, "pending")
 	}
 
-	if a.Allow(ExecutorActionDone) {
-		as = append(as, "done")
+	if a.Allow(ExecutorActionStarted) {
+		as = append(as, "started")
 	}
 
-	if a.Allow(ExecutorActionSuccess) {
-		as = append(as, "success")
+	if a.Allow(ExecutorActionStopped) {
+		as = append(as, "stopped")
 	}
 
 	if a.Allow(ExecutorActionFailed) {

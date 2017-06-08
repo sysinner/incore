@@ -45,6 +45,31 @@ const (
 	ErrCodeObjectVersionConflict = "ObjectVersionConflict" // test and set object
 )
 
+var (
+	OpActionStart   uint32 = 1 << 1
+	OpActionStop    uint32 = 1 << 3
+	OpActionDestroy uint32 = 1 << 5
+)
+
+func OpActionValid(op uint32) bool {
+	return OpActionAllow(
+		OpActionStart|OpActionStop|OpActionDestroy,
+		op,
+	)
+}
+
+func OpActionAllow(opbase, op uint32) bool {
+	return (op & opbase) == op
+}
+
+func OpActionRemove(opbase, op uint32) uint32 {
+	return (opbase | op) - (op)
+}
+
+func OpActionAppend(opbase, op uint32) uint32 {
+	return (opbase | op)
+}
+
 const (
 	GeneralPhaseActive  = "Active"
 	GeneralPhaseSuspend = "Suspend"

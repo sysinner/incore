@@ -160,7 +160,7 @@ func (br *BoxKeeper) status_watcher() {
 		// Diff and retry
 		for _, inst := range box_keeper.instances {
 
-			if inst.PodOpAction == "" {
+			if inst.PodOpAction == 0 {
 				continue
 			}
 
@@ -232,7 +232,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 		return err
 	}
 
-	if inst.PodOpAction == "" || inst.Spec.Name == "" {
+	if inst.PodOpAction == 0 || inst.Spec.Name == "" {
 		logger.Printf("warn", "nodelet/box Error: No Spec Found BOX:%s", inst.Name)
 		return errors.New("No Spec Found")
 	}

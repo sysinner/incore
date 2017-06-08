@@ -58,8 +58,9 @@ func (c Pod) AppSyncAction() {
 	}
 	if c.Params.Get("operate_action") == "start" {
 
-		if app.Operate.Action != losapi.AppOperateStart {
-			app.Operate.Action = losapi.AppOperateStart
+		if losapi.OpActionAllow(app.Operate.Action, losapi.OpActionStart) {
+			app.Operate.Action = losapi.OpActionAppend(app.Operate.Action,
+				losapi.OpActionStart)
 			app_sync = true
 		}
 	}

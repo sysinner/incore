@@ -184,7 +184,10 @@ func (c AppInst) SetAction() {
 		return
 	}
 
-	var prev losapi.AppInstance
+	var (
+		prev   losapi.AppInstance
+		deploy = false
+	)
 
 	if len(set.Meta.ID) < 8 {
 
@@ -217,7 +220,13 @@ func (c AppInst) SetAction() {
 
 			prev.Meta.Name = set.Meta.Name
 			prev.Operate.ResBoundRoles = set.Operate.ResBoundRoles
-			prev.Operate.Action = set.Operate.Action
+
+			if set.Operate.Action > 0 &&
+				losapi.OpActionValid(set.Operate.Action) &&
+				prev.Operate.Action != set.Operate.Action {
+				prev.Operate.Action = set.Operate.Action
+				deploy = true
+			}
 		}
 	}
 
@@ -245,6 +254,10 @@ func (c AppInst) SetAction() {
 	}); !obj.OK() {
 		rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
 		return
+	}
+
+	if deploy {
+		appInstDeploy(prev)
 	}
 
 	rsp.Meta.ID = prev.Meta.ID
@@ -310,6 +323,107 @@ func (c AppInst) ListOpResAction() {
 	}
 
 	ls.Kind = "AppList"
+}
+
+func (c AppInst) OpActionSetAction() {
+
+	rsp := types.TypeMeta{}
+	defer c.RenderJson(&rsp)
+
+	var (
+		app_id    = c.Params.Get("app_id")
+		op_action = uint32(c.Params.Uint64("op_action"))
+	)
+
+	if !losapi.AppIdRe2.MatchString(app_id) {
+		rsp.Error = types.NewErrorMeta("400", "Invalid AppInstance ID")
+		return
+	}
+
+	if !losapi.OpActionAllow(
+		losapi.OpActionStart|losapi.OpActionStop|losapi.OpActionDestroy,
+		op_action,
+	) {
+		rsp.Error = types.NewErrorMeta("400", "Invalid OpAction")
+		return
+	}
+
+	//
+	var app losapi.AppInstance
+	if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(app_id)); obj.OK() {
+		obj.Decode(&app)
+	}
+	if app.Meta.ID != app_id ||
+		app.Meta.User != c.us.UserName {
+		rsp.Error = types.NewErrorMeta("400", "App Not Found, or Access Denied")
+		return
+	}
+
+	if app.Operate.PodId == "" {
+		rsp.Error = types.NewErrorMeta("400", "No Pod Bound")
+		return
+	}
+
+	if app.Operate.Action != op_action {
+
+		app.Operate.Action = op_action
+		app.Meta.Updated = types.MetaTimeNow()
+
+		if obj := los_db.ZoneMaster.PvPut(
+			losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
+				Force: true,
+			},
+		); !obj.OK() {
+			rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+			return
+		}
+	}
+
+	if rsp.Error = appInstDeploy(app); rsp.Error != nil {
+		return
+	}
+
+	rsp.Kind = "App"
+}
+
+func appInstDeploy(app losapi.AppInstance) *types.ErrorMeta {
+
+	if app.Operate.PodId == "" {
+		return nil
+	}
+
+	var pod losapi.Pod
+	if rs := los_db.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(app.Operate.PodId)); !rs.OK() {
+		return types.NewErrorMeta("500", rs.Bytex().String())
+	} else {
+		rs.Decode(&pod)
+	}
+
+	if pod.Meta.ID != app.Operate.PodId {
+		return types.NewErrorMeta("404", "No Pod Found")
+	}
+
+	pod.Apps.Sync(app)
+	pod.OperateRefresh()
+	pod.Meta.Updated = types.MetaTimeNow()
+
+	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
+		Force: true,
+	}); !rs.OK() {
+		return types.NewErrorMeta("500", rs.Bytex().String())
+	}
+
+	// Pod Map to Cell Queue
+	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
+		Force: true,
+	}); !rs.OK() {
+		return types.NewErrorMeta("500", rs.Bytex().String())
+	}
+
+	logger.Printf("info", "deploy app/%s to pod/%s", app.Meta.ID, pod.Meta.ID)
+
+	return nil
 }
 
 func (c AppInst) OpResSetAction() {
@@ -397,36 +511,10 @@ func (c AppInst) OpResSetAction() {
 		}
 
 		if app.Operate.PodId != "" &&
-			app.Operate.Action == losapi.AppOperateStart {
+			losapi.OpActionAllow(app.Operate.Action, losapi.OpActionStart) {
 
-			var pod losapi.Pod
-
-			if rs := los_db.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(app.Operate.PodId)); rs.OK() {
-				rs.Decode(&pod)
-				if pod.Meta.ID == app.Operate.PodId {
-
-					pod.Apps.Sync(app)
-					pod.OperateRefresh()
-					pod.Meta.Updated = types.MetaTimeNow()
-
-					if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
-						PrevVersion: rs.Meta().Version,
-					}); !rs.OK() {
-						rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
-						return
-					}
-
-					// Pod Map to Cell Queue
-					qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-					if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
-						Force: true,
-					}); !rs.OK() {
-						rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
-						return
-					}
-
-					logger.Printf("info", "deploy app/%s to pod/%s", app.Meta.ID, pod.Meta.ID)
-				}
+			if rsp.Error = appInstDeploy(app); rsp.Error != nil {
+				return
 			}
 		}
 

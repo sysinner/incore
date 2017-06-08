@@ -25,6 +25,7 @@ var (
 	app_op_mu             sync.RWMutex
 	app_op_ref_mu         sync.RWMutex
 	app_spec_cfg_name_re2 = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
+	AppIdRe2              = regexp.MustCompile("^[a-f0-9]{12,20}$")
 )
 
 type AppPhase string
@@ -200,14 +201,9 @@ func (ls *AppConfigFields) Sync(item AppConfigField) {
 	*ls = append(*ls, &item)
 }
 
-var (
-	AppOperateStart uint16 = 1 << 1
-	AppOperateStop  uint16 = 1 << 3
-)
-
 //
 type AppOperate struct {
-	Action        uint16            `json:"action,omitempty"`
+	Action        uint32            `json:"action,omitempty"`
 	PodId         string            `json:"pod_id,omitempty"`
 	Options       AppOptions        `json:"options,omitempty"`
 	ResBoundRoles types.ArrayUint32 `json:"res_bound_roles,omitempty"`

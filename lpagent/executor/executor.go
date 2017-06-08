@@ -66,13 +66,13 @@ func Runner(home_dir string) {
 				ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.Name, ve.Name))
 
 				status.Executors.Sync(ve)
-				executor_action(ve, data_maps)
+				executor_action(ve, data_maps, app.Operate.Action)
 			}
 		}
 	}
 }
 
-func executor_action(etr losapi.Executor, dms map[string]string) {
+func executor_action(etr losapi.Executor, dms map[string]string, op_action uint32) {
 
 	es := status.Statuses.Get(etr.Name)
 
@@ -94,25 +94,32 @@ func executor_action(etr losapi.Executor, dms map[string]string) {
 		if es.Cmd.Process != nil {
 
 			if es.Cmd.ProcessState == nil {
-				es.Action.Append(losapi.ExecutorActionRunning)
+				es.Action.Append(losapi.ExecutorActionPending)
 			}
 		}
 
 		if es.Cmd.ProcessState != nil && es.Cmd.ProcessState.Exited() {
 
-			es.Action.Remove(losapi.ExecutorActionRun)
-			es.Action.Remove(losapi.ExecutorActionRunning)
-
-			es.Action.Append(losapi.ExecutorActionDone)
+			es.Action.Remove(losapi.ExecutorActionPending)
 
 			if es.Cmd.ProcessState.Success() {
-				es.Action.Append(losapi.ExecutorActionSuccess)
+				es.Action.Remove(losapi.ExecutorActionFailed)
 			} else {
 				es.Action.Append(losapi.ExecutorActionFailed)
 			}
 
-			// logger.Printf("info", "executor:%s status: %s",
-			// 	etr.Name, es.Action.String())
+			if es.Action.Allow(losapi.ExecutorActionStart) {
+				es.Action.Remove(losapi.ExecutorActionStart)
+				es.Action.Append(losapi.ExecutorActionStarted)
+			}
+
+			if es.Action.Allow(losapi.ExecutorActionStop) {
+				es.Action.Remove(losapi.ExecutorActionStop)
+				es.Action.Append(losapi.ExecutorActionStopped)
+			}
+
+			logger.Printf("info", "executor:%s done status: %s",
+				etr.Name, es.Action.String())
 
 			if es.Cmd.Process != nil {
 				es.Cmd.Process.Kill()
@@ -124,37 +131,51 @@ func executor_action(etr losapi.Executor, dms map[string]string) {
 		}
 	}
 
-	//
-	// logger.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
-	if es.Action.Allow(losapi.ExecutorActionRun) ||
-		es.Action.Allow(losapi.ExecutorActionRunning) {
-
-		// logger.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", etr.Name)
+	if losapi.OpActionAllow(op_action, losapi.OpActionStop) &&
+		es.Action.Allow(losapi.ExecutorActionStopped) {
 		return
 	}
 
+	//
+	// logger.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
+	if es.Action.Allow(losapi.ExecutorActionPending) {
+		logger.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", etr.Name)
+		return
+	}
+
+	/*
+		if losapi.OpActionAllow(op_action, losapi.OpActionStop) {
+			es.Action.Append(losapi.ExecutorActionStop)
+		}
+	*/
+
 	// Exec Planner
-	{
+	if losapi.OpActionAllow(op_action, losapi.OpActionStop) {
+		es.Action = losapi.ExecutorActionStop
+	} else if losapi.OpActionAllow(op_action, losapi.OpActionStart) {
+
+		es.Action.Remove(losapi.ExecutorActionStop)
+		es.Action.Remove(losapi.ExecutorActionStopped)
+
 		//
 		if etr.Plan.OnBoot &&
 			es.Plan.Updated < 1 &&
-			!es.Action.Allow(losapi.ExecutorActionRun) &&
-			!es.Action.Allow(losapi.ExecutorActionDone) {
+			!es.Action.Allow(losapi.ExecutorActionStarted) {
 
-			es.Action.Append(losapi.ExecutorActionRun)
+			es.Action.Append(losapi.ExecutorActionStart)
 
-			logger.Printf("warn", "executor:%s Plan.OnBoot Run", etr.Name)
+			logger.Printf("warn", "executor:%s Plan.OnBoot Exec", etr.Name)
 		}
 
 		//
 		if etr.Plan.OnCalendar != nil &&
-			!es.Action.Allow(losapi.ExecutorActionRun) {
+			!es.Action.Allow(losapi.ExecutorActionStart) {
 			// TODO
 		}
 
 		//
 		if etr.Plan.OnTick > 0 &&
-			!es.Action.Allow(losapi.ExecutorActionRun) {
+			!es.Action.Allow(losapi.ExecutorActionStart) {
 
 			if etr.Plan.OnTick < 60 {
 				etr.Plan.OnTick = 60
@@ -162,7 +183,8 @@ func executor_action(etr losapi.Executor, dms map[string]string) {
 
 			if (time.Now().UTC().Unix() - es.Plan.Updated.Time().Unix()) > int64(etr.Plan.OnTick) {
 
-				es.Action.Append(losapi.ExecutorActionRun)
+				es.Action.Append(losapi.ExecutorActionStart)
+				es.Action.Remove(losapi.ExecutorActionStarted)
 
 				logger.Printf("info", "executor:%s Plan.OnTick", etr.Name)
 			}
@@ -170,7 +192,7 @@ func executor_action(etr losapi.Executor, dms map[string]string) {
 
 		//
 		if etr.Plan.OnFailed != nil &&
-			!es.Action.Allow(losapi.ExecutorActionRun) &&
+			!es.Action.Allow(losapi.ExecutorActionStart) &&
 			es.Action.Allow(losapi.ExecutorActionFailed) {
 
 			retry_sec := etr.Plan.OnFailed.RetrySec.Seconds()
@@ -183,20 +205,32 @@ func executor_action(etr losapi.Executor, dms map[string]string) {
 					es.Plan.OnFailedRetryNum < etr.Plan.OnFailed.RetryMax) &&
 				(time.Now().UTC().Unix()-es.Plan.Updated.Time().Unix()) > retry_sec {
 
-				es.Action.Append(losapi.ExecutorActionRun)
+				es.Action.Append(losapi.ExecutorActionStart)
+				es.Action.Remove(losapi.ExecutorActionStarted)
+
 				es.Plan.OnFailedRetryNum++
 
 				logger.Printf("warn", "executor:%s Plan.OnFailed Retry %d",
 					etr.Name, es.Plan.OnFailedRetryNum)
 			}
 		}
-	}
 
-	if !es.Action.Allow(losapi.ExecutorActionRun) {
+	} else {
 		return
 	}
 
 	//
+	script := ""
+	if es.Action.Allow(losapi.ExecutorActionStart) {
+		script = etr.ExecStart
+	} else if es.Action.Allow(losapi.ExecutorActionStop) {
+		script = etr.ExecStop
+	} else {
+		return
+	}
+
+	//
+	es.Action.Append(losapi.ExecutorActionPending)
 	es.Plan.Updated = types.MetaTimeNow()
 	if es.Cmd == nil {
 		es.Cmd = exec.Command("/bin/bash", "--rcfile", "/home/action/.bashrc")
@@ -212,7 +246,7 @@ func executor_action(etr losapi.Executor, dms map[string]string) {
 	*/
 
 	//
-	tpl, err := template.New("s").Parse(etr.ExecStart)
+	tpl, err := template.New("s").Parse(script)
 	if err != nil {
 		logger.Printf("error", "executor:%s template.Parse E:%s",
 			etr.Name, err.Error())
@@ -233,7 +267,7 @@ func executor_action(etr losapi.Executor, dms map[string]string) {
 			etr.Name, err.Error())
 		return
 	} else {
-		logger.Printf("info", "executor:%s running", etr.Name)
+		logger.Printf("info", "executor:%s pending", etr.Name)
 	}
 }
 
@@ -244,7 +278,7 @@ func executor_cmd(name string, cmd *exec.Cmd, script string) error {
 	}
 
 	if cmd.Process != nil && cmd.ProcessState == nil {
-		return errors.New("Command Running")
+		return errors.New("Command Pending")
 	}
 
 	if cmd.ProcessState != nil {
