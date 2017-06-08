@@ -42,21 +42,31 @@ func (c Index) IndexAction() {
   <title>CP</title>
   <script src="/los/cp/~/lessui/js/sea.js?v=` + reqid + `"></script>
   <script src="/los/cp/~/cp/js/main.js?v=` + reqid + `"></script>
+  <link rel="stylesheet" href="/los/cp/~/cp/css/main.css?v=` + reqid + `" type="text/css">
   <script type="text/javascript">
     window.onload = losCp.Boot(` + login + `);
   </script>
 </head>
-
 <body id="body-content">
-<style>
-._loscp_loading {
-  margin: 0;
-  padding: 30px 40px;
-  font-size: 48px;
-  color: #000;
-}
-</style>
-<div class="_loscp_loading">loading</div>
+<div class="loscp-well" id="loscp-well">
+<div class="loscp-well-box">
+  <div class="loscp-well-panel">
+    <div class="body2c">
+      <div class="body2c1">
+        <img src="/los/cp/~/cp/img/logo-g1s96.png">
+      </div>
+      <div class="body2c2">
+        <div>Development Productivity Tools for DevOps</div>
+      </div>
+    </div>
+    <div class="status status_dark" id="loscp-well-status">loading</div>
+  </div>
+  <div class="footer">
+    <span class="copy">&copy;2017&nbsp;</span>
+    <a href="http://www.lessos.com" target="_blank">lessOS.com</a>
+  </div>
+</div>
+</div>
 </body>
 </html>
 `)
