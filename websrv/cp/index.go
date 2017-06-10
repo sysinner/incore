@@ -16,8 +16,9 @@ package cp
 
 import (
 	"code.hooto.com/lessos/iam/iamclient"
-	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/httpsrv"
+
+	"code.hooto.com/lessos/los-webui"
 )
 
 type Index struct {
@@ -34,16 +35,16 @@ func (c Index) IndexAction() {
 		login = "true"
 	}
 
-	reqid := idhash.RandHexString(8)
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
   <title>CP</title>
-  <script src="/los/cp/~/lessui/js/sea.js?v=` + reqid + `"></script>
-  <script src="/los/cp/~/cp/js/main.js?v=` + reqid + `"></script>
-  <link rel="stylesheet" href="/los/cp/~/cp/css/main.css?v=` + reqid + `" type="text/css">
+  <script src="/los/cp/~/lessui/js/sea.js?v=` + los_webui.Version + `"></script>
+  <script src="/los/cp/~/cp/js/main.js?v=` + los_webui.Version + `"></script>
+  <link rel="stylesheet" href="/los/cp/~/cp/css/main.css?v=` + los_webui.Version + `" type="text/css">
   <script type="text/javascript">
+    losCp.version = "` + los_webui.Version + `";
     window.onload = losCp.Boot(` + login + `);
   </script>
 </head>

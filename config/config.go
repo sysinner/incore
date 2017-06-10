@@ -33,6 +33,10 @@ import (
 	"code.hooto.com/lessos/loscore/losapi"
 )
 
+const (
+	Version = "0.0.1.dev"
+)
+
 type HostMember struct {
 	Id        string                 `json:"id"`
 	ZoneId    string                 `json:"zone_id,omitempty"`

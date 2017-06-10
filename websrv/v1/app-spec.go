@@ -185,6 +185,8 @@ func (c AppSpec) EntryAction() {
 
 	if c.Params.Get("download") == "true" {
 		set.Meta.User = ""
+		set.Meta.Created = 0
+		set.Meta.Updated = 0
 		c.Response.Out.Header().Set("Content-Disposition",
 			fmt.Sprintf("attachment; filename=los_app_spec_%s.json", set.Meta.Name))
 	}
