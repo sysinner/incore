@@ -42,7 +42,7 @@ func (c Index) IndexAction() {
   <title>CP</title>
   <script src="/los/cp/~/lessui/js/sea.js?v=` + los_webui.Version + `"></script>
   <script src="/los/cp/~/cp/js/main.js?v=` + los_webui.Version + `"></script>
-  <link rel="stylesheet" href="/los/cp/~/cp/css/main.css?v=` + los_webui.Version + `" type="text/css">
+  <link rel="stylesheet" href="/los/cp/~/cp/css/imain.css?v=` + los_webui.Version + `" type="text/css">
   <script type="text/javascript">
     losCp.version = "` + los_webui.Version + `";
     window.onload = losCp.Boot(` + login + `);
@@ -57,7 +57,7 @@ func (c Index) IndexAction() {
         <img src="/los/cp/~/cp/img/logo-g1s96.png">
       </div>
       <div class="body2c2">
-        <div>Development Productivity Tools for DevOps</div>
+        <div>Development Productivity Tools<br/>for DevOps</div>
       </div>
     </div>
     <div class="status status_dark" id="loscp-well-status">loading</div>

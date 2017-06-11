@@ -17,14 +17,14 @@ package losapi
 type OpPerm uint8
 
 const (
-	OpRead   OpPerm = 1 << 0
-	OpWrite  OpPerm = 1 << 1
-	OpCreate OpPerm = 1 << 2
-	OpDelete OpPerm = 1 << 3
-	OpList   OpPerm = 1 << 4
-	OpPut    OpPerm = OpWrite | OpCreate
-	OpMirror OpPerm = OpRead | OpList
-	OpAll    OpPerm = OpRead | OpWrite | OpCreate | OpDelete | OpList
+	OpPermRead   OpPerm = 1 << 0
+	OpPermWrite  OpPerm = 1 << 1
+	OpPermCreate OpPerm = 1 << 2
+	OpPermDelete OpPerm = 1 << 3
+	OpPermList   OpPerm = 1 << 4
+	OpPermPut    OpPerm = OpPermWrite | OpPermCreate
+	OpPermMirror OpPerm = OpPermRead | OpPermList
+	OpPermAll    OpPerm = OpPermRead | OpPermWrite | OpPermCreate | OpPermDelete | OpPermList
 )
 
 func (p OpPerm) Allow(perms OpPerm) bool {

@@ -15,16 +15,34 @@
 package podrunner
 
 import (
+	"fmt"
 	"strings"
 
 	"code.hooto.com/lessos/loscore/config"
 	"code.hooto.com/lessos/loscore/losapi"
+	"code.hooto.com/lessos/loscore/losutils"
 )
+
+var (
+	vol_podhome_fmt      = "%s/%s.%s/home/action"
+	vol_agentsys_dir_fmt = "%s/%s.%s/home/action/.los"
+)
+
+func vol_podhome_dir(pod_id string, rep_id uint16) string {
+	return fmt.Sprintf(vol_podhome_fmt, config.Config.PodHomeDir,
+		pod_id, losutils.Uint16ToHexString(rep_id))
+}
+
+func vol_agentsys_dir(pod_id string, rep_id uint16) string {
+	return fmt.Sprintf(vol_agentsys_dir_fmt, config.Config.PodHomeDir,
+		pod_id, losutils.Uint16ToHexString(rep_id))
+}
 
 type BoxInstance struct {
 	ID          string
 	Name        string
 	PodID       string
+	RepId       uint16
 	PodOpAction uint32
 	Spec        losapi.PodSpecBoxBound
 	Apps        losapi.AppInstances
@@ -115,7 +133,7 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 	ls.Sync(losapi.VolumeMount{
 		Name:      "home",
 		MountPath: "/home/action",
-		HostDir:   config.Config.PodHomeDir + "/" + inst.PodID + "-0000/home/action",
+		HostDir:   vol_podhome_dir(inst.PodID, inst.RepId),
 		ReadOnly:  false,
 	})
 

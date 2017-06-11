@@ -212,35 +212,37 @@ func zone_tracker() {
 				for _, v := range rss {
 
 					var pod losapi.Pod
-
 					if err := v.Decode(&pod); err != nil {
 						continue
 					}
 
-					host := status.ZoneHostList.Item(pod.Operate.Node)
-					if host == nil {
-						continue
-					}
+					for _, opRep := range pod.Operate.Replicas {
 
-					for _, v := range pod.Operate.Ports {
-
-						if v.HostPort == 0 {
+						host := status.ZoneHostList.Item(opRep.Node)
+						if host == nil {
 							continue
 						}
 
-						if host.OpPortAlloc(v.HostPort) == 0 {
-							continue
+						for _, v := range opRep.Ports {
+
+							if v.HostPort == 0 {
+								continue
+							}
+
+							if host.OpPortAlloc(v.HostPort) == 0 {
+								continue
+							}
+
+							logger.Printf("warn", "refresh host:%s.operate.ports", host.Meta.Id)
+
+							data.ZoneMaster.PvPut(
+								losapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
+								host,
+								&skv.PathWriteOptions{
+									Force: true,
+								},
+							)
 						}
-
-						logger.Printf("warn", "refresh host.operate.ports")
-
-						data.ZoneMaster.PvPut(
-							losapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
-							host,
-							&skv.PathWriteOptions{
-								Force: true,
-							},
-						)
 					}
 				}
 			}

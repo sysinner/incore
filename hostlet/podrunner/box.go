@@ -28,6 +28,7 @@ import (
 	"github.com/lessos/lessgo/types"
 
 	"code.hooto.com/lessos/loscore/losapi"
+	"code.hooto.com/lessos/loscore/losutils"
 )
 
 type BoxKeeper struct {
@@ -83,21 +84,13 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 
 	br.mu.Lock()
 	defer br.mu.Unlock()
-	/*
-		sysdir := config.Config.PodHomeDir + "/" + pod.Meta.ID + "-0000/home/action/.los"
-		if err := losutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
-			return
-		}
-		if err := json.EncodeToFile(pod, sysdir+"/pod_instance.json", "  "); err != nil {
-			return
-		}
-	*/
+
 	//
 	for _, box_spec := range pod.Spec.Boxes {
 
 		inst_name := fmt.Sprintf(
-			"%s-0000-%s",
-			pod.Meta.ID, box_spec.Name,
+			"%s-%s-%s",
+			pod.Meta.ID, losutils.Uint16ToHexString(pod.Operate.Replica.Id), box_spec.Name,
 		)
 
 		if len(box_spec.Command) < 1 {
@@ -111,9 +104,10 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 				Name:        inst_name,
 				PodOpAction: pod.Operate.Action,
 				PodID:       pod.Meta.ID,
+				RepId:       pod.Operate.Replica.Id,
 				Spec:        box_spec,
 				Apps:        pod.Apps,
-				Ports:       pod.Operate.Ports, // TODO
+				Ports:       pod.Operate.Replica.Ports, // TODO
 			}
 
 			box_keeper.instances[inst_name] = box
@@ -156,8 +150,8 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 			}
 		}
 
-		if !box.Ports.Equal(pod.Operate.Ports) {
-			box.Ports = pod.Operate.Ports
+		if !box.Ports.Equal(pod.Operate.Replica.Ports) {
+			box.Ports = pod.Operate.Replica.Ports
 		}
 
 		box.volume_mounts_refresh()
@@ -196,7 +190,7 @@ func (br *BoxKeeper) status_update(item *BoxInstance) {
 
 	br.mu.Unlock()
 
-	pod_status_sync(item.PodID)
+	pod_status_sync(losapi.NsZonePodOpRepKey(item.PodID, item.RepId))
 }
 
 func (br *BoxKeeper) ctr_action() {

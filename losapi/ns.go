@@ -15,6 +15,7 @@
 package losapi
 
 import (
+	"encoding/binary"
 	"fmt"
 )
 
@@ -96,26 +97,41 @@ func NsGlobalResInstance(meta_name string) string {
 }
 
 //
-func NsZonePodSetQueue(zone_id, cell_id, pod_id string) string {
-	return fmt.Sprintf("/%s/pod/setq/%s/%s", zone_id, cell_id, pod_id)
+func NsZonePodOpQueue(zone_id, cell_id, pod_id string) string {
+	return fmt.Sprintf("/%s/pod/op/%s/%s", zone_id, cell_id, pod_id)
 }
 
 func NsZonePodInstance(zone_id, pod_id string) string {
 	return fmt.Sprintf("/%s/pod/instance/%s", zone_id, pod_id)
 }
 
-func NsZoneHostBoundPod(zone_id, host_id, pod_id string) string {
-	return fmt.Sprintf("/%s/bound/%s/pod/%s", zone_id, host_id, pod_id)
+func NsZonePodOpRepKey(pod_id string, rep_id uint16) string {
+	bs := make([]byte, 2)
+	binary.BigEndian.PutUint16(bs, rep_id)
+	return fmt.Sprintf("%s.%x", pod_id, bs)
 }
 
-func NsZoneHostBoundPodStatus(zone_id, host_id, pod_id string) string {
-	return fmt.Sprintf("/%s/bound/%s/status/%s", zone_id, host_id, pod_id)
+func NsZoneHostBoundPod(zone_id, host_id, pod_id string, rep_id uint16) string {
+	if len(pod_id) < 8 {
+		return fmt.Sprintf("/%s/bound/%s/pod", zone_id, host_id)
+	}
+	return fmt.Sprintf("/%s/bound/%s/pod/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, rep_id))
+}
+
+func NsZoneHostBoundPodReplicaStatus(zone_id, host_id, pod_id string, rep_id uint16) string {
+	if len(pod_id) < 8 {
+		return fmt.Sprintf("/%s/bound/%s/status", zone_id, host_id)
+	}
+	return fmt.Sprintf("/%s/bound/%s/status/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, rep_id))
 }
 
 func NsZonePodServiceMap(pod_id string) string {
 	return fmt.Sprintf("/nsz/ps/%s", pod_id)
 }
 
-func NsLocalCacheBoundPod(pod_id string) string {
-	return fmt.Sprintf("/lc/bound/pod/%s", pod_id)
+func NsLocalCacheBoundPod(pod_id string, rep_id uint16) string {
+	if len(pod_id) < 8 {
+		return fmt.Sprintf("/lc/bound/pod")
+	}
+	return fmt.Sprintf("/lc/bound/pod/%s", NsZonePodOpRepKey(pod_id, rep_id))
 }

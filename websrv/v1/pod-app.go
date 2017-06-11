@@ -111,7 +111,7 @@ func (c Pod) AppSyncAction() {
 	}
 
 	pod.Apps.Sync(app)
-	pod.OperateRefresh()
+	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
 	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
@@ -122,7 +122,7 @@ func (c Pod) AppSyncAction() {
 	}
 
 	// Pod Map to Cell Queue
-	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	qmpath := losapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {
@@ -183,7 +183,7 @@ func (c Pod) AppSetAction() {
 	app.Spec.Configurator = nil
 
 	pod.Apps.Sync(app)
-	pod.OperateRefresh()
+	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
 	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
@@ -194,7 +194,7 @@ func (c Pod) AppSetAction() {
 	}
 
 	// Pod Map to Cell Queue
-	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	qmpath := losapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {
@@ -293,6 +293,7 @@ func (c Pod) AppExecutorSetAction() {
 	pod.Apps.ExecutorSync(set.Executor, set.AppId)
 
 	//
+	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
 	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(set.PodId), pod, &skv.PathWriteOptions{
@@ -302,7 +303,7 @@ func (c Pod) AppExecutorSetAction() {
 		return
 	}
 
-	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	qmpath := losapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {

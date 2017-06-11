@@ -82,11 +82,6 @@ func (c Pod) ListAction() {
 				continue
 			}
 
-			// pod.Spec.Boxes[0].Image.Ref.Id = "6c34df9b5f760180"
-			// data.ZoneMaster.PvSet(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &losapi.ObjectWriteOptions{
-			// 	Force: true,
-			// })
-
 			if len(fields) > 0 {
 
 				podfs := losapi.Pod{
@@ -139,12 +134,16 @@ func (c Pod) ListAction() {
 						podfs.Operate.Action = pod.Operate.Action
 					}
 
-					if fields.Has("operate/node") {
-						podfs.Operate.Node = pod.Operate.Node
+					if fields.Has("operate/version") {
+						podfs.Operate.Version = pod.Operate.Version
 					}
 
-					if fields.Has("operate/ports") {
-						podfs.Operate.Ports = pod.Operate.Ports
+					if fields.Has("operate/replica_cap") {
+						podfs.Operate.ReplicaCap = pod.Operate.ReplicaCap
+					}
+
+					if fields.Has("operate/replicas") {
+						podfs.Operate.Replicas = pod.Operate.Replicas
 					}
 				}
 
@@ -172,22 +171,32 @@ func (c Pod) EntryAction() {
 	if zone_id == "" {
 		if obj := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(id)); obj.OK() {
 			obj.Decode(&set)
+			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
+				set = losapi.Pod{}
+				set.Error = types.NewErrorMeta("404", "Pod Not Found")
+				return
+			}
+			zone_id = set.Spec.Zone
 		}
-	} else {
-		if obj := data.ZoneMaster.PvGet(losapi.NsZonePodInstance(zone_id, id)); obj.OK() {
-			obj.Decode(&set)
-		}
-	}
-	if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
-		set.Error = types.NewErrorMeta("404", "Pod Not Found")
-		return
 	}
 
-	if fields == "status" {
-		if v := pod_status(set.Meta.ID, c.us.UserName); v.Phase != "" {
-			set.Status = &v
-		} else {
-			set.Status = nil
+	if zone_id != "" {
+
+		if obj := data.ZoneMaster.PvGet(losapi.NsZonePodInstance(zone_id, id)); obj.OK() {
+
+			obj.Decode(&set)
+			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
+				set = losapi.Pod{}
+				set.Error = types.NewErrorMeta("404", "Pod Not Found")
+				return
+			}
+			if fields == "status" {
+				if v := pod_status(set.Meta.ID, c.us.UserName); v.Phase != "" {
+					set.Status = &v
+				} else {
+					set.Status = nil
+				}
+			}
 		}
 	}
 
@@ -284,7 +293,9 @@ func (c Pod) NewAction() {
 			},
 		},
 		Operate: losapi.PodOperate{
-			Action: losapi.OpActionStart,
+			Action:     losapi.OpActionStart,
+			Version:    1,
+			ReplicaCap: 1,
 		},
 	}
 
@@ -330,13 +341,22 @@ func (c Pod) NewAction() {
 	}
 
 	//
+
 	if rs := data.ZoneMaster.PvNew(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
 
+	/*
+		oplog := losapi.NewOpLog(c.us.UserName)
+		if rs := data.ZoneMaster.PvNew(losapi.NsZonePodOperateLog(pod.Spec.Zone, pod.RepId(0)), oplog, nil); !rs.OK() {
+			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+			return
+		}
+	*/
+
 	// Pod Map to Cell Queue
-	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	qmpath := losapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	data.ZoneMaster.PvNew(qmpath, pod, nil)
 
 	set.Kind = "PodInstance"
@@ -383,6 +403,7 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	prev.Operate.Action = op_action
+	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	data.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
@@ -390,7 +411,7 @@ func (c Pod) OpActionSetAction() {
 	})
 
 	// Pod Map to Cell Queue
-	qstr := losapi.NsZonePodSetQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	qstr := losapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
 		set.Error = types.NewErrorMeta(losapi.ErrCodeBadArgument, "ObjectAlreadyExists")
 		return
@@ -450,6 +471,7 @@ func (c Pod) SetInfoAction() {
 	prev.Meta.Name = set.Meta.Name
 	if set.Operate.Action > 0 {
 		prev.Operate.Action = set.Operate.Action
+		prev.Operate.Version++
 	}
 
 	//
@@ -460,7 +482,7 @@ func (c Pod) SetInfoAction() {
 	})
 
 	// Pod Map to Cell Queue
-	qstr := losapi.NsZonePodSetQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	qstr := losapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
 		set.Error = types.NewErrorMeta(losapi.ErrCodeBadArgument, "ObjectAlreadyExists")
@@ -483,29 +505,7 @@ func (c Pod) StatusAction() {
 	rsp = pod_status(c.Params.Get("id"), c.us.UserName)
 }
 
-/*
-func (c Pod) StatusListAction() {
-
-	ls := losapi.PodStatusList{}
-	defer c.RenderJson(&ls)
-
-	ids := strings.Split(c.Params.Get("ids"), ",")
-	for i, id := range ids {
-
-		if i > 30 {
-			break
-		}
-
-		if set := pod_status(id, c.us.UserName); set.Error == nil && set.Kind == "PodStatus" {
-			ls.Items = append(ls.Items, set)
-		}
-	}
-
-	ls.Kind = "PodStatusList"
-}
-*/
-
-func pod_status(pod_id, user_name string) losapi.PodStatus {
+func pod_status(pod_id string, user_name string) losapi.PodStatus {
 
 	var (
 		pod    losapi.Pod
@@ -528,9 +528,7 @@ func pod_status(pod_id, user_name string) losapi.PodStatus {
 	}
 
 	//
-	if obj := data.ZoneMaster.PvGet(
-		losapi.NsZonePodInstance(pod.Spec.Zone, pod_id),
-	); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(losapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); obj.OK() {
 		obj.Decode(&pod)
 	}
 
@@ -539,23 +537,36 @@ func pod_status(pod_id, user_name string) losapi.PodStatus {
 		return status
 	}
 
-	//
-	if obj := data.ZoneMaster.PvGet(
-		losapi.NsZoneHostBoundPodStatus(pod.Spec.Zone, pod.Operate.Node, pod.Meta.ID),
-	); obj.OK() {
-		obj.Decode(&status)
-	}
+	for _, rep := range pod.Operate.Replicas {
 
-	if status.Phase == "" {
-		status.Error = types.NewErrorMeta("404.03", "Pod Not Found")
-	} else {
-
-		if (time.Now().UTC().Unix() - status.Updated.Time().Unix()) > 600 {
-			status.Phase = losapi.OpStatusUnknown
+		if rep.Node == "" {
+			continue
 		}
 
+		var rep_status losapi.PodStatusReplica
+		if obj := data.ZoneMaster.PvGet(
+			losapi.NsZoneHostBoundPodReplicaStatus(pod.Spec.Zone, rep.Node, pod.Meta.ID, rep.Id),
+		); obj.OK() {
+			obj.Decode(&rep_status)
+		}
+
+		if rep_status.Phase == "" {
+			rep_status.Phase = losapi.OpStatusPending
+		} else {
+
+			if (time.Now().UTC().Unix() - rep_status.Updated.Time().Unix()) > 600 {
+				rep_status.Phase = losapi.OpStatusUnknown
+			}
+
+			status.Replicas = append(status.Replicas, &rep_status)
+		}
+	}
+
+	if len(status.Replicas) > 0 {
 		status.Kind = "PodStatus"
 	}
+
+	status.Refresh(pod.Operate.ReplicaCap)
 
 	return status
 }

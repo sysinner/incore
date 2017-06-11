@@ -18,12 +18,15 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/lessos/lessgo/types"
 )
 
 var (
-	PodIdReg = regexp.MustCompile("^[a-f0-9]{12,20}$")
+	pod_op_mu sync.RWMutex
+	pod_st_mu sync.RWMutex
+	PodIdReg  = regexp.MustCompile("^[a-f0-9]{12,20}$")
 )
 
 type PodSpecBoxImageDriver string
@@ -69,7 +72,7 @@ type Pod struct {
 	Status *PodStatus `json:"status,omitempty"`
 }
 
-func (pod *Pod) OperateRefresh() (changed bool) {
+func (pod *Pod) AppServicePorts() ServicePorts {
 
 	var ports ServicePorts
 
@@ -80,12 +83,14 @@ func (pod *Pod) OperateRefresh() (changed bool) {
 		}
 	}
 
-	if !pod.Operate.Ports.Equal(ports) {
-		pod.Operate.Ports = ports
-		changed = true
-	}
+	return ports
+}
 
-	return changed
+func (pod *Pod) OpRepName() string {
+	if pod.Operate.Replica == nil {
+		return NsZonePodOpRepKey(pod.Meta.ID, 0)
+	}
+	return NsZonePodOpRepKey(pod.Meta.ID, pod.Operate.Replica.Id)
 }
 
 // PodList is a list of Pods.
@@ -491,23 +496,160 @@ func (s *PodSpecPlanSetup) Valid(plan PodSpecPlan) error {
 }
 
 type PodOperate struct {
-	Action uint32       `json:"action,omitempty"`
-	Node   string       `json:"node,omitempty"`
-	Ports  ServicePorts `json:"ports,omitempty"`
+	Action     uint32             `json:"action,omitempty"`
+	Version    uint32             `json:"version,omitempty"`
+	ReplicaCap int                `json:"replica_cap,omitempty"`
+	Replicas   PodOperateReplicas `json:"replicas,omitempty"`
+	Replica    *PodOperateReplica `json:"replica,omitempty"`
+}
+
+type PodOperateReplica struct {
+	Id    uint16       `json:"id"`
+	Node  string       `json:"node,omitempty"`
+	Ports ServicePorts `json:"ports,omitempty"`
+}
+
+type PodOperateReplicas []*PodOperateReplica
+
+func (ls *PodOperateReplicas) CapacitySet(n int) {
+
+	pod_op_mu.Lock()
+	defer pod_op_mu.Unlock()
+
+	if len(*ls) > 0 {
+		return
+	}
+
+	if n < 1 {
+		n = 1
+	} else if n > 4096 {
+		n = 4096
+	}
+
+	for id := uint16(0); id < uint16(n); id++ {
+		*ls = append(*ls, &PodOperateReplica{
+			Id:   id,
+			Node: "",
+		})
+	}
+}
+
+func (ls *PodOperateReplicas) Set(set PodOperateReplica) error {
+
+	pod_op_mu.Lock()
+	defer pod_op_mu.Unlock()
+
+	for _, v := range *ls {
+		if v.Id == set.Id {
+			if set.Node != "" && set.Node != v.Node {
+				v.Node = set.Node
+			}
+			return nil
+		}
+	}
+
+	return errors.New("No Replica Found")
+}
+
+func (ls *PodOperateReplicas) Get(rep_id uint16) *PodOperateReplica {
+
+	pod_op_mu.RLock()
+	defer pod_op_mu.RUnlock()
+
+	for _, v := range *ls {
+		if v.Id == rep_id {
+			return v
+		}
+	}
+
+	return nil
 }
 
 // PodStatus represents information about the status of a pod. Status may trail the actual
 // state of a system.
 type PodStatus struct {
 	types.TypeMeta `json:",inline"`
-	Updated        types.MetaTime `json:"updated,omitempty"`
-	Phase          OpType         `json:"phase,omitempty"`
-	Boxes          []PodBoxStatus `json:"boxes,omitempty"`
+	Phase          OpType            `json:"phase,omitempty"`
+	Replicas       PodStatusReplicas `json:"replicas,omitempty"`
+	Updated        types.MetaTime    `json:"updated,omitempty"`
+}
+
+func (it *Pod) StatusRefresh() {
+	it.Status.Refresh(it.Operate.ReplicaCap)
+}
+
+func (it *PodStatus) Refresh(rep_cap int) {
+
+	if rep_cap != len(it.Replicas) {
+
+		it.Phase = OpStatusPending
+
+	} else {
+
+		s_diff := map[OpType]int{}
+
+		for _, rep := range it.Replicas {
+
+			if rep.Updated > it.Updated {
+				it.Updated = rep.Updated
+			}
+
+			switch rep.Phase {
+
+			case OpStatusRunning,
+				OpStatusStopped,
+				OpStatusFailed,
+				OpStatusDestroyed:
+				s_diff[rep.Phase]++
+
+			default:
+				s_diff[OpStatusPending]++
+			}
+		}
+
+		if len(s_diff) == 1 {
+
+			for k := range s_diff {
+				it.Phase = k
+				break
+			}
+
+		} else if _, ok := s_diff[OpStatusFailed]; ok {
+			it.Phase = OpStatusFailed
+		} else {
+			it.Phase = OpStatusPending
+		}
+	}
 }
 
 type PodStatusList struct {
 	types.TypeMeta `json:",inline"`
 	Items          []PodStatus `json:"items"`
+}
+
+type PodStatusReplica struct {
+	Id      uint16         `json:"id"`
+	Phase   OpType         `json:"phase,omitempty"`
+	Boxes   []PodBoxStatus `json:"boxes,omitempty"`
+	Operate OpStatus       `json:"operate"`
+	Updated types.MetaTime `json:"updated,omitempty"`
+}
+
+type PodStatusReplicas []*PodStatusReplica
+
+func (ls *PodStatusReplicas) Set(set PodStatusReplica) {
+
+	pod_st_mu.Lock()
+	defer pod_st_mu.Unlock()
+
+	for _, v := range *ls {
+		if v.Id == set.Id {
+			v = &set
+			return
+		}
+	}
+
+	*ls = append(*ls, &set)
 }
 
 type PodExecutorStatus struct {

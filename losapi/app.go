@@ -204,6 +204,7 @@ func (ls *AppConfigFields) Sync(item AppConfigField) {
 //
 type AppOperate struct {
 	Action        uint32            `json:"action,omitempty"`
+	Zone          string            `json:"zone,omitempty"`
 	PodId         string            `json:"pod_id,omitempty"`
 	Options       AppOptions        `json:"options,omitempty"`
 	ResBoundRoles types.ArrayUint32 `json:"res_bound_roles,omitempty"`

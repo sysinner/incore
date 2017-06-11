@@ -59,7 +59,7 @@ func scheduler_exec_cell(cell_id string) {
 
 	// TODO pager
 	if rs := data.ZoneMaster.PvScan(
-		losapi.NsZonePodSetQueue(status.ZoneId, cell_id, ""), "", "", 1000); rs.OK() {
+		losapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 1000); rs.OK() {
 
 		rss := rs.KvList()
 		for _, v := range rss {
@@ -107,181 +107,201 @@ func scheduler_exec_cell(cell_id string) {
 			continue
 		}
 
-		if prev.Operate.Node != "" {
-			pod.Operate.Node = prev.Operate.Node
+		if len(prev.Operate.Replicas) > 0 {
+			pod.Operate.Replicas = prev.Operate.Replicas
+		} else {
+			pod.Operate.Replicas.CapacitySet(pod.Operate.ReplicaCap)
 		}
 
-		if pod.Operate.Node == "" {
+		// pod.OperateRefresh()
 
-			host_id, err := Scheduler.Schedule(pod, status.ZoneHostList)
+		for _, oprep := range pod.Operate.Replicas {
 
-			if err != nil || host_id == "" {
-				// TODO error log
-				continue
+			if oprep.Node == "" {
+
+				host_id, err := Scheduler.Schedule(pod, status.ZoneHostList)
+
+				if err != nil || host_id == "" {
+					// TODO error log
+					continue
+				}
+
+				host = status.ZoneHostList.Item(host_id)
+				if host == nil {
+					continue
+				}
+
+				pod.Operate.Replicas.Set(losapi.PodOperateReplica{
+					Id:   oprep.Id,
+					Node: host_id,
+				})
+
+				res := pod.Spec.ResComputeBound()
+				host.SyncOpCpu(res.CpuLimit)
+				host.SyncOpRam(res.MemLimit)
+
+				host_sync = true
+
+				logger.Printf("info", "schedule pod #%s on to host #%s (new)", pod.Meta.ID, host_id)
+			} else {
+
+				host = status.ZoneHostList.Item(oprep.Node)
+				if host == nil {
+					// TODO re-schedule
+					continue
+				}
+
+				var (
+					res   = pod.Spec.ResComputeBound()
+					res_p = prev.Spec.ResComputeBound()
+				)
+
+				if res.CpuLimit != res_p.CpuLimit ||
+					res.MemLimit != res_p.MemLimit {
+
+					host.SyncOpCpu(res.CpuLimit - res_p.CpuLimit)
+					host.SyncOpRam(res.MemLimit - res_p.MemLimit)
+
+					host_sync = true
+				}
 			}
 
-			host = status.ZoneHostList.Item(host_id)
 			if host == nil {
-				continue
-			}
-
-			pod.Operate.Node = host_id
-
-			res := pod.Spec.ResComputeBound()
-			host.SyncOpCpu(res.CpuLimit)
-			host.SyncOpRam(res.MemLimit)
-
-			host_sync = true
-
-			logger.Printf("info", "schedule pod #%s on to host #%s (new)", pod.Meta.ID, host_id)
-		} else {
-
-			host = status.ZoneHostList.Item(pod.Operate.Node)
-			if host == nil {
-				// TODO re-schedule
+				logger.Printf("warn", "no available host schedule")
 				continue
 			}
 
 			var (
-				res   = pod.Spec.ResComputeBound()
-				res_p = prev.Spec.ResComputeBound()
+				host_peer_lan  = losapi.HostNodeAddress(host.Spec.PeerLanAddr)
+				host_peer_port = host_peer_lan.Port()
+				ports          = pod.AppServicePorts()
 			)
 
-			if res.CpuLimit != res_p.CpuLimit ||
-				res.MemLimit != res_p.MemLimit {
+			for i, pv := range ports {
 
-				host.SyncOpCpu(res.CpuLimit - res_p.CpuLimit)
-				host.SyncOpRam(res.MemLimit - res_p.MemLimit)
+				if pv.HostPort > 0 {
 
-				host_sync = true
-			}
-		}
+					if pv.HostPort == host_peer_port {
 
-		if host == nil {
-			logger.Printf("warn", "no available host schedule")
-			continue
-		}
+						ports[i].HostPort = 0
 
-		pod.OperateRefresh()
-
-		host_peer_lan := losapi.HostNodeAddress(host.Spec.PeerLanAddr)
-		host_peer_port := host_peer_lan.Port()
-
-		for i, pv := range pod.Operate.Ports {
-
-			if pv.HostPort > 0 {
-
-				if pv.HostPort == host_peer_port {
-
-					pod.Operate.Ports[i].HostPort = 0
-
-					logger.Printf("warn", "the host port %s:%d already in use ",
-						host.Spec.PeerLanAddr, pv.HostPort)
-
-				} else if host.OpPortHas(pv.HostPort) {
-
-					if ppv := prev.Operate.Ports.Get(pv.BoxPort); ppv == nil ||
-						ppv.HostPort != pv.HostPort {
-
-						pod.Operate.Ports[i].HostPort = 0
-
-						logger.Printf("warn", "the host port %s:%d is already allocated",
+						logger.Printf("warn", "the host port %s:%d already in use ",
 							host.Spec.PeerLanAddr, pv.HostPort)
+
+					} else if host.OpPortHas(pv.HostPort) {
+
+						if ppv := oprep.Ports.Get(pv.BoxPort); ppv == nil ||
+							ppv.HostPort != pv.HostPort {
+
+							ports[i].HostPort = 0
+
+							logger.Printf("warn", "the host port %s:%d is already allocated",
+								host.Spec.PeerLanAddr, pv.HostPort)
+						}
+					} else {
+						host.OpPortAlloc(pv.HostPort)
+						host_sync = true
 					}
-				} else {
-					host.OpPortAlloc(pv.HostPort)
-					host_sync = true
-				}
 
-				continue
-			}
-
-			for _, pvp := range prev.Operate.Ports {
-
-				if pvp.BoxPort != pv.BoxPort {
 					continue
 				}
 
-				if pvp.HostPort > 0 {
-					pod.Operate.Ports.Sync(*pvp)
+				for _, pvp := range oprep.Ports {
+
+					if pvp.BoxPort != pv.BoxPort {
+						continue
+					}
+
+					if pvp.HostPort > 0 {
+						ports.Sync(*pvp)
+					}
+
+					break
+				}
+			}
+
+			// TODO delete unused port
+
+			//
+			ports_alloc := []uint16{}
+			for i, p := range ports {
+
+				if p.HostPort > 0 {
+					continue
 				}
 
-				break
-			}
-		}
+				if port_alloc := host.OpPortAlloc(0); port_alloc > 0 {
 
-		// TODO delete unused port
+					ports[i].HostPort = port_alloc
+					host_sync = true
+					ports_alloc = append(ports_alloc, port_alloc)
 
-		//
-		ports_alloc := []uint16{}
-		for i, p := range pod.Operate.Ports {
+					logger.Printf("info", "new port alloc to %s:%d",
+						host.Spec.PeerLanAddr, port_alloc)
 
-			if p.HostPort > 0 {
-				continue
-			}
-
-			if port_alloc := host.OpPortAlloc(0); port_alloc > 0 {
-
-				pod.Operate.Ports[i].HostPort = port_alloc
-				host_sync = true
-				ports_alloc = append(ports_alloc, port_alloc)
-
-				logger.Printf("info", "new port alloc to %s:%d",
-					host.Spec.PeerLanAddr, port_alloc)
-
-			} else {
-				logger.Printf("warn", "host #%s res-port out range", host.Meta.Id)
-			}
-		}
-
-		//
-		if len(pod.Operate.Ports) > 0 {
-
-			var nsz losapi.NsPodServiceMap
-
-			if rs := data.ZoneMaster.PvGet(losapi.NsZonePodServiceMap(pod.Meta.ID)); rs.OK() {
-				rs.Decode(&nsz)
-			}
-
-			if nsz.User == "" {
-				nsz.User = pod.Meta.User
-			}
-
-			for _, popv := range pod.Operate.Ports {
-				nsz.Sync(popv.BoxPort, 0, host_peer_lan.IP(), popv.HostPort)
-			}
-
-			if nsz.SyncChanged() {
-				nsz.Updated = uint64(types.MetaTimeNow())
-				data.ZoneMaster.PvPut(losapi.NsZonePodServiceMap(pod.Meta.ID), nsz, &skv.PathWriteOptions{
-					Force: true,
-				})
-			}
-		}
-
-		if host_sync {
-
-			logger.Printf("info", "host #%s sync changes", host.Meta.Id)
-
-			host.OpPortSort()
-
-			if rs := data.ZoneMaster.PvPut(
-				losapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, &skv.PathWriteOptions{
-					Force: true,
-				},
-			); !rs.OK() {
-				logger.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
-				for _, pa := range ports_alloc {
-					host.OpPortFree(pa)
+				} else {
+					logger.Printf("warn", "host #%s res-port out range", host.Meta.Id)
 				}
-				continue
+			}
+
+			//
+			if len(ports) > 0 {
+
+				var nsz losapi.NsPodServiceMap
+
+				if rs := data.ZoneMaster.PvGet(losapi.NsZonePodServiceMap(pod.Meta.ID)); rs.OK() {
+					rs.Decode(&nsz)
+				}
+
+				if nsz.User == "" {
+					nsz.User = pod.Meta.User
+				}
+
+				for _, popv := range ports {
+					nsz.Sync(popv.BoxPort, oprep.Id, host_peer_lan.IP(), popv.HostPort)
+				}
+
+				if nsz.SyncChanged() {
+					nsz.Updated = uint64(types.MetaTimeNow())
+					data.ZoneMaster.PvPut(losapi.NsZonePodServiceMap(pod.Meta.ID), nsz, &skv.PathWriteOptions{
+						Force: true,
+					})
+				}
+			}
+
+			oprep.Ports = ports
+
+			if host_sync {
+
+				logger.Printf("info", "host #%s sync changes", host.Meta.Id)
+
+				host.OpPortSort()
+
+				if rs := data.ZoneMaster.PvPut(
+					losapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, &skv.PathWriteOptions{
+						Force: true,
+					},
+				); !rs.OK() {
+					logger.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
+					for _, pa := range ports_alloc {
+						host.OpPortFree(pa)
+					}
+					continue
+				}
 			}
 		}
 
-		for _, k := range []string{
-			losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
-			losapi.NsZoneHostBoundPod(status.ZoneId, pod.Operate.Node, pod.Meta.ID),
-		} {
+		if rs := data.ZoneMaster.PvPut(losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, &skv.PathWriteOptions{
+			Force: true,
+		}); !rs.OK() {
+			logger.Printf("error", "zone/pod saved %s, err (%s)", pod.Meta.ID, rs.Bytex().String())
+			continue
+		}
+
+		for _, oprep := range pod.Operate.Replicas {
+
+			pod.Operate.Replica = oprep
+			k := losapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, pod.Meta.ID, oprep.Id)
 
 			if rs := data.ZoneMaster.PvPut(k, pod, &skv.PathWriteOptions{
 				Force: true,
@@ -291,14 +311,7 @@ func scheduler_exec_cell(cell_id string) {
 			}
 		}
 
-		logger.Printf("info", "zone/pod #%s sync/queue updated", pod.Meta.ID)
-		/*
-			if js, err := json.Encode(pod, "  "); err == nil {
-				fmt.Println("json", string(js))
-			}
-		*/
-
-		data.ZoneMaster.PvDel(losapi.NsZonePodSetQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), &skv.PathWriteOptions{
+		data.ZoneMaster.PvDel(losapi.NsZonePodOpQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), &skv.PathWriteOptions{
 			Force: true,
 		})
 	}

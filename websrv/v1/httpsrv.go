@@ -34,7 +34,7 @@ func NewModule() httpsrv.Module {
 	module.ControllerRegister(new(PodSpec))
 	module.ControllerRegister(new(Pod))
 	module.ControllerRegister(new(AppSpec))
-	module.ControllerRegister(new(AppInst))
+	module.ControllerRegister(new(App))
 	module.ControllerRegister(new(Host))
 	module.ControllerRegister(new(Resource))
 	module.ControllerRegister(new(Podbound))

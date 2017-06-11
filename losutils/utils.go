@@ -15,6 +15,8 @@
 package losutils
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"os/exec"
 	"strings"
 )
@@ -31,4 +33,10 @@ func ResSysHostKernel() string {
 	}
 
 	return "unknown"
+}
+
+func Uint16ToHexString(v uint16) string {
+	bs := make([]byte, 2)
+	binary.BigEndian.PutUint16(bs, v)
+	return hex.EncodeToString(bs)
 }

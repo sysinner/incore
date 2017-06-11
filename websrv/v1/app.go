@@ -31,12 +31,12 @@ import (
 	"code.hooto.com/lessos/loscore/losapi"
 )
 
-type AppInst struct {
+type App struct {
 	*httpsrv.Controller
 	us iamapi.UserSession
 }
 
-func (c *AppInst) Init() int {
+func (c *App) Init() int {
 
 	//
 	c.us, _ = iamclient.SessionInstance(c.Session)
@@ -50,7 +50,7 @@ func (c *AppInst) Init() int {
 	return 0
 }
 
-func (c AppInst) ListAction() {
+func (c App) ListAction() {
 
 	ls := losapi.AppInstanceList{}
 	defer c.RenderJson(&ls)
@@ -154,7 +154,7 @@ func (c AppInst) ListAction() {
 	ls.Kind = "AppList"
 }
 
-func (c AppInst) EntryAction() {
+func (c App) EntryAction() {
 
 	var app losapi.AppInstance
 	if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(c.Params.Get("id"))); obj.OK() {
@@ -169,7 +169,7 @@ func (c AppInst) EntryAction() {
 	}
 }
 
-func (c AppInst) SetAction() {
+func (c App) SetAction() {
 
 	var rsp struct {
 		types.TypeMeta `json:",inline"`
@@ -264,7 +264,7 @@ func (c AppInst) SetAction() {
 	rsp.Kind = "App"
 }
 
-func (c AppInst) ListOpResAction() {
+func (c App) ListOpResAction() {
 
 	ls := losapi.AppInstanceList{}
 	defer c.RenderJson(&ls)
@@ -325,7 +325,7 @@ func (c AppInst) ListOpResAction() {
 	ls.Kind = "AppList"
 }
 
-func (c AppInst) OpActionSetAction() {
+func (c App) OpActionSetAction() {
 
 	rsp := types.TypeMeta{}
 	defer c.RenderJson(&rsp)
@@ -404,7 +404,7 @@ func appInstDeploy(app losapi.AppInstance) *types.ErrorMeta {
 	}
 
 	pod.Apps.Sync(app)
-	pod.OperateRefresh()
+	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
 	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
@@ -414,7 +414,7 @@ func appInstDeploy(app losapi.AppInstance) *types.ErrorMeta {
 	}
 
 	// Pod Map to Cell Queue
-	qmpath := losapi.NsZonePodSetQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	qmpath := losapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {
@@ -426,7 +426,7 @@ func appInstDeploy(app losapi.AppInstance) *types.ErrorMeta {
 	return nil
 }
 
-func (c AppInst) OpResSetAction() {
+func (c App) OpResSetAction() {
 
 	rsp := types.TypeMeta{}
 	defer c.RenderJson(&rsp)
@@ -524,7 +524,7 @@ func (c AppInst) OpResSetAction() {
 	rsp.Kind = "App"
 }
 
-func (c AppInst) ConfigAction() {
+func (c App) ConfigAction() {
 
 	rsp := types.TypeMeta{}
 	defer c.RenderJson(&rsp)

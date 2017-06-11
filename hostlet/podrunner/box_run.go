@@ -80,7 +80,7 @@ func (br *BoxKeeper) status_watcher() {
 				continue
 			}
 
-			pod_id, _, box_name := box_inst_name_parse(c7r.Config.Hostname)
+			pod_id, rep_id, box_name := box_inst_name_parse(c7r.Config.Hostname)
 			if pod_id == "" {
 				continue
 			}
@@ -89,6 +89,7 @@ func (br *BoxKeeper) status_watcher() {
 				ID:    vc.ID,
 				Name:  c7r.Config.Hostname,
 				PodID: pod_id,
+				RepId: rep_id,
 				Status: losapi.PodBoxStatus{
 					Name:    box_name,
 					Started: types.MetaTimeSet(c7r.State.StartedAt.UTC()),
@@ -329,8 +330,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 	//
 	var (
-		dirPod     = los_cf.Config.PodHomeDir + "/" + inst.PodID + "-0000"
-		dirPodHome = dirPod + "/home/action"
+		dirPodHome = vol_podhome_dir(inst.PodID, inst.RepId)
 		initSrc    = los_cf.Prefix + "/bin/lpinit"
 		initDst    = dirPodHome + "/.los/lpinit"
 		agentSrc   = los_cf.Prefix + "/bin/lpagent"

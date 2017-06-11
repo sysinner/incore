@@ -24,7 +24,6 @@ import (
 	"github.com/lessos/lessgo/logger"
 	"github.com/lessos/lessgo/types"
 
-	"code.hooto.com/lessos/loscore/config"
 	los_db "code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"
 	"code.hooto.com/lessos/loscore/losutils"
@@ -39,8 +38,12 @@ var (
 	pod_instances    = map[string]*losapi.Pod{}
 	pod_status_queue = make(chan string, 500)
 
+	pod_statuses_inited = false
+	pod_statuses        = map[string]*losapi.PodStatusReplica{}
+
 	max_pod_limit             = 100
 	status_synctime_max int64 = 120 // time of seconds
+
 )
 
 func pod_ops_pulling() {
@@ -72,6 +75,7 @@ func pod_ops_pulling() {
 			los_sts.ZoneId,
 			los_sts.Host.Meta.Id,
 			"",
+			0,
 		), "", "", max_pod_limit)
 	if !rs.OK() {
 		return
@@ -87,13 +91,42 @@ func pod_ops_pulling() {
 		}
 
 		if pod.Meta.ID == "" ||
-			pod.Operate.Node != los_sts.Host.Meta.Id {
+			pod.Operate.Replica == nil ||
+			pod.Operate.Replica.Node != los_sts.Host.Meta.Id {
 			continue
 		}
 
 		// logger.Printf("info", "pull pod %s", pod.Meta.ID)
 
 		data_ctr_update(pod)
+	}
+
+	// TOPO
+	if !pod_statuses_inited {
+
+		rs = los_db.HiMaster.PvScan(
+			losapi.NsZoneHostBoundPodReplicaStatus(
+				los_sts.ZoneId,
+				los_sts.Host.Meta.Id,
+				"",
+				0,
+			), "", "", 10000)
+		if !rs.OK() {
+			return
+		}
+
+		rss := rs.KvList()
+		for _, v := range rss {
+
+			var obj losapi.PodStatusReplica
+			if err := v.Decode(&obj); err != nil {
+				continue
+			}
+
+			pod_statuses[string(v.Key)] = &obj
+		}
+
+		pod_statuses_inited = true
 	}
 }
 
@@ -102,7 +135,8 @@ func data_ctr_update(pod losapi.Pod) {
 	pod_mu.Lock()
 	defer pod_mu.Unlock()
 
-	prev, ok := pod_instances[pod.Meta.ID]
+	repkey := losapi.NsZonePodOpRepKey(pod.Meta.ID, pod.Operate.Replica.Id)
+	prev, ok := pod_instances[repkey]
 
 	init_home := false
 
@@ -113,7 +147,7 @@ func data_ctr_update(pod losapi.Pod) {
 			prev.Meta.Updated = pod.Meta.Updated
 			prev.Spec = pod.Spec
 			prev.Operate.Action = pod.Operate.Action
-			prev.Operate.Ports = pod.Operate.Ports
+			prev.Operate.Replica = pod.Operate.Replica
 
 			// TODO destroy bound apps
 			if pod.Apps != nil {
@@ -139,13 +173,13 @@ func data_ctr_update(pod losapi.Pod) {
 
 		prev = &pod
 
-		pod_instances[pod.Meta.ID] = prev
+		pod_instances[repkey] = prev
 		init_home = true
 	}
 
 	if init_home {
 
-		sysdir := config.Config.PodHomeDir + "/" + pod.Meta.ID + "-0000/home/action/.los"
+		sysdir := vol_agentsys_dir(pod.Meta.ID, pod.Operate.Replica.Id)
 		if err := losutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
 			return
 		}
@@ -157,13 +191,13 @@ func data_ctr_update(pod losapi.Pod) {
 	box_keeper.ctr_sync(prev)
 }
 
-func pod_status_sync(pod_id string) {
+func pod_status_sync(v string) {
 
 	if len(pod_status_queue) > 100 {
 		return
 	}
 
-	pod_status_queue <- pod_id
+	pod_status_queue <- v
 }
 
 func pod_status_pushing() {
@@ -189,24 +223,26 @@ func pod_status_pushing() {
 		pod_mu.Unlock()
 	}()
 
-	for pod_id := range pod_status_queue {
+	for repkey := range pod_status_queue {
 
-		pod, ok := pod_instances[pod_id]
+		pod, ok := pod_instances[repkey]
 		if !ok {
 			continue
 		}
 
-		if pod.Status == nil {
-			pod.Status = &losapi.PodStatus{}
+		status, ok := pod_statuses[repkey]
+		if !ok {
+			status = &losapi.PodStatusReplica{}
 		}
 
 		sync, found := false, false
 
-		for _, spec := range pod.Spec.Boxes {
+		for _, bspec := range pod.Spec.Boxes {
 
-			box_inst_name := fmt.Sprintf("%s-0000-%s",
+			box_inst_name := fmt.Sprintf("%s-%s-%s",
 				pod.Meta.ID,
-				spec.Name,
+				losutils.Uint16ToHexString(pod.Operate.Replica.Id),
+				bspec.Name,
 			)
 
 			inst, ok := box_keeper.instances[box_inst_name]
@@ -214,15 +250,15 @@ func pod_status_pushing() {
 				continue
 			}
 
-			for i, bv := range pod.Status.Boxes {
+			for i, bv := range status.Boxes {
 
-				if bv.Name != spec.Name {
+				if bv.Name != bspec.Name {
 					continue
 				}
 
 				found = true
 
-				if pod.Status.Boxes[i].Sync(inst.Status) {
+				if status.Boxes[i].Sync(inst.Status) {
 					sync = true
 				}
 
@@ -230,17 +266,17 @@ func pod_status_pushing() {
 			}
 
 			if !found {
-				pod.Status.Boxes = append(pod.Status.Boxes, inst.Status)
+				status.Boxes = append(status.Boxes, inst.Status)
 				sync, found = true, false
 			}
 		}
 
 		//
-		if len(pod.Status.Boxes) > len(pod.Spec.Boxes) {
+		if len(status.Boxes) > len(pod.Spec.Boxes) {
 
 			bsn := []losapi.PodBoxStatus{}
 
-			for _, bs := range pod.Status.Boxes {
+			for _, bs := range status.Boxes {
 
 				for _, b := range pod.Spec.Boxes {
 
@@ -253,13 +289,13 @@ func pod_status_pushing() {
 
 			sync = true
 
-			pod.Status.Boxes = bsn
+			status.Boxes = bsn
 		}
 
 		//
-		statusPhase := pod.Status.Phase
+		statusPhase := status.Phase
 
-		if len(pod.Spec.Boxes) != len(pod.Status.Boxes) {
+		if len(pod.Spec.Boxes) != len(status.Boxes) {
 
 			statusPhase = losapi.OpStatusPending
 
@@ -267,7 +303,7 @@ func pod_status_pushing() {
 
 			s_diff := map[losapi.OpType]int{}
 
-			for _, v := range pod.Status.Boxes {
+			for _, v := range status.Boxes {
 
 				switch v.Phase {
 
@@ -296,23 +332,24 @@ func pod_status_pushing() {
 			}
 		}
 
-		if pod.Status.Phase != statusPhase {
-			pod.Status.Phase = statusPhase
+		if status.Phase != statusPhase {
+			status.Phase = statusPhase
 			sync = true
 		}
 
 		//
-		if sync || (time.Now().UTC().Unix()-pod.Status.Updated.Time().Unix()) > status_synctime_max {
+		if sync || (time.Now().UTC().Unix()-status.Updated.Time().Unix()) > status_synctime_max {
 
-			path := losapi.NsZoneHostBoundPodStatus(
+			path := losapi.NsZoneHostBoundPodReplicaStatus(
 				los_sts.ZoneId,
 				los_sts.Host.Meta.Id,
 				pod.Meta.ID,
+				pod.Operate.Replica.Id,
 			)
 
-			pod.Status.Updated = types.MetaTimeNow()
+			status.Updated = types.MetaTimeNow()
 
-			if rs := los_db.HiMaster.PvPut(path, *pod.Status, &skv.PathWriteOptions{
+			if rs := los_db.HiMaster.PvPut(path, *status, &skv.PathWriteOptions{
 				Force: true,
 			}); !rs.OK() {
 				logger.Printf("error", "hostlet/pod StatusSync %s SET Failed %s",
