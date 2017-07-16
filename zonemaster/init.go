@@ -45,7 +45,6 @@ func InitData(items map[string]interface{}) error {
 	/*
 		rs := data.ZoneMaster.RawScan([]byte{}, []byte{}, 10000)
 		rs.KvEach(func(v *skv.ResultEntry) int {
-
 			key := strings.Replace(string(v.Key[1:]), "/", "_", -1)
 			fp, err := os.OpenFile("./var/dbexports/"+key, os.O_RDWR|os.O_CREATE, 0644)
 			if err != nil {

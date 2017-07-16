@@ -43,6 +43,7 @@ func (c Index) IndexAction() {
   <script src="/los/cp/~/lessui/js/sea.js?v=` + los_webui.Version + `"></script>
   <script src="/los/cp/~/cp/js/main.js?v=` + los_webui.Version + `"></script>
   <link rel="stylesheet" href="/los/cp/~/cp/css/base.css?v=` + los_webui.Version + `" type="text/css">
+  <link rel="shortcut icon" type="image/x-icon" href="/los/cp/~/cp/img/favicon.png">
   <script type="text/javascript">
     losCp.version = "` + los_webui.Version + `";
     window.onload = losCp.Boot(` + login + `);
