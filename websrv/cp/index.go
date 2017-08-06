@@ -39,7 +39,7 @@ func (c Index) IndexAction() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <title>CP</title>
+  <title>Control Panel - lessOS</title>
   <script src="/los/cp/~/lessui/js/sea.js?v=` + los_webui.Version + `"></script>
   <script src="/los/cp/~/cp/js/main.js?v=` + los_webui.Version + `"></script>
   <link rel="stylesheet" href="/los/cp/~/cp/css/base.css?v=` + los_webui.Version + `" type="text/css">

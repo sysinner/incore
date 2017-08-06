@@ -61,17 +61,17 @@ func lpm_mountpath(name, version string) string {
 	return fmt.Sprintf("/usr/los/%s/%s", name, version)
 }
 
-func lpm_filename(name, version, release, os, arch string) string {
-	return fmt.Sprintf("%s-%s-%s.%s.%s.txz", name, version, release, os, arch)
+func lpm_filename(pkg lpapi.Package) string {
+	return lpapi.PackageFilename(pkg.Meta.Name, pkg.Version) + ".txz"
 }
 
-func lpm_hostpath(name, version, release, os, arch string) string {
-	return fmt.Sprintf("/opt/los/lpm/.cache/%s/%s/%s", name, version,
-		lpm_filename(name, version, release, os, arch))
+func lpm_hostpath(pkg lpapi.Package) string {
+	return fmt.Sprintf("/opt/los/lpm/.cache/%s/%s/%s",
+		pkg.Meta.Name, string(pkg.Version.Version), lpm_filename(pkg))
 }
 
-func lpm_hostdir(name, version, release, os, arch string) string {
-	return fmt.Sprintf("/opt/los/lpm/%s/%s/%s.%s.%s", name, version, release, os, arch)
+func lpm_hostdir(name, version, release, dist, arch string) string {
+	return fmt.Sprintf("/opt/los/lpm/%s/%s/%s.%s.%s", name, version, release, dist, arch)
 }
 
 func lpm_prepare(inst *BoxInstance) error {
@@ -138,15 +138,15 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	}
 
 	var (
-		pfilename = lpm_filename(pkg.Meta.Name, string(pkg.Version), string(pkg.Release), pkg.PkgOS, pkg.PkgArch)
-		pfilepath = lpm_hostpath(pkg.Meta.Name, string(pkg.Version), string(pkg.Release), pkg.PkgOS, pkg.PkgArch)
+		pfilename = lpm_filename(pkg.Package)
+		pfilepath = lpm_hostpath(pkg.Package)
 	)
 
 	losutils.FsMakeDir(phostdir, 2048, 2048, 0750)
 
 	if _, err := os.Stat(pfilepath); err == nil {
 
-		if lpm_entry_sync_sumcheck(pfilepath) == pkg.PkgSum {
+		if lpm_entry_sync_sumcheck(pfilepath) == pkg.SumCheck {
 			return lpm_entry_sync_extract(pfilepath, phostdir)
 		}
 	}
@@ -161,7 +161,7 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	defer fp.Close()
 
 	dlurl := fmt.Sprintf("%s/lps/v1/pkg/dl/%s/%s/%s",
-		config.Config.LpsServiceUrl, pkg.Meta.Name, pkg.Version, pfilename)
+		config.Config.LpsServiceUrl, pkg.Meta.Name, pkg.Version.Version, pfilename)
 
 	// logger.Printf("info", "Download Package From (%s)", dlurl)
 	rsp, err := http.Get(dlurl)
@@ -176,7 +176,7 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 		return errors.New("Download Package Failed")
 	}
 
-	if lpm_entry_sync_sumcheck(tmpfile) != pkg.PkgSum {
+	if lpm_entry_sync_sumcheck(tmpfile) != pkg.SumCheck {
 		logger.Printf("error", "SumCheck Error (%s)", tmpfile)
 		return errors.New("Download Package Failed")
 	}
