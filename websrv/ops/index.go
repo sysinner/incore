@@ -15,7 +15,7 @@
 package ops
 
 import (
-	"github.com/lessos/lessgo/httpsrv"
+	"github.com/hooto/httpsrv"
 )
 
 type Index struct {

@@ -23,8 +23,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
-	"github.com/lessos/lessgo/logger"
 	"github.com/lessos/lessgo/types"
 
 	"code.hooto.com/lessos/loscore/losapi"
@@ -39,12 +39,12 @@ func Runner(home_dir string) {
 
 		var pod losapi.Pod
 		if err := json.DecodeFile(home_dir+"/.los/pod_instance.json", &pod); err != nil {
-			logger.Printf("error", err.Error())
+			hlog.Printf("error", err.Error())
 			continue
 		}
 
 		if pod.Apps == nil || len(pod.Apps) < 0 {
-			logger.Printf("debug", "No Apps Found")
+			hlog.Printf("debug", "No Apps Found")
 			continue
 		}
 
@@ -61,7 +61,7 @@ func Runner(home_dir string) {
 
 			for _, ve := range app.Spec.Executors {
 
-				logger.Printf("debug", "AppExec %s", ve.Name)
+				hlog.Printf("debug", "AppExec %s", ve.Name)
 
 				ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.Name, ve.Name))
 
@@ -118,7 +118,7 @@ func executor_action(etr losapi.Executor, dms map[string]string, op_action uint3
 				es.Action.Append(losapi.ExecutorActionStopped)
 			}
 
-			logger.Printf("info", "executor:%s done status: %s",
+			hlog.Printf("info", "executor:%s done status: %s",
 				etr.Name, es.Action.String())
 
 			if es.Cmd.Process != nil {
@@ -137,9 +137,9 @@ func executor_action(etr losapi.Executor, dms map[string]string, op_action uint3
 	}
 
 	//
-	// logger.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
+	// hlog.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
 	if es.Action.Allow(losapi.ExecutorActionPending) {
-		logger.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", etr.Name)
+		hlog.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", etr.Name)
 		return
 	}
 
@@ -164,7 +164,7 @@ func executor_action(etr losapi.Executor, dms map[string]string, op_action uint3
 
 			es.Action.Append(losapi.ExecutorActionStart)
 
-			logger.Printf("warn", "executor:%s Plan.OnBoot Exec", etr.Name)
+			hlog.Printf("warn", "executor:%s Plan.OnBoot Exec", etr.Name)
 		}
 
 		//
@@ -186,7 +186,7 @@ func executor_action(etr losapi.Executor, dms map[string]string, op_action uint3
 				es.Action.Append(losapi.ExecutorActionStart)
 				es.Action.Remove(losapi.ExecutorActionStarted)
 
-				logger.Printf("info", "executor:%s Plan.OnTick", etr.Name)
+				hlog.Printf("info", "executor:%s Plan.OnTick", etr.Name)
 			}
 		}
 
@@ -210,7 +210,7 @@ func executor_action(etr losapi.Executor, dms map[string]string, op_action uint3
 
 				es.Plan.OnFailedRetryNum++
 
-				logger.Printf("warn", "executor:%s Plan.OnFailed Retry %d",
+				hlog.Printf("warn", "executor:%s Plan.OnFailed Retry %d",
 					etr.Name, es.Plan.OnFailedRetryNum)
 			}
 		}
@@ -241,14 +241,14 @@ func executor_action(etr losapi.Executor, dms map[string]string, op_action uint3
 		sets := map[string]string{}
 		for _, v := range etr.Packages {
 			sets[fmt.Sprintf("lpm_prefix_%s", v.Name)] = fmt.Sprintf("/usr/los/%s/%s", v.Name, v.Version)
-			logger.Printf("info", fmt.Sprintf("/usr/los/%s/%s", v.Name, v.Version))
+			hlog.Printf("info", fmt.Sprintf("/usr/los/%s/%s", v.Name, v.Version))
 		}
 	*/
 
 	//
 	tpl, err := template.New("s").Parse(script)
 	if err != nil {
-		logger.Printf("error", "executor:%s template.Parse E:%s",
+		hlog.Printf("error", "executor:%s template.Parse E:%s",
 			etr.Name, err.Error())
 		return
 	}
@@ -256,18 +256,18 @@ func executor_action(etr losapi.Executor, dms map[string]string, op_action uint3
 	//
 	var tplout bytes.Buffer
 	if err := tpl.Execute(&tplout, dms); err != nil {
-		logger.Printf("error", "executor:%s template.Execute E:%s",
+		hlog.Printf("error", "executor:%s template.Execute E:%s",
 			etr.Name, err.Error())
 		return
 	}
 
 	//
 	if err := executor_cmd(es.Name.String(), es.Cmd, tplout.String()); err != nil {
-		logger.Printf("error", "executor:%s CMD E:%s",
+		hlog.Printf("error", "executor:%s CMD E:%s",
 			etr.Name, err.Error())
 		return
 	} else {
-		logger.Printf("info", "executor:%s pending", etr.Name)
+		hlog.Printf("info", "executor:%s pending", etr.Name)
 	}
 }
 

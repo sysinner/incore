@@ -18,7 +18,7 @@ import (
 	"errors"
 
 	"code.hooto.com/lynkdb/iomix/skv"
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
 
 	// "github.com/lessos/lessgo/encoding/json"
@@ -81,7 +81,7 @@ func scheduler_exec_cell(cell_id string) {
 		return
 	}
 
-	logger.Printf("info", "scheduling %d pods", len(pods))
+	hlog.Printf("info", "scheduling %d pods", len(pods))
 
 	for _, pod := range pods {
 
@@ -96,14 +96,14 @@ func scheduler_exec_cell(cell_id string) {
 		); rs.OK() {
 
 			if err := rs.Decode(&prev); err != nil {
-				logger.Printf("error", "bad prev pod #%s instance", pod.Meta.ID)
+				hlog.Printf("error", "bad prev pod #%s instance", pod.Meta.ID)
 				// TODO error log
 				continue
 			}
 
 		} else if !rs.NotFound() {
 			// may be io connection error
-			logger.Printf("error", "failed on get pod #%s", pod.Meta.ID)
+			hlog.Printf("error", "failed on get pod #%s", pod.Meta.ID)
 			continue
 		}
 
@@ -142,7 +142,7 @@ func scheduler_exec_cell(cell_id string) {
 
 				host_sync = true
 
-				logger.Printf("info", "schedule pod #%s on to host #%s (new)", pod.Meta.ID, host_id)
+				hlog.Printf("info", "schedule pod #%s on to host #%s (new)", pod.Meta.ID, host_id)
 			} else {
 
 				host = status.ZoneHostList.Item(oprep.Node)
@@ -167,7 +167,7 @@ func scheduler_exec_cell(cell_id string) {
 			}
 
 			if host == nil {
-				logger.Printf("warn", "no available host schedule")
+				hlog.Printf("warn", "no available host schedule")
 				continue
 			}
 
@@ -185,7 +185,7 @@ func scheduler_exec_cell(cell_id string) {
 
 						ports[i].HostPort = 0
 
-						logger.Printf("warn", "the host port %s:%d already in use ",
+						hlog.Printf("warn", "the host port %s:%d already in use ",
 							host.Spec.PeerLanAddr, pv.HostPort)
 
 					} else if host.OpPortHas(pv.HostPort) {
@@ -195,7 +195,7 @@ func scheduler_exec_cell(cell_id string) {
 
 							ports[i].HostPort = 0
 
-							logger.Printf("warn", "the host port %s:%d is already allocated",
+							hlog.Printf("warn", "the host port %s:%d is already allocated",
 								host.Spec.PeerLanAddr, pv.HostPort)
 						}
 					} else {
@@ -236,11 +236,11 @@ func scheduler_exec_cell(cell_id string) {
 					host_sync = true
 					ports_alloc = append(ports_alloc, port_alloc)
 
-					logger.Printf("info", "new port alloc to %s:%d",
+					hlog.Printf("info", "new port alloc to %s:%d",
 						host.Spec.PeerLanAddr, port_alloc)
 
 				} else {
-					logger.Printf("warn", "host #%s res-port out range", host.Meta.Id)
+					hlog.Printf("warn", "host #%s res-port out range", host.Meta.Id)
 				}
 			}
 
@@ -273,7 +273,7 @@ func scheduler_exec_cell(cell_id string) {
 
 			if host_sync {
 
-				logger.Printf("info", "host #%s sync changes", host.Meta.Id)
+				hlog.Printf("info", "host #%s sync changes", host.Meta.Id)
 
 				host.OpPortSort()
 
@@ -282,7 +282,7 @@ func scheduler_exec_cell(cell_id string) {
 						Force: true,
 					},
 				); !rs.OK() {
-					logger.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
+					hlog.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
 					for _, pa := range ports_alloc {
 						host.OpPortFree(pa)
 					}
@@ -294,7 +294,7 @@ func scheduler_exec_cell(cell_id string) {
 		if rs := data.ZoneMaster.PvPut(losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, &skv.PathWriteOptions{
 			Force: true,
 		}); !rs.OK() {
-			logger.Printf("error", "zone/pod saved %s, err (%s)", pod.Meta.ID, rs.Bytex().String())
+			hlog.Printf("error", "zone/pod saved %s, err (%s)", pod.Meta.ID, rs.Bytex().String())
 			continue
 		}
 
@@ -306,7 +306,7 @@ func scheduler_exec_cell(cell_id string) {
 			if rs := data.ZoneMaster.PvPut(k, pod, &skv.PathWriteOptions{
 				Force: true,
 			}); !rs.OK() {
-				logger.Printf("error", "zone/pod saved %s, err (%s)", k, rs.Bytex().String())
+				hlog.Printf("error", "zone/pod saved %s, err (%s)", k, rs.Bytex().String())
 				continue
 			}
 		}

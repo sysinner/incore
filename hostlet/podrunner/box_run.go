@@ -22,7 +22,7 @@ import (
 	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/net/portutil"
 	"github.com/lessos/lessgo/types"
 
@@ -54,7 +54,7 @@ func (br *BoxKeeper) status_watcher() {
 
 				br.hidocker, err = docker.NewClient(docker_unixsock)
 				if err != nil {
-					logger.Printf("fatal", "Can not connect to Docker Server, Error: %s", err)
+					hlog.Printf("fatal", "Can not connect to Docker Server, Error: %s", err)
 					time.Sleep(1e9)
 					continue
 				}
@@ -68,7 +68,7 @@ func (br *BoxKeeper) status_watcher() {
 			All: true,
 		})
 		if err != nil {
-			logger.Printf("error", "hidocker.ListContainers Error %v", err)
+			hlog.Printf("error", "hidocker.ListContainers Error %v", err)
 			br.inited = false
 			continue
 		}
@@ -181,7 +181,7 @@ func (br *BoxKeeper) status_watcher() {
 				br.actions <- inst.Name
 			}
 
-			logger.Printf("error", "nodelet/box Retry %s:%d", inst.Name, inst.Retry)
+			hlog.Printf("error", "nodelet/box Retry %s:%d", inst.Name, inst.Retry)
 		}
 
 		time.Sleep(2e9)
@@ -190,7 +190,7 @@ func (br *BoxKeeper) status_watcher() {
 
 func (br *BoxKeeper) run(inst_name string) error {
 
-	logger.Printf("debug", "nodelet/box run %s", inst_name)
+	hlog.Printf("debug", "nodelet/box run %s", inst_name)
 
 	br.mu.Lock()
 	if br.sets.Contain(inst_name) {
@@ -207,7 +207,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 		br.mu.Unlock()
 
 		if r := recover(); r != nil {
-			logger.Printf("error", "nodelet/box Panic %s %v", inst_name, r)
+			hlog.Printf("error", "nodelet/box Panic %s %v", inst_name, r)
 		}
 
 	}(inst_name)
@@ -229,12 +229,12 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 	// TODO issue
 	if err := lpm_prepare(inst); err != nil {
-		logger.Printf("warn", "nodelet/box lpm_prepare %s", err.Error())
+		hlog.Printf("warn", "nodelet/box lpm_prepare %s", err.Error())
 		return err
 	}
 
 	if inst.PodOpAction == 0 || inst.Spec.Name == "" {
-		logger.Printf("warn", "nodelet/box Error: No Spec Found BOX:%s", inst.Name)
+		hlog.Printf("warn", "nodelet/box Error: No Spec Found BOX:%s", inst.Name)
 		return errors.New("No Spec Found")
 	}
 
@@ -258,7 +258,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 				}
 				// fmt.Println("stop in", time.Since(start))
 
-				logger.Printf("info", "nodelet/box stop %s", inst.Name)
+				hlog.Printf("info", "nodelet/box stop %s", inst.Name)
 			}
 
 			if inst.PodOpAction == losapi.OpActionDestroy {
@@ -272,7 +272,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 					inst.Status.Phase = losapi.OpStatusFailed
 				}
 
-				logger.Printf("info", "nodelet/box removed %s", inst.Name)
+				hlog.Printf("info", "nodelet/box removed %s", inst.Name)
 
 				inst.ID = ""
 			}
@@ -282,11 +282,11 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 		if !inst.SpecDesired() {
 
-			logger.Printf("info", "nodelet/box spec changed %s", inst.Name)
+			hlog.Printf("info", "nodelet/box spec changed %s", inst.Name)
 
 			if inst.Status.Phase == losapi.OpStatusRunning {
 
-				logger.Printf("info", "nodelet/box StopContainer %s", inst.Name)
+				hlog.Printf("info", "nodelet/box StopContainer %s", inst.Name)
 
 				if err := br.hidocker.StopContainer(inst.ID, 10); err != nil {
 					return err
@@ -298,7 +298,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 			// if inst.Status.Phase != losapi.OpStatusRunning &&
 			// 	inst.Status.Phase != losapi.OpStatusStopped {
 
-			logger.Printf("info", "nodelet/box RemoveContainer %s", inst.Name)
+			hlog.Printf("info", "nodelet/box RemoveContainer %s", inst.Name)
 
 			if err := br.hidocker.RemoveContainer(docker.RemoveContainerOptions{
 				ID:    inst.ID,
@@ -320,7 +320,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 		if inst.PodOpAction == losapi.OpActionStop {
 
-			// logger.Printf("info", "nodelet/box Skip Stop+NotExist %s", inst.Name)
+			// hlog.Printf("info", "nodelet/box Skip Stop+NotExist %s", inst.Name)
 
 			inst.Status.Phase = losapi.OpStatusStopped
 
@@ -361,11 +361,11 @@ func (br *BoxKeeper) run(inst_name string) error {
 	//
 	if inst.ID == "" {
 
-		logger.Printf("info", "nodelet/box CreateContainer %s", inst.Name)
+		hlog.Printf("info", "nodelet/box CreateContainer %s", inst.Name)
 
 		//
 		if err := losutils.FsMakeDir(dirPodHome+"/.los", 2048, 2048, 0750); err != nil {
-			logger.Printf("error", "nodelet/box BOX:%s, FsMakeDir Err:%v", inst.Name, err)
+			hlog.Printf("error", "nodelet/box BOX:%s, FsMakeDir Err:%v", inst.Name, err)
 			inst.Status.Phase = losapi.OpStatusFailed
 			return err
 		}
@@ -373,11 +373,11 @@ func (br *BoxKeeper) run(inst_name string) error {
 		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", agentSrc, agentDst).Output()
 		exec.Command(cmd_install, bashrcSrc, bashrcDst).Output()
 
-		// logger.Printf("info", "nodelet/box CreateContainer %s, homefs:%s", inst.Name, dirPodHome)
+		// hlog.Printf("info", "nodelet/box CreateContainer %s, homefs:%s", inst.Name, dirPodHome)
 
 		imgname, ok := inst.Spec.Image.Options.Get("docker/image/name")
 		if !ok {
-			logger.Printf("error", "nodelet/box BOX:%s, No Image Name Found", inst.Name)
+			hlog.Printf("error", "nodelet/box BOX:%s, No Image Name Found", inst.Name)
 			inst.Status.Phase = losapi.OpStatusFailed
 			return err
 		}
@@ -406,12 +406,12 @@ func (br *BoxKeeper) run(inst_name string) error {
 		})
 
 		if err != nil || c7r.ID == "" {
-			logger.Printf("info", "nodelet/box CreateContainer %s, Err: %v", inst.Name, err)
+			hlog.Printf("info", "nodelet/box CreateContainer %s, Err: %v", inst.Name, err)
 			inst.Status.Phase = losapi.OpStatusFailed
 			return errors.New("CreateContainer Error " + err.Error())
 		}
 
-		logger.Printf("info", "nodelet/box CreateContainer %s, DONE", inst.Name)
+		hlog.Printf("info", "nodelet/box CreateContainer %s, DONE", inst.Name)
 
 		// TODO
 		inst.ID, inst.Status.Phase = c7r.ID, ""
@@ -421,21 +421,21 @@ func (br *BoxKeeper) run(inst_name string) error {
 		inst.PodOpAction == losapi.OpActionStart &&
 		inst.Status.Phase != losapi.OpStatusRunning {
 
-		logger.Printf("info", "nodelet/box StartContainer %s", inst.Name)
+		hlog.Printf("info", "nodelet/box StartContainer %s", inst.Name)
 
 		err = br.hidocker.StartContainer(inst.ID, nil)
 
 		if err != nil {
-			logger.Printf("info", "nodelet/box StartContainer %s, Error %v", inst.Name, err)
+			hlog.Printf("info", "nodelet/box StartContainer %s, Error %v", inst.Name, err)
 			inst.Status.Phase = losapi.OpStatusFailed
 			return err
 		}
 
-		logger.Printf("info", "nodelet/box StartContainer %s, DONE", inst.Name)
+		hlog.Printf("info", "nodelet/box StartContainer %s, DONE", inst.Name)
 
 		inst.Status.Phase = losapi.OpStatusRunning
 	} else {
-		logger.Printf("info", "nodelet/box StartContainer %s, SKIP", inst.Name)
+		hlog.Printf("info", "nodelet/box StartContainer %s, SKIP", inst.Name)
 	}
 
 	return nil

@@ -17,7 +17,7 @@ package zonemaster
 import (
 	"fmt"
 
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 
 	"code.hooto.com/lessos/loscore/data"
 )
@@ -31,7 +31,7 @@ func InitData(items map[string]interface{}) error {
 	for k, v := range items {
 
 		if rs := data.ZoneMaster.PvGet(k); rs.OK() {
-			logger.Printf("debug", "zm.init.data skip %s", k)
+			hlog.Printf("debug", "zm.init.data skip %s", k)
 			continue
 		}
 
@@ -39,7 +39,7 @@ func InitData(items map[string]interface{}) error {
 			return fmt.Errorf("zonemaster.initdata error on put key : %s", k)
 		}
 
-		logger.Printf("info", "zm.init.data set %s", k)
+		hlog.Printf("info", "zm.init.data set %s", k)
 	}
 
 	/*

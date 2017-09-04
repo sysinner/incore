@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/lessos/lessgo/httpsrv"
+	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/types"
 	"github.com/lessos/lessgo/utils"
 

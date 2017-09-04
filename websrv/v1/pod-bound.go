@@ -26,9 +26,9 @@ import (
 	"time"
 
 	"code.hooto.com/lynkdb/iomix/skv"
+	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/encoding/json"
-	"github.com/lessos/lessgo/httpsrv"
-	"github.com/lessos/lessgo/logger"
 	"github.com/lessos/lessgo/types"
 	"github.com/yhat/wsutil"
 
@@ -112,7 +112,7 @@ func (c Podbound) IndexAction() {
 	err := pclients.call(pod_id, rep_id, c.Request.Request, c.Response.Out)
 	if err != nil {
 		c.Response.Out.WriteHeader(500)
-		logger.Print("warn", err.Error())
+		hlog.Print("warn", err.Error())
 	}
 }
 

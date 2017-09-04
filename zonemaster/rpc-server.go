@@ -18,7 +18,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 	"golang.org/x/net/context"
 
 	"code.hooto.com/lessos/loscore/auth"
@@ -66,7 +66,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 	//
 	if host.SyncStatus(*opts) {
 		data.ZoneMaster.PvPut(losapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host, nil)
-		logger.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
+		hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
 	}
 
 	return &status.ZoneMasterList, nil
@@ -99,7 +99,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 
 			status.Zone.LanAddrs[i] = host.Spec.PeerLanAddr
 
-			logger.Printf("warn", "ZoneMaster status.Zone.LanAddrs %s->%s",
+			hlog.Printf("warn", "ZoneMaster status.Zone.LanAddrs %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 
 			break
@@ -114,7 +114,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 
 			status.ZoneMasterList.Items[i].Addr = host.Spec.PeerLanAddr
 
-			logger.Printf("warn", "ZoneMaster status.ZoneMasterList.Items %s->%s",
+			hlog.Printf("warn", "ZoneMaster status.ZoneMasterList.Items %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 
@@ -132,7 +132,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 
 			status.ZoneHostList.Items[i].Spec.PeerLanAddr = host.Spec.PeerLanAddr
 
-			logger.Printf("warn", "ZoneMaster status.ZoneHostList.Items %s->%s",
+			hlog.Printf("warn", "ZoneMaster status.ZoneHostList.Items %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 	}
@@ -142,7 +142,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 
 			status.LocalZoneMasterList.Items[i].Addr = host.Spec.PeerLanAddr
 
-			logger.Printf("warn", "ZoneMaster status.LocalZoneMasterList.Items %s->%s",
+			hlog.Printf("warn", "ZoneMaster status.LocalZoneMasterList.Items %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 			break
 		}
@@ -154,7 +154,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 
 			data.ZoneMaster.PvPut(losapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil)
 
-			logger.Printf("warn", "ZoneMaster NsZoneSysHost %s->%s",
+			hlog.Printf("warn", "ZoneMaster NsZoneSysHost %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 	*/
@@ -170,7 +170,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 
 					zone.LanAddrs[i] = host.Spec.PeerLanAddr
 
-					logger.Printf("warn", "ZoneMaster NsGlobalSysZone %s->%s",
+					hlog.Printf("warn", "ZoneMaster NsGlobalSysZone %s->%s",
 						addr_prev, host.Spec.PeerLanAddr)
 
 					data.ZoneMaster.PvPut(losapi.NsGlobalSysZone(status.ZoneId), zone, nil)
@@ -195,11 +195,11 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 					Action: 1,
 				}, nil)
 
-				logger.Printf("warn", "ZoneMaster NsZoneSysMasterNode %s->%s",
+				hlog.Printf("warn", "ZoneMaster NsZoneSysMasterNode %s->%s",
 					addr_prev, host.Spec.PeerLanAddr)
 			}
 		}
 	}
 
-	logger.Printf("warn", "ZoneMaster %s->%s", addr_prev, host.Spec.PeerLanAddr)
+	hlog.Printf("warn", "ZoneMaster %s->%s", addr_prev, host.Spec.PeerLanAddr)
 }

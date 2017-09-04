@@ -15,7 +15,7 @@
 package v1
 
 import (
-	"github.com/lessos/lessgo/httpsrv"
+	"github.com/hooto/httpsrv"
 
 	"code.hooto.com/lessos/loscore/losapi"
 	"code.hooto.com/lessos/loscore/lpagent/status"

@@ -24,7 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/net/httpclient"
 	"github.com/lessos/lessgo/types"
 
@@ -100,7 +100,7 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	lpm_mu.Lock()
 	if lpm_sets.Contain(tag_name) {
 		lpm_mu.Unlock()
-		// logger.Printf("info", "nodelet/Package Sync %s Command Skip", vp.Name)
+		// hlog.Printf("info", "nodelet/Package Sync %s Command Skip", vp.Name)
 		return nil
 	}
 	lpm_sets.Insert(tag_name)
@@ -129,7 +129,7 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 		lpapi.Package
 	}
 	if err := c.ReplyJson(&pkg); err != nil {
-		logger.Printf("error", "nodelet/Package Sync %s", url)
+		hlog.Printf("error", "nodelet/Package Sync %s", url)
 		return err
 	}
 
@@ -155,7 +155,7 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	tmpfile := pfilepath + ".tmp"
 	fp, err := os.Create(tmpfile)
 	if err != nil {
-		logger.Printf("error", "Create Package `%s` Failed", pfilepath)
+		hlog.Printf("error", "Create Package `%s` Failed", pfilepath)
 		return err
 	}
 	defer fp.Close()
@@ -163,21 +163,21 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	dlurl := fmt.Sprintf("%s/lps/v1/pkg/dl/%s/%s/%s",
 		config.Config.LpsServiceUrl, pkg.Meta.Name, pkg.Version.Version, pfilename)
 
-	// logger.Printf("info", "Download Package From (%s)", dlurl)
+	// hlog.Printf("info", "Download Package From (%s)", dlurl)
 	rsp, err := http.Get(dlurl)
 	if err != nil {
-		logger.Printf("error", "Download Package `%s` Failed", dlurl)
+		hlog.Printf("error", "Download Package `%s` Failed", dlurl)
 		return err
 	}
 	defer rsp.Body.Close()
 
 	if n, err := io.Copy(fp, rsp.Body); n < 1 || err != nil {
-		logger.Printf("error", "Download Package `%s` Failed", dlurl)
+		hlog.Printf("error", "Download Package `%s` Failed", dlurl)
 		return errors.New("Download Package Failed")
 	}
 
 	if lpm_entry_sync_sumcheck(tmpfile) != pkg.SumCheck {
-		logger.Printf("error", "SumCheck Error (%s)", tmpfile)
+		hlog.Printf("error", "SumCheck Error (%s)", tmpfile)
 		return errors.New("Download Package Failed")
 	}
 
@@ -206,7 +206,7 @@ func lpm_entry_sync_sumcheck(filepath string) string {
 
 	rs, err := exec.Command(cmd_shasum, filepath).Output()
 	if err != nil {
-		logger.Printf("error", "SumCheck Error %s", err.Error())
+		hlog.Printf("error", "SumCheck Error %s", err.Error())
 		return ""
 	}
 
@@ -221,7 +221,7 @@ func lpm_entry_sync_sumcheck(filepath string) string {
 func lpm_entry_sync_extract(file, dest string) error {
 
 	if _, err := exec.Command(cmd_tar, "-Jxvf", file, "-C", dest).Output(); err != nil {
-		logger.Printf("error", "Package Extract to `%s` Failed: %s", dest, err.Error())
+		hlog.Printf("error", "Package Extract to `%s` Failed: %s", dest, err.Error())
 		return err
 	}
 

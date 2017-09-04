@@ -17,7 +17,7 @@ package hostlet
 import (
 	"fmt"
 
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 
 	"code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"
@@ -33,7 +33,7 @@ func InitData(items map[string]interface{}) error {
 
 		if k != losapi.NsLocalZoneMasterList() {
 			if rs := data.LocalDB.PvGet(k); rs.OK() {
-				logger.Printf("debug", "hostlet.init.data skip %s", k)
+				hlog.Printf("debug", "hostlet.init.data skip %s", k)
 				continue
 			}
 		}
@@ -42,7 +42,7 @@ func InitData(items map[string]interface{}) error {
 			return fmt.Errorf("hostlet.initdata error on put key : %s", k)
 		}
 
-		logger.Printf("info", "hostlet.init.data set %s", k)
+		hlog.Printf("info", "hostlet.init.data set %s", k)
 	}
 
 	return nil

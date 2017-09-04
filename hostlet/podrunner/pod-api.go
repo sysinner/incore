@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 
 	"code.hooto.com/lessos/loscore/losapi"
 )
@@ -64,7 +64,7 @@ func LocalAppSync(app losapi.AppInstance) error {
 		return fmt.Errorf("No Pod Found")
 	}
 
-	logger.Printf("info", "nodelet/data_agent ctrlAppUpdate %s/%s", app.Operate.PodId, app.Meta.Name)
+	hlog.Printf("info", "nodelet/data_agent ctrlAppUpdate %s/%s", app.Operate.PodId, app.Meta.Name)
 
 	pod.Apps.Sync(app)
 

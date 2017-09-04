@@ -22,9 +22,9 @@ import (
 	"code.hooto.com/lessos/iam/iamapi"
 	"code.hooto.com/lessos/iam/iamclient"
 	"code.hooto.com/lynkdb/iomix/skv"
+	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
-	"github.com/lessos/lessgo/httpsrv"
-	"github.com/lessos/lessgo/logger"
 	"github.com/lessos/lessgo/types"
 
 	los_db "code.hooto.com/lessos/loscore/data"
@@ -421,7 +421,7 @@ func appInstDeploy(app losapi.AppInstance) *types.ErrorMeta {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	}
 
-	logger.Printf("info", "deploy app/%s to pod/%s", app.Meta.ID, pod.Meta.ID)
+	hlog.Printf("info", "deploy app/%s to pod/%s", app.Meta.ID, pod.Meta.ID)
 
 	return nil
 }
@@ -518,7 +518,7 @@ func (c App) OpResSetAction() {
 			}
 		}
 
-		logger.Printf("info", "user/%s bound %s to app/%s", c.us.UserName, opt.Name, app.Meta.ID)
+		hlog.Printf("info", "user/%s bound %s to app/%s", c.us.UserName, opt.Name, app.Meta.ID)
 	}
 
 	rsp.Kind = "App"

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"code.hooto.com/lynkdb/iomix/skv"
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 
 	"code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"
@@ -36,13 +36,13 @@ func zone_tracker() {
 	)
 
 	if status.Host.Operate == nil {
-		logger.Printf("info", "status.Host.Operate")
+		hlog.Printf("info", "status.Host.Operate")
 		return
 	}
 
 	// is zone-master
 	if !status.IsZoneMaster() {
-		logger.Printf("debug", "status.IsZoneMaster SKIP")
+		hlog.Printf("debug", "status.IsZoneMaster SKIP")
 		return
 	}
 
@@ -61,9 +61,9 @@ func zone_tracker() {
 		); rs2.OK() {
 			status.ZoneMasterList.Leader = rs.Bytex().String()
 			force_refresh = true
-			logger.Printf("warn", "new zone-master/leader %s", status.Host.Meta.Id)
+			hlog.Printf("warn", "new zone-master/leader %s", status.Host.Meta.Id)
 		} else {
-			logger.Printf("info", "status.Host.Operate")
+			hlog.Printf("info", "status.Host.Operate")
 			return
 		}
 
@@ -73,7 +73,7 @@ func zone_tracker() {
 			force_refresh = true
 		}
 	} else {
-		logger.Printf("warn", "refresh zone-master leader active failed")
+		hlog.Printf("warn", "refresh zone-master leader active failed")
 		return
 	}
 
@@ -91,13 +91,13 @@ func zone_tracker() {
 			Ttl:       12000,
 		},
 	); !rs.OK() {
-		logger.Printf("warn", "refresh zone-master leader ttl failed")
+		hlog.Printf("warn", "refresh zone-master leader ttl failed")
 		return
 	}
 
 	if !force_refresh &&
 		time.Now().UTC().Unix()-zm_leader_refreshed < 60 {
-		logger.Printf("debug", "zone-master/refresh SKIP")
+		hlog.Printf("debug", "zone-master/refresh SKIP")
 		return
 	}
 	zm_leader_refreshed = time.Now().UTC().Unix()
@@ -109,7 +109,7 @@ func zone_tracker() {
 
 			var zone losapi.ResZone
 			if err := rs.Decode(&zone); err != nil {
-				logger.Printf("error", "No ZoneInfo Setup")
+				hlog.Printf("error", "No ZoneInfo Setup")
 				return
 			}
 
@@ -119,7 +119,7 @@ func zone_tracker() {
 		}
 
 		if status.Zone == nil {
-			logger.Printf("error", "No ZoneInfo Setup")
+			hlog.Printf("error", "No ZoneInfo Setup")
 			return
 		}
 	}
@@ -140,7 +140,7 @@ func zone_tracker() {
 	// refresh zone-master list
 	if rs := data.ZoneMaster.PvScan(
 		losapi.NsZoneSysMasterNode(status.Host.Operate.ZoneId, ""), "", "", 100); !rs.OK() {
-		logger.Printf("warn", "refresh zone-master list failed")
+		hlog.Printf("warn", "refresh zone-master list failed")
 		return
 	} else {
 
@@ -172,13 +172,13 @@ func zone_tracker() {
 		})
 
 	} else {
-		logger.Printf("warn", "refresh host key list failed")
+		hlog.Printf("warn", "refresh host key list failed")
 	}
 
 	// refresh host list
 	if rs := data.ZoneMaster.PvScan(
 		losapi.NsZoneSysHost(status.Host.Operate.ZoneId, ""), "", "", 1000); !rs.OK() {
-		logger.Printf("warn", "refresh host list failed")
+		hlog.Printf("warn", "refresh host list failed")
 		return
 	} else {
 
@@ -233,7 +233,7 @@ func zone_tracker() {
 								continue
 							}
 
-							logger.Printf("warn", "refresh host:%s.operate.ports", host.Meta.Id)
+							hlog.Printf("warn", "refresh host:%s.operate.ports", host.Meta.Id)
 
 							data.ZoneMaster.PvPut(
 								losapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
@@ -252,8 +252,8 @@ func zone_tracker() {
 			status.ZoneHostListImported = true
 		}
 
-		// logger.Printf("info", "zone-master/host-list %d refreshed", len(status.ZoneHostList.Items))
+		// hlog.Printf("info", "zone-master/host-list %d refreshed", len(status.ZoneHostList.Items))
 	}
 
-	// logger.Printf("debug", "zone-master/status refreshed")
+	// hlog.Printf("debug", "zone-master/status refreshed")
 }

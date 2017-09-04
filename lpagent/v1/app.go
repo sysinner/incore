@@ -15,7 +15,7 @@
 package v1
 
 import (
-	"github.com/lessos/lessgo/httpsrv"
+	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/types"
 )
 

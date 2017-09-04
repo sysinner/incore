@@ -16,7 +16,7 @@ package cp
 
 import (
 	"code.hooto.com/lessos/iam/iamclient"
-	"github.com/lessos/lessgo/httpsrv"
+	"github.com/hooto/httpsrv"
 
 	"code.hooto.com/lessos/los-webui"
 )

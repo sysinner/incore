@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"code.hooto.com/lynkdb/iomix/skv"
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
-	"github.com/lessos/lessgo/logger"
 	"github.com/lessos/lessgo/types"
 
 	los_db "code.hooto.com/lessos/loscore/data"
@@ -96,7 +96,7 @@ func pod_ops_pulling() {
 			continue
 		}
 
-		// logger.Printf("info", "pull pod %s", pod.Meta.ID)
+		// hlog.Printf("info", "pull pod %s", pod.Meta.ID)
 
 		data_ctr_update(pod)
 	}
@@ -352,7 +352,7 @@ func pod_status_pushing() {
 			if rs := los_db.HiMaster.PvPut(path, *status, &skv.PathWriteOptions{
 				Force: true,
 			}); !rs.OK() {
-				logger.Printf("error", "hostlet/pod StatusSync %s SET Failed %s",
+				hlog.Printf("error", "hostlet/pod StatusSync %s SET Failed %s",
 					pod.Meta.ID, rs.Bytex().String())
 			}
 		}

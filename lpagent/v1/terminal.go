@@ -60,9 +60,9 @@ import (
 	"syscall"
 	"unicode/utf8"
 
-	"github.com/lessos/lessgo/deps/go.net/websocket"
-	"github.com/lessos/lessgo/httpsrv"
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/httpsrv"
+	"github.com/hooto/httpsrv/deps/go.net/websocket"
 	"github.com/lessos/lessgo/utils"
 )
 
@@ -244,13 +244,13 @@ func redirFromWs(fd int, ws *websocket.Conn, pid int, winsz *C.struct_winsize) {
 
 func TerminalWsOpenAction(wsconn *websocket.Conn) {
 
-	logger.Printf("info", "ws://terminal/open")
+	hlog.Printf("info", "ws://terminal/open")
 
 	var err error
 	var rsp TerminalResponse
 
 	defer func() {
-		logger.Printf("info", "ws://terminal/close")
+		hlog.Printf("info", "ws://terminal/close")
 		wsconn.Close()
 	}()
 

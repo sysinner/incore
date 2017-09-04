@@ -161,14 +161,14 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 		}
 	}
 
-	// logger.Printf("info", "nodelet/box CtrSync POD:%s", pod.Meta.ID)
+	// hlog.Printf("info", "nodelet/box CtrSync POD:%s", pod.Meta.ID)
 }
 
 func (br *BoxKeeper) status_update(item *BoxInstance) {
 
 	br.mu.Lock()
 
-	// logger.Printf("info", "nodelet/box status_update POD:%s", item.PodID)
+	// hlog.Printf("info", "nodelet/box status_update POD:%s", item.PodID)
 
 	if inst, ok := box_keeper.instances[item.Name]; ok {
 
@@ -205,7 +205,7 @@ func (br *BoxKeeper) ctr_action() {
 			br.run(inst_name)
 
 			// if err := br.run(inst_name); err != nil {
-			// 	logger.Printf("error", "nodelet/box ctr_action err:%s %s", inst_name, err.Error())
+			// 	hlog.Printf("error", "nodelet/box ctr_action err:%s %s", inst_name, err.Error())
 			// }
 		}(inst_name)
 	}

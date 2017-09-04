@@ -20,8 +20,8 @@ import (
 	"runtime"
 
 	"code.hooto.com/lynkdb/iomix/skv"
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
-	"github.com/lessos/lessgo/logger"
 	"github.com/shirou/gopsutil/mem"
 	"golang.org/x/net/context"
 
@@ -61,19 +61,19 @@ func status_tracker() {
 
 	//
 	if len(status.LocalZoneMasterList.Items) == 0 {
-		logger.Printf("warn", "No MasterList.Items Found")
+		hlog.Printf("warn", "No MasterList.Items Found")
 		return
 	}
 
 	zms, err := msgZoneMasterHostStatusSync()
 	if err != nil {
-		logger.Printf("warn", "No MasterList.LeaderAddr Found %s", err.Error())
+		hlog.Printf("warn", "No MasterList.LeaderAddr Found %s", err.Error())
 		return
 	}
 
 	// fmt.Println(zms)
 	if status.LocalZoneMasterList.SyncList(*zms) {
-		logger.Printf("warn", "CHANGED LZML")
+		hlog.Printf("warn", "CHANGED LZML")
 		// TODO
 	}
 
@@ -118,7 +118,7 @@ func msgZoneMasterHostStatusSync() (*losapi.ResZoneMasterList, error) {
 	//
 	conn, err := rpcsrv.ClientConn(*addr)
 	if err != nil {
-		logger.Printf("error", "No MasterList.LeaderAddr Found")
+		hlog.Printf("error", "No MasterList.LeaderAddr Found")
 		return nil, err
 	}
 

@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"code.hooto.com/lessos/loscore/hostlet/podrunner"
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 )
 
 var (
@@ -36,7 +36,7 @@ func Start() error {
 		return nil
 	}
 
-	logger.Printf("info", "hostlet started")
+	hlog.Printf("info", "hostlet started")
 
 	go func() {
 
@@ -45,7 +45,7 @@ func Start() error {
 			status_tracker()
 
 			if err := podrunner.Run(); err != nil {
-				logger.Printf("error", "podrunner.Run %s", err.Error())
+				hlog.Printf("error", "podrunner.Run %s", err.Error())
 			}
 
 			time.Sleep(3e9)

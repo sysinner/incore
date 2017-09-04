@@ -17,7 +17,7 @@ package cp
 import (
 	"code.hooto.com/lessos/iam/iamclient"
 	"code.hooto.com/lessos/loscore/config"
-	"github.com/lessos/lessgo/httpsrv"
+	"github.com/hooto/httpsrv"
 )
 
 func NewModule() httpsrv.Module {

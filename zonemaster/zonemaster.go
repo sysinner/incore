@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lessos/lessgo/logger"
+	"github.com/hooto/hlog4g/hlog"
 
 	"code.hooto.com/lessos/loscore/status"
 )
@@ -37,7 +37,7 @@ func Start() error {
 		return nil
 	}
 
-	logger.Print("info", "zonemaster/worker started")
+	hlog.Print("info", "zonemaster/worker started")
 
 	go func() {
 
@@ -49,7 +49,7 @@ func Start() error {
 
 			if status.IsZoneMasterLeader() {
 				if err := scheduler_exec(); err != nil {
-					logger.Printf("warn", "zm/scheduler err:%s", err.Error())
+					hlog.Printf("warn", "zm/scheduler err:%s", err.Error())
 				}
 			}
 		}
