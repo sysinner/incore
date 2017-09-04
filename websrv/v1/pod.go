@@ -18,12 +18,12 @@ import (
 	"strings"
 	"time"
 
-	"code.hooto.com/lessos/iam/iamapi"
-	"code.hooto.com/lessos/iam/iamclient"
-	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/hooto/httpsrv"
+	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 
 	"code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"

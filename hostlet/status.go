@@ -19,9 +19,9 @@ import (
 	"os"
 	"runtime"
 
-	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
+	"github.com/lynkdb/iomix/skv"
 	"github.com/shirou/gopsutil/mem"
 	"golang.org/x/net/context"
 

@@ -15,9 +15,9 @@
 package ops
 
 import (
-	"code.hooto.com/lessos/iam/iamapi"
-	"code.hooto.com/lessos/iam/iamclient"
 	"github.com/hooto/httpsrv"
+	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 )
 

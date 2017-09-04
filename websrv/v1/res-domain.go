@@ -23,10 +23,10 @@ import (
 	"strconv"
 	"strings"
 
-	"code.hooto.com/lessos/iam/iamapi"
-	"code.hooto.com/lynkdb/iomix/skv"
+	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/publicsuffix"
 
 	"code.hooto.com/lessos/loscore/data"

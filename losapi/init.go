@@ -16,7 +16,7 @@ package losapi
 
 /*
 import (
-	"code.hooto.com/lynkdb/iomix/skv"
+	"github.com/lynkdb/iomix/skv"
 )
 
 type DataInitiator interface {

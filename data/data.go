@@ -15,7 +15,7 @@
 package data // import "code.hooto.com/lessos/loscore/data"
 
 import (
-	"code.hooto.com/lynkdb/iomix/skv"
+	"github.com/lynkdb/iomix/skv"
 )
 
 var (

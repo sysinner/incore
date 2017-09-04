@@ -15,12 +15,12 @@
 package v1
 
 import (
-	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 
-	"code.hooto.com/lessos/iam/iamapi"
 	los_db "code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"
+	"github.com/hooto/iam/iamapi"
 )
 
 func (c Pod) AppSyncAction() {

@@ -25,19 +25,19 @@ import (
 	"sync"
 	"time"
 
-	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 	"github.com/yhat/wsutil"
 
-	"code.hooto.com/lessos/iam/iamapi"
-	"code.hooto.com/lessos/iam/iamclient"
 	"code.hooto.com/lessos/loscore/config"
 	"code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"
 	"code.hooto.com/lessos/loscore/losutils"
+	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/iam/iamclient"
 )
 
 const (

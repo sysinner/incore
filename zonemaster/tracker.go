@@ -17,8 +17,8 @@ package zonemaster
 import (
 	"time"
 
-	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lynkdb/iomix/skv"
 
 	"code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"

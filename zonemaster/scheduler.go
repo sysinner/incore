@@ -17,9 +17,9 @@ package zonemaster
 import (
 	"errors"
 
-	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 
 	// "github.com/lessos/lessgo/encoding/json"
 

@@ -15,8 +15,8 @@
 package ops
 
 import (
-	"code.hooto.com/lynkdb/iomix/skv"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 
 	"code.hooto.com/lessos/loscore/data"
 	"code.hooto.com/lessos/loscore/losapi"
