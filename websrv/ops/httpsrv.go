@@ -15,9 +15,9 @@
 package ops
 
 import (
-	"code.hooto.com/lessos/loscore/config"
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
+	"github.com/lessos/loscore/config"
 )
 
 func NewModule() httpsrv.Module {

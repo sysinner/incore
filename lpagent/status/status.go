@@ -15,7 +15,7 @@
 package status
 
 import (
-	"code.hooto.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losapi"
 )
 
 var (

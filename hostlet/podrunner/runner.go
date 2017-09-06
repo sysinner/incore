@@ -17,7 +17,7 @@ package podrunner
 import (
 	"errors"
 
-	"code.hooto.com/lessos/loscore/data"
+	"github.com/lessos/loscore/data"
 )
 
 func Run() error {

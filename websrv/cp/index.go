@@ -18,7 +18,7 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
 
-	"code.hooto.com/lessos/los-webui"
+	"github.com/lessos/los-webui"
 )
 
 type Index struct {

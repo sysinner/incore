@@ -27,8 +27,8 @@ import (
 	"github.com/lessos/lessgo/locker"
 	"github.com/lessos/lessgo/types"
 
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/losutils"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losutils"
 )
 
 type BoxKeeper struct {

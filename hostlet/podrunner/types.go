@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/losutils"
+	"github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losutils"
 )
 
 var (

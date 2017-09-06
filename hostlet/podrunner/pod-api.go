@@ -20,7 +20,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"code.hooto.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losapi"
 )
 
 func PodEntry(pod_id string) losapi.Pod {

@@ -25,12 +25,12 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"golang.org/x/net/context"
 
-	"code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/data"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/losutils"
-	"code.hooto.com/lessos/loscore/rpcsrv"
-	"code.hooto.com/lessos/loscore/status"
+	"github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/data"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losutils"
+	"github.com/lessos/loscore/rpcsrv"
+	"github.com/lessos/loscore/status"
 )
 
 func status_tracker() {

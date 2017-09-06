@@ -20,9 +20,9 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lynkdb/iomix/skv"
 
-	"code.hooto.com/lessos/loscore/data"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/status"
+	"github.com/lessos/loscore/data"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/status"
 )
 
 var (

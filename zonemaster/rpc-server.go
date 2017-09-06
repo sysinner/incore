@@ -21,11 +21,11 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"golang.org/x/net/context"
 
-	"code.hooto.com/lessos/loscore/auth"
-	"code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/data"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/status"
+	"github.com/lessos/loscore/auth"
+	"github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/data"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/status"
 )
 
 var (

@@ -32,12 +32,12 @@ import (
 	"github.com/lynkdb/iomix/skv"
 	"github.com/yhat/wsutil"
 
-	"code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/data"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/losutils"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
+	"github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/data"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losutils"
 )
 
 const (

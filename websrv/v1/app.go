@@ -27,8 +27,8 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	los_db "code.hooto.com/lessos/loscore/data"
-	"code.hooto.com/lessos/loscore/losapi"
+	los_db "github.com/lessos/loscore/data"
+	"github.com/lessos/loscore/losapi"
 )
 
 type App struct {

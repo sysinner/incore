@@ -29,8 +29,8 @@ import (
 	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/publicsuffix"
 
-	"code.hooto.com/lessos/loscore/data"
-	"code.hooto.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/data"
+	"github.com/lessos/loscore/losapi"
 )
 
 var (

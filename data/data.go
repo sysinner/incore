@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package data // import "code.hooto.com/lessos/loscore/data"
+package data // import "github.com/lessos/loscore/data"
 
 import (
 	"github.com/lynkdb/iomix/skv"

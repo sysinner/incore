@@ -27,8 +27,8 @@ import (
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/lpagent/status"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/lpagent/status"
 )
 
 func Runner(home_dir string) {

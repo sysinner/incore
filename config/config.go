@@ -30,7 +30,7 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/connect"
 
-	"code.hooto.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losapi"
 )
 
 const (

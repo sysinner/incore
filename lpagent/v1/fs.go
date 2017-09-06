@@ -30,8 +30,8 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lessos/lessgo/utils"
 
-	"code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/losapi"
 )
 
 type Fs struct {

@@ -23,9 +23,9 @@ import (
 
 	// "github.com/lessos/lessgo/encoding/json"
 
-	"code.hooto.com/lessos/loscore/data"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/status"
+	"github.com/lessos/loscore/data"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/status"
 )
 
 var (

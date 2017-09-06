@@ -26,10 +26,10 @@ import (
 	"github.com/lessos/lessgo/net/portutil"
 	"github.com/lessos/lessgo/types"
 
-	los_cf "code.hooto.com/lessos/loscore/config"
-	"code.hooto.com/lessos/loscore/losapi"
-	"code.hooto.com/lessos/loscore/losutils"
-	los_sts "code.hooto.com/lessos/loscore/status"
+	los_cf "github.com/lessos/loscore/config"
+	"github.com/lessos/loscore/losapi"
+	"github.com/lessos/loscore/losutils"
+	los_sts "github.com/lessos/loscore/status"
 )
 
 var (

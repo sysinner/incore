@@ -20,7 +20,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"code.hooto.com/lessos/loscore/status"
+	"github.com/lessos/loscore/status"
 )
 
 var (
