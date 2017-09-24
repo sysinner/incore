@@ -23,6 +23,10 @@ import (
 	"github.com/lessos/loscore/losutils"
 )
 
+const (
+	time_stats_cycle_min uint32 = 1
+)
+
 var (
 	vol_podhome_fmt      = "%s/%s.%s/home/action"
 	vol_agentsys_dir_fmt = "%s/%s.%s/home/action/.los"
@@ -39,17 +43,19 @@ func vol_agentsys_dir(pod_id string, rep_id uint16) string {
 }
 
 type BoxInstance struct {
-	ID          string
-	Name        string
-	PodID       string
-	RepId       uint16
-	PodOpAction uint32
-	Spec        losapi.PodSpecBoxBound
-	Apps        losapi.AppInstances
-	Status      losapi.PodBoxStatus
-	Ports       losapi.ServicePorts
-	Retry       int
-	Env         []losapi.EnvVar
+	stats_pending bool
+	ID            string
+	Name          string
+	PodID         string
+	RepId         uint16
+	PodOpAction   uint32
+	Spec          losapi.PodSpecBoxBound
+	Apps          losapi.AppInstances
+	Status        losapi.PodBoxStatus
+	Ports         losapi.ServicePorts
+	Retry         int
+	Env           []losapi.EnvVar
+	Stats         *losapi.TimeStatsFeed
 }
 
 func (inst *BoxInstance) SpecDesired() bool {

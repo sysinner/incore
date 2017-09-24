@@ -22,13 +22,18 @@ import (
 	"regexp"
 	"runtime"
 	"sync"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/locker"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 
+	los_db "github.com/lessos/loscore/data"
 	"github.com/lessos/loscore/losapi"
 	"github.com/lessos/loscore/losutils"
+	los_sts "github.com/lessos/loscore/status"
 )
 
 type BoxKeeper struct {
@@ -64,6 +69,7 @@ func init() {
 	}
 
 	go box_keeper.status_watcher()
+	go box_keeper.stats_watcher()
 	go box_keeper.ctr_action()
 }
 
@@ -78,6 +84,151 @@ func box_inst_name_parse(hostname string) (pod_id string, rep_id uint16, box_nam
 	}
 
 	return "", 0, ""
+}
+
+func (br *BoxKeeper) stats_watcher() {
+
+	var (
+		sleep_ns int64 = 5e9
+		toffset        = int64(time.Now().UnixNano()) % sleep_ns
+		timeout        = 3 * time.Second
+	)
+
+	time.Sleep(time.Duration(sleep_ns - toffset - 10e6))
+
+	ticker := time.NewTicker(time.Duration(sleep_ns))
+	defer ticker.Stop()
+
+	for {
+		tl := <-ticker.C
+
+		if !br.inited || los_sts.ZoneId == "" ||
+			br.hidocker == nil || len(br.instances) > 100 {
+			continue
+		}
+
+		br.mu.Lock()
+		for _, vc := range br.instances {
+
+			if vc.stats_pending || len(vc.ID) < 10 {
+				continue
+			}
+
+			vc.stats_pending = true
+
+			go func(box_inst *BoxInstance, timo uint32) {
+
+				ct_stats := make(chan *docker.Stats, 2)
+
+				if err := br.hidocker.Stats(docker.StatsOptions{
+					ID:                vc.ID,
+					Stats:             ct_stats,
+					Stream:            false,
+					Timeout:           timeout,
+					InactivityTimeout: timeout,
+				}); err == nil {
+
+					stats, ok := <-ct_stats
+					if !ok {
+						return
+					}
+
+					if box_inst.Stats == nil {
+						box_inst.Stats = losapi.NewTimeStatsFeed(time_stats_cycle_min)
+					}
+
+					// RAM
+					box_inst.Stats.Sync("ram/us", timo,
+						int64(stats.MemoryStats.Usage), "avg")
+
+					box_inst.Stats.Sync("ram/cc", timo,
+						int64(stats.MemoryStats.Stats.Cache), "avg")
+
+					// Networks
+					net_io_rs := int64(0)
+					net_io_ws := int64(0)
+					for _, v := range stats.Networks {
+						net_io_rs += int64(v.RxBytes)
+						net_io_ws += int64(v.TxBytes)
+					}
+
+					box_inst.Stats.Sync("net/rs", timo, net_io_rs, "avg")
+					box_inst.Stats.Sync("net/ws", timo, net_io_ws, "avg")
+
+					// CPU
+					box_inst.Stats.Sync("cpu/us", timo,
+						int64(stats.CPUStats.CPUUsage.TotalUsage), "avg")
+
+					// Storage IO
+					fs_rn := int64(0)
+					fs_rs := int64(0)
+					fs_wn := int64(0)
+					fs_ws := int64(0)
+					for _, v := range stats.BlkioStats.IOServiceBytesRecursive {
+						switch v.Op {
+						case "Read":
+							fs_rs += int64(v.Value)
+
+						case "Write":
+							fs_ws += int64(v.Value)
+						}
+					}
+					for _, v := range stats.BlkioStats.IOServicedRecursive {
+						switch v.Op {
+						case "Read":
+							fs_rn += int64(v.Value)
+
+						case "Write":
+							fs_wn += int64(v.Value)
+						}
+					}
+					box_inst.Stats.Sync("fs/rn", timo, fs_rn, "avg")
+					box_inst.Stats.Sync("fs/rs", timo, fs_rs, "avg")
+					box_inst.Stats.Sync("fs/wn", timo, fs_wn, "avg")
+					box_inst.Stats.Sync("fs/ws", timo, fs_ws, "avg")
+
+					ar := []string{
+						"ram/us", "ram/cc",
+						"net/rs", "net/ws",
+						"cpu/us",
+						"fs/rn", "fs/rs", "fs/wn", "fs/ws",
+					}
+					feed := losapi.NewTimeStatsFeed(10)
+					feed_tc := uint32(0)
+					for _, v := range ar {
+						if entry, tc := box_inst.Stats.CycleSplit(v, 10); entry != nil {
+							feed_tc = tc
+							for _, v2 := range entry.Items {
+								feed.Sync(v, v2.Time, v2.Value, "ow")
+							}
+						}
+					}
+					los_db.HiMaster.ProgPut(
+						losapi.NsZonePodRepStats(
+							los_sts.ZoneId,
+							box_inst.PodID,
+							box_inst.RepId,
+							"sys",
+							feed_tc,
+						),
+						skv.NewProgValue(feed),
+						&skv.ProgWriteOptions{
+							Expired: time.Now().Add(24 * time.Hour),
+						},
+					)
+
+				} else {
+					hlog.Printf("error", "docker.Stats %s error %s",
+						box_inst.ID, err.Error())
+				}
+
+				box_inst.stats_pending = false
+
+			}(vc, uint32(tl.UTC().Unix()))
+
+		}
+		br.mu.Unlock()
+	}
 }
 
 func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
@@ -101,6 +252,7 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 		if !ok {
 
 			box = &BoxInstance{
+				ID:          "",
 				Name:        inst_name,
 				PodOpAction: pod.Operate.Action,
 				PodID:       pod.Meta.ID,
@@ -108,6 +260,7 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 				Spec:        box_spec,
 				Apps:        pod.Apps,
 				Ports:       pod.Operate.Replica.Ports, // TODO
+				Stats:       losapi.NewTimeStatsFeed(time_stats_cycle_min),
 			}
 
 			box_keeper.instances[inst_name] = box

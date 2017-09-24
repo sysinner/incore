@@ -17,6 +17,8 @@ package losapi
 import (
 	"encoding/binary"
 	"fmt"
+
+	"github.com/lynkdb/iomix/skv"
 )
 
 const (
@@ -103,6 +105,26 @@ func NsZonePodOpQueue(zone_id, cell_id, pod_id string) string {
 
 func NsZonePodInstance(zone_id, pod_id string) string {
 	return fmt.Sprintf("/%s/pod/instance/%s", zone_id, pod_id)
+}
+
+func NsZonePodStats(zone_id, pod_id string, name string, timo uint32) skv.ProgKey {
+	return skv.NewProgKey(
+		zone_id,
+		"pod/stats2",
+		pod_id,
+		name,
+		timo,
+	)
+}
+
+func NsZonePodRepStats(zone_id, pod_id string, rep_id uint16, name string, timo uint32) skv.ProgKey {
+	return skv.NewProgKey(
+		zone_id,
+		"pod/stats2",
+		NsZonePodOpRepKey(pod_id, rep_id),
+		name,
+		timo,
+	)
 }
 
 func NsZonePodOpRepKey(pod_id string, rep_id uint16) string {
