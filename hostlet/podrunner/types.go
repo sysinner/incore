@@ -24,7 +24,9 @@ import (
 )
 
 const (
-	time_stats_cycle_min uint32 = 1
+	stats_tick      int64  = 5e9
+	stats_cycle_buf uint32 = 20
+	stats_cycle_log uint32 = 60
 )
 
 var (

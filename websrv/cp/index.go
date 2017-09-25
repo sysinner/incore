@@ -40,12 +40,12 @@ func (c Index) IndexAction() {
 <head>
 <meta charset="utf-8">
   <title>Control Panel - lessOS</title>
-  <script src="/los/cp/~/lessui/js/sea.js?v=` + los_webui.Version + `"></script>
-  <script src="/los/cp/~/cp/js/main.js?v=` + los_webui.Version + `"></script>
-  <link rel="stylesheet" href="/los/cp/~/cp/css/base.css?v=` + los_webui.Version + `" type="text/css">
+  <script src="/los/cp/~/lessui/js/sea.js?v=` + los_webui.VersionHash + `"></script>
+  <script src="/los/cp/~/cp/js/main.js?v=` + los_webui.VersionHash + `"></script>
+  <link rel="stylesheet" href="/los/cp/~/cp/css/base.css?v=` + los_webui.VersionHash + `" type="text/css">
   <link rel="shortcut icon" type="image/x-icon" href="/los/cp/~/cp/img/favicon.png">
   <script type="text/javascript">
-    losCp.version = "` + los_webui.Version + `";
+    losCp.version = "` + los_webui.VersionHash + `";
     window.onload = losCp.Boot(` + login + `);
   </script>
 </head>

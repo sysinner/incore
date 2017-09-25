@@ -110,7 +110,7 @@ func NsZonePodInstance(zone_id, pod_id string) string {
 func NsZonePodStats(zone_id, pod_id string, name string, timo uint32) skv.ProgKey {
 	return skv.NewProgKey(
 		zone_id,
-		"pod/stats2",
+		"pod/stats9",
 		pod_id,
 		name,
 		timo,
@@ -120,7 +120,7 @@ func NsZonePodStats(zone_id, pod_id string, name string, timo uint32) skv.ProgKe
 func NsZonePodRepStats(zone_id, pod_id string, rep_id uint16, name string, timo uint32) skv.ProgKey {
 	return skv.NewProgKey(
 		zone_id,
-		"pod/stats2",
+		"pod/stats9",
 		NsZonePodOpRepKey(pod_id, rep_id),
 		name,
 		timo,

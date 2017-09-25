@@ -17,8 +17,20 @@ package losapi
 import (
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/lessos/lessgo/types"
+)
+
+var (
+	cycles = []uint32{
+		86400, 3600, 1800, 1200, 900, 600, 300, 120,
+		60, 30, 20, 15, 10, 5, 3, 1,
+	}
+	cycles_qry = []uint32{
+		86400, 3600, 1800, 1200, 900, 600, 300, 120,
+		60,
+	}
 )
 
 type TimeStatsFeedQuerySet struct {
@@ -26,6 +38,35 @@ type TimeStatsFeedQuerySet struct {
 	TimePast  uint32                    `json:"tp,omitempty"`
 	TimeStart uint32                    `json:"ts,omitempty"`
 	Items     []*TimeStatsEntryQuerySet `json:"is,omitempty"`
+}
+
+func (this *TimeStatsFeedQuerySet) Fix() {
+
+	if this.TimePast < 600 {
+		this.TimePast = 600
+	} else if this.TimePast > (30 * 86400) {
+		this.TimePast = (30 * 86400)
+	}
+
+	if this.TimeCycle <= 10 {
+		this.TimeCycle = 10
+	} else if this.TimeCycle >= 86400 {
+		this.TimeCycle = 86400
+	} else {
+
+		for _, v := range cycles_qry {
+			if this.TimeCycle >= v {
+				this.TimeCycle = v
+				break
+			}
+		}
+	}
+
+	this.TimeStart = uint32(time.Now().UTC().Unix()) - this.TimePast
+	t := time.Unix(int64(this.TimeStart), 0)
+	if fix := (uint32(t.Hour()*3600) + uint32(t.Minute()*60) + uint32(t.Second())) % this.TimeCycle; fix > 0 {
+		this.TimeStart = this.TimeStart - fix
+	}
 }
 
 type TimeStatsEntryQuerySet struct {
@@ -63,16 +104,26 @@ type TimeStatsEntryValue struct {
 }
 
 func NewTimeStatsFeed(c uint32) *TimeStatsFeed {
-	return &TimeStatsFeed{
+	feed := &TimeStatsFeed{
 		Cycle: c,
 	}
+	feed.cyclefix()
+	return feed
 }
 
 func (this *TimeStatsFeed) cyclefix() {
-	if this.Cycle < 1 {
+	if this.Cycle <= 1 {
 		this.Cycle = 1
-	} else if this.Cycle > 86400 {
+	} else if this.Cycle >= 86400 {
 		this.Cycle = 86400
+	} else {
+
+		for _, v := range cycles {
+			if this.Cycle >= v {
+				this.Cycle = v
+				break
+			}
+		}
 	}
 }
 
@@ -84,19 +135,19 @@ const (
 
 func (this *TimeStatsFeed) Sync(name string, timo uint32, value int64, merge_type string) {
 
+	this.cyclefix()
+
+	t := time.Unix(int64(timo), 0)
+	if fix := (uint32(t.Hour()*3600) + uint32(t.Minute()*60) + uint32(t.Second())) % this.Cycle; fix > 0 {
+		timo = timo - fix + this.Cycle
+	}
+
 	this.op_mu.Lock()
 	defer this.op_mu.Unlock()
 
-	this.cyclefix()
-
-	timo_c := timo - (timo % this.Cycle)
-	if timo_c < 1 {
-		return
-	}
-
 	for _, v := range this.Items {
 		if v.Name == name {
-			v.Sync(timo_c, value, merge_type, false)
+			v.Sync(timo, value, merge_type, false)
 			return
 		}
 	}
@@ -104,7 +155,7 @@ func (this *TimeStatsFeed) Sync(name string, timo uint32, value int64, merge_typ
 	v := &TimeStatsEntry{
 		Name: name,
 	}
-	v.Sync(timo_c, value, merge_type, false)
+	v.Sync(timo, value, merge_type, false)
 	this.Items = append(this.Items, v)
 }
 
@@ -126,12 +177,15 @@ func (this *TimeStatsFeed) CycleSplit(name string, gs_cycle uint32) (*TimeStatsE
 	this.cyclefix()
 	if gs_cycle < this.Cycle {
 		gs_cycle = this.Cycle
-	} else if gs_cycle > 86400 {
-		gs_cycle = 86400
+	} else if gs_cycle > 3600 {
+		gs_cycle = 3600
 	}
 
-	if entry := this.Get(name); entry != nil {
-		return entry.cycleSplit(gs_cycle)
+	gs_cycle = gs_cycle - (gs_cycle % this.Cycle)
+	if gs_cycle >= this.Cycle {
+		if entry := this.Get(name); entry != nil {
+			return entry.cycleSplit(gs_cycle)
+		}
 	}
 
 	return nil, 0
@@ -203,16 +257,23 @@ func (this *TimeStatsEntry) cycleSplit(gs_cycle uint32) (*TimeStatsEntry, uint32
 	this.op_mu.Lock()
 	defer this.op_mu.Unlock()
 
-	if len(this.Items) < 2 {
+	if len(this.Items) < 1 {
 		return nil, 0
 	}
 
-	gs_time_cr := this.Items[0].Time - (this.Items[0].Time % gs_cycle) + gs_cycle
+	var (
+		gs_time_cr = this.Items[0].Time
+		t          = time.Unix(int64(gs_time_cr), 0)
+	)
+	if fix := (uint32(t.Minute()*60) + uint32(t.Second())) % gs_cycle; fix > 0 {
+		gs_time_cr = gs_time_cr - fix + gs_cycle
+	}
+
 	if gs_time_cr >= this.lastTime() {
 		return nil, 0
 	}
 
-	ret := &TimeStatsEntry{
+	entry := &TimeStatsEntry{
 		Name: this.Name,
 	}
 	for _, v := range this.Items {
@@ -221,20 +282,20 @@ func (this *TimeStatsEntry) cycleSplit(gs_cycle uint32) (*TimeStatsEntry, uint32
 			break
 		}
 
-		ret.Items = append(ret.Items, &TimeStatsEntryValue{
+		entry.Items = append(entry.Items, &TimeStatsEntryValue{
 			Time:  v.Time,
 			Value: v.Value,
 		})
 	}
-	if len(ret.Items) < 1 {
+	if len(entry.Items) < 1 {
 		return nil, 0
 	}
 
-	if len(ret.Items) >= len(this.Items) {
+	if len(entry.Items) >= len(this.Items) {
 		this.Items = []*TimeStatsEntryValue{}
 	} else {
-		this.Items = this.Items[len(ret.Items):]
+		this.Items = this.Items[len(entry.Items):]
 	}
 
-	return ret, gs_time_cr
+	return entry, gs_time_cr
 }
