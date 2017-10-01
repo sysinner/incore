@@ -28,6 +28,7 @@ var (
 	OpActionStart   uint32 = 1 << 1
 	OpActionStop    uint32 = 1 << 3
 	OpActionDestroy uint32 = 1 << 5
+	OpActionCharged uint32 = 1 << 7
 )
 
 func OpActionValid(op uint32) bool {

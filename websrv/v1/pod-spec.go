@@ -55,6 +55,7 @@ func (c PodSpec) PlanListAction() {
 
 		var item losapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
+			item.ChargeFix()
 			ls.Items = append(ls.Items, item)
 		}
 	}

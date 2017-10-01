@@ -24,20 +24,25 @@ import (
 
 var (
 	cycles = []uint32{
-		86400, 3600, 1800, 1200, 900, 600, 300, 120,
+		86400,
+		43200, 21600, 10800, 7200, 3600,
+		1800, 1200, 900, 600, 300, 120,
 		60, 30, 20, 15, 10, 5, 3, 1,
 	}
 	cycles_qry = []uint32{
-		86400, 3600, 1800, 1200, 900, 600, 300, 120,
+		86400,
+		43200, 21600, 10800, 7200, 3600,
+		1800, 1200, 900, 600, 300, 120,
 		60,
 	}
 )
 
 type TimeStatsFeedQuerySet struct {
-	TimeCycle uint32                    `json:"tc,omitempty"`
-	TimePast  uint32                    `json:"tp,omitempty"`
-	TimeStart uint32                    `json:"ts,omitempty"`
-	Items     []*TimeStatsEntryQuerySet `json:"is,omitempty"`
+	TimeCycle  uint32                    `json:"tc,omitempty"`
+	TimePast   uint32                    `json:"tp,omitempty"`
+	TimeStart  uint32                    `json:"ts,omitempty"`
+	TimeCutset uint32                    `json:"tcs,omitempty"`
+	Items      []*TimeStatsEntryQuerySet `json:"is,omitempty"`
 }
 
 func (this *TimeStatsFeedQuerySet) Fix() {
@@ -62,9 +67,15 @@ func (this *TimeStatsFeedQuerySet) Fix() {
 		}
 	}
 
-	this.TimeStart = uint32(time.Now().UTC().Unix()) - this.TimePast
-	t := time.Unix(int64(this.TimeStart), 0)
-	if fix := (uint32(t.Hour()*3600) + uint32(t.Minute()*60) + uint32(t.Second())) % this.TimeCycle; fix > 0 {
+	tn := time.Now()
+	this.TimeCutset = uint32(tn.Unix())
+	if fix := (uint32(tn.Hour()*3600) + uint32(tn.Minute()*60) + uint32(tn.Second())) % this.TimeCycle; fix > 0 {
+		this.TimeCutset = this.TimeCutset - fix + this.TimeCycle
+	}
+
+	tn = tn.Add(0 - (time.Duration(this.TimePast) * 1e9))
+	this.TimeStart = uint32(tn.Unix())
+	if fix := (uint32(tn.Hour()*3600) + uint32(tn.Minute()*60) + uint32(tn.Second())) % this.TimeCycle; fix > 0 {
 		this.TimeStart = this.TimeStart - fix
 	}
 }
@@ -87,6 +98,7 @@ func (this *TimeStatsFeedQuerySet) Get(name string) *TimeStatsEntryQuerySet {
 type TimeStatsFeed struct {
 	types.TypeMeta `json:",inline"`
 	Cycle          uint32            `json:"cycle,omitempty"`
+	Debugs         types.Labels      `json:"debugs,omitempty"`
 	Items          []*TimeStatsEntry `json:"items,omitempty"`
 	op_mu          sync.RWMutex
 }

@@ -70,6 +70,16 @@ type Pod struct {
 	// Status represents the current information about a pod. This data may not be up
 	// to date.
 	Status *PodStatus `json:"status,omitempty"`
+
+	//
+	Payment *PodPayment `json:"payment,omitempty"`
+}
+
+type PodPayment struct {
+	TimeStart uint32  `json:"time_start"`
+	TimeClose uint32  `json:"time_close"`
+	Prepay    float64 `json:"prepay"`
+	Payout    float64 `json:"payout"`
 }
 
 func (pod *Pod) AppServicePorts() ServicePorts {
@@ -285,6 +295,13 @@ func (s PodSpecResourceComputes) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+type PodSpecResourceComputeCharge struct {
+	Type   uint8   `json:"type"`
+	Cycle  uint64  `json:"cycle"`  // default to 3600 seconds
+	Cpu    float64 `json:"cpu"`    // value in Core
+	Memory float64 `json:"memory"` // value in MiB
+}
+
 type PodSpecResourceVolume struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
@@ -309,6 +326,12 @@ type PodSpecResourceVolumeList struct {
 	Items          []PodSpecResourceVolume `json:"items,omitempty"`
 }
 
+type PodSpecResourceVolumeCharge struct {
+	Type    uint8   `json:"type"`
+	Cycle   uint64  `json:"cycle"`    // default to 3600 seconds
+	CapSize float64 `json:"cap_size"` // value in MiB
+}
+
 // TODO
 type PodSpecResourceNetwork struct {
 	types.TypeMeta `json:",inline"`
@@ -319,6 +342,11 @@ type PodSpecResourceNetwork struct {
 type PodSpecResourceNetworkList struct {
 	types.TypeMeta `json:",inline"`
 	Items          []PodSpecResourceNetwork `json:"items,omitempty"`
+}
+
+type PodSpecPlanResourceCharge struct {
+	Type  uint8  `json:"type"`
+	Cycle uint64 `json:"cycle"` // default to 3600 seconds
 }
 
 type PodSpecPlan struct {
@@ -334,11 +362,25 @@ type PodSpecPlan struct {
 	Images       []PodSpecBoxImage `json:"images,omitempty"`
 	ImageDefault string            `json:"image_default,omitempty"`
 
-	ResourceComputes       PodSpecResourceComputes `json:"res_computes,omitempty"`
-	ResourceComputeDefault string                  `json:"res_compute_default,omitempty"`
+	ResourceComputes       PodSpecResourceComputes      `json:"res_computes,omitempty"`
+	ResourceComputeDefault string                       `json:"res_compute_default,omitempty"`
+	ResourceComputeCharge  PodSpecResourceComputeCharge `json:"res_compute_charge,omitempty"`
 
-	ResourceVolumes       []PodSpecResourceVolume `json:"res_volumes,omitempty"`
-	ResourceVolumeDefault string                  `json:"res_volume_default,omitempty"`
+	ResourceVolumes       []PodSpecResourceVolume     `json:"res_volumes,omitempty"`
+	ResourceVolumeDefault string                      `json:"res_volume_default,omitempty"`
+	ResourceVolumeCharge  PodSpecResourceVolumeCharge `json:"res_volume_charge,omitempty"`
+
+	ResourceCharge PodSpecPlanResourceCharge `json:"res_charge"`
+}
+
+func (s *PodSpecPlan) ChargeFix() {
+
+	s.ResourceCharge.Cycle = 3600
+
+	s.ResourceComputeCharge.Cpu = 0.1
+	s.ResourceComputeCharge.Memory = 0.0001
+
+	s.ResourceVolumeCharge.CapSize = 0.000004
 }
 
 func (s PodSpecPlan) Image(id string) *PodSpecBoxImage {

@@ -244,9 +244,11 @@ func (br *BoxKeeper) stats_watcher_ado(ct_id string, inst_name string, timo uint
 			),
 			skv.NewProgValue(feed),
 			&skv.ProgWriteOptions{
-				Expired: time.Now().Add(72 * time.Hour),
+				Expired: time.Now().Add(30 * 24 * time.Hour),
 			},
 		)
+		hlog.Printf("info", "docker.Stats at %d %v",
+			feed_tc, time.Unix(int64(feed_tc), 0))
 	}
 }
 
