@@ -33,6 +33,11 @@ message ObjectMeta {
     uint64 updated = 4;
 }
 
+message Label {
+	string name  = 1;
+	string value = 2;
+}
+
 enum OperateAction {
     Unknown = 0;
     Start   = 1;
@@ -93,6 +98,7 @@ message ResZone {
     repeated string  wan_addrs = 5;  
     repeated string  lan_addrs = 6;  
     repeated ResCell cells     = 7;  
+    repeated Label   options   = 8;  
 }
 
 message ResCell {

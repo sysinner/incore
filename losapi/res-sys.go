@@ -15,6 +15,8 @@
 package losapi
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 	"sort"
@@ -28,6 +30,12 @@ var (
 	ResSysCellIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{2,11}$")
 	ResSysHostIdReg        = regexp.MustCompile("^[0-9a-f]{12,16}$")
 	ResSysHostSecretKeyReg = regexp.MustCompile("^[0-9a-zA-Z\\+\\/]{20,40}$")
+
+	res_zone_mu            sync.RWMutex
+	resLabelNameReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9-._/]{0,99}$")
+	resLabelErrNameEmpty   = errors.New("res_label name cannot be empty")
+	resLabelErrNameLength  = errors.New("length of the res_label name must be less than 100")
+	resLabelErrNameInvalid = errors.New("invalid res_label name")
 )
 
 func (obj *ResZone) Cell(id string) *ResCell {
@@ -64,6 +72,77 @@ func (obj *ResZone) SyncCell(item ResCell) (changed bool) {
 	}
 
 	return changed
+}
+
+// Set create or update the res_label entry for "name" to "value".
+func (ls *ResZone) OptionSet(name string, value interface{}) error {
+
+	res_zone_mu.Lock()
+	defer res_zone_mu.Unlock()
+
+	if len(name) < 1 {
+		return resLabelErrNameEmpty
+	}
+
+	if len(name) > 100 {
+		return resLabelErrNameLength
+	}
+
+	if !resLabelNameReg.MatchString(name) {
+		return resLabelErrNameInvalid
+	}
+
+	svalue := fmt.Sprintf("%v", value)
+
+	for i, prev := range ls.Options {
+
+		if prev.Name == name {
+
+			if prev.Value != svalue {
+				ls.Options[i].Value = svalue
+			}
+
+			return nil
+		}
+	}
+
+	ls.Options = append(ls.Options, &Label{
+		Name:  name,
+		Value: svalue,
+	})
+
+	return nil
+}
+
+// Get fetch the res_label entry "value" (if any) for "name".
+func (ls *ResZone) OptionGet(name string) (string, bool) {
+
+	res_zone_mu.RLock()
+	defer res_zone_mu.RUnlock()
+
+	for _, prev := range ls.Options {
+
+		if prev.Name == name {
+			return prev.Value, true
+		}
+	}
+
+	return "", false
+}
+
+// Del remove the res_label entry (if any) for "name".
+func (ls *ResZone) OptionDel(name string) {
+
+	res_zone_mu.Lock()
+	defer res_zone_mu.Unlock()
+
+	for i, prev := range ls.Options {
+
+		if prev.Name == name {
+			ls.Options = append(ls.Options[:i], ls.Options[i+1:]...)
+			break
+		}
+	}
 }
 
 func (obj *ResZoneMasterList) LeaderAddr() *string {

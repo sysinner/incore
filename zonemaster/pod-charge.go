@@ -30,7 +30,10 @@ import (
 )
 
 var (
-	pod_spec_plans = []*losapi.PodSpecPlan{}
+	pod_spec_plans    = []*losapi.PodSpecPlan{}
+	pod_charge_iam_ak = iamapi.AccessKey{
+		User: "sysadmin",
+	}
 )
 
 func pod_charge() error {
@@ -39,6 +42,18 @@ func pod_charge() error {
 		!status.ZoneHostListImported ||
 		status.Zone == nil {
 		return nil
+	}
+
+	if v, ok := status.Zone.OptionGet("iam/acc_charge/access_key"); !ok {
+		return nil
+	} else {
+		pod_charge_iam_ak.AccessKey = v
+	}
+
+	if v, ok := status.Zone.OptionGet("iam/acc_charge/secret_key"); !ok {
+		return nil
+	} else {
+		pod_charge_iam_ak.SecretKey = v
 	}
 
 	// TODO
@@ -181,7 +196,7 @@ func pod_charge_entry(pod losapi.Pod) {
 			Prepay:    cycle_amount,
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
-		}); rsp.Kind == "AccountChargePrepay" {
+		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePrepay" {
 			pod.Payment.Prepay = cycle_amount
 			data.ZoneMaster.PvPut(
 				losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
@@ -207,7 +222,7 @@ func pod_charge_entry(pod losapi.Pod) {
 			Payout:    cycle_amount,
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
-		}); rsp.Kind == "AccountChargePayout" {
+		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePayout" {
 			pod.Payment.Payout = cycle_amount
 			data.ZoneMaster.PvPut(
 				losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
