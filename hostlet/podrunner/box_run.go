@@ -165,7 +165,7 @@ func (br *BoxKeeper) status_watcher() {
 				continue
 			}
 
-			if inst.PodOpAction == losapi.OpActionStart {
+			if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStart) {
 
 				if inst.SpecDesired() {
 					continue
@@ -247,8 +247,8 @@ func (br *BoxKeeper) run(inst_name string) error {
 		}
 
 		// Stop current BOX
-		if inst.PodOpAction == losapi.OpActionStop ||
-			inst.PodOpAction == losapi.OpActionDestroy {
+		if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStop) ||
+			losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionDestroy) {
 
 			if inst.Status.Phase == losapi.OpStatusRunning {
 
@@ -261,7 +261,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 				hlog.Printf("info", "nodelet/box stop %s", inst.Name)
 			}
 
-			if inst.PodOpAction == losapi.OpActionDestroy {
+			if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionDestroy) {
 
 				if err = br.hidocker.RemoveContainer(docker.RemoveContainerOptions{
 					ID:    inst.ID,
@@ -318,7 +318,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 	} else {
 
-		if inst.PodOpAction == losapi.OpActionStop {
+		if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStop) {
 
 			// hlog.Printf("info", "nodelet/box Skip Stop+NotExist %s", inst.Name)
 
@@ -418,7 +418,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 	}
 
 	if inst.ID != "" &&
-		inst.PodOpAction == losapi.OpActionStart &&
+		losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStart) &&
 		inst.Status.Phase != losapi.OpStatusRunning {
 
 		hlog.Printf("info", "nodelet/box StartContainer %s", inst.Name)

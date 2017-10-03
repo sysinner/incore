@@ -16,12 +16,11 @@ package zonemaster
 
 import (
 	"errors"
+	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
-
-	// "github.com/lessos/lessgo/encoding/json"
 
 	"github.com/lessos/loscore/data"
 	"github.com/lessos/loscore/losapi"
@@ -288,6 +287,15 @@ func scheduler_exec_cell(cell_id string) {
 					}
 					continue
 				}
+			}
+		}
+
+		if pod.Payment == nil {
+			pod.Payment = &losapi.PodPayment{
+				TimeStart: uint32(time.Now().Unix()),
+				TimeClose: 0,
+				Prepay:    0,
+				Payout:    0,
 			}
 		}
 

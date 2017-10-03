@@ -16,8 +16,6 @@ package zonemaster
 
 import (
 	"fmt"
-	"math"
-	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
@@ -95,7 +93,7 @@ func pod_charge() error {
 
 func pod_charge_entry(pod losapi.Pod) {
 
-	if losapi.OpActionAllow(pod.Operate.Action, losapi.OpActionCharged) {
+	if pod.Payment == nil {
 		return
 	}
 
@@ -135,7 +133,8 @@ func pod_charge_entry(pod losapi.Pod) {
 	// Volumes
 	for _, v := range pod.Spec.Volumes {
 		// v.SizeLimit = 20 * losapi.ByteGB
-		cycle_amount += spec_plan.ResourceVolumeCharge.CapSize * float64(v.SizeLimit/losapi.ByteMB)
+		cycle_amount += iamapi.AccountFloat64Round(
+			spec_plan.ResourceVolumeCharge.CapSize * float64(v.SizeLimit/losapi.ByteMB))
 	}
 
 	for _, v := range pod.Spec.Boxes {
@@ -143,22 +142,14 @@ func pod_charge_entry(pod losapi.Pod) {
 		if v.Resources != nil {
 			// CPU
 			// v.Resources.CpuLimit = 1000
-			cycle_amount += spec_plan.ResourceComputeCharge.Cpu * (float64(v.Resources.CpuLimit) / 1000)
+			cycle_amount += iamapi.AccountFloat64Round(
+				spec_plan.ResourceComputeCharge.Cpu * (float64(v.Resources.CpuLimit) / 1000))
 
 			// RAM
 			// v.Resources.MemLimit = 1 * losapi.ByteGB
-			cycle_amount += spec_plan.ResourceComputeCharge.Memory * float64(v.Resources.MemLimit/losapi.ByteMB)
+			cycle_amount += iamapi.AccountFloat64Round(
+				spec_plan.ResourceComputeCharge.Memory * float64(v.Resources.MemLimit/losapi.ByteMB))
 		}
-	}
-
-	if pod.Payment == nil {
-		pod.Payment = &losapi.PodPayment{
-			TimeStart: uint32(time.Now().Unix()),
-			TimeClose: 0,
-			Prepay:    0,
-			Payout:    0,
-		}
-		// hlog.Printf("info", "new pod.payment")
 	}
 
 	// close prev payment cycle
@@ -179,7 +170,7 @@ func pod_charge_entry(pod losapi.Pod) {
 	}
 
 	cycle_amount = cycle_amount * (float64(pod.Payment.TimeClose-pod.Payment.TimeStart) / 3600)
-	cycle_amount = math.Trunc(cycle_amount*1e4+0.5) * 1e-4
+	cycle_amount = iamapi.AccountFloat64Round(cycle_amount)
 	if cycle_amount < 0.0001 {
 		cycle_amount = 0.0001
 	}
@@ -245,7 +236,7 @@ func pod_charge_entry(pod losapi.Pod) {
 func pod_entry_chargeout(pod_id string) {
 
 	var prev losapi.Pod
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(losapi.NsZonePodInstance(status.ZoneId, pod_id)); !rs.OK() {
 		return
 	} else {
 		rs.Decode(&prev)
@@ -255,11 +246,11 @@ func pod_entry_chargeout(pod_id string) {
 		return
 	}
 
-	prev.Operate.Action = losapi.OpActionStop | losapi.OpActionCharged
+	prev.Operate.Action = losapi.OpActionStop
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	data.ZoneMaster.PvPut(losapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev, nil)
 
 	// Pod Map to Cell Queue
 	qstr := losapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)

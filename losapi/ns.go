@@ -31,17 +31,32 @@ const (
 )
 
 //
-func NsLocalZoneMasterList() string {
-	return "/local/zone-master/list"
-}
-
-//
 func NsGlobalSysZone(name string) string {
 	return fmt.Sprintf("/global/sys/zone/%s", name)
 }
 
 func NsGlobalSysCell(zone_id, cell_id string) string {
 	return fmt.Sprintf("/global/sys/cell/%s/%s", zone_id, cell_id)
+}
+
+func NsGlobalPodSpec(stype, id string) string {
+	return fmt.Sprintf("/global/pod/spec/%s/%s", stype, id)
+}
+
+func NsGlobalPodInstance(pod_id string) string {
+	return fmt.Sprintf("/global/pod/instance/%s", pod_id)
+}
+
+func NsGlobalAppSpec(spec_id string) string {
+	return fmt.Sprintf("/global/app/spec/%s", spec_id)
+}
+
+func NsGlobalAppInstance(instance_id string) string {
+	return fmt.Sprintf("/global/app/instance/%s", instance_id)
+}
+
+func NsGlobalResInstance(meta_name string) string {
+	return fmt.Sprintf("/global/res/%s", meta_name)
 }
 
 //
@@ -75,27 +90,6 @@ func NsZoneSysMasterNode(zone_id, node_id string) string {
 
 func NsZoneSysCellScheduler(zone_id, cell_id string) string {
 	return fmt.Sprintf("/%s/sys/job/%s/scheduler", zone_id, cell_id)
-}
-
-//
-func NsGlobalPodSpec(stype, id string) string {
-	return fmt.Sprintf("/global/pod/spec/%s/%s", stype, id)
-}
-
-func NsGlobalPodInstance(pod_id string) string {
-	return fmt.Sprintf("/global/pod/instance/%s", pod_id)
-}
-
-func NsGlobalAppSpec(spec_id string) string {
-	return fmt.Sprintf("/global/app/spec/%s", spec_id)
-}
-
-func NsGlobalAppInstance(instance_id string) string {
-	return fmt.Sprintf("/global/app/instance/%s", instance_id)
-}
-
-func NsGlobalResInstance(meta_name string) string {
-	return fmt.Sprintf("/global/res/%s", meta_name)
 }
 
 //
@@ -149,6 +143,11 @@ func NsZoneHostBoundPodReplicaStatus(zone_id, host_id, pod_id string, rep_id uin
 
 func NsZonePodServiceMap(pod_id string) string {
 	return fmt.Sprintf("/nsz/ps/%s", pod_id)
+}
+
+//
+func NsLocalZoneMasterList() string {
+	return "/local/zone-master/list"
 }
 
 func NsLocalCacheBoundPod(pod_id string, rep_id uint16) string {
