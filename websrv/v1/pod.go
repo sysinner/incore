@@ -25,8 +25,8 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 type Pod struct {
@@ -51,7 +51,7 @@ func (c *Pod) Init() int {
 func (c Pod) ListAction() {
 
 	var (
-		ls losapi.PodList
+		ls inapi.PodList
 	)
 
 	defer c.RenderJson(&ls)
@@ -59,9 +59,9 @@ func (c Pod) ListAction() {
 	// TODO pager
 	var rs *skv.Result
 	if zone_id := c.Params.Get("zone_id"); zone_id != "" {
-		rs = data.ZoneMaster.PvScan(losapi.NsZonePodInstance(zone_id, ""), "", "", 1000)
+		rs = data.ZoneMaster.PvScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 1000)
 	} else {
-		rs = data.ZoneMaster.PvScan(losapi.NsGlobalPodInstance(""), "", "", 1000)
+		rs = data.ZoneMaster.PvScan(inapi.NsGlobalPodInstance(""), "", "", 1000)
 	}
 	rss := rs.KvList()
 
@@ -73,7 +73,7 @@ func (c Pod) ListAction() {
 
 	for _, v := range rss {
 
-		var pod losapi.Pod
+		var pod inapi.Pod
 
 		if err := v.Decode(&pod); err == nil {
 
@@ -84,7 +84,7 @@ func (c Pod) ListAction() {
 
 			if len(fields) > 0 {
 
-				podfs := losapi.Pod{
+				podfs := inapi.Pod{
 					Meta: types.InnerObjectMeta{
 						ID: pod.Meta.ID,
 					},
@@ -99,7 +99,7 @@ func (c Pod) ListAction() {
 				}
 
 				if fields.Has("spec") && pod.Spec != nil {
-					podfs.Spec = &losapi.PodSpecBound{}
+					podfs.Spec = &inapi.PodSpecBound{}
 
 					if fields.Has("spec/ref/name") {
 						podfs.Spec.Ref.Name = pod.Spec.Ref.Name
@@ -118,7 +118,7 @@ func (c Pod) ListAction() {
 
 					for _, a := range pod.Apps {
 
-						afs := losapi.AppInstance{}
+						afs := inapi.AppInstance{}
 
 						if fields.Has("apps/meta/id") {
 							afs.Meta.ID = a.Meta.ID
@@ -163,16 +163,16 @@ func (c Pod) EntryAction() {
 		id      = c.Params.Get("id")
 		fields  = c.Params.Get("fields")
 		zone_id = c.Params.Get("zone_id")
-		set     losapi.Pod
+		set     inapi.Pod
 	)
 
 	defer c.RenderJson(&set)
 
 	if zone_id == "" {
-		if obj := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(id)); obj.OK() {
+		if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(id)); obj.OK() {
 			obj.Decode(&set)
 			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
-				set = losapi.Pod{}
+				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
 				return
 			}
@@ -182,11 +182,11 @@ func (c Pod) EntryAction() {
 
 	if zone_id != "" {
 
-		if obj := data.ZoneMaster.PvGet(losapi.NsZonePodInstance(zone_id, id)); obj.OK() {
+		if obj := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(zone_id, id)); obj.OK() {
 
 			obj.Decode(&set)
 			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
-				set = losapi.Pod{}
+				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
 				return
 			}
@@ -206,8 +206,8 @@ func (c Pod) EntryAction() {
 func (c Pod) NewAction() {
 
 	var (
-		set  losapi.PodSpecPlanSetup
-		spec losapi.PodSpecPlan
+		set  inapi.PodSpecPlanSetup
+		spec inapi.PodSpecPlan
 	)
 
 	defer c.RenderJson(&set)
@@ -224,7 +224,7 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalPodSpec("plan", set.Plan)); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); obj.OK() {
 		obj.Decode(&spec)
 	}
 	if spec.Meta.ID == "" || spec.Meta.ID != set.Plan {
@@ -239,8 +239,8 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	var zone losapi.ResZone
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(set.Zone)); obj.OK() {
+	var zone inapi.ResZone
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(set.Zone)); obj.OK() {
 		obj.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
@@ -249,8 +249,8 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	var cell losapi.ResCell
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalSysCell(set.Zone, set.Cell)); obj.OK() {
+	var cell inapi.ResCell
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysCell(set.Zone, set.Cell)); obj.OK() {
 		obj.Decode(&cell)
 	}
 	if cell.Meta.Id == "" {
@@ -264,7 +264,7 @@ func (c Pod) NewAction() {
 		return
 	}
 
-	pod := losapi.Pod{
+	pod := inapi.Pod{
 		Meta: types.InnerObjectMeta{
 			ID:      idhash.RandHexString(16),
 			Name:    set.Name,
@@ -272,8 +272,8 @@ func (c Pod) NewAction() {
 			Created: types.MetaTimeNow(),
 			Updated: types.MetaTimeNow(),
 		},
-		Spec: &losapi.PodSpecBound{
-			Ref: losapi.ObjectReference{
+		Spec: &inapi.PodSpecBound{
+			Ref: inapi.ObjectReference{
 				Id:      spec.Meta.ID,
 				Name:    spec.Meta.Name,
 				Version: spec.Meta.Version,
@@ -281,9 +281,9 @@ func (c Pod) NewAction() {
 			Zone:   set.Zone,
 			Cell:   set.Cell,
 			Labels: spec.Labels,
-			Volumes: []losapi.PodSpecResVolume{
+			Volumes: []inapi.PodSpecResVolume{
 				{
-					Ref: losapi.ObjectReference{
+					Ref: inapi.ObjectReference{
 						Name:    res_vol.Meta.Name,
 						Version: res_vol.Meta.Version,
 					},
@@ -292,8 +292,8 @@ func (c Pod) NewAction() {
 				},
 			},
 		},
-		Operate: losapi.PodOperate{
-			Action:     losapi.OpActionStart,
+		Operate: inapi.PodOperate{
+			Action:     inapi.OpActionStart,
 			Version:    1,
 			ReplicaCap: 1,
 		},
@@ -314,11 +314,11 @@ func (c Pod) NewAction() {
 			return
 		}
 
-		pod.Spec.Boxes = append(pod.Spec.Boxes, losapi.PodSpecBoxBound{
+		pod.Spec.Boxes = append(pod.Spec.Boxes, inapi.PodSpecBoxBound{
 			Name:    v.Name,
 			Updated: types.MetaTimeNow(),
-			Image: losapi.PodSpecBoxImageBound{
-				Ref: &losapi.ObjectReference{
+			Image: inapi.PodSpecBoxImageBound{
+				Ref: &inapi.ObjectReference{
 					Id:      img.Meta.ID,
 					Name:    img.Meta.Name,
 					Version: img.Meta.Version,
@@ -328,8 +328,8 @@ func (c Pod) NewAction() {
 				Arch:    img.Arch,
 				Options: img.Options,
 			},
-			Resources: &losapi.PodSpecBoxResComputeBound{
-				Ref: &losapi.ObjectReference{
+			Resources: &inapi.PodSpecBoxResComputeBound{
+				Ref: &inapi.ObjectReference{
 					Id:      res.Meta.ID,
 					Name:    res.Meta.Name,
 					Version: res.Meta.Version,
@@ -342,21 +342,21 @@ func (c Pod) NewAction() {
 
 	//
 
-	if rs := data.ZoneMaster.PvNew(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
+	if rs := data.ZoneMaster.PvNew(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
 
 	/*
-		oplog := losapi.NewOpLog(c.us.UserName)
-		if rs := data.ZoneMaster.PvNew(losapi.NsZonePodOperateLog(pod.Spec.Zone, pod.RepId(0)), oplog, nil); !rs.OK() {
+		oplog := inapi.NewOpLog(c.us.UserName)
+		if rs := data.ZoneMaster.PvNew(inapi.NsZonePodOperateLog(pod.Spec.Zone, pod.RepId(0)), oplog, nil); !rs.OK() {
 			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 			return
 		}
 	*/
 
 	// Pod Map to Cell Queue
-	qmpath := losapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	data.ZoneMaster.PvNew(qmpath, pod, nil)
 
 	set.Kind = "PodInstance"
@@ -372,18 +372,18 @@ func (c Pod) OpActionSetAction() {
 		op_action = uint32(c.Params.Uint64("op_action"))
 	)
 
-	if !losapi.PodIdReg.MatchString(pod_id) {
+	if !inapi.PodIdReg.MatchString(pod_id) {
 		set.Error = types.NewErrorMeta("400", "Invalid Pod ID")
 		return
 	}
 
-	if !losapi.OpActionValid(op_action) {
+	if !inapi.OpActionValid(op_action) {
 		set.Error = types.NewErrorMeta("400", "Invalid OpAction")
 		return
 	}
 
-	var prev losapi.Pod
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+	var prev inapi.Pod
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Pod Not Found")
 		return
 	} else {
@@ -397,23 +397,18 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	//
-	if prev.Operate.Action == op_action {
-		set.Kind = "PodInstance"
-		return
-	}
-
 	prev.Operate.Action = op_action
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		Force: true,
 	})
 
 	// Pod Map to Cell Queue
-	qstr := losapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeBadArgument, "ObjectAlreadyExists")
+		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "ObjectAlreadyExists")
 		return
 	}
 	data.ZoneMaster.PvPut(qstr, prev, &skv.PathWriteOptions{
@@ -426,9 +421,8 @@ func (c Pod) OpActionSetAction() {
 func (c Pod) SetInfoAction() {
 
 	var (
-		set          losapi.Pod
-		prev         losapi.Pod
-		prev_version uint64
+		set  inapi.Pod
+		prev inapi.Pod
 	)
 
 	defer c.RenderJson(&set)
@@ -438,17 +432,16 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
-	if set.Operate.Action > 0 && !losapi.OpActionValid(set.Operate.Action) {
+	if set.Operate.Action > 0 && !inapi.OpActionValid(set.Operate.Action) {
 		set.Error = types.NewErrorMeta("400", "Invalid OpAction")
 		return
 	}
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
 		rs.Decode(&prev)
-		prev_version = rs.Meta().Version
 	}
 
 	if prev.Meta.ID != set.Meta.ID {
@@ -477,15 +470,15 @@ func (c Pod) SetInfoAction() {
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
-		PrevVersion: prev_version,
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
+		Force: true,
 	})
 
 	// Pod Map to Cell Queue
-	qstr := losapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeBadArgument, "ObjectAlreadyExists")
+		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "ObjectAlreadyExists")
 		return
 	}
 
@@ -498,22 +491,22 @@ func (c Pod) SetInfoAction() {
 
 func (c Pod) StatusAction() {
 
-	rsp := losapi.PodStatus{}
+	rsp := inapi.PodStatus{}
 
 	defer c.RenderJson(&rsp)
 
 	rsp = pod_status(c.Params.Get("id"), c.us.UserName)
 }
 
-func pod_status(pod_id string, user_name string) losapi.PodStatus {
+func pod_status(pod_id string, user_name string) inapi.PodStatus {
 
 	var (
-		pod    losapi.Pod
-		status losapi.PodStatus
+		pod    inapi.Pod
+		status inapi.PodStatus
 	)
 
 	//
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(pod_id)); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
 		obj.Decode(&pod)
 	}
 
@@ -528,7 +521,7 @@ func pod_status(pod_id string, user_name string) losapi.PodStatus {
 	}
 
 	//
-	if obj := data.ZoneMaster.PvGet(losapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); obj.OK() {
 		obj.Decode(&pod)
 	}
 
@@ -543,19 +536,19 @@ func pod_status(pod_id string, user_name string) losapi.PodStatus {
 			continue
 		}
 
-		var rep_status losapi.PodStatusReplica
+		var rep_status inapi.PodStatusReplica
 		if obj := data.ZoneMaster.PvGet(
-			losapi.NsZoneHostBoundPodReplicaStatus(pod.Spec.Zone, rep.Node, pod.Meta.ID, rep.Id),
+			inapi.NsZoneHostBoundPodReplicaStatus(pod.Spec.Zone, rep.Node, pod.Meta.ID, rep.Id),
 		); obj.OK() {
 			obj.Decode(&rep_status)
 		}
 
 		if rep_status.Phase == "" {
-			rep_status.Phase = losapi.OpStatusPending
+			rep_status.Phase = inapi.OpStatusPending
 		} else {
 
 			if (time.Now().UTC().Unix() - rep_status.Updated.Time().Unix()) > 600 {
-				rep_status.Phase = losapi.OpStatusUnknown
+				rep_status.Phase = inapi.OpStatusUnknown
 			}
 
 			status.Replicas = append(status.Replicas, &rep_status)

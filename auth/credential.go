@@ -26,8 +26,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/status"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/status"
 )
 
 const (

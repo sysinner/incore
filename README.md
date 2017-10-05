@@ -1,6 +1,6 @@
 **THIS IS A DEVELOPMENT PREVIEW - DO NOT USE IT IN PRODUCTION!**
 
-## lessOS Core (loscore)
+## SysInner Core (incore)
 
 Container Scheduling and Management
 

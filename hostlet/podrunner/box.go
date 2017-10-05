@@ -30,10 +30,10 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	los_db "github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/losutils"
-	los_sts "github.com/lessos/loscore/status"
+	in_db "github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils"
+	in_sts "github.com/sysinner/incore/status"
 )
 
 type BoxKeeper struct {
@@ -100,7 +100,7 @@ func (br *BoxKeeper) stats_watcher() {
 	for {
 		tl := <-ticker.C
 
-		if !br.inited || los_sts.ZoneId == "" ||
+		if !br.inited || in_sts.ZoneId == "" ||
 			br.hidocker == nil || len(br.instances) > 100 {
 			continue
 		}
@@ -117,7 +117,7 @@ func (br *BoxKeeper) stats_watcher() {
 			br.instances[inst_name].stats_pending = true
 
 			if vc.Stats == nil {
-				br.instances[inst_name].Stats = losapi.NewTimeStatsFeed(stats_cycle_buf)
+				br.instances[inst_name].Stats = inapi.NewTimeStatsFeed(stats_cycle_buf)
 			}
 
 			go br.stats_watcher_ado(vc.ID, inst_name, timo)
@@ -218,7 +218,7 @@ func (br *BoxKeeper) stats_watcher_ado(ct_id string, inst_name string, timo uint
 		"cpu/us",
 		"fs/rn", "fs/rs", "fs/wn", "fs/ws",
 	}
-	feed := losapi.NewTimeStatsFeed(stats_cycle_buf)
+	feed := inapi.NewTimeStatsFeed(stats_cycle_buf)
 	feed_tc := uint32(0)
 	for _, v := range ar {
 		if entry, tc := box_inst.Stats.CycleSplit(v, stats_cycle_log); entry != nil {
@@ -234,9 +234,9 @@ func (br *BoxKeeper) stats_watcher_ado(ct_id string, inst_name string, timo uint
 	}
 
 	if feed_tc > 0 {
-		los_db.HiMaster.ProgPut(
-			losapi.NsZonePodRepStats(
-				los_sts.ZoneId,
+		in_db.HiMaster.ProgPut(
+			inapi.NsZonePodRepStats(
+				in_sts.ZoneId,
 				box_inst.PodID,
 				box_inst.RepId,
 				"sys",
@@ -252,7 +252,7 @@ func (br *BoxKeeper) stats_watcher_ado(ct_id string, inst_name string, timo uint
 	}
 }
 
-func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
+func (br *BoxKeeper) ctr_sync(pod *inapi.Pod) {
 
 	br.mu.Lock()
 	defer br.mu.Unlock()
@@ -262,11 +262,11 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 
 		inst_name := fmt.Sprintf(
 			"%s-%s-%s",
-			pod.Meta.ID, losutils.Uint16ToHexString(pod.Operate.Replica.Id), box_spec.Name,
+			pod.Meta.ID, inutils.Uint16ToHexString(pod.Operate.Replica.Id), box_spec.Name,
 		)
 
 		if len(box_spec.Command) < 1 {
-			box_spec.Command = []string{"/home/action/.los/lpinit"}
+			box_spec.Command = []string{"/home/action/.sysinner/ininit"}
 		}
 
 		box, ok := box_keeper.instances[inst_name]
@@ -281,14 +281,14 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 				Spec:        box_spec,
 				Apps:        pod.Apps,
 				Ports:       pod.Operate.Replica.Ports, // TODO
-				Stats:       losapi.NewTimeStatsFeed(stats_cycle_buf),
+				Stats:       inapi.NewTimeStatsFeed(stats_cycle_buf),
 			}
 
 			box_keeper.instances[inst_name] = box
 
 		} else {
 
-			if pod.Operate.Action != box.PodOpAction {
+			if pod.Operate.Action != box.PodOpAction && pod.Operate.Action > 0 {
 				box.PodOpAction = pod.Operate.Action
 			}
 
@@ -299,14 +299,14 @@ func (br *BoxKeeper) ctr_sync(pod *losapi.Pod) {
 
 		/*
 			// debug ...
-			box.Spec.Ports.Sync(losapi.Port{
+			box.Spec.Ports.Sync(inapi.Port{
 				Name:     "http",
-				Protocol: losapi.ProtocolTCP,
+				Protocol: inapi.ProtocolTCP,
 				BoxPort:  8080,
 			})
-			box.Spec.Ports.Sync(losapi.Port{
+			box.Spec.Ports.Sync(inapi.Port{
 				Name:     "ssh",
-				Protocol: losapi.ProtocolTCP,
+				Protocol: inapi.ProtocolTCP,
 				BoxPort:  22,
 			})
 		*/
@@ -348,11 +348,11 @@ func (br *BoxKeeper) status_update(item *BoxInstance) {
 
 		inst.Status.Sync(item.Status)
 
-		if inst.PodOpAction != item.PodOpAction {
+		if inst.PodOpAction != item.PodOpAction && item.PodOpAction > 0 {
 			inst.PodOpAction = item.PodOpAction
 		}
 
-		if item.Status.Phase == losapi.OpStatusDestroyed {
+		if item.Status.Phase == inapi.OpStatusDestroyed {
 			inst.ID, item.ID = "", ""
 		} else if item.ID != "" {
 			inst.ID = item.ID
@@ -364,7 +364,7 @@ func (br *BoxKeeper) status_update(item *BoxInstance) {
 
 	br.mu.Unlock()
 
-	pod_status_sync(losapi.NsZonePodOpRepKey(item.PodID, item.RepId))
+	pod_status_sync(inapi.NsZonePodOpRepKey(item.PodID, item.RepId))
 }
 
 func (br *BoxKeeper) ctr_action() {

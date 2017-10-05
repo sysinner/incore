@@ -18,7 +18,7 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
 
-	"github.com/lessos/los-webui"
+	"github.com/sysinner/inpanel"
 )
 
 type Index struct {
@@ -39,33 +39,33 @@ func (c Index) IndexAction() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <title>Control Panel - lessOS</title>
-  <script src="/los/cp/~/lessui/js/sea.js?v=` + los_webui.VersionHash + `"></script>
-  <script src="/los/cp/~/cp/js/main.js?v=` + los_webui.VersionHash + `"></script>
-  <link rel="stylesheet" href="/los/cp/~/cp/css/base.css?v=` + los_webui.VersionHash + `" type="text/css">
-  <link rel="shortcut icon" type="image/x-icon" href="/los/cp/~/cp/img/favicon.png">
+  <title>Control Panel - SysInner</title>
+  <script src="/in/cp/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
+  <script src="/in/cp/~/cp/js/main.js?v=` + inpanel.VersionHash + `"></script>
+  <link rel="stylesheet" href="/in/cp/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
+  <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/favicon.png">
   <script type="text/javascript">
-    losCp.version = "` + los_webui.VersionHash + `";
-    window.onload = losCp.Boot(` + login + `);
+    inCp.version = "` + inpanel.VersionHash + `";
+    window.onload = inCp.Boot(` + login + `);
   </script>
 </head>
 <body id="body-content">
-<div class="loscp-well" id="loscp-well">
-<div class="loscp-well-box">
-  <div class="loscp-well-panel">
+<div class="incp-well" id="incp-well">
+<div class="incp-well-box">
+  <div class="incp-well-panel">
     <div class="body2c">
       <div class="body2c1">
-        <img src="/los/cp/~/cp/img/logo-g1s96.png">
+        <img src="/in/cp/~/cp/img/logo-g1s96.png">
       </div>
       <div class="body2c2">
         <div>Development Productivity Tools<br/>for DevOps</div>
       </div>
     </div>
-    <div class="status status_dark" id="loscp-well-status">loading</div>
+    <div class="status status_dark" id="incp-well-status">loading</div>
   </div>
   <div class="footer">
     <span class="copy">&copy;2017&nbsp;</span>
-    <a href="http://www.lessos.com" target="_blank">lessOS.com</a>
+    <a href="http://www.sysinner.com" target="_blank">SysInner.com</a>
   </div>
 </div>
 </div>

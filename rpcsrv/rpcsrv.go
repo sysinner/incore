@@ -21,7 +21,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"github.com/lessos/loscore/auth"
+	"github.com/sysinner/incore/auth"
 )
 
 var (

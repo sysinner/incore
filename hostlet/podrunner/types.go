@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/losutils"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils"
 )
 
 const (
@@ -31,17 +31,17 @@ const (
 
 var (
 	vol_podhome_fmt      = "%s/%s.%s/home/action"
-	vol_agentsys_dir_fmt = "%s/%s.%s/home/action/.los"
+	vol_agentsys_dir_fmt = "%s/%s.%s/home/action/.sysinner"
 )
 
 func vol_podhome_dir(pod_id string, rep_id uint16) string {
 	return fmt.Sprintf(vol_podhome_fmt, config.Config.PodHomeDir,
-		pod_id, losutils.Uint16ToHexString(rep_id))
+		pod_id, inutils.Uint16ToHexString(rep_id))
 }
 
 func vol_agentsys_dir(pod_id string, rep_id uint16) string {
 	return fmt.Sprintf(vol_agentsys_dir_fmt, config.Config.PodHomeDir,
-		pod_id, losutils.Uint16ToHexString(rep_id))
+		pod_id, inutils.Uint16ToHexString(rep_id))
 }
 
 type BoxInstance struct {
@@ -51,13 +51,13 @@ type BoxInstance struct {
 	PodID         string
 	RepId         uint16
 	PodOpAction   uint32
-	Spec          losapi.PodSpecBoxBound
-	Apps          losapi.AppInstances
-	Status        losapi.PodBoxStatus
-	Ports         losapi.ServicePorts
+	Spec          inapi.PodSpecBoxBound
+	Apps          inapi.AppInstances
+	Status        inapi.PodBoxStatus
+	Ports         inapi.ServicePorts
 	Retry         int
-	Env           []losapi.EnvVar
-	Stats         *losapi.TimeStatsFeed
+	Env           []inapi.EnvVar
+	Stats         *inapi.TimeStatsFeed
 }
 
 func (inst *BoxInstance) SpecDesired() bool {
@@ -125,9 +125,9 @@ func (inst *BoxInstance) SpecDesired() bool {
 
 func (inst *BoxInstance) OpActionDesired() bool {
 
-	if (inst.PodOpAction == losapi.OpActionStart && inst.Status.Phase == losapi.OpStatusRunning) ||
-		(inst.PodOpAction == losapi.OpActionStop && inst.Status.Phase == losapi.OpStatusStopped) ||
-		(inst.PodOpAction == losapi.OpActionDestroy && inst.Status.Phase == losapi.OpStatusDestroyed) {
+	if (inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) && inst.Status.Phase == inapi.OpStatusRunning) ||
+		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) && inst.Status.Phase == inapi.OpStatusStopped) ||
+		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) && inst.Status.Phase == inapi.OpStatusDestroyed) {
 		return true
 	}
 
@@ -136,19 +136,19 @@ func (inst *BoxInstance) OpActionDesired() bool {
 
 func (inst *BoxInstance) volume_mounts_refresh() {
 
-	ls := losapi.VolumeMounts{}
+	ls := inapi.VolumeMounts{}
 
-	ls.Sync(losapi.VolumeMount{
+	ls.Sync(inapi.VolumeMount{
 		Name:      "home",
 		MountPath: "/home/action",
 		HostDir:   vol_podhome_dir(inst.PodID, inst.RepId),
 		ReadOnly:  false,
 	})
 
-	ls.Sync(losapi.VolumeMount{
-		Name:      "los/nsz",
-		MountPath: "/dev/shm/los/nsz",
-		HostDir:   "/dev/shm/los/nsz",
+	ls.Sync(inapi.VolumeMount{
+		Name:      "sysinner/nsz",
+		MountPath: "/dev/shm/sysinner/nsz",
+		HostDir:   "/dev/shm/sysinner/nsz",
 		ReadOnly:  true,
 	})
 
@@ -156,10 +156,10 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 
 		for _, pkg := range app.Spec.Packages {
 
-			ls.Sync(losapi.VolumeMount{
-				Name:      "lpm-" + pkg.Name,
-				MountPath: lpm_mountpath(pkg.Name, pkg.Version),
-				HostDir:   lpm_hostdir(pkg.Name, pkg.Version, pkg.Release, pkg.Dist, pkg.Arch),
+			ls.Sync(inapi.VolumeMount{
+				Name:      "ipm-" + pkg.Name,
+				MountPath: ipm_mountpath(pkg.Name, pkg.Version),
+				HostDir:   ipm_hostdir(pkg.Name, pkg.Version, pkg.Release, pkg.Dist, pkg.Arch),
 				ReadOnly:  true,
 			})
 		}

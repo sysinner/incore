@@ -18,8 +18,8 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 func (c Host) NodeListAction() {
@@ -27,15 +27,15 @@ func (c Host) NodeListAction() {
 	var (
 		zoneid = c.Params.Get("zoneid")
 		cellid = c.Params.Get("cellid")
-		sets   losapi.GeneralObjectList
+		sets   inapi.GeneralObjectList
 	)
 	defer c.RenderJson(&sets)
 
-	rss := data.ZoneMaster.PvScan(losapi.NsZoneSysHost(zoneid, ""), "", "", 1000).KvList()
+	rss := data.ZoneMaster.PvScan(inapi.NsZoneSysHost(zoneid, ""), "", "", 1000).KvList()
 
 	for _, v := range rss {
 
-		var node losapi.ResHost
+		var node inapi.ResHost
 
 		if err := v.Decode(&node); err == nil {
 
@@ -44,9 +44,9 @@ func (c Host) NodeListAction() {
 				continue
 			}
 
-			if rs := data.ZoneMaster.PvGet(losapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); rs.OK() {
+			if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); rs.OK() {
 
-				var status losapi.ResHostStatus
+				var status inapi.ResHostStatus
 				if err = rs.Decode(&status); err == nil {
 					node.Status = &status
 				}
@@ -65,13 +65,13 @@ func (c Host) NodeEntryAction() {
 		zoneid = c.Params.Get("zoneid")
 		nodeid = c.Params.Get("nodeid")
 		node   struct {
-			losapi.GeneralObject
-			losapi.ResHost
+			inapi.GeneralObject
+			inapi.ResHost
 		}
 	)
 	defer c.RenderJson(&node)
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsZoneSysHost(zoneid, nodeid)); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsZoneSysHost(zoneid, nodeid)); obj.OK() {
 
 		if err := obj.Decode(&node.ResHost); err != nil {
 			node.Error = &types.ErrorMeta{Code: "400", Message: err.Error()}
@@ -84,9 +84,9 @@ func (c Host) NodeEntryAction() {
 		return
 	}
 
-	if re := data.ZoneMaster.PvGet(losapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); re.OK() {
+	if re := data.ZoneMaster.PvGet(inapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); re.OK() {
 
-		var status losapi.ResHostStatus
+		var status inapi.ResHostStatus
 		if err := re.Decode(&status); err == nil {
 			node.Status = &status
 		}
@@ -99,10 +99,10 @@ func (c Host) NodeNewAction() {
 
 	var (
 		node struct {
-			losapi.GeneralObject
-			losapi.ResHost
+			inapi.GeneralObject
+			inapi.ResHost
 		}
-		cell losapi.ResCell
+		cell inapi.ResCell
 	)
 	defer c.RenderJson(&node)
 
@@ -111,7 +111,7 @@ func (c Host) NodeNewAction() {
 		return
 	}
 
-	if !losapi.ResSysHostIdReg.MatchString(node.Meta.Id) {
+	if !inapi.ResSysHostIdReg.MatchString(node.Meta.Id) {
 		node.Error = &types.ErrorMeta{"400", "Invalid Node Id"}
 		return
 	}
@@ -120,13 +120,13 @@ func (c Host) NodeNewAction() {
 		node.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
 		return
 	}
-	if rs := data.ZoneMaster.PvGet(losapi.NsZoneSysCell(node.Operate.ZoneId, node.Operate.CellId)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(node.Operate.ZoneId, node.Operate.CellId)); !rs.OK() {
 		node.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
 		return
 	}
 
 	//
-	if !losapi.HostNodeAddress(node.Spec.PeerLanAddr).Valid() {
+	if !inapi.HostNodeAddress(node.Spec.PeerLanAddr).Valid() {
 		node.Error = &types.ErrorMeta{"400", "Peer LAN Address Not Valid"}
 		return
 	}
@@ -141,7 +141,7 @@ func (c Host) NodeNewAction() {
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsZoneSysCell(node.Operate.ZoneId, node.Operate.CellId)); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(node.Operate.ZoneId, node.Operate.CellId)); obj.OK() {
 		obj.Decode(&cell)
 	}
 	if cell.Meta.Id == "" {
@@ -152,7 +152,7 @@ func (c Host) NodeNewAction() {
 	node.Meta.Created = uint64(types.MetaTimeNow())
 	node.Meta.Updated = uint64(types.MetaTimeNow())
 
-	data.ZoneMaster.PvPut(losapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil)
+	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil)
 
 	node.Kind = "HostNode"
 }
@@ -161,10 +161,10 @@ func (c Host) NodeSetAction() {
 
 	var (
 		node struct {
-			losapi.GeneralObject
-			losapi.ResHost
+			inapi.GeneralObject
+			inapi.ResHost
 		}
-		prev losapi.ResHost
+		prev inapi.ResHost
 	)
 	defer c.RenderJson(&node)
 
@@ -180,7 +180,7 @@ func (c Host) NodeSetAction() {
 	}
 
 	//
-	obj := data.ZoneMaster.PvGet(losapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id))
+	obj := data.ZoneMaster.PvGet(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id))
 	if obj.OK() {
 		obj.Decode(&prev)
 	}
@@ -196,8 +196,8 @@ func (c Host) NodeSetAction() {
 		prev.Meta.Name = node.Meta.Name
 	}
 
-	data.ZoneMaster.PvPut(losapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), prev, &skv.PathWriteOptions{
-		PrevVersion: obj.Meta().Version,
+	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), prev, &skv.PathWriteOptions{
+		Force: true,
 	})
 
 	node.Kind = "HostNode"

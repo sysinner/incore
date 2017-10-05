@@ -20,10 +20,10 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/inapi"
 )
 
-func PodEntry(pod_id string) losapi.Pod {
+func PodEntry(pod_id string) inapi.Pod {
 
 	pod_mu.Lock()
 	defer pod_mu.Unlock()
@@ -32,10 +32,10 @@ func PodEntry(pod_id string) losapi.Pod {
 		return *entry
 	}
 
-	return losapi.Pod{}
+	return inapi.Pod{}
 }
 
-func PodStatus(pod_id string) losapi.PodStatus {
+func PodStatus(pod_id string) inapi.PodStatus {
 
 	pod_mu.Lock()
 	defer pod_mu.Unlock()
@@ -47,10 +47,10 @@ func PodStatus(pod_id string) losapi.PodStatus {
 		}
 	}
 
-	return losapi.PodStatus{}
+	return inapi.PodStatus{}
 }
 
-func LocalAppSync(app losapi.AppInstance) error {
+func LocalAppSync(app inapi.AppInstance) error {
 
 	pod_mu.Lock()
 	defer pod_mu.Unlock()

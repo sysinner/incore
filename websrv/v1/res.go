@@ -20,8 +20,8 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 type Resource struct {
@@ -46,7 +46,7 @@ func (c *Resource) Init() int {
 func (c Resource) ListAction() {
 
 	var (
-		ls losapi.ResourceList
+		ls inapi.ResourceList
 	)
 
 	defer c.RenderJson(&ls)
@@ -56,7 +56,7 @@ func (c Resource) ListAction() {
 		return
 	}
 
-	rs := data.ZoneMaster.PvScan(losapi.NsGlobalResInstance(c.Params.Get("type")), "", "", 1000)
+	rs := data.ZoneMaster.PvScan(inapi.NsGlobalResInstance(c.Params.Get("type")), "", "", 1000)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -67,7 +67,7 @@ func (c Resource) ListAction() {
 
 	for _, v := range rss {
 
-		var inst losapi.Resource
+		var inst inapi.Resource
 
 		if err := v.Decode(&inst); err == nil {
 
@@ -76,7 +76,7 @@ func (c Resource) ListAction() {
 			}
 			if len(fields) > 0 {
 
-				instf := losapi.Resource{
+				instf := inapi.Resource{
 					Meta: types.InnerObjectMeta{
 						ID: inst.Meta.ID,
 					},
@@ -109,7 +109,7 @@ func (c Resource) ListAction() {
 
 				if fields.Has("bounds") {
 					for _, bd := range inst.Bounds {
-						bdf := &losapi.ResourceBound{}
+						bdf := &inapi.ResourceBound{}
 						if fields.Has("bounds/name") {
 							bdf.Name = bd.Name
 						}
@@ -130,7 +130,7 @@ func (c Resource) ListAction() {
 /*
 func (c Resource) OperatePodSetAction() {
 
-	var set losapi.Resource
+	var set inapi.Resource
 	defer c.RenderJson(&set)
 
 	if err := c.Request.JsonDecode(&set); err != nil {
@@ -143,9 +143,9 @@ func (c Resource) OperatePodSetAction() {
 		return
 	}
 
-	var prev losapi.Resource
+	var prev inapi.Resource
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	} else if err := rs.Decode(&prev); err != nil {
@@ -167,7 +167,7 @@ func (c Resource) OperatePodSetAction() {
 		prev.Operate.AppId = set.Operate.AppId // check
 
 		//
-		data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
+		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
 			Force: true,
 		})
 

@@ -30,7 +30,7 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/connect"
 
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/inapi"
 )
 
 const (
@@ -38,23 +38,23 @@ const (
 )
 
 type HostMember struct {
-	Id        string                 `json:"id"`
-	ZoneId    string                 `json:"zone_id,omitempty"`
-	LanAddr   losapi.HostNodeAddress `json:"lan_addr"`
-	WanAddr   losapi.HostNodeAddress `json:"wan_addr,omitempty"`
-	HttpPort  uint16                 `json:"http_port,omitempty"`
-	SecretKey string                 `json:"secret_key,omitempty"`
+	Id        string                `json:"id"`
+	ZoneId    string                `json:"zone_id,omitempty"`
+	LanAddr   inapi.HostNodeAddress `json:"lan_addr"`
+	WanAddr   inapi.HostNodeAddress `json:"wan_addr,omitempty"`
+	HttpPort  uint16                `json:"http_port,omitempty"`
+	SecretKey string                `json:"secret_key,omitempty"`
 }
 
 type ConfigCommon struct {
 	filepath              string
 	Host                  HostMember               `json:"host"`
-	Masters               []losapi.HostNodeAddress `json:"masters"`
+	Masters               []inapi.HostNodeAddress  `json:"masters"`
 	IoConnectors          connect.MultiConnOptions `json:"io_connects"`
 	PodHomeDir            string                   `json:"pod_home_dir"`
 	Options               types.Labels             `json:"items,omitempty"`
 	PprofHttpPort         uint16                   `json:"pprof_http_port,omitempty"`
-	LpsServiceUrl         string                   `json:"lps_service_url,omitempty"`
+	InpackServiceUrl      string                   `json:"inpack_service_url,omitempty"`
 	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty"`
 }
 
@@ -83,7 +83,7 @@ func Init() error {
 	}
 
 	if Prefix, err = filepath.Abs(filepath.Dir(os.Args[0]) + "/.."); err != nil {
-		Prefix = "/opt/los"
+		Prefix = "/opt/sysinner"
 	}
 
 	//
@@ -176,7 +176,7 @@ func init_host() error {
 //
 func init_iox() error {
 
-	io_name := types.NewNameIdentifier("los_local_cache")
+	io_name := types.NewNameIdentifier("in_local_cache")
 	opts := Config.IoConnectors.Options(io_name)
 
 	if opts == nil {

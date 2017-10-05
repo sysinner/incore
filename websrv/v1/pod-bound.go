@@ -34,19 +34,19 @@ import (
 
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/losutils"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils"
 )
 
 const (
-	lpagent_pod_json = "%s/%s.%s/home/action/.los/pod_instance.json"
-	lpagent_sock     = "%s/%s.%s/home/action/.los/lpagent.sock"
+	inagent_pod_json = "%s/%s.%s/home/action/.sysinner/pod_instance.json"
+	inagent_sock     = "%s/%s.%s/home/action/.sysinner/inagent.sock"
 )
 
 var (
-	lpagent_dial_tto = 10 * time.Second
+	inagent_dial_tto = 10 * time.Second
 )
 
 type Podbound struct {
@@ -73,23 +73,23 @@ func (c Podbound) IndexAction() {
 	c.AutoRender = false
 
 	var pod_id = c.Params.Get("pod_id")
-	if !losapi.PodIdReg.MatchString(pod_id) {
+	if !inapi.PodIdReg.MatchString(pod_id) {
 		c.Response.Out.WriteHeader(400)
 		return
 	}
 	var rep_id = uint16(c.Params.Uint64("rep_id"))
 
-	var pod losapi.Pod
+	var pod inapi.Pod
 
-	rs := data.LocalDB.PvGet(losapi.NsLocalCacheBoundPod(pod_id, rep_id))
+	rs := data.LocalDB.PvGet(inapi.NsLocalCacheBoundPod(pod_id, rep_id))
 	if rs.OK() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
 
-		json.DecodeFile(fmt.Sprintf(lpagent_pod_json, config.Config.PodHomeDir, pod_id, losutils.Uint16ToHexString(rep_id)), &pod)
+		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(rep_id)), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.PvPut(losapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.PathWriteOptions{
+			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.PathWriteOptions{
 				Ttl: 3600000,
 			})
 		}
@@ -121,7 +121,7 @@ func PodBoundTerminalWsHandlerFunc(w http.ResponseWriter, r *http.Request) {
 
 	pod_id := r.FormValue("pod_id")
 
-	if !losapi.PodIdReg.MatchString(pod_id) {
+	if !inapi.PodIdReg.MatchString(pod_id) {
 		w.WriteHeader(400)
 		return
 	}
@@ -165,26 +165,26 @@ func PodBoundTerminalWsHandlerFunc(w http.ResponseWriter, r *http.Request) {
 
 	p := wsutil.NewSingleHostReverseProxy(backendURL)
 	p.Dial = func(network, addr string) (net.Conn, error) {
-		return net.Dial("unix", fmt.Sprintf(lpagent_sock,
-			config.Config.PodHomeDir, pod_id, losutils.Uint16ToHexString(uint16(rep_id))))
+		return net.Dial("unix", fmt.Sprintf(inagent_sock,
+			config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))))
 	}
 
 	p.ServeHTTP(w, r)
 }
 
-func pbPodInstanceSpec(pod_id string, rep_id uint16) *losapi.Pod {
+func pbPodInstanceSpec(pod_id string, rep_id uint16) *inapi.Pod {
 
-	var pod losapi.Pod
+	var pod inapi.Pod
 
-	rs := data.LocalDB.PvGet(losapi.NsLocalCacheBoundPod(pod_id, rep_id))
+	rs := data.LocalDB.PvGet(inapi.NsLocalCacheBoundPod(pod_id, rep_id))
 	if rs.OK() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
 
-		json.DecodeFile(fmt.Sprintf(lpagent_pod_json, config.Config.PodHomeDir, pod_id, losutils.Uint16ToHexString(rep_id)), &pod)
+		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(rep_id)), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.PvPut(losapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.PathWriteOptions{
+			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.PathWriteOptions{
 				Ttl: 3600000,
 			})
 		}
@@ -205,8 +205,8 @@ type podProxyUnixClients struct {
 
 func fakeDial(pod_id string, rep_id uint16) func(proto, addr string) (conn net.Conn, err error) {
 	return func(proto, addr string) (conn net.Conn, err error) {
-		return net.DialTimeout("unix", fmt.Sprintf(lpagent_sock,
-			config.Config.PodHomeDir, pod_id, losutils.Uint16ToHexString(rep_id)), lpagent_dial_tto)
+		return net.DialTimeout("unix", fmt.Sprintf(inagent_sock,
+			config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(rep_id)), inagent_dial_tto)
 	}
 }
 
@@ -225,7 +225,7 @@ func (fn *podProxyUnixClients) call(pod_id string, rep_id uint16, req *http.Requ
 	req.URL.Host = "127.0.0.1"
 	req.RequestURI = ""
 
-	prk := losapi.NsZonePodOpRepKey(pod_id, rep_id)
+	prk := inapi.NsZonePodOpRepKey(pod_id, rep_id)
 
 	client, ok := fn.clients[prk]
 	if !ok {

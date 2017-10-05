@@ -21,11 +21,11 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"golang.org/x/net/context"
 
-	"github.com/lessos/loscore/auth"
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/status"
+	"github.com/sysinner/incore/auth"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 var (
@@ -36,8 +36,8 @@ type ApiZoneMaster struct{}
 
 func (s *ApiZoneMaster) HostStatusSync(
 	ctx context.Context,
-	opts *losapi.ResHost,
-) (*losapi.ResZoneMasterList, error) {
+	opts *inapi.ResHost,
+) (*inapi.ResZoneMasterList, error) {
 
 	// fmt.Println("host status sync", opts.Meta.Id, opts.Status.Uptime)
 	if !status.IsZoneMasterLeader() {
@@ -65,14 +65,14 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 	//
 	if host.SyncStatus(*opts) {
-		data.ZoneMaster.PvPut(losapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host, nil)
+		data.ZoneMaster.PvPut(inapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host, nil)
 		hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
 	}
 
 	return &status.ZoneMasterList, nil
 }
 
-func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
+func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
 	zm_mu.Lock()
 	defer zm_mu.Unlock()
@@ -107,7 +107,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 	}
 
 	//
-	masters := []losapi.HostNodeAddress{}
+	masters := []inapi.HostNodeAddress{}
 	for i, v := range status.ZoneMasterList.Items {
 
 		if v.Addr == addr_prev {
@@ -118,7 +118,7 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 
-		masters = append(masters, losapi.HostNodeAddress(status.ZoneMasterList.Items[i].Addr))
+		masters = append(masters, inapi.HostNodeAddress(status.ZoneMasterList.Items[i].Addr))
 	}
 	if len(masters) > 0 {
 		config.Config.Masters = masters
@@ -152,16 +152,16 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 	/*
 		if host.Spec.PeerLanAddr != addr_prev {
 
-			data.ZoneMaster.PvPut(losapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil)
+			data.ZoneMaster.PvPut(inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil)
 
 			hlog.Printf("warn", "ZoneMaster NsZoneSysHost %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 	*/
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(status.ZoneId)); rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(status.ZoneId)); rs.OK() {
 
-		var zone losapi.ResZone
+		var zone inapi.ResZone
 		if err := rs.Decode(&zone); err == nil {
 
 			for i, p := range zone.LanAddrs {
@@ -173,8 +173,8 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 					hlog.Printf("warn", "ZoneMaster NsGlobalSysZone %s->%s",
 						addr_prev, host.Spec.PeerLanAddr)
 
-					data.ZoneMaster.PvPut(losapi.NsGlobalSysZone(status.ZoneId), zone, nil)
-					data.ZoneMaster.PvPut(losapi.NsZoneSysInfo(status.ZoneId), zone, nil)
+					data.ZoneMaster.PvPut(inapi.NsGlobalSysZone(status.ZoneId), zone, nil)
+					data.ZoneMaster.PvPut(inapi.NsZoneSysInfo(status.ZoneId), zone, nil)
 
 					break
 				}
@@ -182,14 +182,14 @@ func zm_host_addr_change(host *losapi.ResHost, addr_prev string) {
 		}
 	}
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)); rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)); rs.OK() {
 
-		var obj losapi.ResZoneMasterNode
+		var obj inapi.ResZoneMasterNode
 		if err := rs.Decode(&obj); err == nil {
 
 			if obj.Addr == addr_prev {
 
-				data.ZoneMaster.PvPut(losapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id), losapi.ResZoneMasterNode{
+				data.ZoneMaster.PvPut(inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id), inapi.ResZoneMasterNode{
 					Id:     host.Meta.Id,
 					Addr:   host.Spec.PeerLanAddr,
 					Action: 1,

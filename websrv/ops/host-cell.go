@@ -18,19 +18,19 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 func (c Host) CellListAction() {
 
-	var sets losapi.GeneralObjectList
+	var sets inapi.GeneralObjectList
 	defer c.RenderJson(&sets)
 
 	zoneid := c.Params.Get("zoneid")
 
 	//
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(zoneid)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
 		sets.Error = &types.ErrorMeta{
 			Code:    "404",
 			Message: "Zone Not Found",
@@ -39,10 +39,10 @@ func (c Host) CellListAction() {
 	}
 
 	//
-	rss := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(zoneid, ""), "", "", 100).KvList()
+	rss := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(zoneid, ""), "", "", 100).KvList()
 	for _, v := range rss {
 
-		var cell losapi.ResCell
+		var cell inapi.ResCell
 		if err := v.Decode(&cell); err == nil {
 			sets.Items = append(sets.Items, cell)
 		}
@@ -54,13 +54,13 @@ func (c Host) CellListAction() {
 func (c Host) CellEntryAction() {
 
 	var set struct {
-		losapi.GeneralObject
-		losapi.ResCell
+		inapi.GeneralObject
+		inapi.ResCell
 	}
 	defer c.RenderJson(&set)
 
 	if rs := data.ZoneMaster.PvGet(
-		losapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid")),
+		inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid")),
 	); rs.OK() {
 		rs.Decode(&set.ResCell)
 	}
@@ -75,10 +75,10 @@ func (c Host) CellEntryAction() {
 func (c Host) CellSetAction() {
 
 	var (
-		zone losapi.ResZone
+		zone inapi.ResZone
 		cell struct {
-			losapi.GeneralObject
-			losapi.ResCell
+			inapi.GeneralObject
+			inapi.ResCell
 		}
 	)
 	defer c.RenderJson(&cell)
@@ -88,7 +88,7 @@ func (c Host) CellSetAction() {
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(cell.ZoneId)); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(cell.ZoneId)); obj.OK() {
 		obj.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
@@ -96,7 +96,7 @@ func (c Host) CellSetAction() {
 		return
 	}
 
-	if !losapi.ResSysCellIdReg.MatchString(cell.Meta.Id) {
+	if !inapi.ResSysCellIdReg.MatchString(cell.Meta.Id) {
 		cell.Error = &types.ErrorMeta{"400", "Invalid Cell ID"}
 		return
 	}
@@ -106,35 +106,34 @@ func (c Host) CellSetAction() {
 	var prevVersion uint64
 
 	// global
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)); rs.NotFound() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)); rs.NotFound() {
 
 		cell.Meta.Created = uint64(types.MetaTimeNow())
 	} else if rs.OK() {
 
-		var prev losapi.ResCell
+		var prev inapi.ResCell
 		if err := rs.Decode(&prev); err != nil {
 			cell.Error = &types.ErrorMeta{"500", err.Error()}
 			return
 		}
 
 		cell.Meta.Created = prev.Meta.Created
-		prevVersion = rs.Meta().Version
 
 	} else {
 		cell.Error = &types.ErrorMeta{"500", "ServerError"}
 		return
 	}
 
-	data.ZoneMaster.PvPut(losapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
+	data.ZoneMaster.PvPut(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
 		cell, &skv.PathWriteOptions{
 			PrevVersion: prevVersion,
 		})
 
 	// zone
-	rsp := data.ZoneMaster.PvGet(losapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id))
+	rsp := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id))
 	if rsp.OK() {
 
-		var prev losapi.ResCell
+		var prev inapi.ResCell
 		if err := rsp.Decode(&prev); err == nil {
 			if prev.Meta.Created != 0 {
 				cell.Meta.Created = prev.Meta.Created
@@ -142,8 +141,8 @@ func (c Host) CellSetAction() {
 		}
 	}
 
-	data.ZoneMaster.PvPut(losapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell, &skv.PathWriteOptions{
-		PrevVersion: rsp.Meta().Version,
+	data.ZoneMaster.PvPut(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell, &skv.PathWriteOptions{
+		Force: true,
 	})
 
 	cell.Kind = "HostCell"

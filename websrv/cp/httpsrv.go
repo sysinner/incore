@@ -17,23 +17,23 @@ package cp
 import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
-	"github.com/lessos/loscore/config"
+	"github.com/sysinner/incore/config"
 )
 
 func NewModule() httpsrv.Module {
 
-	module := httpsrv.NewModule("los_cp")
+	module := httpsrv.NewModule("in_cp")
 
 	module.RouteSet(httpsrv.Route{
 		Type:       httpsrv.RouteTypeStatic,
 		Path:       "~",
-		StaticPath: config.Prefix + "/webui/los",
+		StaticPath: config.Prefix + "/webui/in",
 	})
 
 	module.RouteSet(httpsrv.Route{
 		Type:       httpsrv.RouteTypeStatic,
 		Path:       "-",
-		StaticPath: config.Prefix + "/webui/los/cp/tpl",
+		StaticPath: config.Prefix + "/webui/in/cp/tpl",
 	})
 
 	module.ControllerRegister(new(Index))

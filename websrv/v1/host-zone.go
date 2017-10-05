@@ -17,21 +17,21 @@ package v1
 import (
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 func (c Host) ZoneListAction() {
 
-	ls := losapi.GeneralObjectList{}
+	ls := inapi.GeneralObjectList{}
 	defer c.RenderJson(&ls)
 
 	//
-	rs := data.ZoneMaster.PvScan(losapi.NsGlobalSysZone(""), "", "", 100).KvList()
+	rs := data.ZoneMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
 
 	for _, v := range rs {
 
-		var zone losapi.ResZone
+		var zone inapi.ResZone
 
 		if err := v.Decode(&zone); err != nil || zone.Meta.Id == "" {
 			continue
@@ -39,11 +39,11 @@ func (c Host) ZoneListAction() {
 
 		if c.Params.Get("fields") == "cells" {
 
-			rs2 := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
+			rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
 
 			for _, v2 := range rs2 {
 
-				var cell losapi.ResCell
+				var cell inapi.ResCell
 
 				if err := v2.Decode(&cell); err == nil {
 					zone.Cells = append(zone.Cells, &cell)
@@ -60,13 +60,13 @@ func (c Host) ZoneListAction() {
 func (c Host) ZoneEntryAction() {
 
 	var set struct {
-		losapi.GeneralObject
-		losapi.ResZone
+		inapi.GeneralObject
+		inapi.ResZone
 	}
 
 	defer c.RenderJson(&set)
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
 
 		if err := obj.Decode(&set.ResZone); err != nil {
 			set.Error = types.NewErrorMeta("400", err.Error())
@@ -74,11 +74,11 @@ func (c Host) ZoneEntryAction() {
 
 			if c.Params.Get("fields") == "cells" {
 
-				rs2 := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
+				rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
 
 				for _, v2 := range rs2 {
 
-					var cell losapi.ResCell
+					var cell inapi.ResCell
 
 					if err := v2.Decode(&cell); err == nil {
 						set.Cells = append(set.Cells, &cell)

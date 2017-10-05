@@ -19,7 +19,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"github.com/lessos/loscore/data"
+	"github.com/sysinner/incore/data"
 )
 
 func InitData(items map[string]interface{}) error {

@@ -27,8 +27,8 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	los_db "github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	in_db "github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 type App struct {
@@ -52,11 +52,11 @@ func (c *App) Init() int {
 
 func (c App) ListAction() {
 
-	ls := losapi.AppInstanceList{}
+	ls := inapi.AppInstanceList{}
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	rs := los_db.ZoneMaster.PvScan(losapi.NsGlobalAppInstance(""), "", "", 1000)
+	rs := in_db.ZoneMaster.PvScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -67,7 +67,7 @@ func (c App) ListAction() {
 
 	for _, v := range rss {
 
-		var inst losapi.AppInstance
+		var inst inapi.AppInstance
 
 		if err := v.Decode(&inst); err != nil {
 			continue
@@ -91,7 +91,7 @@ func (c App) ListAction() {
 
 		if len(fields) > 0 {
 
-			instf := losapi.AppInstance{
+			instf := inapi.AppInstance{
 				Meta: types.InnerObjectMeta{
 					ID: inst.Meta.ID,
 				},
@@ -134,7 +134,7 @@ func (c App) ListAction() {
 
 					for _, opt := range inst.Operate.Options {
 
-						optf := &losapi.AppOption{}
+						optf := &inapi.AppOption{}
 						if fields.Has("operate/options/name") {
 							optf.Name = opt.Name
 						}
@@ -156,13 +156,13 @@ func (c App) ListAction() {
 
 func (c App) EntryAction() {
 
-	var app losapi.AppInstance
-	if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(c.Params.Get("id"))); obj.OK() {
+	var app inapi.AppInstance
+	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(c.Params.Get("id"))); obj.OK() {
 		obj.Decode(&app)
 	}
 
 	if app.Meta.ID == "" || app.Meta.User != c.us.UserName {
-		c.RenderJson(types.NewTypeErrorMeta(losapi.ErrCodeObjectNotFound, "App Not Found"))
+		c.RenderJson(types.NewTypeErrorMeta(inapi.ErrCodeObjectNotFound, "App Not Found"))
 	} else {
 		app.Kind = "App"
 		c.RenderJson(app)
@@ -178,14 +178,14 @@ func (c App) SetAction() {
 	defer c.RenderJson(&rsp)
 
 	//
-	var set losapi.AppInstance
+	var set inapi.AppInstance
 	if err := c.Request.JsonDecode(&set); err != nil {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
 
 	var (
-		prev   losapi.AppInstance
+		prev   inapi.AppInstance
 		deploy = false
 	)
 
@@ -199,10 +199,10 @@ func (c App) SetAction() {
 
 	} else {
 
-		if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(set.Meta.ID)); !obj.OK() {
+		if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); !obj.OK() {
 
 			if !obj.NotFound() {
-				rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, "ServerError")
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
 				return
 			}
 
@@ -214,7 +214,7 @@ func (c App) SetAction() {
 
 			if prev.Meta.User != c.us.UserName ||
 				prev.Meta.ID != set.Meta.ID {
-				rsp.Error = types.NewErrorMeta(losapi.ErrCodeAccessDenied, "AccessDenied")
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 				return
 			}
 
@@ -222,7 +222,7 @@ func (c App) SetAction() {
 			prev.Operate.ResBoundRoles = set.Operate.ResBoundRoles
 
 			if set.Operate.Action > 0 &&
-				losapi.OpActionValid(set.Operate.Action) &&
+				inapi.OpActionValid(set.Operate.Action) &&
 				prev.Operate.Action != set.Operate.Action {
 				prev.Operate.Action = set.Operate.Action
 				deploy = true
@@ -232,8 +232,8 @@ func (c App) SetAction() {
 
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	var spec losapi.AppSpec
-	if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppSpec(prev.Spec.Meta.ID)); !obj.OK() {
+	var spec inapi.AppSpec
+	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID)); !obj.OK() {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	} else {
@@ -249,10 +249,10 @@ func (c App) SetAction() {
 		prev.Spec = spec
 	}
 
-	if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
+	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
-		rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}
 
@@ -266,7 +266,7 @@ func (c App) SetAction() {
 
 func (c App) ListOpResAction() {
 
-	ls := losapi.AppInstanceList{}
+	ls := inapi.AppInstanceList{}
 	defer c.RenderJson(&ls)
 
 	if c.Params.Get("res_type") != "domain" {
@@ -275,11 +275,11 @@ func (c App) ListOpResAction() {
 	}
 
 	// TODO pager
-	rs := los_db.ZoneMaster.PvScan(losapi.NsGlobalAppInstance(""), "", "", 1000)
+	rs := in_db.ZoneMaster.PvScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
 	rss := rs.KvList()
 	for _, v := range rss {
 
-		var inst losapi.AppInstance
+		var inst inapi.AppInstance
 
 		if err := v.Decode(&inst); err != nil {
 			continue
@@ -289,7 +289,7 @@ func (c App) ListOpResAction() {
 			continue
 		}
 
-		if inst.Spec.Meta.Name != "los-httplb" &&
+		if inst.Spec.Meta.Name != "sysinner-httplb" &&
 			inst.Spec.Meta.Name != "nginx" {
 			continue
 		}
@@ -308,14 +308,14 @@ func (c App) ListOpResAction() {
 		if inst.Meta.User == c.us.UserName ||
 			inst.Operate.ResBoundRoles.MatchAny(c.us.Roles) {
 
-			ls.Items = append(ls.Items, losapi.AppInstance{
+			ls.Items = append(ls.Items, inapi.AppInstance{
 				Meta: inst.Meta,
-				Spec: losapi.AppSpec{
+				Spec: inapi.AppSpec{
 					Meta: types.InnerObjectMeta{
 						Name: inst.Spec.Meta.Name,
 					},
 				},
-				Operate: losapi.AppOperate{
+				Operate: inapi.AppOperate{
 					PodId: inst.Operate.PodId,
 				},
 			})
@@ -335,13 +335,13 @@ func (c App) OpActionSetAction() {
 		op_action = uint32(c.Params.Uint64("op_action"))
 	)
 
-	if !losapi.AppIdRe2.MatchString(app_id) {
+	if !inapi.AppIdRe2.MatchString(app_id) {
 		rsp.Error = types.NewErrorMeta("400", "Invalid AppInstance ID")
 		return
 	}
 
-	if !losapi.OpActionAllow(
-		losapi.OpActionStart|losapi.OpActionStop|losapi.OpActionDestroy,
+	if !inapi.OpActionAllow(
+		inapi.OpActionStart|inapi.OpActionStop|inapi.OpActionDestroy,
 		op_action,
 	) {
 		rsp.Error = types.NewErrorMeta("400", "Invalid OpAction")
@@ -349,8 +349,8 @@ func (c App) OpActionSetAction() {
 	}
 
 	//
-	var app losapi.AppInstance
-	if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(app_id)); obj.OK() {
+	var app inapi.AppInstance
+	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(app_id)); obj.OK() {
 		obj.Decode(&app)
 	}
 	if app.Meta.ID != app_id ||
@@ -369,12 +369,12 @@ func (c App) OpActionSetAction() {
 		app.Operate.Action = op_action
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if obj := los_db.ZoneMaster.PvPut(
-			losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
+		if obj := in_db.ZoneMaster.PvPut(
+			inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
 				Force: true,
 			},
 		); !obj.OK() {
-			rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 			return
 		}
 	}
@@ -386,14 +386,14 @@ func (c App) OpActionSetAction() {
 	rsp.Kind = "App"
 }
 
-func appInstDeploy(app losapi.AppInstance) *types.ErrorMeta {
+func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 
 	if app.Operate.PodId == "" {
 		return nil
 	}
 
-	var pod losapi.Pod
-	if rs := los_db.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(app.Operate.PodId)); !rs.OK() {
+	var pod inapi.Pod
+	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId)); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	} else {
 		rs.Decode(&pod)
@@ -407,15 +407,15 @@ func appInstDeploy(app losapi.AppInstance) *types.ErrorMeta {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
+	if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	}
 
 	// Pod Map to Cell Queue
-	qmpath := losapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := los_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
+	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
 		Force: true,
 	}); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
@@ -432,15 +432,15 @@ func (c App) OpResSetAction() {
 	defer c.RenderJson(&rsp)
 
 	//
-	var set losapi.Resource
+	var set inapi.Resource
 	if err := c.Request.JsonDecode(&set); err != nil {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
 
 	//
-	var res losapi.Resource
-	if rs := los_db.ZoneMaster.PvGet(losapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
+	var res inapi.Resource
+	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
 		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	} else if err := rs.Decode(&res); err != nil {
@@ -459,8 +459,8 @@ func (c App) OpResSetAction() {
 	// }
 
 	//
-	var app losapi.AppInstance
-	if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(set.Operate.AppId)); obj.OK() {
+	var app inapi.AppInstance
+	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); obj.OK() {
 		obj.Decode(&app)
 	}
 	if app.Meta.ID == "" {
@@ -474,7 +474,7 @@ func (c App) OpResSetAction() {
 		return
 	}
 
-	opt := losapi.AppOption{
+	opt := inapi.AppOption{
 		Name:    types.NewNameIdentifier("res/" + res.Meta.Name),
 		User:    c.us.UserName,
 		Updated: uint64(types.MetaTimeNow()),
@@ -495,23 +495,23 @@ func (c App) OpResSetAction() {
 		res.Meta.Updated = types.MetaTime(opt.Updated)
 
 		//
-		if rs := los_db.ZoneMaster.PvPut(losapi.NsGlobalResInstance(res.Meta.Name), res, &skv.PathWriteOptions{
+		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalResInstance(res.Meta.Name), res, &skv.PathWriteOptions{
 			Force: true,
 		}); !rs.OK() {
-			rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, rs.Bytex().String())
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 			return
 		}
 		// }
 
-		if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
+		if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
 			Force: true,
 		}); !obj.OK() {
-			rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 			return
 		}
 
 		if app.Operate.PodId != "" &&
-			losapi.OpActionAllow(app.Operate.Action, losapi.OpActionStart) {
+			inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStart) {
 
 			if rsp.Error = appInstDeploy(app); rsp.Error != nil {
 				return
@@ -531,8 +531,8 @@ func (c App) ConfigAction() {
 
 	//
 	var set struct {
-		Id     string           `json:"id"`
-		Option losapi.AppOption `json:"option"`
+		Id     string          `json:"id"`
+		Option inapi.AppOption `json:"option"`
 	}
 	if err := c.Request.JsonDecode(&set); err != nil {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
@@ -549,14 +549,14 @@ func (c App) ConfigAction() {
 		return
 	}
 
-	var app losapi.AppInstance
-	if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(set.Id)); obj.OK() {
+	var app inapi.AppInstance
+	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); obj.OK() {
 		obj.Decode(&app)
 	}
 
 	if app.Meta.ID != set.Id ||
 		app.Meta.User != c.us.UserName {
-		rsp.Error = types.NewErrorMeta(losapi.ErrCodeAccessDenied, "AccessDenied")
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
 
@@ -572,9 +572,9 @@ func (c App) ConfigAction() {
 
 	app_op_opt := app.Operate.Options.Get(string(set.Option.Name))
 	if app_op_opt == nil {
-		app_op_opt = &losapi.AppOption{}
+		app_op_opt = &inapi.AppOption{}
 	}
-	set_opt := losapi.AppOption{
+	set_opt := inapi.AppOption{
 		Name: set.Option.Name,
 	}
 
@@ -595,21 +595,21 @@ func (c App) ConfigAction() {
 
 			switch field.AutoFill {
 
-			case losapi.AppConfigFieldAutoFillDefaultValue:
+			case inapi.AppConfigFieldAutoFillDefaultValue:
 				if len(field.Default) < 1 {
 					rsp.Error = types.NewErrorMeta("500", "Server Error")
 					return
 				}
 				value = field.Default
 
-			case losapi.AppConfigFieldAutoFillHexString_32:
+			case inapi.AppConfigFieldAutoFillHexString_32:
 				if len(value_prev) < 32 {
 					value = idhash.RandHexString(32)
 				} else {
 					value = value_prev
 				}
 
-			case losapi.AppConfigFieldAutoFillBase64_48:
+			case inapi.AppConfigFieldAutoFillBase64_48:
 				if len(value_prev) < 44 {
 					value = idhash.RandBase64String(48)
 				} else {
@@ -637,15 +637,15 @@ func (c App) ConfigAction() {
 			continue
 		}
 
-		if field.Type == losapi.AppConfigFieldTypeAppOpBound {
+		if field.Type == inapi.AppConfigFieldTypeAppOpBound {
 
 			if len(value) < 12 {
 				rsp.Error = types.NewErrorMeta("400", "No AppConfigBound Found")
 				return
 			}
 
-			var app_ref losapi.AppInstance
-			if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(value)); obj.OK() {
+			var app_ref inapi.AppInstance
+			if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(value)); obj.OK() {
 				obj.Decode(&app_ref)
 			}
 			if app_ref.Meta.ID != value {
@@ -657,21 +657,21 @@ func (c App) ConfigAction() {
 				return
 			}
 			if len(app_ref.Operate.PodId) < 16 {
-				rsp.Error = types.NewErrorMeta(losapi.ErrCodeObjectPending, "App in pennding")
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectPending, "App in pennding")
 				return
 			}
 
 			opt_ref := app_ref.Operate.Options.Get(field.Default)
 			if opt_ref == nil {
-				rsp.Error = types.NewErrorMeta(losapi.ErrCodeObjectNotFound, "OptionRef Not Found")
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound, "OptionRef Not Found")
 				return
 			}
 
 			if pv, ok := app_op_opt.Items.Get(field.Name); ok && len(pv.String()) >= 12 && pv.String() != value {
 
-				if obj := los_db.ZoneMaster.PvGet(losapi.NsGlobalAppInstance(pv.String())); obj.OK() {
+				if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(pv.String())); obj.OK() {
 
-					var app_refp losapi.AppInstance
+					var app_refp inapi.AppInstance
 					obj.Decode(&app_refp)
 
 					if app_refp.Meta.ID == pv.String() {
@@ -681,10 +681,10 @@ func (c App) ConfigAction() {
 							app_refp_opt.Subs.Remove(app.Meta.ID)
 							app_refp.Operate.Options.Sync(*app_refp_opt)
 
-							if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, &skv.PathWriteOptions{
+							if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, &skv.PathWriteOptions{
 								Force: true,
 							}); !obj.OK() {
-								rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 								return
 							}
 
@@ -702,16 +702,16 @@ func (c App) ConfigAction() {
 				opt_ref.Subs.Insert(app.Meta.ID)
 				app_ref.Operate.Options.Sync(*opt_ref)
 
-				if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, &skv.PathWriteOptions{
+				if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, &skv.PathWriteOptions{
 					Force: true,
 				}); !obj.OK() {
-					rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 					return
 				}
 
 				//
 				opt_ref.Subs = []string{}
-				opt_ref.Ref = &losapi.AppOptionRef{
+				opt_ref.Ref = &inapi.AppOptionRef{
 					AppId: app_ref.Meta.ID,
 					PodId: app_ref.Operate.PodId,
 					Ports: app_ref.Spec.ServicePorts,
@@ -728,10 +728,10 @@ func (c App) ConfigAction() {
 	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if obj := los_db.ZoneMaster.PvPut(losapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
+	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
-		rsp.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}
 

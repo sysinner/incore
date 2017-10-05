@@ -17,7 +17,7 @@ package scheduler
 import (
 	"errors"
 
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
@@ -27,11 +27,11 @@ var (
 type genericScheduler struct {
 }
 
-func NewScheduler() losapi.Scheduler {
+func NewScheduler() inapi.Scheduler {
 	return &genericScheduler{}
 }
 
-func (*genericScheduler) Schedule(pod losapi.Pod, hostls losapi.ResHostList) (host_id string, err error) {
+func (*genericScheduler) Schedule(pod inapi.Pod, hostls inapi.ResHostList) (host_id string, err error) {
 
 	//
 	if pod.Spec == nil || len(hostls.Items) < 1 {
@@ -56,8 +56,8 @@ func (*genericScheduler) Schedule(pod losapi.Pod, hostls losapi.ResHostList) (ho
 }
 
 func find_hosts_that_fit(
-	pod losapi.Pod,
-	hostls losapi.ResHostList,
+	pod inapi.Pod,
+	hostls inapi.ResHostList,
 ) ([]*host_fit, error) {
 
 	hosts := []*host_fit{}

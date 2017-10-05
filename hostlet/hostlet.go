@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/lessos/loscore/hostlet/podrunner"
+	"github.com/sysinner/incore/hostlet/podrunner"
 )
 
 var (

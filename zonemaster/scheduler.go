@@ -22,14 +22,14 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/status"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 var (
-	Scheduler losapi.Scheduler
-	pod_ops   = map[string]*losapi.PodOperate{}
+	Scheduler inapi.Scheduler
+	pod_ops   = map[string]*inapi.PodOperate{}
 )
 
 func scheduler_exec() error {
@@ -54,16 +54,16 @@ func scheduler_exec() error {
 
 func scheduler_exec_cell(cell_id string) {
 
-	pods := []losapi.Pod{}
+	pods := []inapi.Pod{}
 
 	// TODO pager
 	if rs := data.ZoneMaster.PvScan(
-		losapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 1000); rs.OK() {
+		inapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 1000); rs.OK() {
 
 		rss := rs.KvList()
 		for _, v := range rss {
 
-			var pod losapi.Pod
+			var pod inapi.Pod
 			if err := v.Decode(&pod); err == nil {
 
 				if pod.Spec != nil &&
@@ -85,13 +85,13 @@ func scheduler_exec_cell(cell_id string) {
 	for _, pod := range pods {
 
 		var (
-			prev      losapi.Pod
-			host      *losapi.ResHost
+			prev      inapi.Pod
+			host      *inapi.ResHost
 			host_sync = false
 		)
 
 		if rs := data.ZoneMaster.PvGet(
-			losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
+			inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
 		); rs.OK() {
 
 			if err := rs.Decode(&prev); err != nil {
@@ -130,7 +130,7 @@ func scheduler_exec_cell(cell_id string) {
 					continue
 				}
 
-				pod.Operate.Replicas.Set(losapi.PodOperateReplica{
+				pod.Operate.Replicas.Set(inapi.PodOperateReplica{
 					Id:   oprep.Id,
 					Node: host_id,
 				})
@@ -171,7 +171,7 @@ func scheduler_exec_cell(cell_id string) {
 			}
 
 			var (
-				host_peer_lan  = losapi.HostNodeAddress(host.Spec.PeerLanAddr)
+				host_peer_lan  = inapi.HostNodeAddress(host.Spec.PeerLanAddr)
 				host_peer_port = host_peer_lan.Port()
 				ports          = pod.AppServicePorts()
 			)
@@ -246,9 +246,9 @@ func scheduler_exec_cell(cell_id string) {
 			//
 			if len(ports) > 0 {
 
-				var nsz losapi.NsPodServiceMap
+				var nsz inapi.NsPodServiceMap
 
-				if rs := data.ZoneMaster.PvGet(losapi.NsZonePodServiceMap(pod.Meta.ID)); rs.OK() {
+				if rs := data.ZoneMaster.PvGet(inapi.NsZonePodServiceMap(pod.Meta.ID)); rs.OK() {
 					rs.Decode(&nsz)
 				}
 
@@ -262,7 +262,7 @@ func scheduler_exec_cell(cell_id string) {
 
 				if nsz.SyncChanged() {
 					nsz.Updated = uint64(types.MetaTimeNow())
-					data.ZoneMaster.PvPut(losapi.NsZonePodServiceMap(pod.Meta.ID), nsz, &skv.PathWriteOptions{
+					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(pod.Meta.ID), nsz, &skv.PathWriteOptions{
 						Force: true,
 					})
 				}
@@ -277,7 +277,7 @@ func scheduler_exec_cell(cell_id string) {
 				host.OpPortSort()
 
 				if rs := data.ZoneMaster.PvPut(
-					losapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, &skv.PathWriteOptions{
+					inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, &skv.PathWriteOptions{
 						Force: true,
 					},
 				); !rs.OK() {
@@ -290,8 +290,12 @@ func scheduler_exec_cell(cell_id string) {
 			}
 		}
 
+		if prev.Payment != nil {
+			pod.Payment = prev.Payment
+		}
+
 		if pod.Payment == nil {
-			pod.Payment = &losapi.PodPayment{
+			pod.Payment = &inapi.PodPayment{
 				TimeStart: uint32(time.Now().Unix()),
 				TimeClose: 0,
 				Prepay:    0,
@@ -299,7 +303,7 @@ func scheduler_exec_cell(cell_id string) {
 			}
 		}
 
-		if rs := data.ZoneMaster.PvPut(losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, &skv.PathWriteOptions{
+		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, &skv.PathWriteOptions{
 			Force: true,
 		}); !rs.OK() {
 			hlog.Printf("error", "zone/pod saved %s, err (%s)", pod.Meta.ID, rs.Bytex().String())
@@ -309,7 +313,7 @@ func scheduler_exec_cell(cell_id string) {
 		for _, oprep := range pod.Operate.Replicas {
 
 			pod.Operate.Replica = oprep
-			k := losapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, pod.Meta.ID, oprep.Id)
+			k := inapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, pod.Meta.ID, oprep.Id)
 
 			if rs := data.ZoneMaster.PvPut(k, pod, &skv.PathWriteOptions{
 				Force: true,
@@ -319,7 +323,7 @@ func scheduler_exec_cell(cell_id string) {
 			}
 		}
 
-		data.ZoneMaster.PvDel(losapi.NsZonePodOpQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), &skv.PathWriteOptions{
+		data.ZoneMaster.PvDel(inapi.NsZonePodOpQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), &skv.PathWriteOptions{
 			Force: true,
 		})
 	}

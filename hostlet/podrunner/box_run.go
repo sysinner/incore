@@ -26,10 +26,10 @@ import (
 	"github.com/lessos/lessgo/net/portutil"
 	"github.com/lessos/lessgo/types"
 
-	los_cf "github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/losutils"
-	los_sts "github.com/lessos/loscore/status"
+	in_cf "github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils"
+	in_sts "github.com/sysinner/incore/status"
 )
 
 var (
@@ -44,7 +44,7 @@ func (br *BoxKeeper) status_watcher() {
 
 		time.Sleep(2e9)
 
-		if los_sts.Host.Meta.Id == "" {
+		if in_sts.Host.Meta.Id == "" {
 			continue
 		}
 
@@ -90,16 +90,16 @@ func (br *BoxKeeper) status_watcher() {
 				Name:  c7r.Config.Hostname,
 				PodID: pod_id,
 				RepId: rep_id,
-				Status: losapi.PodBoxStatus{
+				Status: inapi.PodBoxStatus{
 					Name:    box_name,
 					Started: types.MetaTimeSet(c7r.State.StartedAt.UTC()),
 					Updated: types.MetaTimeNow(),
-					Resources: losapi.PodBoxStatusResCompute{
+					Resources: inapi.PodBoxStatusResCompute{
 						CpuLimit: c7r.HostConfig.CPUShares,
 						MemLimit: c7r.HostConfig.Memory,
 					},
-					Image: losapi.PodBoxStatusImage{
-						Driver: losapi.PodSpecBoxImageDocker,
+					Image: inapi.PodBoxStatusImage{
+						Driver: inapi.PodSpecBoxImageDocker,
 					},
 					Command: c7r.Config.Cmd,
 				},
@@ -109,7 +109,7 @@ func (br *BoxKeeper) status_watcher() {
 			//
 			for _, cm := range c7r.Mounts {
 
-				inst.Status.Mounts.Sync(losapi.VolumeMount{
+				inst.Status.Mounts.Sync(inapi.VolumeMount{
 					MountPath: cm.Destination,
 					HostDir:   cm.Source,
 					ReadOnly:  !cm.RW,
@@ -135,19 +135,19 @@ func (br *BoxKeeper) status_watcher() {
 						hostPort, _ = strconv.Atoi(c7rPorts[0].HostPort)
 					)
 
-					inst.Status.Ports.Sync(losapi.ServicePort{
+					inst.Status.Ports.Sync(inapi.ServicePort{
 						BoxPort:  uint16(boxPort),
 						HostPort: uint16(hostPort),
-						// Protocol: losapi.ProtocolTCP, //
+						// Protocol: inapi.ProtocolTCP, //
 						// HostIP:   conf.Config.HostAddr,
 					})
 				}
 			}
 
 			if c7r.State.Running {
-				inst.Status.Phase = losapi.OpStatusRunning
+				inst.Status.Phase = inapi.OpStatusRunning
 			} else {
-				inst.Status.Phase = losapi.OpStatusStopped
+				inst.Status.Phase = inapi.OpStatusStopped
 			}
 
 			br.status_update(inst)
@@ -165,7 +165,7 @@ func (br *BoxKeeper) status_watcher() {
 				continue
 			}
 
-			if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStart) {
+			if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) {
 
 				if inst.SpecDesired() {
 					continue
@@ -228,13 +228,14 @@ func (br *BoxKeeper) run(inst_name string) error {
 	}
 
 	// TODO issue
-	if err := lpm_prepare(inst); err != nil {
-		hlog.Printf("warn", "nodelet/box lpm_prepare %s", err.Error())
+	if err := ipm_prepare(inst); err != nil {
+		hlog.Printf("warn", "nodelet/box ipm_prepare %s", err.Error())
 		return err
 	}
 
 	if inst.PodOpAction == 0 || inst.Spec.Name == "" {
-		hlog.Printf("warn", "nodelet/box Error: No Spec Found BOX:%s", inst.Name)
+		hlog.Printf("warn", "nodelet/box Error: No Spec Found BOX:%d:%s",
+			inst.PodOpAction, inst.Name)
 		return errors.New("No Spec Found")
 	}
 
@@ -247,29 +248,29 @@ func (br *BoxKeeper) run(inst_name string) error {
 		}
 
 		// Stop current BOX
-		if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStop) ||
-			losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionDestroy) {
+		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) ||
+			inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
 
-			if inst.Status.Phase == losapi.OpStatusRunning {
+			if inst.Status.Phase == inapi.OpStatusRunning {
 
 				// start := time.Now()
 				if err = br.hidocker.StopContainer(inst.ID, 10); err != nil {
-					inst.Status.Phase = losapi.OpStatusFailed
+					inst.Status.Phase = inapi.OpStatusFailed
 				}
 				// fmt.Println("stop in", time.Since(start))
 
 				hlog.Printf("info", "nodelet/box stop %s", inst.Name)
 			}
 
-			if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionDestroy) {
+			if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
 
 				if err = br.hidocker.RemoveContainer(docker.RemoveContainerOptions{
 					ID:    inst.ID,
 					Force: true,
 				}); err == nil {
-					inst.Status.Phase = losapi.OpStatusDestroyed
+					inst.Status.Phase = inapi.OpStatusDestroyed
 				} else {
-					inst.Status.Phase = losapi.OpStatusFailed
+					inst.Status.Phase = inapi.OpStatusFailed
 				}
 
 				hlog.Printf("info", "nodelet/box removed %s", inst.Name)
@@ -284,7 +285,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 			hlog.Printf("info", "nodelet/box spec changed %s", inst.Name)
 
-			if inst.Status.Phase == losapi.OpStatusRunning {
+			if inst.Status.Phase == inapi.OpStatusRunning {
 
 				hlog.Printf("info", "nodelet/box StopContainer %s", inst.Name)
 
@@ -292,11 +293,11 @@ func (br *BoxKeeper) run(inst_name string) error {
 					return err
 				}
 
-				inst.Status.Phase = losapi.OpStatusStopped
+				inst.Status.Phase = inapi.OpStatusStopped
 			}
 
-			// if inst.Status.Phase != losapi.OpStatusRunning &&
-			// 	inst.Status.Phase != losapi.OpStatusStopped {
+			// if inst.Status.Phase != inapi.OpStatusRunning &&
+			// 	inst.Status.Phase != inapi.OpStatusStopped {
 
 			hlog.Printf("info", "nodelet/box RemoveContainer %s", inst.Name)
 
@@ -304,11 +305,11 @@ func (br *BoxKeeper) run(inst_name string) error {
 				ID:    inst.ID,
 				Force: true,
 			}); err != nil {
-				inst.Status.Phase = losapi.OpStatusFailed
+				inst.Status.Phase = inapi.OpStatusFailed
 				return err
 			}
 
-			inst.ID, inst.Status.Phase = "", losapi.OpStatusDestroyed
+			inst.ID, inst.Status.Phase = "", inapi.OpStatusDestroyed
 			// } else {
 			// 	return
 			// }
@@ -318,11 +319,11 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 	} else {
 
-		if losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStop) {
+		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) {
 
 			// hlog.Printf("info", "nodelet/box Skip Stop+NotExist %s", inst.Name)
 
-			inst.Status.Phase = losapi.OpStatusStopped
+			inst.Status.Phase = inapi.OpStatusStopped
 
 			return nil
 		}
@@ -331,12 +332,12 @@ func (br *BoxKeeper) run(inst_name string) error {
 	//
 	var (
 		dirPodHome = vol_podhome_dir(inst.PodID, inst.RepId)
-		initSrc    = los_cf.Prefix + "/bin/lpinit"
-		initDst    = dirPodHome + "/.los/lpinit"
-		agentSrc   = los_cf.Prefix + "/bin/lpagent"
-		agentDst   = dirPodHome + "/.los/lpagent"
+		initSrc    = in_cf.Prefix + "/bin/ininit"
+		initDst    = dirPodHome + "/.sysinner/ininit"
+		agentSrc   = in_cf.Prefix + "/bin/inagent"
+		agentDst   = dirPodHome + "/.sysinner/inagent"
 		bashrcDst  = dirPodHome + "/.bashrc"
-		bashrcSrc  = los_cf.Prefix + "/misc/bash/bashrc"
+		bashrcSrc  = in_cf.Prefix + "/misc/bash/bashrc"
 		expPorts   = map[docker.Port]struct{}{}
 		bindPorts  = map[docker.Port][]docker.PortBinding{}
 	)
@@ -354,7 +355,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 		bindPorts[dockerPort] = append(bindPorts[docker.Port(strconv.Itoa(int(port.BoxPort)))], docker.PortBinding{
 			HostPort: strconv.Itoa(int(port.HostPort)),
-			// HostIP:   los_cf.Config.Host.LanAddr.IP(),
+			// HostIP:   in_cf.Config.Host.LanAddr.IP(),
 		})
 	}
 
@@ -364,9 +365,9 @@ func (br *BoxKeeper) run(inst_name string) error {
 		hlog.Printf("info", "nodelet/box CreateContainer %s", inst.Name)
 
 		//
-		if err := losutils.FsMakeDir(dirPodHome+"/.los", 2048, 2048, 0750); err != nil {
+		if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", 2048, 2048, 0750); err != nil {
 			hlog.Printf("error", "nodelet/box BOX:%s, FsMakeDir Err:%v", inst.Name, err)
-			inst.Status.Phase = losapi.OpStatusFailed
+			inst.Status.Phase = inapi.OpStatusFailed
 			return err
 		}
 		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
@@ -378,7 +379,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 		imgname, ok := inst.Spec.Image.Options.Get("docker/image/name")
 		if !ok {
 			hlog.Printf("error", "nodelet/box BOX:%s, No Image Name Found", inst.Name)
-			inst.Status.Phase = losapi.OpStatusFailed
+			inst.Status.Phase = inapi.OpStatusFailed
 			return err
 		}
 
@@ -407,7 +408,7 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 		if err != nil || c7r.ID == "" {
 			hlog.Printf("info", "nodelet/box CreateContainer %s, Err: %v", inst.Name, err)
-			inst.Status.Phase = losapi.OpStatusFailed
+			inst.Status.Phase = inapi.OpStatusFailed
 			return errors.New("CreateContainer Error " + err.Error())
 		}
 
@@ -418,8 +419,8 @@ func (br *BoxKeeper) run(inst_name string) error {
 	}
 
 	if inst.ID != "" &&
-		losapi.OpActionAllow(inst.PodOpAction, losapi.OpActionStart) &&
-		inst.Status.Phase != losapi.OpStatusRunning {
+		inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) &&
+		inst.Status.Phase != inapi.OpStatusRunning {
 
 		hlog.Printf("info", "nodelet/box StartContainer %s", inst.Name)
 
@@ -427,13 +428,13 @@ func (br *BoxKeeper) run(inst_name string) error {
 
 		if err != nil {
 			hlog.Printf("info", "nodelet/box StartContainer %s, Error %v", inst.Name, err)
-			inst.Status.Phase = losapi.OpStatusFailed
+			inst.Status.Phase = inapi.OpStatusFailed
 			return err
 		}
 
 		hlog.Printf("info", "nodelet/box StartContainer %s, DONE", inst.Name)
 
-		inst.Status.Phase = losapi.OpStatusRunning
+		inst.Status.Phase = inapi.OpStatusRunning
 	} else {
 		hlog.Printf("info", "nodelet/box StartContainer %s, SKIP", inst.Name)
 	}

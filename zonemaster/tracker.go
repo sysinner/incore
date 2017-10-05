@@ -20,9 +20,9 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lynkdb/iomix/skv"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/status"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 var (
@@ -47,7 +47,7 @@ func zone_tracker() {
 	}
 
 	// if leader active
-	leader_path := losapi.NsZoneSysMasterLeader(status.Host.Operate.ZoneId)
+	leader_path := inapi.NsZoneSysMasterLeader(status.Host.Operate.ZoneId)
 	if rs := data.ZoneMaster.PvGet(leader_path); rs.NotFound() {
 
 		status.ZoneMasterList.Leader = ""
@@ -105,9 +105,9 @@ func zone_tracker() {
 	//
 	if status.Zone == nil {
 
-		if rs := data.ZoneMaster.PvGet(losapi.NsZoneSysInfo(status.Host.Operate.ZoneId)); rs.OK() {
+		if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysInfo(status.Host.Operate.ZoneId)); rs.OK() {
 
-			var zone losapi.ResZone
+			var zone inapi.ResZone
 			if err := rs.Decode(&zone); err != nil {
 				hlog.Printf("error", "No ZoneInfo Setup")
 				return
@@ -125,12 +125,12 @@ func zone_tracker() {
 	}
 
 	// TODO
-	if rs := data.ZoneMaster.PvScan(losapi.NsZoneSysCell(status.Zone.Meta.Id, ""), "", "", 100); rs.OK() {
+	if rs := data.ZoneMaster.PvScan(inapi.NsZoneSysCell(status.Zone.Meta.Id, ""), "", "", 100); rs.OK() {
 
 		rss := rs.KvList()
 		for _, v := range rss {
 
-			var cell losapi.ResCell
+			var cell inapi.ResCell
 			if err := v.Decode(&cell); err == nil {
 				status.Zone.SyncCell(cell)
 			}
@@ -139,19 +139,19 @@ func zone_tracker() {
 
 	// refresh zone-master list
 	if rs := data.ZoneMaster.PvScan(
-		losapi.NsZoneSysMasterNode(status.Host.Operate.ZoneId, ""), "", "", 100); !rs.OK() {
+		inapi.NsZoneSysMasterNode(status.Host.Operate.ZoneId, ""), "", "", 100); !rs.OK() {
 		hlog.Printf("warn", "refresh zone-master list failed")
 		return
 	} else {
 
 		rss := rs.KvList()
-		zms := losapi.ResZoneMasterList{
+		zms := inapi.ResZoneMasterList{
 			Leader: status.Host.Meta.Id,
 		}
 
 		for _, v := range rss {
 
-			var o losapi.ResZoneMasterNode
+			var o inapi.ResZoneMasterNode
 			if err := v.Decode(&o); err == nil {
 				zms.Sync(o)
 			}
@@ -164,7 +164,7 @@ func zone_tracker() {
 
 	// refresh host keys
 	if rs := data.ZoneMaster.PvScan(
-		losapi.NsZoneSysHostSecretKey(status.Host.Operate.ZoneId, ""), "", "", 1000); rs.OK() {
+		inapi.NsZoneSysHostSecretKey(status.Host.Operate.ZoneId, ""), "", "", 1000); rs.OK() {
 
 		rs.KvEach(func(v *skv.ResultEntry) int {
 			status.ZoneHostSecretKeys.Set(string(v.Key), v.Bytex().String())
@@ -177,7 +177,7 @@ func zone_tracker() {
 
 	// refresh host list
 	if rs := data.ZoneMaster.PvScan(
-		losapi.NsZoneSysHost(status.Host.Operate.ZoneId, ""), "", "", 1000); !rs.OK() {
+		inapi.NsZoneSysHost(status.Host.Operate.ZoneId, ""), "", "", 1000); !rs.OK() {
 		hlog.Printf("warn", "refresh host list failed")
 		return
 	} else {
@@ -186,11 +186,11 @@ func zone_tracker() {
 
 		for _, v := range rss {
 
-			var o losapi.ResHost
+			var o inapi.ResHost
 			if err := v.Decode(&o); err == nil {
 
 				if o.Operate == nil {
-					o.Operate = &losapi.ResHostOperate{}
+					o.Operate = &inapi.ResHostOperate{}
 				} else {
 					// o.Operate.PortUsed.Clean()
 				}
@@ -204,14 +204,14 @@ func zone_tracker() {
 		if !status.ZoneHostListImported {
 
 			if rs := data.ZoneMaster.PvScan(
-				losapi.NsZonePodInstance(status.Host.Operate.ZoneId, ""), "", "", 10000,
+				inapi.NsZonePodInstance(status.Host.Operate.ZoneId, ""), "", "", 10000,
 			); rs.OK() {
 
 				rss := rs.KvList()
 
 				for _, v := range rss {
 
-					var pod losapi.Pod
+					var pod inapi.Pod
 					if err := v.Decode(&pod); err != nil {
 						continue
 					}
@@ -236,7 +236,7 @@ func zone_tracker() {
 							hlog.Printf("warn", "refresh host:%s.operate.ports", host.Meta.Id)
 
 							data.ZoneMaster.PvPut(
-								losapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
+								inapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
 								host,
 								&skv.PathWriteOptions{
 									Force: true,

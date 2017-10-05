@@ -19,8 +19,8 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 func InitData(items map[string]interface{}) error {
@@ -31,7 +31,7 @@ func InitData(items map[string]interface{}) error {
 
 	for k, v := range items {
 
-		if k != losapi.NsLocalZoneMasterList() {
+		if k != inapi.NsLocalZoneMasterList() {
 			if rs := data.LocalDB.PvGet(k); rs.OK() {
 				hlog.Printf("debug", "hostlet.init.data skip %s", k)
 				continue

@@ -20,8 +20,8 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 type PodSpec struct {
@@ -45,15 +45,15 @@ func (c *PodSpec) Init() int {
 
 func (c PodSpec) PlanListAction() {
 
-	ls := losapi.PodSpecPlanList{}
+	ls := inapi.PodSpecPlanList{}
 	defer c.RenderJson(&ls)
 
 	// TODO
-	rs := data.ZoneMaster.PvScan(losapi.NsGlobalPodSpec("plan", ""), "", "", 100)
+	rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100)
 	rss := rs.KvList()
 	for _, v := range rss {
 
-		var item losapi.PodSpecPlan
+		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
 			item.ChargeFix()
 			ls.Items = append(ls.Items, item)
@@ -65,14 +65,14 @@ func (c PodSpec) PlanListAction() {
 
 func (c PodSpec) ResourceVolumeListAction() {
 
-	ls := losapi.PodSpecResourceVolumeList{}
+	ls := inapi.PodSpecResourceVolumeList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.ZoneMaster.PvScan(losapi.NsGlobalPodSpec("res/volume", ""), "", "", 1000)
+	rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 1000)
 	rss := rs.KvList()
 	for _, v := range rss {
 
-		var item losapi.PodSpecResourceVolume
+		var item inapi.PodSpecResourceVolume
 		if err := v.Decode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
 		}

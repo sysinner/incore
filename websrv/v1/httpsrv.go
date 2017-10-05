@@ -20,7 +20,7 @@ import (
 
 func NewModule() httpsrv.Module {
 
-	module := httpsrv.NewModule("los_v1")
+	module := httpsrv.NewModule("in_v1")
 
 	module.RouteSet(httpsrv.Route{
 		Type: httpsrv.RouteTypeBasic,

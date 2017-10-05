@@ -25,12 +25,12 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"golang.org/x/net/context"
 
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/losutils"
-	"github.com/lessos/loscore/rpcsrv"
-	"github.com/lessos/loscore/status"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils"
+	"github.com/sysinner/incore/rpcsrv"
+	"github.com/sysinner/incore/status"
 )
 
 func status_tracker() {
@@ -38,16 +38,16 @@ func status_tracker() {
 	//
 	if len(status.LocalZoneMasterList.Items) == 0 {
 
-		var zms losapi.ResZoneMasterList
-		if rs := data.LocalDB.PvGet(losapi.NsLocalZoneMasterList()); rs.OK() {
+		var zms inapi.ResZoneMasterList
+		if rs := data.LocalDB.PvGet(inapi.NsLocalZoneMasterList()); rs.OK() {
 
 			if err := rs.Decode(&zms); err == nil {
 
 				if synced := status.LocalZoneMasterList.SyncList(zms); synced {
 
-					cms := []losapi.HostNodeAddress{}
+					cms := []inapi.HostNodeAddress{}
 					for _, v := range status.LocalZoneMasterList.Items {
-						cms = append(cms, losapi.HostNodeAddress(v.Addr))
+						cms = append(cms, inapi.HostNodeAddress(v.Addr))
 					}
 
 					if len(cms) > 0 {
@@ -86,20 +86,20 @@ var (
 
 func sync_nsz() {
 
-	os.MkdirAll("/dev/shm/los/nsz", 0755)
+	os.MkdirAll("/dev/shm/sysinner/nsz", 0755)
 
-	rs := data.HiMaster.PvScan(losapi.NsZonePodServiceMap(""), "", "", 10000)
+	rs := data.HiMaster.PvScan(inapi.NsZonePodServiceMap(""), "", "", 10000)
 
 	rs.KvEach(func(v *skv.ResultEntry) int {
 
-		var nsz losapi.NsPodServiceMap
+		var nsz inapi.NsPodServiceMap
 		if err := v.Decode(&nsz); err != nil {
 			return 0
 		}
 
 		last, ok := sync_nsz_lasts[string(v.Key)]
 		if !ok || nsz.Updated > last {
-			json.EncodeToFile(nsz, "/dev/shm/los/nsz/"+string(v.Key), "")
+			json.EncodeToFile(nsz, "/dev/shm/sysinner/nsz/"+string(v.Key), "")
 			sync_nsz_lasts[string(v.Key)] = nsz.Updated
 		}
 
@@ -107,7 +107,7 @@ func sync_nsz() {
 	})
 }
 
-func msgZoneMasterHostStatusSync() (*losapi.ResZoneMasterList, error) {
+func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 
 	//
 	addr := status.LocalZoneMasterList.LeaderAddr()
@@ -124,7 +124,7 @@ func msgZoneMasterHostStatusSync() (*losapi.ResZoneMasterList, error) {
 
 	// host/meta
 	if status.Host.Meta == nil {
-		status.Host.Meta = &losapi.ObjectMeta{
+		status.Host.Meta = &inapi.ObjectMeta{
 			Id: status.Host.Meta.Id,
 		}
 	}
@@ -132,7 +132,7 @@ func msgZoneMasterHostStatusSync() (*losapi.ResZoneMasterList, error) {
 	// host/spec
 	if status.Host.Spec == nil {
 
-		status.Host.Spec = &losapi.ResHostSpec{
+		status.Host.Spec = &inapi.ResHostSpec{
 			PeerLanAddr: string(config.Config.Host.LanAddr),
 			PeerWanAddr: string(config.Config.Host.WanAddr),
 		}
@@ -142,12 +142,12 @@ func msgZoneMasterHostStatusSync() (*losapi.ResZoneMasterList, error) {
 
 	if status.Host.Spec.Platform == nil {
 
-		os, arch, _ := losutils.ResSysHostEnvDistArch()
+		os, arch, _ := inutils.ResSysHostEnvDistArch()
 
-		status.Host.Spec.Platform = &losapi.ResPlatform{
+		status.Host.Spec.Platform = &inapi.ResPlatform{
 			Os:     os,
 			Arch:   arch,
-			Kernel: losutils.ResSysHostKernel(),
+			Kernel: inutils.ResSysHostKernel(),
 		}
 	}
 
@@ -155,13 +155,13 @@ func msgZoneMasterHostStatusSync() (*losapi.ResZoneMasterList, error) {
 
 		vm, _ := mem.VirtualMemory()
 
-		status.Host.Spec.Capacity = &losapi.ResHostResource{
+		status.Host.Spec.Capacity = &inapi.ResHostResource{
 			Cpu:    uint64(runtime.NumCPU()) * 1000,
 			Memory: vm.Total,
 		}
 	}
 
-	return losapi.NewApiZoneMasterClient(conn).HostStatusSync(
+	return inapi.NewApiZoneMasterClient(conn).HostStatusSync(
 		context.Background(), &status.Host,
 	)
 }

@@ -24,8 +24,8 @@ import (
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 type PodStats struct {
@@ -55,8 +55,8 @@ func (c PodStats) FeedAction() {
 		qry_names      = c.Params.Get("qry_names")
 		qry_time_past  = uint32(c.Params.Uint64("qry_time_past"))
 		qry_time_cycle = uint32(c.Params.Uint64("qry_time_cycle"))
-		pod            losapi.Pod
-		fq             losapi.TimeStatsFeedQuerySet
+		pod            inapi.Pod
+		fq             inapi.TimeStatsFeedQuerySet
 	)
 
 	if len(qry) > 2 {
@@ -80,7 +80,7 @@ func (c PodStats) FeedAction() {
 				continue
 			}
 
-			fq.Items = append(fq.Items, &losapi.TimeStatsEntryQuerySet{
+			fq.Items = append(fq.Items, &inapi.TimeStatsEntryQuerySet{
 				Name: v,
 			})
 		}
@@ -98,10 +98,10 @@ func (c PodStats) FeedAction() {
 		return
 	}
 
-	feed := losapi.NewTimeStatsFeed(fq.TimeCycle)
+	feed := inapi.NewTimeStatsFeed(fq.TimeCycle)
 	defer c.RenderJson(feed)
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalPodInstance(pod_id)); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
 		obj.Decode(&pod)
 		if pod.Meta.ID == "" || pod.Meta.User != c.us.UserName {
 			feed.Error = types.NewErrorMeta("404", "Pod Not Found")
@@ -118,13 +118,13 @@ func (c PodStats) FeedAction() {
 	// feed.Debugs.Set("time_cuts", time.Unix(int64(fq.TimeCutset), 0))
 
 	if rs := data.HiMaster.ProgScan(
-		losapi.NsZonePodRepStats(pod.Spec.Zone,
+		inapi.NsZonePodRepStats(pod.Spec.Zone,
 			pod.Meta.ID,
 			0,
 			"sys",
 			fq.TimeStart,
 		),
-		losapi.NsZonePodRepStats(pod.Spec.Zone,
+		inapi.NsZonePodRepStats(pod.Spec.Zone,
 			pod.Meta.ID,
 			0,
 			"sys",
@@ -134,7 +134,7 @@ func (c PodStats) FeedAction() {
 	); rs.OK() {
 
 		ls := rs.KvList()
-		var vf losapi.TimeStatsFeed
+		var vf inapi.TimeStatsFeed
 		for _, v := range ls {
 
 			if err := v.Decode(&vf); err != nil {

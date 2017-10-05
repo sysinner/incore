@@ -21,21 +21,21 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 func (c Host) ZoneListAction() {
 
-	ls := losapi.GeneralObjectList{}
+	ls := inapi.GeneralObjectList{}
 	defer c.RenderJson(&ls)
 
 	//
-	rs := data.ZoneMaster.PvScan(losapi.NsGlobalSysZone(""), "", "", 100).KvList()
+	rs := data.ZoneMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
 
 	for _, v := range rs {
 
-		var zone losapi.ResZone
+		var zone inapi.ResZone
 
 		if err := v.Decode(&zone); err != nil || zone.Meta.Id == "" {
 			continue
@@ -43,11 +43,11 @@ func (c Host) ZoneListAction() {
 
 		if c.Params.Get("fields") == "cells" {
 
-			rs2 := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
+			rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
 
 			for _, v2 := range rs2 {
 
-				var cell losapi.ResCell
+				var cell inapi.ResCell
 
 				if err := v2.Decode(&cell); err == nil {
 					zone.Cells = append(zone.Cells, &cell)
@@ -64,13 +64,13 @@ func (c Host) ZoneListAction() {
 func (c Host) ZoneEntryAction() {
 
 	var set struct {
-		losapi.GeneralObject
-		losapi.ResZone
+		inapi.GeneralObject
+		inapi.ResZone
 	}
 
 	defer c.RenderJson(&set)
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
 
 		if err := obj.Decode(&set.ResZone); err != nil {
 			set.Error = &types.ErrorMeta{"400", err.Error()}
@@ -78,11 +78,11 @@ func (c Host) ZoneEntryAction() {
 
 			if c.Params.Get("fields") == "cells" {
 
-				rs2 := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
+				rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
 
 				for _, v2 := range rs2 {
 
-					var cell losapi.ResCell
+					var cell inapi.ResCell
 
 					if err := v2.Decode(&cell); err == nil {
 						set.Cells = append(set.Cells, &cell)
@@ -103,8 +103,8 @@ func (c Host) ZoneEntryAction() {
 func (c Host) ZoneSetAction() {
 
 	var set struct {
-		losapi.GeneralObject
-		losapi.ResZone
+		inapi.GeneralObject
+		inapi.ResZone
 	}
 
 	defer c.RenderJson(&set)
@@ -116,7 +116,7 @@ func (c Host) ZoneSetAction() {
 
 	set.Meta.Id = strings.ToLower(set.Meta.Id)
 
-	if mat := losapi.ResSysZoneIdReg.MatchString(set.Meta.Id); !mat {
+	if mat := inapi.ResSysZoneIdReg.MatchString(set.Meta.Id); !mat {
 		set.Error = &types.ErrorMeta{
 			Code:    "400",
 			Message: "Zone Id must consist of letters or numbers, and begin with a letter",
@@ -126,7 +126,7 @@ func (c Host) ZoneSetAction() {
 
 	for _, addr := range set.WanAddrs {
 
-		if !losapi.HostNodeAddress(addr).Valid() {
+		if !inapi.HostNodeAddress(addr).Valid() {
 			set.Error = &types.ErrorMeta{
 				Code:    "400",
 				Message: fmt.Sprintf("Invalid Address (%s)", addr),
@@ -137,7 +137,7 @@ func (c Host) ZoneSetAction() {
 
 	for _, addr := range set.LanAddrs {
 
-		if !losapi.HostNodeAddress(addr).Valid() {
+		if !inapi.HostNodeAddress(addr).Valid() {
 			set.Error = &types.ErrorMeta{
 				Code:    "400",
 				Message: fmt.Sprintf("Invalid Address (%s)", addr),
@@ -146,24 +146,20 @@ func (c Host) ZoneSetAction() {
 		}
 	}
 
-	var prevVersion uint64
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(set.Meta.Id)); obj.OK() {
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(set.Meta.Id)); obj.OK() {
-
-		var prev losapi.ResZone
+		var prev inapi.ResZone
 		if err := obj.Decode(&prev); err == nil {
 
 			if prev.Meta.Created > 0 {
 				set.Meta.Created = prev.Meta.Created
 			}
-
-			prevVersion = obj.Meta().Version
 		}
 	}
 
 	//
 	/*
-		if obj := data.ZoneMaster.PvGet(losapi.NsGlobalDataBucket(set.Meta.Id)); obj.OK() {
+		if obj := data.ZoneMaster.PvGet(inapi.NsGlobalDataBucket(set.Meta.Id)); obj.OK() {
 
 			bucket_ns := btapi.BucketNameService{
 				Phase: 1,
@@ -190,7 +186,7 @@ func (c Host) ZoneSetAction() {
 			data.ZoneMaster.PvSet("/ns/bt/buckets/"+set.Meta.Id, bucket_ns, nil)
 			data.ZoneMaster.PvSet("/global/bt/buckets/instances/"+set.Meta.Id, bucket_instance, nil)
 
-			zone_ns := losapi.ResZoneNameService{
+			zone_ns := inapi.ResZoneNameService{
 				Phase:     1,
 				Endpoints: set.WANEndpoints,
 			}
@@ -199,7 +195,7 @@ func (c Host) ZoneSetAction() {
 	*/
 
 	/*
-		if rs := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(set.Meta.Id), "", "", 100); rs.OK() {
+		if rs := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id), "", "", 100); rs.OK() {
 
 			cell := btapi.HostCell{
 				Meta: types.ObjectMeta{
@@ -223,8 +219,8 @@ func (c Host) ZoneSetAction() {
 
 	set.Meta.Updated = uint64(types.MetaTimeNow())
 
-	data.ZoneMaster.PvPut(losapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, &skv.PathWriteOptions{
-		PrevVersion: prevVersion,
+	data.ZoneMaster.PvPut(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, &skv.PathWriteOptions{
+		Force: true,
 	})
 
 	set.Kind = "HostZone"

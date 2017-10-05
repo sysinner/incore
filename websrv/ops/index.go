@@ -29,23 +29,23 @@ func (c Index) IndexAction() {
 <head>
 <meta charset="utf-8">
   <title>Ops</title>
-  <script src="/los/ops/~/lessui/js/sea.js"></script>
-  <script src="/los/ops/~/ops/js/main.js"></script>
+  <script src="/in/ops/~/lessui/js/sea.js"></script>
+  <script src="/in/ops/~/ops/js/main.js"></script>
   <script type="text/javascript">
-    window.onload = losOps.Boot();
+    window.onload = inOps.Boot();
   </script>
 </head>
 
 <body id="body-content">
 <style>
-._losops_loading {
+._inops_loading {
   margin: 0;
   padding: 30px 40px;
   font-size: 48px;
   color: #000;
 }
 </style>
-<div class="_losops_loading">loading</div>
+<div class="_inops_loading">loading</div>
 </body>
 </html>
 `)

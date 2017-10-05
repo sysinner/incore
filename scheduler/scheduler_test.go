@@ -20,7 +20,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/inapi"
 )
 
 func TestPriorityList(t *testing.T) {
@@ -53,22 +53,22 @@ func TestPrioritizer(t *testing.T) {
 			id:        "2",
 			cpu_used:  8000,
 			cpu_total: 16000,
-			ram_used:  5 * losapi.ByteGB,
-			ram_total: 10 * losapi.ByteGB,
+			ram_used:  5 * inapi.ByteGB,
+			ram_total: 10 * inapi.ByteGB,
 		},
 		{
 			id:        "1",
 			cpu_used:  1000,
 			cpu_total: 16000,
-			ram_used:  1 * losapi.ByteGB,
-			ram_total: 10 * losapi.ByteGB,
+			ram_used:  1 * inapi.ByteGB,
+			ram_total: 10 * inapi.ByteGB,
 		},
 		{
 			id:        "3",
 			cpu_used:  16000,
 			cpu_total: 16000,
-			ram_used:  10 * losapi.ByteGB,
-			ram_total: 10 * losapi.ByteGB,
+			ram_used:  10 * inapi.ByteGB,
+			ram_total: 10 * inapi.ByteGB,
 		},
 	}
 
@@ -83,7 +83,7 @@ func TestPrioritizer(t *testing.T) {
 }
 
 var (
-	hosts losapi.ResHostList
+	hosts inapi.ResHostList
 )
 
 func bench_init() {
@@ -95,19 +95,19 @@ func bench_init() {
 	// 5000 hosts in one zone-master
 	for i := 0; i < 5000; i++ {
 
-		hosts.Items = append(hosts.Items, &losapi.ResHost{
-			Meta: &losapi.ObjectMeta{
+		hosts.Items = append(hosts.Items, &inapi.ResHost{
+			Meta: &inapi.ObjectMeta{
 				Id: fmt.Sprintf("%d", i),
 			},
-			Operate: &losapi.ResHostOperate{
+			Operate: &inapi.ResHostOperate{
 				Action:  1,
 				CpuUsed: rand.Int63n(16000),
-				RamUsed: int64(rand.Int63n(32 * int64(losapi.ByteGB))),
+				RamUsed: int64(rand.Int63n(32 * int64(inapi.ByteGB))),
 			},
-			Spec: &losapi.ResHostSpec{
-				Capacity: &losapi.ResHostResource{
+			Spec: &inapi.ResHostSpec{
+				Capacity: &inapi.ResHostResource{
 					Cpu:    32000,
-					Memory: uint64(64 * int64(losapi.ByteGB)),
+					Memory: uint64(64 * int64(inapi.ByteGB)),
 				},
 			},
 		})
@@ -122,13 +122,13 @@ func Benchmark_Schedule(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 
-		pod := losapi.Pod{
-			Spec: &losapi.PodSpecBound{
-				Boxes: []losapi.PodSpecBoxBound{
+		pod := inapi.Pod{
+			Spec: &inapi.PodSpecBound{
+				Boxes: []inapi.PodSpecBoxBound{
 					{
-						Resources: &losapi.PodSpecBoxResComputeBound{
+						Resources: &inapi.PodSpecBoxResComputeBound{
 							CpuLimit: rand.Int63n(16000),
-							MemLimit: rand.Int63n(32 * int64(losapi.ByteGB)),
+							MemLimit: rand.Int63n(32 * int64(inapi.ByteGB)),
 						},
 					},
 				},

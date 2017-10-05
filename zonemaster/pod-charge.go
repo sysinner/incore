@@ -22,13 +22,13 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/status"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 var (
-	pod_spec_plans    = []*losapi.PodSpecPlan{}
+	pod_spec_plans    = []*inapi.PodSpecPlan{}
 	pod_charge_iam_ak = iamapi.AccessKey{
 		User: "sysadmin",
 	}
@@ -55,11 +55,11 @@ func pod_charge() error {
 	}
 
 	// TODO
-	pod_spec_plans = []*losapi.PodSpecPlan{}
-	if rs := data.ZoneMaster.PvScan(losapi.NsGlobalPodSpec("plan", ""), "", "", 100); rs.OK() {
+	pod_spec_plans = []*inapi.PodSpecPlan{}
+	if rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100); rs.OK() {
 		rss := rs.KvList()
 		for _, v := range rss {
-			var item losapi.PodSpecPlan
+			var item inapi.PodSpecPlan
 			if err := v.Decode(&item); err == nil {
 				item.ChargeFix()
 				pod_spec_plans = append(pod_spec_plans, &item)
@@ -72,12 +72,12 @@ func pod_charge() error {
 	}
 
 	if rs := data.ZoneMaster.PvScan(
-		losapi.NsZonePodInstance(status.ZoneId, ""), "", "", 1000); rs.OK() {
+		inapi.NsZonePodInstance(status.ZoneId, ""), "", "", 1000); rs.OK() {
 
-		pods := []losapi.Pod{}
+		pods := []inapi.Pod{}
 		rss := rs.KvList()
 		for _, v := range rss {
-			var pod losapi.Pod
+			var pod inapi.Pod
 			if err := v.Decode(&pod); err == nil {
 				pods = append(pods, pod)
 			}
@@ -91,13 +91,13 @@ func pod_charge() error {
 	return nil
 }
 
-func pod_charge_entry(pod losapi.Pod) {
+func pod_charge_entry(pod inapi.Pod) {
 
 	if pod.Payment == nil {
 		return
 	}
 
-	if losapi.OpActionAllow(pod.Operate.Action, losapi.OpActionDestroy) &&
+	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) &&
 		pod.Payment != nil && pod.Payment.Payout > 0 {
 		return
 	}
@@ -106,7 +106,7 @@ func pod_charge_entry(pod losapi.Pod) {
 	if pod.Spec == nil || pod.Spec.Ref.Name == "" {
 		return
 	}
-	var spec_plan *losapi.PodSpecPlan
+	var spec_plan *inapi.PodSpecPlan
 	for _, v := range pod_spec_plans {
 		if v.Meta.Name == pod.Spec.Ref.Name {
 			spec_plan = v
@@ -132,9 +132,9 @@ func pod_charge_entry(pod losapi.Pod) {
 
 	// Volumes
 	for _, v := range pod.Spec.Volumes {
-		// v.SizeLimit = 20 * losapi.ByteGB
+		// v.SizeLimit = 20 * inapi.ByteGB
 		cycle_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResourceVolumeCharge.CapSize * float64(v.SizeLimit/losapi.ByteMB))
+			spec_plan.ResourceVolumeCharge.CapSize * float64(v.SizeLimit/inapi.ByteMB))
 	}
 
 	for _, v := range pod.Spec.Boxes {
@@ -146,9 +146,9 @@ func pod_charge_entry(pod losapi.Pod) {
 				spec_plan.ResourceComputeCharge.Cpu * (float64(v.Resources.CpuLimit) / 1000))
 
 			// RAM
-			// v.Resources.MemLimit = 1 * losapi.ByteGB
+			// v.Resources.MemLimit = 1 * inapi.ByteGB
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Memory * float64(v.Resources.MemLimit/losapi.ByteMB))
+				spec_plan.ResourceComputeCharge.Memory * float64(v.Resources.MemLimit/inapi.ByteMB))
 		}
 	}
 
@@ -190,7 +190,7 @@ func pod_charge_entry(pod losapi.Pod) {
 		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePrepay" {
 			pod.Payment.Prepay = cycle_amount
 			data.ZoneMaster.PvPut(
-				losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
 				pod,
 				nil,
 			)
@@ -216,7 +216,7 @@ func pod_charge_entry(pod losapi.Pod) {
 		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePayout" {
 			pod.Payment.Payout = cycle_amount
 			data.ZoneMaster.PvPut(
-				losapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
 				pod,
 				nil,
 			)
@@ -235,25 +235,25 @@ func pod_charge_entry(pod losapi.Pod) {
 
 func pod_entry_chargeout(pod_id string) {
 
-	var prev losapi.Pod
-	if rs := data.ZoneMaster.PvGet(losapi.NsZonePodInstance(status.ZoneId, pod_id)); !rs.OK() {
+	var prev inapi.Pod
+	if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(status.ZoneId, pod_id)); !rs.OK() {
 		return
 	} else {
 		rs.Decode(&prev)
 	}
 
-	if losapi.OpActionAllow(prev.Operate.Action, losapi.OpActionStop) {
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) {
 		return
 	}
 
-	prev.Operate.Action = losapi.OpActionStop
+	prev.Operate.Action = inapi.OpActionStop
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(losapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev, nil)
+	data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev, nil)
 
 	// Pod Map to Cell Queue
-	qstr := losapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	data.ZoneMaster.PvPut(qstr, prev, nil)
 
 	hlog.Printf("info", "Pod %s AccountChargeOut", prev.Meta.ID)

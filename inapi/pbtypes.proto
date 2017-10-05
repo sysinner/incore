@@ -1,0 +1,127 @@
+// Copyright 2015 Authors, All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package inapi;
+
+message ErrorMeta {
+    string code    = 1;
+    string message = 2;
+}
+
+message TypeMeta {
+    string    kind  = 1;
+    ErrorMeta error = 2;
+}
+
+message ObjectMeta {
+    string id      = 1;
+    string name    = 2;
+    uint64 created = 3;
+    uint64 updated = 4;
+}
+
+message Label {
+	string name  = 1;
+	string value = 2;
+}
+
+enum OperateAction {
+    Unknown = 0;
+    Start   = 1;
+    Stop    = 2;
+}
+
+// host
+message ResHostOperate {
+    uint32          action    = 1;
+    string          cell_id   = 2;
+    string          zone_id   = 3;
+    int64           cpu_used  = 4;
+    int64           ram_used  = 5;
+    int64           lss_used  = 6;
+    repeated uint32 port_used = 7;
+}
+
+message ResHost {
+    ObjectMeta     meta    = 1;
+    ResHostOperate operate = 2;
+    ResHostSpec    spec    = 3;
+    ResHostStatus  status  = 4;
+}
+
+message ResHostList {
+    repeated ResHost items = 2;
+}
+
+message ResHostSpec {
+    ResPlatform     platform      = 2;
+    ResHostResource capacity      = 3;
+    uint32          http_port     = 5; 
+    string          peer_lan_addr = 6;
+    string          peer_wan_addr = 7;
+}
+
+message ResPlatform {
+    string os     = 1;
+    string kernel = 2;
+    string arch   = 3;
+}
+
+message ResHostResource {
+    uint64 memory  = 1;
+    uint64 cpu     = 2;
+    uint64 storage = 3;
+}
+
+message ResHostStatus {
+    string phase  = 1;
+    uint64 uptime = 2;
+}
+
+message ResZone {
+    ObjectMeta       meta      = 2;
+    int32            phase     = 3;
+    string           summary   = 4;
+    repeated string  wan_addrs = 5;  
+    repeated string  lan_addrs = 6;  
+    repeated ResCell cells     = 7;  
+    repeated Label   options   = 8;  
+}
+
+message ResCell {
+    ObjectMeta      meta        = 2;
+    string          zone_id     = 3;
+    int32           phase       = 4;
+    string          description = 5;
+}
+
+message ResZoneMasterNode {
+    string id     = 1;
+    string addr   = 2;
+    uint32 action = 3;
+}
+
+message ResZoneMasterList {
+    uint64                     version = 1;
+    string                     leader  = 2;
+    uint64                     updated = 3;
+    repeated ResZoneMasterNode items   = 4;  
+}
+
+service ApiZoneMaster {
+    rpc HostStatusSync (ResHost) returns (ResZoneMasterList) {}
+}
+

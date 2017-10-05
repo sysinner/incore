@@ -27,8 +27,8 @@ import (
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 type AppSpec struct {
@@ -52,10 +52,10 @@ func (c *AppSpec) Init() int {
 
 func (c AppSpec) ListAction() {
 
-	ls := losapi.AppSpecList{}
+	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.ZoneMaster.PvScan(losapi.NsGlobalAppSpec(""), "", "", 200)
+	rs := data.ZoneMaster.PvScan(inapi.NsGlobalAppSpec(""), "", "", 200)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -66,7 +66,7 @@ func (c AppSpec) ListAction() {
 
 	for _, v := range rss {
 
-		var spec losapi.AppSpec
+		var spec inapi.AppSpec
 		if err := v.Decode(&spec); err != nil {
 			continue
 		}
@@ -83,7 +83,7 @@ func (c AppSpec) ListAction() {
 
 		if len(fields) > 0 {
 
-			specf := losapi.AppSpec{
+			specf := inapi.AppSpec{
 				Meta: types.InnerObjectMeta{
 					ID: spec.Meta.ID,
 				},
@@ -107,7 +107,7 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("packages") {
 				for _, pkg := range spec.Packages {
-					pkgf := losapi.VolumePackage{}
+					pkgf := inapi.VolumePackage{}
 					if fields.Has("packages/name") {
 						pkgf.Name = pkg.Name
 					}
@@ -117,7 +117,7 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("executors") {
 				for _, ev := range spec.Executors {
-					evf := losapi.Executor{}
+					evf := inapi.Executor{}
 					if fields.Has("executors/name") {
 						evf.Name = ev.Name
 					}
@@ -127,7 +127,7 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("configurator") && spec.Configurator != nil {
 
-				specf.Configurator = &losapi.AppConfigurator{}
+				specf.Configurator = &inapi.AppConfigurator{}
 
 				if fields.Has("configurator/name") {
 					specf.Configurator.Name = spec.Configurator.Name
@@ -135,7 +135,7 @@ func (c AppSpec) ListAction() {
 
 				if fields.Has("configurator/fields") {
 					for _, cfv := range spec.Configurator.Fields {
-						cff := &losapi.AppConfigField{}
+						cff := &inapi.AppConfigField{}
 						if fields.Has("configurator/fields/name") {
 							cff.Name = cfv.Name
 						}
@@ -155,7 +155,7 @@ func (c AppSpec) ListAction() {
 
 func (c AppSpec) EntryAction() {
 
-	set := losapi.AppSpec{}
+	set := inapi.AppSpec{}
 
 	if c.Params.Get("fmt_json_indent") == "true" {
 		defer c.RenderJsonIndent(&set, "  ")
@@ -168,18 +168,18 @@ func (c AppSpec) EntryAction() {
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalAppSpec(c.Params.Get("id"))); obj.OK() {
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); obj.OK() {
 		obj.Decode(&set)
 	}
 
 	if set.Meta.ID != c.Params.Get("id") {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeObjectNotFound, "AppSpec Not Found")
+		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound, "AppSpec Not Found")
 		return
 	}
 
 	if set.Meta.User != c.us.UserName &&
 		!set.Roles.MatchAny(c.us.Roles) {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeAccessDenied, "AccessDenied")
+		set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
 
@@ -188,7 +188,7 @@ func (c AppSpec) EntryAction() {
 		set.Meta.Created = 0
 		set.Meta.Updated = 0
 		c.Response.Out.Header().Set("Content-Disposition",
-			fmt.Sprintf("attachment; filename=los_app_spec_%s.json", set.Meta.Name))
+			fmt.Sprintf("attachment; filename=in_app_spec_%s.json", set.Meta.Name))
 	}
 
 	set.Kind = "AppSpec"
@@ -200,18 +200,18 @@ func (c AppSpec) SetAction() {
 	defer c.RenderJson(&set)
 
 	//
-	var req losapi.AppSpec
+	var req inapi.AppSpec
 
 	if err := c.Request.JsonDecode(&req); err != nil {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
 
-	var prev losapi.AppSpec
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalAppSpec(req.Meta.ID)); !obj.OK() {
+	var prev inapi.AppSpec
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); !obj.OK() {
 
 		if !obj.NotFound() {
-			set.Error = types.NewErrorMeta(losapi.ErrCodeServerError, "ServerError")
+			set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
 			return
 		}
 
@@ -220,7 +220,7 @@ func (c AppSpec) SetAction() {
 		obj.Decode(&prev)
 
 		if prev.Meta.User != c.us.UserName {
-			set.Error = types.NewErrorMeta(losapi.ErrCodeAccessDenied, "AccessDenied")
+			set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 			return
 		}
 	}
@@ -246,13 +246,13 @@ func (c AppSpec) SetAction() {
 
 			v.Name = strings.TrimSpace(v.Name)
 			if len(v.Name) == 0 {
-				set.Error = types.NewErrorMeta(losapi.ErrCodeAccessDenied, "Invalid ServicePort Name")
+				set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "Invalid ServicePort Name")
 				return
 			}
 
 			if v.HostPort > 0 && v.HostPort <= 1024 {
 				if c.us.UserName != "sysadmin" {
-					set.Error = types.NewErrorMeta(losapi.ErrCodeAccessDenied,
+					set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied,
 						"AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
 					return
 				}
@@ -272,10 +272,10 @@ func (c AppSpec) SetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(losapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
+	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}
 
@@ -288,7 +288,7 @@ func (c AppSpec) CfgSetAction() {
 	defer c.RenderJson(&set)
 
 	//
-	var req losapi.AppSpec
+	var req inapi.AppSpec
 
 	if err := c.Request.JsonDecode(&req); err != nil {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
@@ -315,8 +315,8 @@ func (c AppSpec) CfgSetAction() {
 		}
 	}
 
-	var prev losapi.AppSpec
-	if obj := data.ZoneMaster.PvGet(losapi.NsGlobalAppSpec(req.Meta.ID)); obj.OK() {
+	var prev inapi.AppSpec
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); obj.OK() {
 		obj.Decode(&prev)
 	}
 
@@ -326,11 +326,11 @@ func (c AppSpec) CfgSetAction() {
 	}
 
 	if prev.Meta.User != c.us.UserName {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeAccessDenied, "AccessDenied")
+		set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
 
-	prev.Configurator = &losapi.AppConfigurator{
+	prev.Configurator = &inapi.AppConfigurator{
 		Name: req.Configurator.Name,
 	}
 
@@ -338,7 +338,7 @@ func (c AppSpec) CfgSetAction() {
 
 		// TODO
 
-		item := losapi.AppConfigField{
+		item := inapi.AppConfigField{
 			Name:     v.Name,
 			Title:    v.Title,
 			Prompt:   v.Prompt,
@@ -347,7 +347,7 @@ func (c AppSpec) CfgSetAction() {
 			AutoFill: v.AutoFill,
 		}
 
-		if item.AutoFill != "" && !losapi.AppConfigFieldAutoFillValid(item.AutoFill) {
+		if item.AutoFill != "" && !inapi.AppConfigFieldAutoFillValid(item.AutoFill) {
 			set.Error = types.NewErrorMeta("400", "Invalid AutoFill Value")
 			return
 		}
@@ -373,10 +373,10 @@ func (c AppSpec) CfgSetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(losapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
+	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
 		Force: true,
 	}); !obj.OK() {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeServerError, obj.Bytex().String())
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}
 

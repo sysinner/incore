@@ -19,25 +19,25 @@ import (
 
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
 	Prefix string
-	Host   = losapi.ResHost{
-		Meta:    &losapi.ObjectMeta{},
-		Operate: &losapi.ResHostOperate{},
-		Spec:    &losapi.ResHostSpec{},
-		Status:  &losapi.ResHostStatus{},
+	Host   = inapi.ResHost{
+		Meta:    &inapi.ObjectMeta{},
+		Operate: &inapi.ResHostOperate{},
+		Spec:    &inapi.ResHostSpec{},
+		Status:  &inapi.ResHostStatus{},
 	}
-	LocalZoneMasterList losapi.ResZoneMasterList
+	LocalZoneMasterList inapi.ResZoneMasterList
 
 	//
 	ZoneId               string
-	Zone                 *losapi.ResZone
-	ZoneMasterList       losapi.ResZoneMasterList
-	ZoneHostList         losapi.ResHostList
+	Zone                 *inapi.ResZone
+	ZoneMasterList       inapi.ResZoneMasterList
+	ZoneHostList         inapi.ResHostList
 	ZoneHostListImported = false
 	ZoneHostSecretKeys   types.KvPairs
 )
@@ -66,19 +66,19 @@ func Init() error {
 
 	Prefix = config.Prefix
 
-	Host = losapi.ResHost{
-		Meta: &losapi.ObjectMeta{
+	Host = inapi.ResHost{
+		Meta: &inapi.ObjectMeta{
 			Id: config.Config.Host.Id,
 		},
-		Operate: &losapi.ResHostOperate{
+		Operate: &inapi.ResHostOperate{
 			Action: 1,
 			ZoneId: config.Config.Host.ZoneId,
 		},
-		Spec: &losapi.ResHostSpec{
+		Spec: &inapi.ResHostSpec{
 			PeerLanAddr: string(config.Config.Host.LanAddr),
 			PeerWanAddr: string(config.Config.Host.WanAddr),
 		},
-		Status: &losapi.ResHostStatus{
+		Status: &inapi.ResHostStatus{
 			Uptime: uint64(types.MetaTimeNow()),
 		},
 	}

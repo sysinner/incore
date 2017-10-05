@@ -29,21 +29,21 @@ import (
 	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/publicsuffix"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
 	resDomainRe1    = regexp.MustCompile("\\.+")
 	resDomainRe2    = regexp.MustCompile("\\-+")
-	resDomainPrefix = losapi.ResourceTypeDomain + "/"
+	resDomainPrefix = inapi.ResourceTypeDomain + "/"
 	resDomainTypes  = types.ArrayString([]string{"pod", "upstream", "redirect"})
 	resDomainPodRe2 = regexp.MustCompile("^[0-9a-f]{12,16}$")
 )
 
 func (c Resource) DomainListAction() {
 
-	ls := losapi.ResourceList{}
+	ls := inapi.ResourceList{}
 
 	defer c.RenderJson(&ls)
 
@@ -66,7 +66,7 @@ func domain_name_filter(domain string) string {
 func (c Resource) DomainAction() {
 
 	var (
-		set losapi.Resource
+		set inapi.Resource
 	)
 
 	defer c.RenderJson(&set)
@@ -83,10 +83,10 @@ func (c Resource) DomainAction() {
 		return
 	}
 
-	obj_name := fmt.Sprintf("%s/%s", losapi.ResourceTypeDomain, name)
-	var prev losapi.Resource
+	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, name)
+	var prev inapi.Resource
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalResInstance(obj_name)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	} else if err := rs.Decode(&prev); err != nil {
@@ -107,7 +107,7 @@ func (c Resource) DomainAction() {
 func (c Resource) DomainNewAction() {
 
 	var (
-		set losapi.Resource
+		set inapi.Resource
 	)
 
 	defer c.RenderJson(&set)
@@ -129,9 +129,9 @@ func (c Resource) DomainNewAction() {
 		return
 	}
 
-	obj_name := fmt.Sprintf("%s/%s", losapi.ResourceTypeDomain, set.Meta.Name)
+	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, set.Meta.Name)
 
-	inst := losapi.Resource{
+	inst := inapi.Resource{
 		Meta: types.InnerObjectMeta{
 			ID:      idhash.HashToHexString([]byte(obj_name), 16),
 			Name:    obj_name,
@@ -139,16 +139,16 @@ func (c Resource) DomainNewAction() {
 			Created: types.MetaTimeNow(),
 			Updated: types.MetaTimeNow(),
 		},
-		Action: losapi.ResourceActionOK,
+		Action: inapi.ResourceActionOK,
 	}
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalResInstance(obj_name)); rs.OK() {
-		set.Error = types.NewErrorMeta(losapi.ErrCodeObjectExists, "Domain Exists")
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectExists, "Domain Exists")
 		return
 	}
 
 	//
-	data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), inst, &skv.PathWriteOptions{
+	data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), inst, &skv.PathWriteOptions{
 		Force: true,
 	})
 
@@ -158,7 +158,7 @@ func (c Resource) DomainNewAction() {
 func (c Resource) DomainSetAction() {
 
 	var (
-		set losapi.Resource
+		set inapi.Resource
 	)
 
 	defer c.RenderJson(&set)
@@ -180,11 +180,11 @@ func (c Resource) DomainSetAction() {
 		return
 	}
 
-	obj_name := fmt.Sprintf("%s/%s", losapi.ResourceTypeDomain, set.Meta.Name)
+	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, set.Meta.Name)
 
-	var prev losapi.Resource
+	var prev inapi.Resource
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalResInstance(obj_name)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	} else if err := rs.Decode(&prev); err != nil {
@@ -203,7 +203,7 @@ func (c Resource) DomainSetAction() {
 		prev.Meta.Updated = types.MetaTimeNow()
 
 		//
-		data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
+		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
 			Force: true,
 		})
 	}
@@ -213,7 +213,7 @@ func (c Resource) DomainSetAction() {
 
 func (c Resource) DomainBoundAction() {
 
-	var set losapi.Resource
+	var set inapi.Resource
 
 	defer c.RenderJson(&set)
 
@@ -234,11 +234,11 @@ func (c Resource) DomainBoundAction() {
 		return
 	}
 
-	obj_name := fmt.Sprintf("%s/%s", losapi.ResourceTypeDomain, set.Meta.Name)
+	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, set.Meta.Name)
 
-	var prev losapi.Resource
+	var prev inapi.Resource
 
-	if rs := data.ZoneMaster.PvGet(losapi.NsGlobalResInstance(obj_name)); !rs.OK() {
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	} else if err := rs.Decode(&prev); err != nil {
@@ -332,7 +332,7 @@ func (c Resource) DomainBoundAction() {
 
 		prev.Meta.Updated = types.MetaTimeNow()
 		//
-		data.ZoneMaster.PvPut(losapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
+		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
 			Force: true,
 		})
 	}

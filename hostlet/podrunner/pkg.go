@@ -28,18 +28,18 @@ import (
 	"github.com/lessos/lessgo/net/httpclient"
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/config"
-	"github.com/lessos/loscore/losapi"
-	"github.com/lessos/loscore/losutils"
-	"github.com/lessos/lospack/lpapi"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils"
+	"github.com/sysinner/inpack/ipapi"
 )
 
 var (
 	cmd_shasum = "/usr/bin/sha256sum"
 	cmd_tar    = "/bin/tar"
 	cmd_chown  = "/usr/bin/chown"
-	lpm_sets   types.ArrayString
-	lpm_mu     sync.Mutex
+	ipm_sets   types.ArrayString
+	ipm_mu     sync.Mutex
 )
 
 func init() {
@@ -57,30 +57,30 @@ func init() {
 	}
 }
 
-func lpm_mountpath(name, version string) string {
-	return fmt.Sprintf("/usr/los/%s/%s", name, version)
+func ipm_mountpath(name, version string) string {
+	return fmt.Sprintf("/usr/sysinner/%s/%s", name, version)
 }
 
-func lpm_filename(pkg lpapi.Package) string {
-	return lpapi.PackageFilename(pkg.Meta.Name, pkg.Version) + ".txz"
+func ipm_filename(pkg ipapi.Package) string {
+	return ipapi.PackageFilename(pkg.Meta.Name, pkg.Version) + ".txz"
 }
 
-func lpm_hostpath(pkg lpapi.Package) string {
-	return fmt.Sprintf("/opt/los/lpm/.cache/%s/%s/%s",
-		pkg.Meta.Name, string(pkg.Version.Version), lpm_filename(pkg))
+func ipm_hostpath(pkg ipapi.Package) string {
+	return fmt.Sprintf("/opt/sysinner/ipm/.cache/%s/%s/%s",
+		pkg.Meta.Name, string(pkg.Version.Version), ipm_filename(pkg))
 }
 
-func lpm_hostdir(name, version, release, dist, arch string) string {
-	return fmt.Sprintf("/opt/los/lpm/%s/%s/%s.%s.%s", name, version, release, dist, arch)
+func ipm_hostdir(name, version, release, dist, arch string) string {
+	return fmt.Sprintf("/opt/sysinner/ipm/%s/%s/%s.%s.%s", name, version, release, dist, arch)
 }
 
-func lpm_prepare(inst *BoxInstance) error {
+func ipm_prepare(inst *BoxInstance) error {
 
 	for _, app := range inst.Apps {
 
 		for _, p := range app.Spec.Packages {
 
-			if err := lpm_entry_sync(p); err != nil {
+			if err := ipm_entry_sync(p); err != nil {
 				return err
 			}
 		}
@@ -89,7 +89,7 @@ func lpm_prepare(inst *BoxInstance) error {
 	return nil
 }
 
-func lpm_entry_sync(vp losapi.VolumePackage) error {
+func ipm_entry_sync(vp inapi.VolumePackage) error {
 
 	if vp.Name == "" || len(vp.Version) < 1 || len(vp.Release) < 1 {
 		return errors.New("Package Not Found")
@@ -97,36 +97,36 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 
 	tag_name := vp.Name + "." + string(vp.Version)
 
-	lpm_mu.Lock()
-	if lpm_sets.Contain(tag_name) {
-		lpm_mu.Unlock()
+	ipm_mu.Lock()
+	if ipm_sets.Contain(tag_name) {
+		ipm_mu.Unlock()
 		// hlog.Printf("info", "nodelet/Package Sync %s Command Skip", vp.Name)
 		return nil
 	}
-	lpm_sets.Insert(tag_name)
-	lpm_mu.Unlock()
+	ipm_sets.Insert(tag_name)
+	ipm_mu.Unlock()
 
 	defer func(tag_name string) {
-		lpm_mu.Lock()
-		lpm_sets.Remove(tag_name)
-		lpm_mu.Unlock()
+		ipm_mu.Lock()
+		ipm_sets.Remove(tag_name)
+		ipm_mu.Unlock()
 	}(tag_name)
 
-	phostdir := lpm_hostdir(vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
-	if _, err := os.Stat(phostdir + "/.lospack/lospack.json"); err == nil {
+	phostdir := ipm_hostdir(vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
+	if _, err := os.Stat(phostdir + "/.ipm/ipm.json"); err == nil {
 		return nil
 	}
 
 	// TODO
-	url := fmt.Sprintf("%s/lps/v1/pkg/entry?name=%s&version=%s&release=%s&dist=%s&arch=%s",
-		config.Config.LpsServiceUrl,
+	url := fmt.Sprintf("%s/ips/v1/pkg/entry?name=%s&version=%s&release=%s&dist=%s&arch=%s",
+		config.Config.InpackServiceUrl,
 		vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
 	c := httpclient.Get(url)
 	defer c.Close()
 
 	var pkg struct {
 		types.TypeMeta
-		lpapi.Package
+		ipapi.Package
 	}
 	if err := c.ReplyJson(&pkg); err != nil {
 		hlog.Printf("error", "nodelet/Package Sync %s", url)
@@ -138,19 +138,19 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	}
 
 	var (
-		pfilename = lpm_filename(pkg.Package)
-		pfilepath = lpm_hostpath(pkg.Package)
+		pfilename = ipm_filename(pkg.Package)
+		pfilepath = ipm_hostpath(pkg.Package)
 	)
 
-	losutils.FsMakeDir(phostdir, 2048, 2048, 0750)
+	inutils.FsMakeDir(phostdir, 2048, 2048, 0750)
 
 	if _, err := os.Stat(pfilepath); err == nil {
 
-		if lpm_entry_sync_sumcheck(pfilepath) == pkg.SumCheck {
-			return lpm_entry_sync_extract(pfilepath, phostdir)
+		if ipm_entry_sync_sumcheck(pfilepath) == pkg.SumCheck {
+			return ipm_entry_sync_extract(pfilepath, phostdir)
 		}
 	}
-	losutils.FsMakeFileDir(pfilepath, 2048, 2048, 0750)
+	inutils.FsMakeFileDir(pfilepath, 2048, 2048, 0750)
 
 	tmpfile := pfilepath + ".tmp"
 	fp, err := os.Create(tmpfile)
@@ -160,10 +160,10 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	}
 	defer fp.Close()
 
-	dlurl := fmt.Sprintf("%s/lps/v1/pkg/dl/%s/%s/%s",
-		config.Config.LpsServiceUrl, pkg.Meta.Name, pkg.Version.Version, pfilename)
+	dlurl := fmt.Sprintf("%s/ips/v1/pkg/dl/%s/%s/%s",
+		config.Config.InpackServiceUrl, pkg.Meta.Name, pkg.Version.Version, pfilename)
 
-	// hlog.Printf("info", "Download Package From (%s)", dlurl)
+	hlog.Printf("info", "Download Package From (%s)", dlurl)
 	rsp, err := http.Get(dlurl)
 	if err != nil {
 		hlog.Printf("error", "Download Package `%s` Failed", dlurl)
@@ -176,7 +176,7 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 		return errors.New("Download Package Failed")
 	}
 
-	if lpm_entry_sync_sumcheck(tmpfile) != pkg.SumCheck {
+	if ipm_entry_sync_sumcheck(tmpfile) != pkg.SumCheck {
 		hlog.Printf("error", "SumCheck Error (%s)", tmpfile)
 		return errors.New("Download Package Failed")
 	}
@@ -186,11 +186,11 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	}
 	os.Chown(pfilepath, 2048, 2048)
 
-	if err := lpm_entry_sync_extract(pfilepath, phostdir); err != nil {
+	if err := ipm_entry_sync_extract(pfilepath, phostdir); err != nil {
 		return err
 	}
 
-	// if pv, ok := pkg.Options.Get("p6/lpm/install-prefix"); ok && len(pv.String()) > 5 {
+	// if pv, ok := pkg.Options.Get("p6/ipm/install-prefix"); ok && len(pv.String()) > 5 {
 
 	// 	exec.Command("mkdir", "-p", pv.String()).Output()
 
@@ -202,7 +202,7 @@ func lpm_entry_sync(vp losapi.VolumePackage) error {
 	return nil
 }
 
-func lpm_entry_sync_sumcheck(filepath string) string {
+func ipm_entry_sync_sumcheck(filepath string) string {
 
 	rs, err := exec.Command(cmd_shasum, filepath).Output()
 	if err != nil {
@@ -218,7 +218,7 @@ func lpm_entry_sync_sumcheck(filepath string) string {
 	return "sha256:" + rss[0]
 }
 
-func lpm_entry_sync_extract(file, dest string) error {
+func ipm_entry_sync_extract(file, dest string) error {
 
 	if _, err := exec.Command(cmd_tar, "-Jxvf", file, "-C", dest).Output(); err != nil {
 		hlog.Printf("error", "Package Extract to `%s` Failed: %s", dest, err.Error())

@@ -17,28 +17,28 @@ package v1
 import (
 	"github.com/lessos/lessgo/types"
 
-	"github.com/lessos/loscore/data"
-	"github.com/lessos/loscore/losapi"
+	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
 )
 
 func (c Host) CellListAction() {
 
-	var sets losapi.GeneralObjectList
+	var sets inapi.GeneralObjectList
 	defer c.RenderJson(&sets)
 
 	zones := []string{}
 
 	if zoneid := c.Params.Get("zoneid"); zoneid != "" {
-		if rs := data.ZoneMaster.PvGet(losapi.NsGlobalSysZone(zoneid)); !rs.OK() {
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
 			sets.Error = types.NewErrorMeta("404", "Zone Not Found")
 			return
 		}
 		zones = append(zones, zoneid)
 	} else {
 
-		rss := data.ZoneMaster.PvScan(losapi.NsGlobalSysZone(""), "", "", 100).KvList()
+		rss := data.ZoneMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
 		for _, v := range rss {
-			var zone losapi.ResZone
+			var zone inapi.ResZone
 			if err := v.Decode(&zone); err == nil {
 				zones = append(zones, zone.Meta.Id)
 			}
@@ -47,9 +47,9 @@ func (c Host) CellListAction() {
 
 	//
 	for _, z := range zones {
-		rss := data.ZoneMaster.PvScan(losapi.NsGlobalSysCell(z, ""), "", "", 100).KvList()
+		rss := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(z, ""), "", "", 100).KvList()
 		for _, v := range rss {
-			var cell losapi.ResCell
+			var cell inapi.ResCell
 			if err := v.Decode(&cell); err == nil {
 				sets.Items = append(sets.Items, cell)
 			}
@@ -62,13 +62,13 @@ func (c Host) CellListAction() {
 func (c Host) CellEntryAction() {
 
 	var set struct {
-		losapi.GeneralObject
-		losapi.ResCell
+		inapi.GeneralObject
+		inapi.ResCell
 	}
 	defer c.RenderJson(&set)
 
 	if rs := data.ZoneMaster.PvGet(
-		losapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid")),
+		inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid")),
 	); rs.OK() {
 		rs.Decode(&set.ResCell)
 	}

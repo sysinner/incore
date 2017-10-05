@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package data // import "github.com/lessos/loscore/data"
+package data // import "github.com/sysinner/incore/data"
 
 import (
 	"github.com/lynkdb/iomix/skv"
 )
 
 var (
-	LocalDB      skv.Connector
-	HiMaster     skv.Connector
-	ZoneMaster   skv.Connector
-	ZoneMasterDB skv.Connector
+	LocalDB    skv.Connector
+	HiMaster   skv.Connector
+	ZoneMaster skv.Connector
 )
