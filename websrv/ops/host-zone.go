@@ -19,7 +19,6 @@ import (
 	"strings"
 
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -219,9 +218,7 @@ func (c Host) ZoneSetAction() {
 
 	set.Meta.Updated = uint64(types.MetaTimeNow())
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, nil)
 
 	set.Kind = "HostZone"
 }

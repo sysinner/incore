@@ -87,7 +87,7 @@ func find_hosts_that_fit(
 
 		if (src.CpuLimit+v.Operate.CpuUsed) > int64(v.Spec.Capacity.Cpu) ||
 			(src.MemLimit+v.Operate.RamUsed) > int64(v.Spec.Capacity.Memory) {
-			continue
+			// continue TODO
 		}
 
 		hosts = append(hosts, &host_fit{

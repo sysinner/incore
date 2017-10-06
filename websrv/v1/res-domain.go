@@ -26,7 +26,6 @@ import (
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/publicsuffix"
 
 	"github.com/sysinner/incore/data"
@@ -148,9 +147,7 @@ func (c Resource) DomainNewAction() {
 	}
 
 	//
-	data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), inst, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), inst, nil)
 
 	set.Kind = "Resource"
 }
@@ -203,9 +200,7 @@ func (c Resource) DomainSetAction() {
 		prev.Meta.Updated = types.MetaTimeNow()
 
 		//
-		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
-			Force: true,
-		})
+		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, nil)
 	}
 
 	set.Kind = "Resource"
@@ -332,9 +327,7 @@ func (c Resource) DomainBoundAction() {
 
 		prev.Meta.Updated = types.MetaTimeNow()
 		//
-		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
-			Force: true,
-		})
+		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, nil)
 	}
 
 	set.Kind = "Resource"

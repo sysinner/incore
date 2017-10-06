@@ -55,8 +55,8 @@ func zone_tracker() {
 		if rs2 := data.ZoneMaster.PvNew(
 			leader_path,
 			status.Host.Meta.Id,
-			&skv.PathWriteOptions{
-				Ttl: 12000,
+			&skv.ProgWriteOptions{
+				Expired: time.Now().Add(12e9),
 			},
 		); rs2.OK() {
 			status.ZoneMasterList.Leader = rs.Bytex().String()
@@ -83,12 +83,13 @@ func zone_tracker() {
 	}
 
 	// refresh zone-master leader ttl
+	pv := skv.NewProgValue(status.Host.Meta.Id)
 	if rs := data.ZoneMaster.PvPut(
 		leader_path,
 		status.Host.Meta.Id,
-		&skv.PathWriteOptions{
-			PrevValue: status.Host.Meta.Id,
-			Ttl:       12000,
+		&skv.ProgWriteOptions{
+			PrevSum: pv.Crc32(),
+			Expired: time.Now().Add(12e9),
 		},
 	); !rs.OK() {
 		hlog.Printf("warn", "refresh zone-master leader ttl failed")
@@ -238,9 +239,7 @@ func zone_tracker() {
 							data.ZoneMaster.PvPut(
 								inapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
 								host,
-								&skv.PathWriteOptions{
-									Force: true,
-								},
+								nil,
 							)
 						}
 					}

@@ -25,7 +25,6 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -272,9 +271,7 @@ func (c AppSpec) SetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
-		Force: true,
-	}); !obj.OK() {
+	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !obj.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}
@@ -373,9 +370,7 @@ func (c AppSpec) CfgSetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, &skv.PathWriteOptions{
-		Force: true,
-	}); !obj.OK() {
+	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !obj.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}

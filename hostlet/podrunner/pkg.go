@@ -113,7 +113,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 	}(tag_name)
 
 	phostdir := ipm_hostdir(vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
-	if _, err := os.Stat(phostdir + "/.ipm/ipm.json"); err == nil {
+	if _, err := os.Stat(phostdir + "/.inpack/inpack.json"); err == nil {
 		return nil
 	}
 

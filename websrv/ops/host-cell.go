@@ -125,7 +125,7 @@ func (c Host) CellSetAction() {
 	}
 
 	data.ZoneMaster.PvPut(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
-		cell, &skv.PathWriteOptions{
+		cell, &skv.ProgWriteOptions{
 			PrevVersion: prevVersion,
 		})
 
@@ -141,9 +141,7 @@ func (c Host) CellSetAction() {
 		}
 	}
 
-	data.ZoneMaster.PvPut(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell, nil)
 
 	cell.Kind = "HostCell"
 }

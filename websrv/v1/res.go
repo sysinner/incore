@@ -167,7 +167,7 @@ func (c Resource) OperatePodSetAction() {
 		prev.Operate.AppId = set.Operate.AppId // check
 
 		//
-		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.PathWriteOptions{
+		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.ProgWriteOptions{
 			Force: true,
 		})
 

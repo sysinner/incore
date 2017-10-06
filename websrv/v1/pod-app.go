@@ -16,7 +16,6 @@ package v1
 
 import (
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	"github.com/hooto/iam/iamapi"
 	in_db "github.com/sysinner/incore/data"
@@ -82,9 +81,7 @@ func (c Pod) AppSyncAction() {
 
 	if app_sync {
 		app.Meta.Updated = types.MetaTimeNow()
-		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_id), app, &skv.PathWriteOptions{
-			Force: true,
-		}); !rs.OK() {
+		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_id), app, nil); !rs.OK() {
 			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 			return
 		}
@@ -121,9 +118,7 @@ func (c Pod) AppSyncAction() {
 
 	// Pod Map to Cell Queue
 	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
-		Force: true,
-	}); !rs.OK() {
+	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
@@ -191,9 +186,7 @@ func (c Pod) AppSetAction() {
 
 	// Pod Map to Cell Queue
 	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
-		Force: true,
-	}); !rs.OK() {
+	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, nil); !rs.OK() {
 		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
@@ -296,9 +289,7 @@ func (c Pod) AppExecutorSetAction() {
 	}
 
 	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
-		Force: true,
-	}); !rs.OK() {
+	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}

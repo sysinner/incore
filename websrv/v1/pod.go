@@ -401,9 +401,7 @@ func (c Pod) OpActionSetAction() {
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
@@ -411,9 +409,7 @@ func (c Pod) OpActionSetAction() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "ObjectAlreadyExists")
 		return
 	}
-	data.ZoneMaster.PvPut(qstr, prev, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(qstr, prev, nil)
 
 	set.Kind = "PodInstance"
 }
@@ -470,9 +466,7 @@ func (c Pod) SetInfoAction() {
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
@@ -482,9 +476,7 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
-	data.ZoneMaster.PvPut(qstr, prev, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(qstr, prev, nil)
 
 	set.Kind = "PodInstance"
 }

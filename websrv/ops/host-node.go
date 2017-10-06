@@ -16,7 +16,6 @@ package ops
 
 import (
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -196,9 +195,7 @@ func (c Host) NodeSetAction() {
 		prev.Meta.Name = node.Meta.Name
 	}
 
-	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), prev, &skv.PathWriteOptions{
-		Force: true,
-	})
+	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), prev, nil)
 
 	node.Kind = "HostNode"
 }

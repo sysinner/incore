@@ -22,7 +22,6 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -349,9 +348,7 @@ func pod_status_pushing() {
 
 			status.Updated = types.MetaTimeNow()
 
-			if rs := in_db.HiMaster.PvPut(path, *status, &skv.PathWriteOptions{
-				Force: true,
-			}); !rs.OK() {
+			if rs := in_db.HiMaster.PvPut(path, *status, nil); !rs.OK() {
 				hlog.Printf("error", "hostlet/pod StatusSync %s SET Failed %s",
 					pod.Meta.ID, rs.Bytex().String())
 			}

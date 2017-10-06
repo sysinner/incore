@@ -25,7 +25,6 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -249,9 +248,7 @@ func (c App) SetAction() {
 		prev.Spec = spec
 	}
 
-	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.PathWriteOptions{
-		Force: true,
-	}); !obj.OK() {
+	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil); !obj.OK() {
 		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}
@@ -370,9 +367,7 @@ func (c App) OpActionSetAction() {
 		app.Meta.Updated = types.MetaTimeNow()
 
 		if obj := in_db.ZoneMaster.PvPut(
-			inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
-				Force: true,
-			},
+			inapi.NsGlobalAppInstance(app.Meta.ID), app, nil,
 		); !obj.OK() {
 			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 			return
@@ -407,17 +402,13 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, &skv.PathWriteOptions{
-		Force: true,
-	}); !rs.OK() {
+	if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	}
 
 	// Pod Map to Cell Queue
 	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, &skv.PathWriteOptions{
-		Force: true,
-	}); !rs.OK() {
+	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, nil); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	}
 
@@ -495,17 +486,13 @@ func (c App) OpResSetAction() {
 		res.Meta.Updated = types.MetaTime(opt.Updated)
 
 		//
-		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalResInstance(res.Meta.Name), res, &skv.PathWriteOptions{
-			Force: true,
-		}); !rs.OK() {
+		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalResInstance(res.Meta.Name), res, nil); !rs.OK() {
 			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 			return
 		}
 		// }
 
-		if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
-			Force: true,
-		}); !obj.OK() {
+		if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !obj.OK() {
 			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 			return
 		}
@@ -681,9 +668,7 @@ func (c App) ConfigAction() {
 							app_refp_opt.Subs.Remove(app.Meta.ID)
 							app_refp.Operate.Options.Sync(*app_refp_opt)
 
-							if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, &skv.PathWriteOptions{
-								Force: true,
-							}); !obj.OK() {
+							if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, nil); !obj.OK() {
 								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 								return
 							}
@@ -702,9 +687,7 @@ func (c App) ConfigAction() {
 				opt_ref.Subs.Insert(app.Meta.ID)
 				app_ref.Operate.Options.Sync(*opt_ref)
 
-				if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, &skv.PathWriteOptions{
-					Force: true,
-				}); !obj.OK() {
+				if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, nil); !obj.OK() {
 					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 					return
 				}
@@ -728,9 +711,7 @@ func (c App) ConfigAction() {
 	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.PathWriteOptions{
-		Force: true,
-	}); !obj.OK() {
+	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !obj.OK() {
 		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
 		return
 	}

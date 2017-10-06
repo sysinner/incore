@@ -228,9 +228,11 @@ func (br *BoxKeeper) run(inst_name string) error {
 	}
 
 	// TODO issue
-	if err := ipm_prepare(inst); err != nil {
-		hlog.Printf("warn", "nodelet/box ipm_prepare %s", err.Error())
-		return err
+	if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) {
+		if err := ipm_prepare(inst); err != nil {
+			hlog.Printf("warn", "nodelet/box ipm_prepare %s", err.Error())
+			return err
+		}
 	}
 
 	if inst.PodOpAction == 0 || inst.Spec.Name == "" {
@@ -403,6 +405,13 @@ func (br *BoxKeeper) run(inst_name string) error {
 				MemorySwap:       inst.Spec.Resources.MemLimit,
 				MemorySwappiness: 0,
 				CPUShares:        inst.Spec.Resources.CpuLimit,
+				Ulimits: []docker.ULimit{
+					{
+						Name: "nofile",
+						Soft: 50000,
+						Hard: 50000,
+					},
+				},
 			},
 		})
 

@@ -20,7 +20,6 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -262,9 +261,7 @@ func scheduler_exec_cell(cell_id string) {
 
 				if nsz.SyncChanged() {
 					nsz.Updated = uint64(types.MetaTimeNow())
-					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(pod.Meta.ID), nsz, &skv.PathWriteOptions{
-						Force: true,
-					})
+					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(pod.Meta.ID), nsz, nil)
 				}
 			}
 
@@ -277,9 +274,7 @@ func scheduler_exec_cell(cell_id string) {
 				host.OpPortSort()
 
 				if rs := data.ZoneMaster.PvPut(
-					inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, &skv.PathWriteOptions{
-						Force: true,
-					},
+					inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
 				); !rs.OK() {
 					hlog.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
 					for _, pa := range ports_alloc {
@@ -303,9 +298,7 @@ func scheduler_exec_cell(cell_id string) {
 			}
 		}
 
-		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, &skv.PathWriteOptions{
-			Force: true,
-		}); !rs.OK() {
+		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil); !rs.OK() {
 			hlog.Printf("error", "zone/pod saved %s, err (%s)", pod.Meta.ID, rs.Bytex().String())
 			continue
 		}
@@ -315,16 +308,12 @@ func scheduler_exec_cell(cell_id string) {
 			pod.Operate.Replica = oprep
 			k := inapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, pod.Meta.ID, oprep.Id)
 
-			if rs := data.ZoneMaster.PvPut(k, pod, &skv.PathWriteOptions{
-				Force: true,
-			}); !rs.OK() {
+			if rs := data.ZoneMaster.PvPut(k, pod, nil); !rs.OK() {
 				hlog.Printf("error", "zone/pod saved %s, err (%s)", k, rs.Bytex().String())
 				continue
 			}
 		}
 
-		data.ZoneMaster.PvDel(inapi.NsZonePodOpQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), &skv.PathWriteOptions{
-			Force: true,
-		})
+		data.ZoneMaster.PvDel(inapi.NsZonePodOpQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), nil)
 	}
 }
