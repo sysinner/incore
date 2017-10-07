@@ -201,6 +201,20 @@ func (ls *AppConfigFields) Sync(item AppConfigField) {
 	*ls = append(*ls, &item)
 }
 
+func (ls *AppConfigFields) Del(name string) {
+
+	app_op_mu.Lock()
+	defer app_op_mu.Unlock()
+
+	for i, v := range *ls {
+
+		if v.Name == name {
+			*ls = append((*ls)[:i], (*ls)[i+1:]...)
+			return
+		}
+	}
+}
+
 //
 type AppOperate struct {
 	Action        uint32            `json:"action,omitempty"`

@@ -187,7 +187,7 @@ func (c AppSpec) EntryAction() {
 		set.Meta.Created = 0
 		set.Meta.Updated = 0
 		c.Response.Out.Header().Set("Content-Disposition",
-			fmt.Sprintf("attachment; filename=in_app_spec_%s.json", set.Meta.Name))
+			fmt.Sprintf("attachment; filename=app_spec_%s.json", set.Meta.Name))
 	}
 
 	set.Kind = "AppSpec"
@@ -361,6 +361,81 @@ func (c AppSpec) CfgSetAction() {
 		}
 
 		prev.Configurator.Fields.Sync(item)
+	}
+
+	prev.Meta.Updated = types.MetaTimeNow()
+
+	// INCR Resource Version
+	resVersion, _ := strconv.Atoi(prev.Meta.Version)
+	resVersion++
+	prev.Meta.Version = strconv.Itoa(resVersion)
+
+	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !obj.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+		return
+	}
+
+	set.Kind = "AppSpec"
+}
+
+func (c AppSpec) CfgFieldDelAction() {
+
+	set := types.TypeMeta{}
+	defer c.RenderJson(&set)
+
+	//
+	var req inapi.AppSpec
+
+	if err := c.Request.JsonDecode(&req); err != nil {
+		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	if req.Configurator == nil {
+		set.Error = types.NewErrorMeta("400", "No Configurator Setup")
+		return
+	}
+
+	if err := req.Configurator.Name.Valid(); err != nil {
+		set.Error = types.NewErrorMeta("400", "Invalid Configurator Name: "+err.Error())
+		return
+	}
+
+	for _, v := range req.Configurator.Fields {
+
+		for _, vv := range v.Validates {
+
+			if _, err := regexp.Compile(vv.Key); err != nil {
+				set.Error = types.NewErrorMeta("400", "Invalid Validator Expression: "+err.Error())
+				return
+			}
+		}
+	}
+
+	var prev inapi.AppSpec
+	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); obj.OK() {
+		obj.Decode(&prev)
+	}
+
+	if prev.Meta.ID == "" {
+		set.Error = types.NewErrorMeta("400", "Item Not Found")
+		return
+	}
+
+	if prev.Meta.User != c.us.UserName {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
+		return
+	}
+
+	for _, v := range req.Configurator.Fields {
+
+		for _, vdel := range prev.Configurator.Fields {
+
+			if v.Name == vdel.Name {
+				prev.Configurator.Fields.Del(v.Name)
+				break
+			}
+		}
 	}
 
 	prev.Meta.Updated = types.MetaTimeNow()
