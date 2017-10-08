@@ -261,6 +261,25 @@ func (c AppSpec) SetAction() {
 			prev.ServicePorts.Sync(*v)
 		}
 
+		if req.Configurator != nil {
+
+			if err := req.Configurator.Name.Valid(); err != nil {
+				set.Error = types.NewErrorMeta("400", "Invalid Configurator Name: "+err.Error())
+				return
+			}
+			for _, v := range req.Configurator.Fields {
+
+				for _, vv := range v.Validates {
+
+					if _, err := regexp.Compile(vv.Key); err != nil {
+						set.Error = types.NewErrorMeta("400", "Invalid Validator Expression: "+err.Error())
+						return
+					}
+				}
+			}
+			prev.Configurator = req.Configurator
+		}
+
 		prev.Roles = req.Roles
 	}
 
