@@ -41,3 +41,12 @@ func NewModule() httpsrv.Module {
 
 	return module
 }
+
+func NewIndexModule() httpsrv.Module {
+
+	module := httpsrv.NewModule("in_cp_index")
+
+	module.ControllerRegister(new(Index))
+
+	return module
+}
