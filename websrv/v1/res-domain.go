@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	"golang.org/x/net/publicsuffix"
@@ -179,7 +180,10 @@ func (c Resource) DomainSetAction() {
 
 	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, set.Meta.Name)
 
-	var prev inapi.Resource
+	var (
+		prev inapi.Resource
+		sync = false
+	)
 
 	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
@@ -194,12 +198,28 @@ func (c Resource) DomainSetAction() {
 		return
 	}
 
+	if set.Meta.User != "" && set.Meta.User != prev.Meta.User {
+
+		if err := iamapi.UserNameValid(set.Meta.User); err != nil {
+			set.Error = types.NewErrorMeta("400", err.Error())
+			return
+		}
+
+		ue := iamclient.PublicUserEntry(set.Meta.User)
+		if ue.Error != nil {
+			set.Error = types.NewErrorMeta("400", "User Not Found")
+			return
+		}
+
+		prev.Meta.User, sync = set.Meta.User, true
+	}
+
 	if prev.Description != set.Description {
+		prev.Description, sync = set.Description, true
+	}
 
-		prev.Description = set.Description
+	if sync {
 		prev.Meta.Updated = types.MetaTimeNow()
-
-		//
 		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, nil)
 	}
 
