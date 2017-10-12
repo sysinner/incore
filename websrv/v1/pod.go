@@ -24,6 +24,7 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
+	// iox_utils "github.com/lynkdb/iomix/utils"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -169,8 +170,8 @@ func (c Pod) EntryAction() {
 	defer c.RenderJson(&set)
 
 	if zone_id == "" {
-		if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(id)); obj.OK() {
-			obj.Decode(&set)
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(id)); rs.OK() {
+			rs.Decode(&set)
 			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
 				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
@@ -182,9 +183,9 @@ func (c Pod) EntryAction() {
 
 	if zone_id != "" {
 
-		if obj := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(zone_id, id)); obj.OK() {
+		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(zone_id, id)); rs.OK() {
 
-			obj.Decode(&set)
+			rs.Decode(&set)
 			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
 				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
@@ -224,8 +225,8 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); obj.OK() {
-		obj.Decode(&spec)
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
+		rs.Decode(&spec)
 	}
 	if spec.Meta.ID == "" || spec.Meta.ID != set.Plan {
 		set.Error = types.NewErrorMeta("400", "Spec Not Found")
@@ -240,8 +241,8 @@ func (c Pod) NewAction() {
 
 	//
 	var zone inapi.ResZone
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(set.Zone)); obj.OK() {
-		obj.Decode(&zone)
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(set.Zone)); rs.OK() {
+		rs.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
 		set.Error = types.NewErrorMeta("400", "Zone Not Found")
@@ -250,8 +251,8 @@ func (c Pod) NewAction() {
 
 	//
 	var cell inapi.ResCell
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysCell(set.Zone, set.Cell)); obj.OK() {
-		obj.Decode(&cell)
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysCell(set.Zone, set.Cell)); rs.OK() {
+		rs.Decode(&cell)
 	}
 	if cell.Meta.Id == "" {
 		set.Error = types.NewErrorMeta("400", "Cell Not Found")
@@ -264,13 +265,16 @@ func (c Pod) NewAction() {
 		return
 	}
 
+	tn := types.MetaTimeNow()
+	id := idhash.RandHexString(16)
+
 	pod := inapi.Pod{
 		Meta: types.InnerObjectMeta{
-			ID:      idhash.RandHexString(16),
+			ID:      id,
 			Name:    set.Name,
 			User:    c.us.UserName,
-			Created: types.MetaTimeNow(),
-			Updated: types.MetaTimeNow(),
+			Created: tn,
+			Updated: tn,
 		},
 		Spec: &inapi.PodSpecBound{
 			Ref: inapi.ObjectReference{
@@ -498,8 +502,8 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 	)
 
 	//
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
-		obj.Decode(&pod)
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); rs.OK() {
+		rs.Decode(&pod)
 	}
 
 	if pod.Meta.ID == "" {
@@ -513,8 +517,8 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 	}
 
 	//
-	if obj := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); obj.OK() {
-		obj.Decode(&pod)
+	if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); rs.OK() {
+		rs.Decode(&pod)
 	}
 
 	if pod.Meta.ID == "" {
@@ -529,10 +533,10 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 		}
 
 		var rep_status inapi.PodStatusReplica
-		if obj := data.ZoneMaster.PvGet(
+		if rs := data.ZoneMaster.PvGet(
 			inapi.NsZoneHostBoundPodReplicaStatus(pod.Spec.Zone, rep.Node, pod.Meta.ID, rep.Id),
-		); obj.OK() {
-			obj.Decode(&rep_status)
+		); rs.OK() {
+			rs.Decode(&rep_status)
 		}
 
 		if rep_status.Phase == "" {

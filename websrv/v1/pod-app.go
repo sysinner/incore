@@ -15,9 +15,11 @@
 package v1
 
 import (
-	"github.com/lessos/lessgo/types"
+	"fmt"
 
 	"github.com/hooto/iam/iamapi"
+	"github.com/lessos/lessgo/types"
+
 	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
@@ -89,11 +91,63 @@ func (c Pod) AppSyncAction() {
 
 	app.Spec.Configurator = nil
 
+	for _, dv := range app.Spec.Depends {
+
+		var dep_spec inapi.AppSpec
+		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(dv.Id)); !rs.OK() {
+			set.Error = types.NewErrorMeta("400",
+				fmt.Sprintf("Not Dependent AppSpec (%s) Found", dv.Name))
+			return
+		} else {
+			rs.Decode(&dep_spec)
+		}
+
+		//
+		for _, pv := range dep_spec.Packages {
+			if types.IterObjectGet(app.Spec.Packages, pv.Name) != nil {
+				set.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("Name Conflict (dependent AppSpec/Package %s)", pv.Name))
+				return
+			}
+			app.Spec.Packages.Insert(pv)
+		}
+
+		//
+		for _, ev := range dep_spec.Executors {
+			if types.IterObjectGet(app.Spec.Executors, string(ev.Name)) != nil {
+				set.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("Name Conflict (dependent AppSpec/Executor %s)", string(ev.Name)))
+				return
+			}
+			app.Spec.Executors.Sync(ev)
+		}
+
+		//
+		for _, spv := range dep_spec.ServicePorts {
+
+			if spv.HostPort > 0 && spv.HostPort <= 1024 {
+				if c.us.UserName != "sysadmin" {
+					set.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
+					return
+				}
+			} else {
+				spv.HostPort = 0
+			}
+
+			if app.Spec.ServicePorts.Get(spv.BoxPort) != nil {
+				set.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("Network Port Conflict (dependent AppSpec/ServicePorts/BoxPort %d)", spv.BoxPort))
+				return
+			}
+			app.Spec.ServicePorts.Sync(*spv)
+		}
+	}
+
 	//
 	var pod inapi.Pod
-	obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId))
-	if obj.OK() {
-		obj.Decode(&pod)
+
+	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId)); rs.OK() {
+		rs.Decode(&pod)
 	}
 	if pod.Meta.ID == "" ||
 		pod.Meta.ID != app.Operate.PodId ||

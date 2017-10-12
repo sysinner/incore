@@ -517,10 +517,7 @@ func (c App) ConfigAction() {
 	defer c.RenderJson(&rsp)
 
 	//
-	var set struct {
-		Id     string          `json:"id"`
-		Option inapi.AppOption `json:"option"`
-	}
+	var set inapi.AppConfigSet
 	if err := c.Request.JsonDecode(&set); err != nil {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
@@ -547,12 +544,36 @@ func (c App) ConfigAction() {
 		return
 	}
 
-	if app.Spec.Configurator == nil {
+	var app_configurator *inapi.AppConfigurator
+
+	if app.Spec.Configurator != nil &&
+		app.Spec.Configurator.Name == set.Option.Name {
+		app_configurator = app.Spec.Configurator
+	} else {
+		for _, v := range app.Spec.Depends {
+
+			if v.Id != set.SpecId {
+				continue
+			}
+
+			var app_spec inapi.AppSpec
+			if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); rs.OK() {
+				rs.Decode(&app_spec)
+				if app_spec.Configurator != nil && len(app_spec.Configurator.Fields) > 0 {
+					app_configurator = app_spec.Configurator
+				}
+			}
+
+			break
+		}
+	}
+
+	if app_configurator == nil {
 		rsp.Kind = "AppInstConfig"
 		return
 	}
 
-	if set.Option.Name != app.Spec.Configurator.Name {
+	if set.Option.Name != app_configurator.Name {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
@@ -565,7 +586,7 @@ func (c App) ConfigAction() {
 		Name: set.Option.Name,
 	}
 
-	for _, field := range app.Spec.Configurator.Fields {
+	for _, field := range app_configurator.Fields {
 
 		var (
 			value      = ""
@@ -614,7 +635,8 @@ func (c App) ConfigAction() {
 			if re, err := regexp.Compile(validator.Key); err == nil {
 
 				if !re.MatchString(value) {
-					rsp.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid %s/Value %s", field.Name, validator.Value))
+					rsp.Error = types.NewErrorMeta("400",
+						fmt.Sprintf("Invalid %s/Value %s", field.Name, validator.Value))
 					return
 				}
 			}

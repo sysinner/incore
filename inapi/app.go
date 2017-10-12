@@ -15,6 +15,7 @@
 package inapi
 
 import (
+	"errors"
 	"regexp"
 	"sync"
 
@@ -25,7 +26,7 @@ var (
 	app_op_mu             sync.RWMutex
 	app_op_ref_mu         sync.RWMutex
 	app_spec_cfg_name_re2 = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
-	AppIdRe2              = regexp.MustCompile("^[a-f0-9]{12,20}$")
+	AppIdRe2              = regexp.MustCompile("^[a-f0-9]{16,24}$")
 )
 
 type AppPhase string
@@ -83,6 +84,24 @@ func (ls *AppInstances) ExecutorSync(executor Executor, app_id string) {
 	}
 }
 
+type AppSpecDepend struct {
+	Id       string `json:"id,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Version  string `json:"version,omitempty"`
+	Priority uint8  `json:"priority,omitempty"`
+}
+
+func (it *AppSpecDepend) Valid() error {
+	if !AppIdRe2.MatchString(it.Id) {
+		return errors.New("Invalid AppSpecDepend.ID")
+	}
+	return nil
+}
+
+func (it *AppSpecDepend) IterKey() string {
+	return it.Id
+}
+
 //
 type AppSpec struct {
 	types.TypeMeta `json:",inline"`
@@ -95,6 +114,7 @@ type AppSpec struct {
 	VolumeMounts   AppVolumeMounts       `json:"volume_mounts,omitempty"`
 	ServicePorts   ServicePorts          `json:"service_ports,omitempty"`
 	Configurator   *AppConfigurator      `json:"configurator,omitempty"`
+	Depends        []AppSpecDepend       `json:"depends,omitempty"`
 }
 
 type AppSpecList struct {
@@ -456,6 +476,12 @@ func (ls *AppOptionRefs) Equal(items AppOptionRefs) bool {
 	}
 
 	return true
+}
+
+type AppConfigSet struct {
+	Id     string    `json:"id"`
+	SpecId string    `json:"spec_id"`
+	Option AppOption `json:"option"`
 }
 
 type AppStatus struct {

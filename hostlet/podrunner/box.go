@@ -50,7 +50,7 @@ var (
 	box_keeper      BoxKeeper
 	err             error
 	docker_unixsock = "unix:///var/run/docker.sock"
-	box_name_pat    = regexp.MustCompile("^([0-9a-f]{12,20})-([0-9a-f]{4})-([a-z]{1}[a-z0-9]{0,19})$")
+	box_name_pat    = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})-([a-z]{1}[a-z0-9]{0,19})$")
 	cmd_install     = "/usr/bin/install"
 )
 

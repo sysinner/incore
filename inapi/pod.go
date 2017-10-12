@@ -26,7 +26,7 @@ import (
 var (
 	pod_op_mu sync.RWMutex
 	pod_st_mu sync.RWMutex
-	PodIdReg  = regexp.MustCompile("^[a-f0-9]{12,20}$")
+	PodIdReg  = regexp.MustCompile("^[a-f0-9]{16,24}$")
 )
 
 type PodSpecBoxImageDriver string

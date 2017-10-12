@@ -104,6 +104,16 @@ func (c AppSpec) ListAction() {
 				specf.Meta.Updated = spec.Meta.Updated
 			}
 
+			if fields.Has("depends") {
+				for _, dep := range spec.Depends {
+					depf := inapi.AppSpecDepend{}
+					if fields.Has("depends/name") {
+						depf.Name = dep.Name
+					}
+					specf.Depends = append(specf.Depends, depf)
+				}
+			}
+
 			if fields.Has("packages") {
 				for _, pkg := range spec.Packages {
 					pkgf := inapi.VolumePackage{}
@@ -238,6 +248,21 @@ func (c AppSpec) SetAction() {
 
 		prev.Meta.Name = req.Meta.Name
 		prev.Packages = req.Packages
+
+		prev.Depends = []inapi.AppSpecDepend{}
+		for _, v := range req.Depends {
+			if err := v.Valid(); err != nil {
+				set.Error = types.NewErrorMeta("400", "Bad Request")
+				return
+			}
+			if v.Id == prev.Meta.ID {
+				continue
+			}
+			if types.IterObjectGet(prev.Depends, v.Id) == nil {
+				prev.Depends = append(prev.Depends, v)
+			}
+		}
+
 		prev.Executors = req.Executors
 
 		prev.ServicePorts.Clean()

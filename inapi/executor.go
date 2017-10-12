@@ -63,6 +63,10 @@ type Executor struct {
 	Status    *ExecutorStatus      `json:"status,omitempty"`
 }
 
+func (it *Executor) IterKey() string {
+	return string(it.Name)
+}
+
 type ExecutorList struct {
 	types.TypeMeta `json:",inline"`
 	Items          Executors `json:"items,omitempty"`
