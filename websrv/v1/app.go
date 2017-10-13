@@ -25,6 +25,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
+	iox_utils "github.com/lynkdb/iomix/utils"
 
 	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -55,7 +56,7 @@ func (c App) ListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	rs := in_db.ZoneMaster.PvScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
+	rs := in_db.ZoneMaster.PvRevScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -156,8 +157,8 @@ func (c App) ListAction() {
 func (c App) EntryAction() {
 
 	var app inapi.AppInstance
-	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(c.Params.Get("id"))); obj.OK() {
-		obj.Decode(&app)
+	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(c.Params.Get("id"))); rs.OK() {
+		rs.Decode(&app)
 	}
 
 	if app.Meta.ID == "" || app.Meta.User != c.us.UserName {
@@ -184,23 +185,26 @@ func (c App) SetAction() {
 	}
 
 	var (
-		prev   inapi.AppInstance
-		deploy = false
+		prev    inapi.AppInstance
+		deploy  = false
+		tn      = types.MetaTimeNow()
+		set_new = false
 	)
 
 	if len(set.Meta.ID) < 8 {
 
 		prev = set
 
-		prev.Meta.ID = idhash.RandHexString(16)
-		prev.Meta.Created = types.MetaTimeNow()
+		prev.Meta.ID = iox_utils.Uint32ToHexString(uint32(tn.Time().Unix())) + idhash.RandHexString(8)
+		prev.Meta.Created = tn
 		prev.Meta.User = c.us.UserName
+		set_new = true
 
 	} else {
 
-		if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); !obj.OK() {
+		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); !rs.OK() {
 
-			if !obj.NotFound() {
+			if !rs.NotFound() {
 				rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
 				return
 			}
@@ -209,7 +213,7 @@ func (c App) SetAction() {
 
 		} else {
 
-			obj.Decode(&prev)
+			rs.Decode(&prev)
 
 			if prev.Meta.User != c.us.UserName ||
 				prev.Meta.ID != set.Meta.ID {
@@ -229,14 +233,15 @@ func (c App) SetAction() {
 		}
 	}
 
-	prev.Meta.Updated = types.MetaTimeNow()
+	prev.Meta.Updated = tn
 
 	var spec inapi.AppSpec
-	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID)); !obj.OK() {
+	rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
+	if !rs.OK() {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	} else {
-		obj.Decode(&spec)
+		rs.Decode(&spec)
 	}
 
 	if spec.Meta.ID == "" || spec.Meta.ID != prev.Spec.Meta.ID {
@@ -248,8 +253,14 @@ func (c App) SetAction() {
 		prev.Spec = spec
 	}
 
-	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil); !obj.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+	if set_new {
+		rs = in_db.ZoneMaster.PvNew(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
+	} else {
+		rs = in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
+	}
+
+	if !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}
 
@@ -347,8 +358,8 @@ func (c App) OpActionSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(app_id)); obj.OK() {
-		obj.Decode(&app)
+	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(app_id)); rs.OK() {
+		rs.Decode(&app)
 	}
 	if app.Meta.ID != app_id ||
 		app.Meta.User != c.us.UserName {
@@ -366,10 +377,10 @@ func (c App) OpActionSetAction() {
 		app.Operate.Action = op_action
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if obj := in_db.ZoneMaster.PvPut(
+		if rs := in_db.ZoneMaster.PvPut(
 			inapi.NsGlobalAppInstance(app.Meta.ID), app, nil,
-		); !obj.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+		); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 			return
 		}
 	}
@@ -451,8 +462,8 @@ func (c App) OpResSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); obj.OK() {
-		obj.Decode(&app)
+	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); rs.OK() {
+		rs.Decode(&app)
 	}
 	if app.Meta.ID == "" {
 		rsp.Error = types.NewErrorMeta("400", "App Not Found, or Access Denied")
@@ -492,8 +503,8 @@ func (c App) OpResSetAction() {
 		}
 		// }
 
-		if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !obj.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 			return
 		}
 
@@ -534,8 +545,8 @@ func (c App) ConfigAction() {
 	}
 
 	var app inapi.AppInstance
-	if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); obj.OK() {
-		obj.Decode(&app)
+	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); rs.OK() {
+		rs.Decode(&app)
 	}
 
 	if app.Meta.ID != set.Id ||
@@ -654,8 +665,8 @@ func (c App) ConfigAction() {
 			}
 
 			var app_ref inapi.AppInstance
-			if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(value)); obj.OK() {
-				obj.Decode(&app_ref)
+			if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(value)); rs.OK() {
+				rs.Decode(&app_ref)
 			}
 			if app_ref.Meta.ID != value {
 				rsp.Error = types.NewErrorMeta("400", "No AppConfigBound Found")
@@ -678,10 +689,10 @@ func (c App) ConfigAction() {
 
 			if pv, ok := app_op_opt.Items.Get(field.Name); ok && len(pv.String()) >= 12 && pv.String() != value {
 
-				if obj := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(pv.String())); obj.OK() {
+				if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(pv.String())); rs.OK() {
 
 					var app_refp inapi.AppInstance
-					obj.Decode(&app_refp)
+					rs.Decode(&app_refp)
 
 					if app_refp.Meta.ID == pv.String() {
 
@@ -690,8 +701,8 @@ func (c App) ConfigAction() {
 							app_refp_opt.Subs.Remove(app.Meta.ID)
 							app_refp.Operate.Options.Sync(*app_refp_opt)
 
-							if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, nil); !obj.OK() {
-								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+							if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, nil); !rs.OK() {
+								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 								return
 							}
 
@@ -709,8 +720,8 @@ func (c App) ConfigAction() {
 				opt_ref.Subs.Insert(app.Meta.ID)
 				app_ref.Operate.Options.Sync(*opt_ref)
 
-				if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, nil); !obj.OK() {
-					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+				if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, nil); !rs.OK() {
+					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 					return
 				}
 
@@ -733,8 +744,8 @@ func (c App) ConfigAction() {
 	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if obj := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !obj.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+	if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}
 

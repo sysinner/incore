@@ -24,7 +24,7 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
-	// iox_utils "github.com/lynkdb/iomix/utils"
+	iox_utils "github.com/lynkdb/iomix/utils"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -60,9 +60,9 @@ func (c Pod) ListAction() {
 	// TODO pager
 	var rs *skv.Result
 	if zone_id := c.Params.Get("zone_id"); zone_id != "" {
-		rs = data.ZoneMaster.PvScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 1000)
+		rs = data.ZoneMaster.PvRevScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 1000)
 	} else {
-		rs = data.ZoneMaster.PvScan(inapi.NsGlobalPodInstance(""), "", "", 1000)
+		rs = data.ZoneMaster.PvRevScan(inapi.NsGlobalPodInstance(""), "", "", 1000)
 	}
 	rss := rs.KvList()
 
@@ -266,7 +266,7 @@ func (c Pod) NewAction() {
 	}
 
 	tn := types.MetaTimeNow()
-	id := idhash.RandHexString(16)
+	id := iox_utils.Uint32ToHexString(uint32(tn.Time().Unix())) + idhash.RandHexString(8)
 
 	pod := inapi.Pod{
 		Meta: types.InnerObjectMeta{

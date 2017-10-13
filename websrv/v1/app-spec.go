@@ -25,6 +25,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
+	iox_utils "github.com/lynkdb/iomix/utils"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -54,7 +55,7 @@ func (c AppSpec) ListAction() {
 	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.ZoneMaster.PvScan(inapi.NsGlobalAppSpec(""), "", "", 200)
+	rs := data.ZoneMaster.PvRevScan(inapi.NsGlobalAppSpec(""), "", "", 200)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -217,30 +218,33 @@ func (c AppSpec) SetAction() {
 	}
 
 	var prev inapi.AppSpec
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); !obj.OK() {
-
-		if !obj.NotFound() {
+	rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID))
+	if !rs.OK() {
+		if !rs.NotFound() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
 			return
 		}
-
 	} else {
-
-		obj.Decode(&prev)
-
+		rs.Decode(&prev)
 		if prev.Meta.User != c.us.UserName {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 			return
 		}
 	}
 
+	var (
+		tn      = types.MetaTimeNow()
+		set_new = false
+	)
+
 	if prev.Meta.ID == "" {
 
 		prev = req
 
-		prev.Meta.ID = idhash.RandHexString(16)
-		prev.Meta.Created = types.MetaTimeNow()
+		prev.Meta.ID = iox_utils.Uint32ToHexString(uint32(tn.Time().Unix())) + idhash.RandHexString(8)
+		prev.Meta.Created = tn
 		prev.Meta.User = c.us.UserName
+		set_new = true
 
 	} else {
 
@@ -308,19 +312,24 @@ func (c AppSpec) SetAction() {
 		prev.Roles = req.Roles
 	}
 
-	prev.Meta.Updated = types.MetaTimeNow()
+	prev.Meta.Updated = tn
 
 	// INCR Resource Version
 	resVersion, _ := strconv.Atoi(prev.Meta.Version)
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !obj.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
-		return
+	if set_new {
+		rs = data.ZoneMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
+	} else {
+		rs = data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
 	}
 
-	set.Kind = "AppSpec"
+	if !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+	} else {
+		set.Kind = "AppSpec"
+	}
 }
 
 func (c AppSpec) CfgSetAction() {
