@@ -1,4 +1,4 @@
-// Copyright 2015 Authors, All rights reserved.
+// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,33 +16,9 @@ syntax = "proto3";
 
 package inapi;
 
-message ErrorMeta {
-    string code    = 1;
-    string message = 2;
-}
+import "inapi/base.proto";
+import "inapi/pod.proto";
 
-message TypeMeta {
-    string    kind  = 1;
-    ErrorMeta error = 2;
-}
-
-message ObjectMeta {
-    string id      = 1;
-    string name    = 2;
-    uint64 created = 3;
-    uint64 updated = 4;
-}
-
-message Label {
-	string name  = 1;
-	string value = 2;
-}
-
-enum OperateAction {
-    Unknown = 0;
-    Start   = 1;
-    Stop    = 2;
-}
 
 // host
 message ResHostOperate {
@@ -56,10 +32,11 @@ message ResHostOperate {
 }
 
 message ResHost {
-    ObjectMeta     meta    = 1;
-    ResHostOperate operate = 2;
-    ResHostSpec    spec    = 3;
-    ResHostStatus  status  = 4;
+    ObjectMeta              meta    = 1;
+    ResHostOperate          operate = 2;
+    ResHostSpec             spec    = 3;
+    ResHostStatus           status  = 4;
+    repeated PbPodRepStatus prs     = 5;
 }
 
 message ResHostList {
@@ -69,7 +46,7 @@ message ResHostList {
 message ResHostSpec {
     ResPlatform     platform      = 2;
     ResHostResource capacity      = 3;
-    uint32          http_port     = 5; 
+    uint32          http_port     = 5;
     string          peer_lan_addr = 6;
     string          peer_wan_addr = 7;
 }
@@ -95,17 +72,17 @@ message ResZone {
     ObjectMeta       meta      = 2;
     int32            phase     = 3;
     string           summary   = 4;
-    repeated string  wan_addrs = 5;  
-    repeated string  lan_addrs = 6;  
-    repeated ResCell cells     = 7;  
-    repeated Label   options   = 8;  
+    repeated string  wan_addrs = 5;
+    repeated string  lan_addrs = 6;
+    repeated ResCell cells     = 7;
+    repeated Label   options   = 8;
 }
 
 message ResCell {
-    ObjectMeta      meta        = 2;
-    string          zone_id     = 3;
-    int32           phase       = 4;
-    string          description = 5;
+    ObjectMeta meta        = 2;
+    string     zone_id     = 3;
+    int32      phase       = 4;
+    string     description = 5;
 }
 
 message ResZoneMasterNode {
@@ -118,10 +95,9 @@ message ResZoneMasterList {
     uint64                     version = 1;
     string                     leader  = 2;
     uint64                     updated = 3;
-    repeated ResZoneMasterNode items   = 4;  
+    repeated ResZoneMasterNode items   = 4;
 }
 
 service ApiZoneMaster {
     rpc HostStatusSync (ResHost) returns (ResZoneMasterList) {}
 }
-

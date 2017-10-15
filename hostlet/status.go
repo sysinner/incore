@@ -27,6 +27,7 @@ import (
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/hostlet/podrunner"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
 	"github.com/sysinner/incore/rpcsrv"
@@ -160,6 +161,75 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 			Memory: vm.Total,
 		}
 	}
+
+	status.Host.Prs = []*inapi.PbPodRepStatus{}
+
+	// fmt.Println("pod", len(podrunner.PodActives))
+	// fmt.Println("box", len(podrunner.BoxActives))
+
+	// Pod Rep Status
+	podrunner.PodActives.Each(func(pod *inapi.Pod) {
+
+		if pod.Operate.Replica == nil {
+			return
+		}
+
+		pod_status := &inapi.PbPodRepStatus{
+			Id:  pod.Meta.ID,
+			Rep: uint32(pod.Operate.Replica.Id),
+		}
+
+		s_diff := map[string]int{}
+
+		//
+		for _, bspec := range pod.Spec.Boxes {
+
+			inst_name := podrunner.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, bspec.Name)
+
+			box_inst := podrunner.BoxActives.Get(inst_name)
+			if box_inst == nil {
+				s_diff[inapi.OpStatusPending]++
+				continue
+			}
+
+			switch box_inst.Status.Phase {
+
+			case inapi.OpStatusRunning,
+				inapi.OpStatusStopped,
+				inapi.OpStatusFailed,
+				inapi.OpStatusDestroyed:
+				s_diff[box_inst.Status.Phase]++
+
+			default:
+				s_diff[inapi.OpStatusPending]++
+			}
+
+			pod_status.Boxes = append(pod_status.Boxes, &box_inst.Status)
+		}
+
+		if len(pod.Spec.Boxes) != len(pod_status.Boxes) {
+			pod_status.Phase = string(inapi.OpStatusPending)
+		} else {
+
+			if len(s_diff) == 1 {
+
+				for k := range s_diff {
+					pod_status.Phase = string(k)
+					break
+				}
+
+			} else if _, ok := s_diff[inapi.OpStatusFailed]; ok {
+				pod_status.Phase = string(inapi.OpStatusFailed)
+			} else {
+				pod_status.Phase = string(inapi.OpStatusPending)
+			}
+		}
+
+		// js, _ := json.Encode(pod_status, "  ")
+		// fmt.Println(string(js))
+
+		status.Host.Prs = append(status.Host.Prs, pod_status)
+	})
 
 	return inapi.NewApiZoneMasterClient(conn).HostStatusSync(
 		context.Background(), &status.Host,

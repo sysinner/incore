@@ -532,7 +532,7 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 			continue
 		}
 
-		var rep_status inapi.PodStatusReplica
+		var rep_status inapi.PbPodRepStatus
 		if rs := data.ZoneMaster.PvGet(
 			inapi.NsZoneHostBoundPodReplicaStatus(pod.Spec.Zone, rep.Node, pod.Meta.ID, rep.Id),
 		); rs.OK() {
@@ -543,7 +543,7 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 			rep_status.Phase = inapi.OpStatusPending
 		} else {
 
-			if (time.Now().UTC().Unix() - rep_status.Updated.Time().Unix()) > 600 {
+			if (uint32(time.Now().UTC().Unix()) - rep_status.Updated) > 600 {
 				rep_status.Phase = inapi.OpStatusUnknown
 			}
 

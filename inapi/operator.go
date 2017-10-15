@@ -15,13 +15,14 @@
 package inapi
 
 import (
+	"strings"
 	"sync"
-
-	"github.com/lessos/lessgo/types"
+	"time"
 )
 
 var (
-	op_log_mu sync.RWMutex
+	op_log_mu      sync.RWMutex
+	op_log_list_mu sync.RWMutex
 )
 
 var (
@@ -51,60 +52,109 @@ func OpActionAppend(opbase, op uint32) uint32 {
 
 //
 const (
-	OpStatusOK    = "ok"
-	OpStatusError = "error"
-	OpStatusFatal = "fatal"
+	PbOpLogOK    = "ok"
+	PbOpLogInfo  = "info"
+	PbOpLogWarn  = "warn"
+	PbOpLogError = "error"
+	PbOpLogFatal = "fatal"
 )
 
-type OpStatus struct {
-	User    string           `json:"user,omitempty"`
-	Version uint32           `json:"version,omitempty"`
-	Items   []*OpStatusEntry `json:"items,omitempty"`
+type PbOpLogSetsList []*PbOpLogSets
+
+func (ls *PbOpLogSetsList) Get(sets_name string) *PbOpLogSets {
+
+	op_log_list_mu.Lock()
+	defer op_log_list_mu.Unlock()
+
+	for _, v := range *ls {
+
+		if v.Name == sets_name {
+			return v
+		}
+	}
+
+	return nil
 }
 
-type OpStatusEntry struct {
-	Name    string            `json:"name,omitempty"`
-	Status  types.ArrayString `json:"status"`
-	Message string            `json:"message,omitempty"`
-	Created types.MetaTime    `json:"created"`
-	Updated types.MetaTime    `json:"updated"`
+func (ls *PbOpLogSetsList) Set(sets_name, user string, version uint32) *PbOpLogSets {
+
+	op_log_list_mu.Lock()
+	defer op_log_list_mu.Unlock()
+
+	for _, v := range *ls {
+
+		if v.Name == sets_name {
+			v.User = user
+			v.Version = version
+			return v
+		}
+	}
+
+	sets := NewPbOpLogSets(sets_name, user, version)
+	*ls = append(*ls, sets)
+	return sets
 }
 
-func NewOpStatus(user string, version uint32) OpStatus {
-	return OpStatus{
+func (ls *PbOpLogSetsList) LogSet(sets_name, name, status, message string) {
+
+	op_log_list_mu.Lock()
+	defer op_log_list_mu.Unlock()
+
+	for _, v := range *ls {
+
+		if v.Name == sets_name {
+			v.Set(name, status, message)
+			break
+		}
+	}
+}
+
+func NewPbOpLogSets(sets_name, user string, version uint32) *PbOpLogSets {
+	return &PbOpLogSets{
+		Name:    sets_name,
 		User:    user,
 		Version: version,
 	}
 }
 
-func (rs *OpStatus) Clean() {
-	rs.Items = []*OpStatusEntry{}
+func (rs *PbOpLogSets) Clean() {
+	rs.Items = []*PbOpLogEntry{}
 }
 
-func (rs *OpStatus) Set(name, status, message string) {
+func (rs *PbOpLogSets) Set(name, status, message string) {
 
 	op_log_mu.Lock()
 	defer op_log_mu.Unlock()
 
+	name = strings.ToLower(name)
+	status = strings.ToLower(status)
+
+	tn := uint32(time.Now().Unix())
+
 	for _, v := range rs.Items {
 		if name == v.Name {
-			v.Updated = types.MetaTimeNow()
-			v.Status.Set(status)
+			v.Updated = tn
 			v.Message = message
+			for _, v2 := range v.Status {
+				if v2 == status {
+					return
+				}
+			}
+			v.Status = []string{status}
 			return
 		}
 	}
 
-	rs.Items = append(rs.Items, &OpStatusEntry{
+	rs.Items = append(rs.Items, &PbOpLogEntry{
 		Name:    name,
-		Status:  types.ArrayString([]string{status}),
+		Status:  []string{status},
 		Message: message,
-		Created: types.MetaTimeNow(),
-		Updated: types.MetaTimeNow(),
+		Created: tn,
+		Updated: tn,
 	})
 }
 
-func (rs *OpStatus) Get(name string) *OpStatusEntry {
+func (rs *PbOpLogSets) Get(name string) *PbOpLogEntry {
 
 	op_log_mu.RLock()
 	defer op_log_mu.RUnlock()
@@ -118,7 +168,7 @@ func (rs *OpStatus) Get(name string) *OpStatusEntry {
 	return nil
 }
 
-func (rs *OpStatus) Del(name string) {
+func (rs *PbOpLogSets) Del(name string) {
 
 	op_log_mu.Lock()
 	defer op_log_mu.Unlock()

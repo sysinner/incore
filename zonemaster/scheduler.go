@@ -53,7 +53,7 @@ func scheduler_exec() error {
 
 func scheduler_exec_cell(cell_id string) {
 
-	pods := []inapi.Pod{}
+	podqs := []inapi.Pod{}
 
 	// TODO pager
 	if rs := data.ZoneMaster.PvScan(
@@ -67,7 +67,7 @@ func scheduler_exec_cell(cell_id string) {
 
 				if pod.Spec != nil &&
 					pod.Spec.Cell != "" {
-					pods = append(pods, pod)
+					podqs = append(podqs, pod)
 				} else {
 					// TODO error log
 				}
@@ -75,13 +75,13 @@ func scheduler_exec_cell(cell_id string) {
 		}
 	}
 
-	if len(pods) == 0 {
+	if len(podqs) == 0 {
 		return
 	}
 
-	hlog.Printf("info", "scheduling %d pods", len(pods))
+	hlog.Printf("info", "scheduling %d podqs", len(podqs))
 
-	for _, pod := range pods {
+	for _, podq := range podqs {
 
 		var (
 			prev      inapi.Pod
@@ -90,34 +90,34 @@ func scheduler_exec_cell(cell_id string) {
 		)
 
 		if rs := data.ZoneMaster.PvGet(
-			inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
+			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID),
 		); rs.OK() {
 
 			if err := rs.Decode(&prev); err != nil {
-				hlog.Printf("error", "bad prev pod #%s instance", pod.Meta.ID)
+				hlog.Printf("error", "bad prev podq #%s instance", podq.Meta.ID)
 				// TODO error log
 				continue
 			}
 
 		} else if !rs.NotFound() {
 			// may be io connection error
-			hlog.Printf("error", "failed on get pod #%s", pod.Meta.ID)
+			hlog.Printf("error", "failed on get podq #%s", podq.Meta.ID)
 			continue
 		}
 
 		if len(prev.Operate.Replicas) > 0 {
-			pod.Operate.Replicas = prev.Operate.Replicas
+			podq.Operate.Replicas = prev.Operate.Replicas
 		} else {
-			pod.Operate.Replicas.CapacitySet(pod.Operate.ReplicaCap)
+			podq.Operate.Replicas.CapacitySet(podq.Operate.ReplicaCap)
 		}
 
-		// pod.OperateRefresh()
+		// podq.OperateRefresh()
 
-		for _, oprep := range pod.Operate.Replicas {
+		for _, oprep := range podq.Operate.Replicas {
 
 			if oprep.Node == "" {
 
-				host_id, err := Scheduler.Schedule(pod, status.ZoneHostList)
+				host_id, err := Scheduler.Schedule(podq, status.ZoneHostList)
 
 				if err != nil || host_id == "" {
 					// TODO error log
@@ -129,18 +129,18 @@ func scheduler_exec_cell(cell_id string) {
 					continue
 				}
 
-				pod.Operate.Replicas.Set(inapi.PodOperateReplica{
+				podq.Operate.Replicas.Set(inapi.PodOperateReplica{
 					Id:   oprep.Id,
 					Node: host_id,
 				})
 
-				res := pod.Spec.ResComputeBound()
+				res := podq.Spec.ResComputeBound()
 				host.SyncOpCpu(res.CpuLimit)
 				host.SyncOpRam(res.MemLimit)
 
 				host_sync = true
 
-				hlog.Printf("info", "schedule pod #%s on to host #%s (new)", pod.Meta.ID, host_id)
+				hlog.Printf("info", "schedule podq #%s on to host #%s (new)", podq.Meta.ID, host_id)
 			} else {
 
 				host = status.ZoneHostList.Item(oprep.Node)
@@ -150,7 +150,7 @@ func scheduler_exec_cell(cell_id string) {
 				}
 
 				var (
-					res   = pod.Spec.ResComputeBound()
+					res   = podq.Spec.ResComputeBound()
 					res_p = prev.Spec.ResComputeBound()
 				)
 
@@ -172,7 +172,7 @@ func scheduler_exec_cell(cell_id string) {
 			var (
 				host_peer_lan  = inapi.HostNodeAddress(host.Spec.PeerLanAddr)
 				host_peer_port = host_peer_lan.Port()
-				ports          = pod.AppServicePorts()
+				ports          = podq.AppServicePorts()
 			)
 
 			for i, pv := range ports {
@@ -247,12 +247,12 @@ func scheduler_exec_cell(cell_id string) {
 
 				var nsz inapi.NsPodServiceMap
 
-				if rs := data.ZoneMaster.PvGet(inapi.NsZonePodServiceMap(pod.Meta.ID)); rs.OK() {
+				if rs := data.ZoneMaster.PvGet(inapi.NsZonePodServiceMap(podq.Meta.ID)); rs.OK() {
 					rs.Decode(&nsz)
 				}
 
 				if nsz.User == "" {
-					nsz.User = pod.Meta.User
+					nsz.User = podq.Meta.User
 				}
 
 				for _, popv := range ports {
@@ -261,7 +261,7 @@ func scheduler_exec_cell(cell_id string) {
 
 				if nsz.SyncChanged() {
 					nsz.Updated = uint64(types.MetaTimeNow())
-					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(pod.Meta.ID), nsz, nil)
+					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(podq.Meta.ID), nsz, nil)
 				}
 			}
 
@@ -286,11 +286,11 @@ func scheduler_exec_cell(cell_id string) {
 		}
 
 		if prev.Payment != nil {
-			pod.Payment = prev.Payment
+			podq.Payment = prev.Payment
 		}
 
-		if pod.Payment == nil {
-			pod.Payment = &inapi.PodPayment{
+		if podq.Payment == nil {
+			podq.Payment = &inapi.PodPayment{
 				TimeStart: uint32(time.Now().Unix()),
 				TimeClose: 0,
 				Prepay:    0,
@@ -298,22 +298,22 @@ func scheduler_exec_cell(cell_id string) {
 			}
 		}
 
-		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil); !rs.OK() {
-			hlog.Printf("error", "zone/pod saved %s, err (%s)", pod.Meta.ID, rs.Bytex().String())
+		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
 			continue
 		}
 
-		for _, oprep := range pod.Operate.Replicas {
+		for _, oprep := range podq.Operate.Replicas {
 
-			pod.Operate.Replica = oprep
-			k := inapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, pod.Meta.ID, oprep.Id)
+			podq.Operate.Replica = oprep
+			k := inapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, podq.Meta.ID, oprep.Id)
 
-			if rs := data.ZoneMaster.PvPut(k, pod, nil); !rs.OK() {
-				hlog.Printf("error", "zone/pod saved %s, err (%s)", k, rs.Bytex().String())
+			if rs := data.ZoneMaster.PvPut(k, podq, nil); !rs.OK() {
+				hlog.Printf("error", "zone/podq saved %s, err (%s)", k, rs.Bytex().String())
 				continue
 			}
 		}
 
-		data.ZoneMaster.PvDel(inapi.NsZonePodOpQueue(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), nil)
+		data.ZoneMaster.PvDel(inapi.NsZonePodOpQueue(status.ZoneId, podq.Spec.Cell, podq.Meta.ID), nil)
 	}
 }

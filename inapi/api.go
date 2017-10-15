@@ -14,7 +14,7 @@
 
 package inapi
 
-//go:generate protoc --go_out=plugins=grpc:. pbtypes.proto
+//go:generate protoc --go_out=plugins=grpc:. inapi/*.proto
 
 import (
 	"sync"

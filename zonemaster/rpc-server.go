@@ -17,6 +17,7 @@ package zonemaster
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"golang.org/x/net/context"
@@ -67,6 +68,28 @@ func (s *ApiZoneMaster) HostStatusSync(
 	if host.SyncStatus(*opts) {
 		data.ZoneMaster.PvPut(inapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host, nil)
 		hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
+	}
+
+	tn := uint32(time.Now().Unix())
+
+	for _, v := range opts.Prs {
+
+		path := inapi.NsZoneHostBoundPodReplicaStatus(
+			status.ZoneId,
+			opts.Meta.Id,
+			v.Id,
+			uint16(v.Rep),
+		)
+
+		v.Updated = tn
+
+		if rs := data.ZoneMaster.PvPut(path, v, nil); !rs.OK() {
+			hlog.Printf("error", "zone-master/pod StatusSync %s/%d SET Failed %s",
+				v.Id, v.Rep, rs.Bytex().String())
+			return nil, errors.New("Server Error")
+		}
+
+		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d updated", v.Id, v.Rep)
 	}
 
 	return &status.ZoneMasterList, nil

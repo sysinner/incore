@@ -171,6 +171,7 @@ func (c Pod) AppSyncAction() {
 	}
 
 	// Pod Map to Cell Queue
+	// pod.OpLogNew("app/"+app.Meta.ID, "info", "deploy sync")
 	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())

@@ -98,12 +98,12 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 	tag_name := vp.Name + "." + string(vp.Version)
 
 	ipm_mu.Lock()
-	if ipm_sets.Contain(tag_name) {
+	if ipm_sets.Has(tag_name) {
 		ipm_mu.Unlock()
-		// hlog.Printf("info", "nodelet/Package Sync %s Command Skip", vp.Name)
+		// hlog.Printf("info", "hostlet/Package Sync %s Command Skip", vp.Name)
 		return nil
 	}
-	ipm_sets.Insert(tag_name)
+	ipm_sets.Set(tag_name)
 	ipm_mu.Unlock()
 
 	defer func(tag_name string) {
@@ -129,7 +129,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 		ipapi.Package
 	}
 	if err := c.ReplyJson(&pkg); err != nil {
-		hlog.Printf("error", "nodelet/Package Sync %s", url)
+		hlog.Printf("error", "hostlet/Package Sync %s", url)
 		return err
 	}
 
@@ -189,15 +189,6 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 	if err := ipm_entry_sync_extract(pfilepath, phostdir); err != nil {
 		return err
 	}
-
-	// if pv, ok := pkg.Options.Get("p6/ipm/install-prefix"); ok && len(pv.String()) > 5 {
-
-	// 	exec.Command("mkdir", "-p", pv.String()).Output()
-
-	// 	if _, err := exec.Command("rsync", "-av", phostdir+"/*", pv.String()).Output(); err != nil {
-	// 		return nil
-	// 	}
-	// }
 
 	return nil
 }

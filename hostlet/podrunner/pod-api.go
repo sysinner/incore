@@ -28,7 +28,8 @@ func PodEntry(pod_id string) inapi.Pod {
 	pod_mu.Lock()
 	defer pod_mu.Unlock()
 
-	if entry, ok := pod_instances[pod_id]; ok {
+	entry := PodActives.Get(inapi.NsZonePodOpRepKey(pod_id, 0))
+	if entry != nil {
 		return *entry
 	}
 
@@ -40,11 +41,9 @@ func PodStatus(pod_id string) inapi.PodStatus {
 	pod_mu.Lock()
 	defer pod_mu.Unlock()
 
-	if v, ok := pod_instances[pod_id]; ok {
-
-		if v.Status != nil {
-			return *v.Status
-		}
+	entry := PodActives.Get(inapi.NsZonePodOpRepKey(pod_id, 0))
+	if entry != nil && entry.Status != nil {
+		return *entry.Status
 	}
 
 	return inapi.PodStatus{}
@@ -59,16 +58,14 @@ func LocalAppSync(app inapi.AppInstance) error {
 		return errors.New("Invalid Vendor Value")
 	}
 
-	pod, ok := pod_instances[app.Operate.PodId]
-	if !ok {
+	pod := PodActives.Get(inapi.NsZonePodOpRepKey(app.Operate.PodId, 0))
+	if pod == nil {
 		return fmt.Errorf("No Pod Found")
 	}
 
-	hlog.Printf("info", "nodelet/data_agent ctrlAppUpdate %s/%s", app.Operate.PodId, app.Meta.Name)
+	hlog.Printf("info", "hostlet/data_agent ctrlAppUpdate %s/%s", app.Operate.PodId, app.Meta.Name)
 
 	pod.Apps.Sync(app)
-
-	box_keeper.ctr_sync(pod)
 
 	return nil
 }

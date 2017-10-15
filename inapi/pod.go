@@ -17,23 +17,21 @@ package inapi
 import (
 	"errors"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/lessos/lessgo/types"
 )
 
 var (
-	pod_op_mu sync.RWMutex
-	pod_st_mu sync.RWMutex
-	PodIdReg  = regexp.MustCompile("^[a-f0-9]{16,24}$")
+	pod_op_mu   sync.RWMutex
+	pod_sets_mu sync.RWMutex
+	pod_st_mu   sync.RWMutex
+	PodIdReg    = regexp.MustCompile("^[a-f0-9]{16,24}$")
 )
 
-type PodSpecBoxImageDriver string
-
 const (
-	PodSpecBoxImageDocker PodSpecBoxImageDriver = "docker"
-	PodSpecBoxImageRockit PodSpecBoxImageDriver = "rkt"
+	PodSpecBoxImageDocker = "docker"
+	PodSpecBoxImageRockit = "rkt"
 )
 
 const (
@@ -41,15 +39,13 @@ const (
 	SpecStatusSuspend = "suspend"
 )
 
-type OpType string
-
 const (
-	OpStatusPending   OpType = "pending"
-	OpStatusRunning   OpType = "running"
-	OpStatusStopped   OpType = "stopped"
-	OpStatusFailed    OpType = "failed"
-	OpStatusDestroyed OpType = "destroyed"
-	OpStatusUnknown   OpType = "unknown"
+	OpStatusPending   = "pending"
+	OpStatusRunning   = "running"
+	OpStatusStopped   = "stopped"
+	OpStatusFailed    = "failed"
+	OpStatusDestroyed = "destroyed"
+	OpStatusUnknown   = "unknown"
 )
 
 // Pod is a collection of boxes, used as either input (create, update) or as output (list, get).
@@ -96,11 +92,73 @@ func (pod *Pod) AppServicePorts() ServicePorts {
 	return ports
 }
 
-func (pod *Pod) OpRepName() string {
+func (pod *Pod) OpRepKey() string {
 	if pod.Operate.Replica == nil {
 		return NsZonePodOpRepKey(pod.Meta.ID, 0)
 	}
 	return NsZonePodOpRepKey(pod.Meta.ID, pod.Operate.Replica.Id)
+}
+
+func (pod *Pod) IterKey() string {
+	return pod.OpRepKey()
+}
+
+func (pod *Pod) OpLogNew(name, status, message string) {
+
+	if pod.Status == nil {
+		pod.Status = &PodStatus{}
+	}
+
+	pod.Status.OpLogs = NewPbOpLogSets(pod.Meta.ID, pod.Meta.User, pod.Operate.Version)
+	pod.Status.OpLogs.Set(name, status, message)
+}
+
+func (pod *Pod) OpLog(name, status, message string) {
+
+	if pod.Status == nil {
+		pod.Status = &PodStatus{}
+	}
+
+	if pod.Status.OpLogs == nil {
+		pod.Status.OpLogs = NewPbOpLogSets(pod.Meta.ID, pod.Meta.User, pod.Operate.Version)
+	}
+
+	pod.Status.OpLogs.Set(name, status, message)
+}
+
+type PodSets []*Pod
+
+func (ls *PodSets) Get(key string) *Pod {
+	pod_sets_mu.RLock()
+	defer pod_sets_mu.RUnlock()
+	for _, v := range *ls {
+		if v.IterKey() == key {
+			return v
+		}
+	}
+	return nil
+}
+
+func (ls *PodSets) Set(item *Pod) {
+	pod_sets_mu.Lock()
+	defer pod_sets_mu.Unlock()
+
+	for i, v := range *ls {
+		if v.IterKey() == item.IterKey() {
+			(*ls)[i] = item
+			return
+		}
+	}
+	*ls = append(*ls, item)
+}
+
+func (ls *PodSets) Each(fn func(item *Pod)) {
+	pod_sets_mu.RLock()
+	defer pod_sets_mu.RUnlock()
+
+	for _, v := range *ls {
+		fn(v)
+	}
 }
 
 // PodList is a list of Pods.
@@ -172,15 +230,15 @@ type PodSpecBoxBound struct {
 	Name      string                     `json:"name"`
 	Image     PodSpecBoxImageBound       `json:"image,omitempty"`
 	Resources *PodSpecBoxResComputeBound `json:"resources,omitempty"`
-	Mounts    VolumeMounts               `json:"mounts,omitempty"`
+	Mounts    []*PbVolumeMount           `json:"mounts,omitempty"`
 	Ports     Ports                      `json:"ports,omitempty"`
 	Command   []string                   `json:"command,omitempty"`
 	Updated   types.MetaTime             `json:"updated,omitempty"`
 }
 
 type PodSpecBoxImageBound struct {
-	Ref    *ObjectReference      `json:"ref,omitempty"`
-	Driver PodSpecBoxImageDriver `json:"driver,omitempty"`
+	Ref    *ObjectReference `json:"ref,omitempty"`
+	Driver string           `json:"driver,omitempty"`
 
 	Options types.Labels `json:"options,omitempty"`
 
@@ -210,7 +268,7 @@ type PodSpecBoxImage struct {
 
 	// Container type of the image.
 	//  ex: docker, rkt, ...
-	Driver PodSpecBoxImageDriver `json:"driver,omitempty"`
+	Driver string `json:"driver,omitempty"`
 
 	// TODO
 	AccessRoles string `json:"access_roles,omitempty"`
@@ -611,9 +669,10 @@ func (ls *PodOperateReplicas) Get(rep_id uint16) *PodOperateReplica {
 // state of a system.
 type PodStatus struct {
 	types.TypeMeta `json:",inline"`
-	Phase          OpType            `json:"phase,omitempty"`
-	Replicas       PodStatusReplicas `json:"replicas,omitempty"`
-	Updated        types.MetaTime    `json:"updated,omitempty"`
+	Phase          string            `json:"phase,omitempty"`
+	Replicas       []*PbPodRepStatus `json:"replicas,omitempty"`
+	Updated        uint32            `json:"updated,omitempty"`
+	OpLogs         *PbOpLogSets      `json:"op_logs,omitempty"`
 }
 
 func (it *Pod) StatusRefresh() {
@@ -628,7 +687,7 @@ func (it *PodStatus) Refresh(rep_cap int) {
 
 	} else {
 
-		s_diff := map[OpType]int{}
+		s_diff := map[string]int{}
 
 		for _, rep := range it.Replicas {
 
@@ -662,145 +721,4 @@ func (it *PodStatus) Refresh(rep_cap int) {
 			it.Phase = OpStatusPending
 		}
 	}
-}
-
-type PodStatusList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []PodStatus `json:"items"`
-}
-
-type PodStatusReplica struct {
-	Id      uint16         `json:"id"`
-	Phase   OpType         `json:"phase,omitempty"`
-	Boxes   []PodBoxStatus `json:"boxes,omitempty"`
-	Operate OpStatus       `json:"operate"`
-	Updated types.MetaTime `json:"updated,omitempty"`
-}
-
-type PodStatusReplicas []*PodStatusReplica
-
-func (ls *PodStatusReplicas) Set(set PodStatusReplica) {
-
-	pod_st_mu.Lock()
-	defer pod_st_mu.Unlock()
-
-	for _, v := range *ls {
-		if v.Id == set.Id {
-			v = &set
-			return
-		}
-	}
-
-	*ls = append(*ls, &set)
-}
-
-type PodExecutorStatus struct {
-	types.TypeMeta `json:",inline"`
-	Items          ExecutorStatuses `json:"items"`
-}
-
-// PodBoxStatus represents the current information about a box
-type PodBoxStatus struct {
-	Name      string                 `json:"name,omitempty"`
-	Image     PodBoxStatusImage      `json:"image,omitempty"`
-	Resources PodBoxStatusResCompute `json:"resources,omitempty"`
-	Mounts    VolumeMounts           `json:"mounts,omitempty"`
-	Ports     ServicePorts           `json:"ports,omitempty"`
-	Command   []string               `json:"command,omitempty"`
-	Executors PodBoxStatusExecutors  `json:"executors,omitempty"`
-	Phase     OpType                 `json:"phase,omitempty"`
-	Started   types.MetaTime         `json:"started,omitempty"`
-	Updated   types.MetaTime         `json:"updated,omitempty"`
-}
-
-type PodBoxStatusResCompute struct {
-	CpuLimit int64 `json:"cpu_limit,omitempty"`
-	MemLimit int64 `json:"mem_limit,omitempty"`
-}
-
-type PodBoxStatusImage struct {
-	Driver  PodSpecBoxImageDriver `json:"driver,omitempty"`
-	Options types.Labels          `json:"options,omitempty"`
-}
-
-type PodBoxStatusExecutors []PodBoxStatusExecutor
-
-type PodBoxStatusExecutor struct {
-	Name         string `json:"name,omitempty"`
-	Phase        OpType `json:"phase,omitempty"`
-	Retry        int    `json:"retry,omitempty"`
-	ErrorCode    int    `json:"error_code,omitempty"`
-	ErrorMessage string `json:"error_message,omitempty"`
-}
-
-func (bs *PodBoxStatus) Sync(item PodBoxStatus) (changed bool) {
-
-	changed = false
-
-	if len(item.Name) < 1 {
-		return changed
-	}
-
-	//
-	if bs.Name != item.Name {
-		bs.Name = item.Name
-		changed = true
-	}
-
-	//
-	if bs.Started != item.Started {
-		bs.Started = item.Started
-		changed = true
-	}
-
-	//
-	if bs.Phase != item.Phase {
-		bs.Phase = item.Phase
-		changed = true
-	}
-
-	//
-	if bs.Resources.CpuLimit != item.Resources.CpuLimit ||
-		bs.Resources.MemLimit != item.Resources.MemLimit {
-
-		bs.Resources.CpuLimit = item.Resources.CpuLimit
-		bs.Resources.MemLimit = item.Resources.MemLimit
-		changed = true
-	}
-
-	//
-	if !bs.Ports.Equal(item.Ports) {
-		bs.Ports = item.Ports
-		changed = true
-	}
-
-	//
-	if bs.Image.Driver != item.Image.Driver {
-		bs.Image.Driver = item.Image.Driver
-		changed = true
-	}
-	if !bs.Image.Options.Equal(item.Image.Options) {
-		bs.Image.Options = item.Image.Options
-		changed = true
-	}
-
-	//
-	if !bs.Mounts.Equal(item.Mounts) {
-		bs.Mounts = item.Mounts
-		changed = true
-	}
-
-	//
-	if len(bs.Command) != len(item.Command) ||
-		strings.Join(bs.Command, " ") != strings.Join(item.Command, " ") {
-		bs.Command = item.Command
-		changed = true
-	}
-
-	//
-	if changed {
-		bs.Updated = types.MetaTimeNow()
-	}
-
-	return changed
 }
