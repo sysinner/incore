@@ -595,6 +595,7 @@ func (it *PbPodBoxStatus) Equal(it2 *PbPodBoxStatus) bool {
 		it.ResMemLimit != it2.ResMemLimit ||
 		!PbVolumeMountSliceEqual(it.Mounts, it2.Mounts) ||
 		!PbServicePortSliceEqual(it.Ports, it2.Ports) ||
+		!PbStringSliceEqual(it.Command, it2.Command) ||
 		!PbPodBoxStatusExecutorSliceEqual(it.Executors, it2.Executors) ||
 		it.Phase != it2.Phase ||
 		it.Started != it2.Started ||
@@ -629,6 +630,9 @@ func (it *PbPodBoxStatus) Sync(it2 *PbPodBoxStatus) bool {
 	}
 	if rs, ok := PbServicePortSliceSyncSlice(it.Ports, it2.Ports); ok {
 		it.Ports, changed = rs, true
+	}
+	if rs, ok := PbStringSliceSyncSlice(it.Command, it2.Command); ok {
+		it.Command, changed = rs, true
 	}
 	if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(it.Executors, it2.Executors); ok {
 		it.Executors, changed = rs, true
@@ -689,6 +693,9 @@ func PbPodBoxStatusSliceEqual(ls, ls2 []*PbPodBoxStatus) bool {
 			if !PbServicePortSliceEqual(v.Ports, v2.Ports) {
 				return false
 			}
+			if !PbStringSliceEqual(v.Command, v2.Command) {
+				return false
+			}
 			if !PbPodBoxStatusExecutorSliceEqual(v.Executors, v2.Executors) {
 				return false
 			}
@@ -741,6 +748,9 @@ func PbPodBoxStatusSliceSync(ls []*PbPodBoxStatus, it2 *PbPodBoxStatus) ([]*PbPo
 		}
 		if rs, ok := PbServicePortSliceSyncSlice(v.Ports, it2.Ports); ok {
 			v.Ports, changed = rs, true
+		}
+		if rs, ok := PbStringSliceSyncSlice(v.Command, it2.Command); ok {
+			v.Command, changed = rs, true
 		}
 		if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(v.Executors, it2.Executors); ok {
 			v.Executors, changed = rs, true
@@ -797,6 +807,9 @@ func PbPodBoxStatusSliceSyncSlice(ls, ls2 []*PbPodBoxStatus) ([]*PbPodBoxStatus,
 			if rs, ok := PbServicePortSliceSyncSlice(v.Ports, v2.Ports); ok {
 				v.Ports, changed = rs, true
 			}
+			if rs, ok := PbStringSliceSyncSlice(v.Command, v2.Command); ok {
+				v.Command, changed = rs, true
+			}
 			if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(v.Executors, v2.Executors); ok {
 				v.Executors, changed = rs, true
 			}
@@ -805,151 +818,6 @@ func PbPodBoxStatusSliceSyncSlice(ls, ls2 []*PbPodBoxStatus) ([]*PbPodBoxStatus,
 			}
 			if v.Started != v2.Started {
 				v.Started, changed = v2.Started, true
-			}
-			if v.Updated != v2.Updated {
-				v.Updated, changed = v2.Updated, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
-}
-
-var object_slice_mu_PbOpLogEntry sync.RWMutex
-
-func (it *PbOpLogEntry) Equal(it2 *PbOpLogEntry) bool {
-	if it2 == nil ||
-		it.Name != it2.Name ||
-		it.Message != it2.Message ||
-		it.Created != it2.Created ||
-		it.Updated != it2.Updated {
-		return false
-	}
-	return true
-}
-
-func (it *PbOpLogEntry) Sync(it2 *PbOpLogEntry) bool {
-	if it2 == nil {
-		return false
-	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
-	}
-	if it.Message != it2.Message {
-		it.Message, changed = it2.Message, true
-	}
-	if it.Created != it2.Created {
-		it.Created, changed = it2.Created, true
-	}
-	if it.Updated != it2.Updated {
-		it.Updated, changed = it2.Updated, true
-	}
-	return changed
-}
-
-func PbOpLogEntrySliceGet(ls []*PbOpLogEntry, arg_name string) *PbOpLogEntry {
-	object_slice_mu_PbOpLogEntry.RLock()
-	defer object_slice_mu_PbOpLogEntry.RUnlock()
-
-	for _, v := range ls {
-		if v.Name == arg_name {
-			return v
-		}
-	}
-	return nil
-}
-
-func PbOpLogEntrySliceEqual(ls, ls2 []*PbOpLogEntry) bool {
-	object_slice_mu_PbOpLogEntry.RLock()
-	defer object_slice_mu_PbOpLogEntry.RUnlock()
-
-	if len(ls) != len(ls2) {
-		return false
-	}
-	hit := false
-	for _, v := range ls {
-		hit = false
-		for _, v2 := range ls2 {
-			if v.Name != v2.Name {
-				continue
-			}
-			if v.Message != v2.Message {
-				return false
-			}
-			if v.Created != v2.Created {
-				return false
-			}
-			if v.Updated != v2.Updated {
-				return false
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			return false
-		}
-	}
-	return true
-}
-
-func PbOpLogEntrySliceSync(ls []*PbOpLogEntry, it2 *PbOpLogEntry) ([]*PbOpLogEntry, bool) {
-	if it2 == nil {
-		return ls, false
-	}
-	object_slice_mu_PbOpLogEntry.Lock()
-	defer object_slice_mu_PbOpLogEntry.Unlock()
-
-	hit := false
-	changed := false
-	for _, v := range ls {
-		if v.Name != it2.Name {
-			continue
-		}
-		if v.Message != it2.Message {
-			v.Message, changed = it2.Message, true
-		}
-		if v.Created != it2.Created {
-			v.Created, changed = it2.Created, true
-		}
-		if v.Updated != it2.Updated {
-			v.Updated, changed = it2.Updated, true
-		}
-		hit = true
-		break
-	}
-	if !hit {
-		ls = append(ls, it2)
-		changed = true
-	}
-	return ls, changed
-}
-
-func PbOpLogEntrySliceSyncSlice(ls, ls2 []*PbOpLogEntry) ([]*PbOpLogEntry, bool) {
-	if len(ls2) == 0 {
-		return ls, false
-	}
-	object_slice_mu_PbOpLogEntry.Lock()
-	defer object_slice_mu_PbOpLogEntry.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.Name != v2.Name {
-				continue
-			}
-			if v.Message != v2.Message {
-				v.Message, changed = v2.Message, true
-			}
-			if v.Created != v2.Created {
-				v.Created, changed = v2.Created, true
 			}
 			if v.Updated != v2.Updated {
 				v.Updated, changed = v2.Updated, true

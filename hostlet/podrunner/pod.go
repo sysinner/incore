@@ -15,9 +15,11 @@
 package podrunner
 
 import (
+	"errors"
+	"fmt"
 	"os"
-	"sync"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 
 	in_db "github.com/sysinner/incore/data"
@@ -27,9 +29,7 @@ import (
 )
 
 var (
-	pod_pull      = false
-	pod_mu        sync.Mutex
-	max_pod_limit = 100
+	max_pod_limit = 200
 )
 
 func pod_op_pull() {
@@ -39,35 +39,16 @@ func pod_op_pull() {
 		return
 	}
 
-	//
-	pod_mu.Lock()
-	if pod_pull {
-		pod_mu.Unlock()
-		return
-	}
-	pod_pull = true
-	pod_mu.Unlock()
-
-	//
-	defer func() {
-		pod_mu.Lock()
-		pod_pull = false
-		pod_mu.Unlock()
-	}()
-
 	// TOPO Watch()
-	rs := in_db.HiMaster.PvScan(
+	rss := in_db.HiMaster.PvScan(
 		inapi.NsZoneHostBoundPod(
 			in_sts.ZoneId,
 			in_sts.Host.Meta.Id,
 			"",
 			0,
-		), "", "", max_pod_limit)
-	if !rs.OK() {
-		return
-	}
+		), "", "", max_pod_limit,
+	).KvList()
 
-	rss := rs.KvList()
 	for _, v := range rss {
 
 		var pod inapi.Pod
@@ -81,32 +62,46 @@ func pod_op_pull() {
 			continue
 		}
 
-		// hlog.Printf("info", "pull pod %s", pod.Meta.ID)
-
-		// data_ctr_update(pod)
-		pod_op_pull_entry(&pod)
+		if err := pod_op_pull_entry(&pod); err != nil {
+			PodRepOpLogs.LogSet(
+				pod.OpRepKey(), pod.Operate.Version,
+				oplog_podpull, inapi.PbOpLogError, fmt.Sprintf("pod/%s err:%s", pod.Meta.ID, err.Error()),
+			)
+		} else {
+			PodRepOpLogs.LogSet(
+				pod.OpRepKey(), pod.Operate.Version,
+				oplog_podpull, inapi.PbOpLogOK, fmt.Sprintf("pod/%s ok", pod.Meta.ID),
+			)
+		}
 	}
 }
 
-func pod_op_pull_entry(pod *inapi.Pod) {
+func pod_op_pull_entry(pod *inapi.Pod) error {
 
-	prev := PodActives.Get(pod.IterKey())
+	prev := PodRepActives.Get(pod.IterKey())
+	sysdir := vol_agentsys_dir(pod.Meta.ID, pod.Operate.Replica.Id)
+
+	// if pod.Meta.ID == "5a01876a1cebbe6f" {
+	// 	js, _ := json.Encode(pod, "  ")
+	// 	hlog.Printf("info", "JSON %s %s", pod.Meta.ID, string(js))
+	// }
+
 	if prev == nil {
 
-		if len(PodActives) > max_pod_limit {
-			return
+		if len(PodRepActives) > max_pod_limit {
+			return errors.New("no available host resources in this moment")
 		}
 
-		sysdir := vol_agentsys_dir(pod.Meta.ID, pod.Operate.Replica.Id)
 		if _, err := os.Stat(sysdir); os.IsNotExist(err) {
 			if err := inutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
-				return
+				hlog.Printf("error", "hostlet/pod-pull %s %s", pod.Meta.ID, err.Error())
+				return err
 			}
 		}
 
 		prev = pod
 
-		PodActives.Set(prev)
+		PodRepActives.Set(prev)
 
 	} else if pod.Meta.Updated > 1 && pod.Meta.Updated != prev.Meta.Updated {
 
@@ -114,6 +109,7 @@ func pod_op_pull_entry(pod *inapi.Pod) {
 		prev.Spec = pod.Spec
 
 		prev.Operate = pod.Operate
+		// hlog.Printf("error", "hostlet/pod-pull %s action %d", pod.Operate.Action)
 
 		// TODO destroy bound apps
 		if pod.Apps != nil {
@@ -129,16 +125,19 @@ func pod_op_pull_entry(pod *inapi.Pod) {
 		}
 
 	} else {
-		return
+		return nil
 	}
 
-	sysdir := vol_agentsys_dir(prev.Meta.ID, prev.Operate.Replica.Id)
 	if _, err := os.Stat(sysdir); os.IsNotExist(err) {
 		if err := inutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
-			return
+			hlog.Printf("error", "hostlet/pod-pull %s %s", prev.Meta.ID, err.Error())
+			return err
 		}
 	}
 	if err := json.EncodeToFile(prev, sysdir+"/pod_instance.json", "  "); err != nil {
-		return
+		hlog.Printf("error", "hostlet/pod-pull %s %s", prev.Meta.ID, err.Error())
+		return err
 	}
+
+	return nil
 }

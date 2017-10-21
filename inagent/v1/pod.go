@@ -16,6 +16,7 @@ package v1
 
 import (
 	"github.com/hooto/httpsrv"
+	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/inagent/status"
 	"github.com/sysinner/incore/inapi"
@@ -43,6 +44,19 @@ func (c Pod) ExecutorStatusListAction() {
 	}
 
 	set.Kind = "PodExecutorStatusList"
+
+	c.RenderJson(set)
+}
+
+func (c Pod) OpLogAction() {
+
+	var set struct {
+		types.TypeMeta
+		inapi.PbOpLogSets
+	}
+
+	set.Kind = "PodRepOpLog"
+	set.PbOpLogSets = status.OpLog
 
 	c.RenderJson(set)
 }

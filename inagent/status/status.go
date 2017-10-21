@@ -21,4 +21,5 @@ import (
 var (
 	Executors = inapi.Executors{}
 	Statuses  = inapi.ExecutorStatuses{}
+	OpLog     inapi.PbOpLogSets
 )

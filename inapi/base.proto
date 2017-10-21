@@ -22,7 +22,7 @@ message ErrorMeta {
 }
 
 message TypeMeta {
-    string    kind_j  = 1;
+    string    kind  = 1;
     ErrorMeta error = 2;
 }
 

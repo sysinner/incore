@@ -17,14 +17,15 @@ syntax = "proto3";
 package inapi;
 
 import "inapi/base.proto";
+import "inapi/operator.proto";
 
 message PbPodRepStatus {
     string                  id      = 1; // struct:object_slice_key
     uint32                  rep     = 2; // struct:object_slice_key
     string                  phase   = 3;
     repeated PbPodBoxStatus boxes   = 4;
-    PbOpLogSets             oplog   = 5;
-    uint32                  updated = 6;
+    PbOpLogSets             op_log  = 5;
+    uint32                  updated = 8; // unix time in seconds
 }
 
 enum PbPodSpecBoxImageDriver {
@@ -66,23 +67,7 @@ message PbPodBoxStatus {
     repeated string                 command       = 8;
     repeated PbPodBoxStatusExecutor executors     = 9;
     string                          phase         = 10;
-    uint32                          started       = 11;
-    uint32                          updated       = 12;
-}
-
-message PbOpLogSets {
-    string                name    = 1;
-    string                user    = 2;
-    uint32                version = 3;
-    repeated PbOpLogEntry items   = 4;
-    uint32                updated = 5;
-}
-
-message PbOpLogEntry {
-    string          name    = 1; // struct:object_slice_key
-    repeated string status  = 2;
-    string          message = 3;
-    uint32          created = 4;
-    uint32          updated = 5;
+    uint32                          started       = 11; // unix time in seconds
+    uint32                          updated       = 12; // unix time in seconds
 }
 

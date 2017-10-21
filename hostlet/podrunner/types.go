@@ -31,6 +31,8 @@ const (
 	stats_tick      int64  = 5e9
 	stats_cycle_buf uint32 = 20
 	stats_cycle_log uint32 = 60
+	oplog_podpull          = "hostlet/pod-pull"
+	oplog_ctncmd           = "hostlet/container-command"
 )
 
 var (
@@ -59,10 +61,10 @@ type BoxInstance struct {
 	PodOpVersion  uint32
 	Spec          inapi.PodSpecBoxBound
 	Apps          inapi.AppInstances
-	Status        inapi.PbPodBoxStatus
 	Ports         inapi.ServicePorts
 	Retry         int
 	Env           []inapi.EnvVar
+	Status        inapi.PbPodBoxStatus
 	Stats         *inapi.TimeStatsFeed
 }
 
@@ -89,6 +91,10 @@ func BoxInstanceNameParse(hostname string) (pod_id string, rep_id uint16, box_na
 	}
 
 	return "", 0, ""
+}
+
+func (inst *BoxInstance) OpRepKey() string {
+	return inapi.NsZonePodOpRepKey(inst.PodID, inst.RepId)
 }
 
 func (inst *BoxInstance) SpecDesired() bool {

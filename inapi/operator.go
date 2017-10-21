@@ -15,25 +15,28 @@
 package inapi
 
 import (
-	"strings"
 	"sync"
 	"time"
 )
 
 var (
-	op_log_mu      sync.RWMutex
-	op_log_list_mu sync.RWMutex
-)
-
-var (
-	OpActionStart   uint32 = 1 << 1
-	OpActionStop    uint32 = 1 << 3
-	OpActionDestroy uint32 = 1 << 5
+	OpActionStart     uint32 = 1 << 1
+	OpActionRunning   uint32 = 1 << 2
+	OpActionStop      uint32 = 1 << 3
+	OpActionStopped   uint32 = 1 << 4
+	OpActionDestroy   uint32 = 1 << 5
+	OpActionDestroyed uint32 = 1 << 6
+	OpActionWarn      uint32 = 1 << 11
+	oplog_list_mu     sync.RWMutex
+	oplog_sets_mu     sync.RWMutex
 )
 
 func OpActionValid(op uint32) bool {
 	return OpActionAllow(
-		OpActionStart|OpActionStop|OpActionDestroy,
+		OpActionStart|OpActionRunning|
+			OpActionStop|OpActionStopped|
+			OpActionDestroy|OpActionDestroyed|
+			OpActionWarn,
 		op,
 	)
 }
@@ -59,124 +62,63 @@ const (
 	PbOpLogFatal = "fatal"
 )
 
-type PbOpLogSetsList []*PbOpLogSets
+type OpLogList []*PbOpLogSets
 
-func (ls *PbOpLogSetsList) Get(sets_name string) *PbOpLogSets {
-
-	op_log_list_mu.Lock()
-	defer op_log_list_mu.Unlock()
-
-	for _, v := range *ls {
-
-		if v.Name == sets_name {
-			return v
-		}
-	}
-
-	return nil
+func (ls *OpLogList) Get(sets_name string) *PbOpLogSets {
+	oplog_list_mu.RLock()
+	defer oplog_list_mu.RUnlock()
+	return PbOpLogSetsSliceGet(*ls, sets_name)
 }
 
-func (ls *PbOpLogSetsList) Set(sets_name, user string, version uint32) *PbOpLogSets {
+func (ls *OpLogList) LogSet(sets_name string, version uint32, name, status, msg string) {
 
-	op_log_list_mu.Lock()
-	defer op_log_list_mu.Unlock()
+	oplog_list_mu.Lock()
+	defer oplog_list_mu.Unlock()
 
-	for _, v := range *ls {
-
-		if v.Name == sets_name {
-			v.User = user
-			v.Version = version
-			return v
+	sets := PbOpLogSetsSliceGet(*ls, sets_name)
+	if sets == nil {
+		sets = &PbOpLogSets{
+			Name:    sets_name,
+			Version: version,
 		}
+		*ls, _ = PbOpLogSetsSliceSync(*ls, sets)
 	}
 
-	sets := NewPbOpLogSets(sets_name, user, version)
-	*ls = append(*ls, sets)
-	return sets
-}
-
-func (ls *PbOpLogSetsList) LogSet(sets_name, name, status, message string) {
-
-	op_log_list_mu.Lock()
-	defer op_log_list_mu.Unlock()
-
-	for _, v := range *ls {
-
-		if v.Name == sets_name {
-			v.Set(name, status, message)
-			break
-		}
+	if version < sets.Version {
+		return
 	}
+
+	sets.LogSet(version, name, status, msg)
 }
 
-func NewPbOpLogSets(sets_name, user string, version uint32) *PbOpLogSets {
+func NewPbOpLogSets(sets_name string, version uint32) *PbOpLogSets {
+
 	return &PbOpLogSets{
 		Name:    sets_name,
-		User:    user,
 		Version: version,
 	}
 }
 
-func (rs *PbOpLogSets) Clean() {
-	rs.Items = []*PbOpLogEntry{}
-}
+func (rs *PbOpLogSets) LogSet(version uint32, name, status, message string) {
 
-func (rs *PbOpLogSets) Set(name, status, message string) {
+	oplog_sets_mu.Lock()
+	defer oplog_sets_mu.Unlock()
 
-	op_log_mu.Lock()
-	defer op_log_mu.Unlock()
-
-	name = strings.ToLower(name)
-	status = strings.ToLower(status)
-
-	tn := uint32(time.Now().Unix())
-
-	for _, v := range rs.Items {
-		if name == v.Name {
-			v.Updated = tn
-			v.Message = message
-			for _, v2 := range v.Status {
-				if v2 == status {
-					return
-				}
-			}
-			v.Status = []string{status}
-			return
-		}
+	if version > 0 && version > rs.Version {
+		rs.Version = version
+		rs.Items = []*PbOpLogEntry{}
 	}
 
-	rs.Items = append(rs.Items, &PbOpLogEntry{
+	tn := uint64(time.Now().UnixNano() / 1e6)
+
+	rs.Items, _ = PbOpLogEntrySliceSync(rs.Items, &PbOpLogEntry{
 		Name:    name,
-		Status:  []string{status},
+		Status:  status,
 		Message: message,
-		Created: tn,
 		Updated: tn,
 	})
 }
 
-func (rs *PbOpLogSets) Get(name string) *PbOpLogEntry {
-
-	op_log_mu.RLock()
-	defer op_log_mu.RUnlock()
-
-	for _, v := range rs.Items {
-		if name == v.Name {
-			return v
-		}
-	}
-
-	return nil
-}
-
-func (rs *PbOpLogSets) Del(name string) {
-
-	op_log_mu.Lock()
-	defer op_log_mu.Unlock()
-
-	for i, v := range rs.Items {
-		if name == v.Name {
-			rs.Items = append(rs.Items[:i], rs.Items[i+1:]...)
-			return
-		}
-	}
+func (rs *PbOpLogSets) LogSetEntry(entry *PbOpLogEntry) {
+	rs.Items, _ = PbOpLogEntrySliceSync(rs.Items, entry)
 }

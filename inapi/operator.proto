@@ -12,38 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package podrunner
+syntax = "proto3";
 
-import (
-	"errors"
+package inapi;
 
-	"github.com/sysinner/incore/data"
-	"github.com/sysinner/incore/inapi"
-)
-
-var (
-	PodRepActives  inapi.PodSets
-	PodRepOpLogs   inapi.OpLogList
-	BoxActives     BoxInstanceSets
-	pod_op_pulling = false
-)
-
-func Run() error {
-
-	if data.HiMaster == nil {
-		return errors.New("No HiMaster Connection Setup")
-	}
-
-	go func() {
-
-		if pod_op_pulling {
-			return
-		}
-
-		pod_op_pulling = true
-		pod_op_pull()
-		pod_op_pulling = false
-	}()
-
-	return nil
+message PbOpLogEntry {
+    string name    = 1; // struct:object_slice_key
+    string status  = 2;
+    uint64 updated = 3; // unix time in milliseconds
+    string message = 4;
 }
+
+message PbOpLogSets {
+    string                name    = 1; // struct:object_slice_key
+    uint32                version = 3;
+    repeated PbOpLogEntry items   = 4;
+}
+

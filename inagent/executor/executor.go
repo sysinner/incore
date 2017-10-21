@@ -31,6 +31,10 @@ import (
 	"github.com/sysinner/incore/inapi"
 )
 
+func oplog_name(name string) string {
+	return "box/executor/" + name
+}
+
 func Runner(home_dir string) {
 
 	for {
@@ -66,15 +70,20 @@ func Runner(home_dir string) {
 				ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.Name, ve.Name))
 
 				status.Executors.Sync(ve)
-				executor_action(ve, data_maps, app.Operate.Action)
+				if sts, msg := executor_action(ve, data_maps, app.Operate.Action); sts != "" {
+					status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(ve.Name)), sts, msg)
+				}
 			}
 		}
+
+		json.EncodeToFile(status.OpLog, home_dir+"/.sysinner/box_status.json", "  ")
 	}
 }
 
-func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32) {
+func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32) (string, string) {
 
 	es := status.Statuses.Get(etr.Name)
+	op_status, op_msg := "", ""
 
 	//
 	if es == nil {
@@ -104,8 +113,10 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 
 			if es.Cmd.ProcessState.Success() {
 				es.Action.Remove(inapi.ExecutorActionFailed)
+				op_status, op_msg = inapi.PbOpLogOK, "process ok"
 			} else {
 				es.Action.Append(inapi.ExecutorActionFailed)
+				op_status, op_msg = inapi.PbOpLogError, "process error "+es.Cmd.ProcessState.String()
 			}
 
 			if es.Action.Allow(inapi.ExecutorActionStart) {
@@ -128,19 +139,21 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 
 			es.Cmd = nil
 			es.Updated = types.MetaTimeNow()
+
+			return op_status, op_msg
 		}
 	}
 
 	if inapi.OpActionAllow(op_action, inapi.OpActionStop) &&
 		es.Action.Allow(inapi.ExecutorActionStopped) {
-		return
+		return inapi.PbOpLogOK, "stopped"
 	}
 
 	//
 	// hlog.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
 	if es.Action.Allow(inapi.ExecutorActionPending) {
 		hlog.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", etr.Name)
-		return
+		return inapi.PbOpLogWarn, "pending"
 	}
 
 	/*
@@ -216,7 +229,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 		}
 
 	} else {
-		return
+		return "", ""
 	}
 
 	//
@@ -226,7 +239,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 	} else if es.Action.Allow(inapi.ExecutorActionStop) {
 		script = etr.ExecStop
 	} else {
-		return
+		return "", ""
 	}
 
 	//
@@ -250,7 +263,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 	if err != nil {
 		hlog.Printf("error", "executor:%s template.Parse E:%s",
 			etr.Name, err.Error())
-		return
+		return inapi.PbOpLogError, err.Error()
 	}
 
 	//
@@ -258,17 +271,19 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 	if err := tpl.Execute(&tplout, dms); err != nil {
 		hlog.Printf("error", "executor:%s template.Execute E:%s",
 			etr.Name, err.Error())
-		return
+		return inapi.PbOpLogError, err.Error()
 	}
 
 	//
 	if err := executor_cmd(es.Name.String(), es.Cmd, tplout.String()); err != nil {
 		hlog.Printf("error", "executor:%s CMD E:%s",
 			etr.Name, err.Error())
-		return
+		return inapi.PbOpLogError, err.Error()
 	} else {
 		hlog.Printf("info", "executor:%s pending", etr.Name)
 	}
+
+	return inapi.PbOpLogWarn, "pending"
 }
 
 func executor_cmd(name string, cmd *exec.Cmd, script string) error {

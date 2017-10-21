@@ -103,29 +103,6 @@ func (pod *Pod) IterKey() string {
 	return pod.OpRepKey()
 }
 
-func (pod *Pod) OpLogNew(name, status, message string) {
-
-	if pod.Status == nil {
-		pod.Status = &PodStatus{}
-	}
-
-	pod.Status.OpLogs = NewPbOpLogSets(pod.Meta.ID, pod.Meta.User, pod.Operate.Version)
-	pod.Status.OpLogs.Set(name, status, message)
-}
-
-func (pod *Pod) OpLog(name, status, message string) {
-
-	if pod.Status == nil {
-		pod.Status = &PodStatus{}
-	}
-
-	if pod.Status.OpLogs == nil {
-		pod.Status.OpLogs = NewPbOpLogSets(pod.Meta.ID, pod.Meta.User, pod.Operate.Version)
-	}
-
-	pod.Status.OpLogs.Set(name, status, message)
-}
-
 type PodSets []*Pod
 
 func (ls *PodSets) Get(key string) *Pod {
@@ -665,6 +642,11 @@ func (ls *PodOperateReplicas) Get(rep_id uint16) *PodOperateReplica {
 	return nil
 }
 
+type PodExecutorStatus struct {
+	types.TypeMeta `json:",inline"`
+	Items          ExecutorStatuses `json:"items"`
+}
+
 // PodStatus represents information about the status of a pod. Status may trail the actual
 // state of a system.
 type PodStatus struct {
@@ -672,7 +654,7 @@ type PodStatus struct {
 	Phase          string            `json:"phase,omitempty"`
 	Replicas       []*PbPodRepStatus `json:"replicas,omitempty"`
 	Updated        uint32            `json:"updated,omitempty"`
-	OpLogs         *PbOpLogSets      `json:"op_logs,omitempty"`
+	OpLog          *PbOpLogSets      `json:"op_log,omitempty"`
 }
 
 func (it *Pod) StatusRefresh() {

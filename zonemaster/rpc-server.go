@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/types"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/auth"
@@ -83,14 +84,74 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		v.Updated = tn
 
+		var prev inapi.PbPodRepStatus
+		if rs := data.ZoneMaster.PvGet(path); rs.OK() {
+			rs.Decode(&prev)
+		}
+		if prev.Id != v.Id {
+			continue
+		}
+		if prev.OpLog == nil {
+			prev.OpLog = inapi.NewPbOpLogSets(inapi.NsZonePodOpRepKey(v.Id, uint16(v.Rep)), 0)
+		}
+
+		if v.OpLog != nil && v.OpLog.Version >= prev.OpLog.Version {
+			for _, vlog := range v.OpLog.Items {
+				prev.OpLog.LogSetEntry(vlog)
+			}
+		}
+		v.OpLog = prev.OpLog
+
 		if rs := data.ZoneMaster.PvPut(path, v, nil); !rs.OK() {
 			hlog.Printf("error", "zone-master/pod StatusSync %s/%d SET Failed %s",
 				v.Id, v.Rep, rs.Bytex().String())
 			return nil, errors.New("Server Error")
 		}
 
-		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d updated", v.Id, v.Rep)
+		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)
+		if v.Phase == "running" || v.Phase == "stopped" {
+
+			bp_key := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, v.Id, uint16(v.Rep))
+
+			if rs := data.ZoneMaster.PvGet(bp_key); rs.OK() {
+				var bpod inapi.Pod
+				rs.Decode(&bpod)
+
+				if bpod.Meta.ID == v.Id {
+					synced := false
+					switch v.Phase {
+					case "running":
+						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStart) &&
+							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionRunning) {
+							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionRunning)
+							synced = true
+						}
+
+					case "stopped":
+						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStop) &&
+							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStopped) {
+							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionStopped)
+							synced = true
+						}
+
+					case "destory":
+						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroy) &&
+							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroyed) {
+							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionDestroyed)
+							synced = true
+						}
+					}
+
+					if synced {
+						bpod.Meta.Updated = types.MetaTimeNow()
+						data.ZoneMaster.PvPut(bp_key, bpod, nil)
+					}
+				}
+			}
+		}
 	}
+
+	// hlog.Printf("info", "zone-master/rpc-server hostlet synced pods:%d", len(opts.Prs))
 
 	return &status.ZoneMasterList, nil
 }

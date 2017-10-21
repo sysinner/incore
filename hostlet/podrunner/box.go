@@ -15,6 +15,7 @@
 package podrunner
 
 import (
+	"fmt"
 	"os/exec"
 	"runtime"
 	"sync"
@@ -85,7 +86,7 @@ func (br *BoxKeeper) stats_watcher() {
 
 		BoxActives.Each(func(inst *BoxInstance) {
 
-			if len(inst.ID) < 10 {
+			if len(inst.ID) < 10 || !inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) {
 				return
 			}
 
@@ -99,8 +100,6 @@ func (br *BoxKeeper) stats_watcher() {
 }
 
 func (br *BoxKeeper) status_update(item *BoxInstance) {
-
-	// hlog.Printf("info", "nodelet/box status_update POD:%s", item.PodID)
 
 	if inst := BoxActives.Get(item.Name); inst != nil {
 
@@ -119,8 +118,6 @@ func (br *BoxKeeper) status_update(item *BoxInstance) {
 	} else {
 		BoxActives.Set(item)
 	}
-
-	// pod_status_sync(inapi.NsZonePodOpRepKey(item.PodID, item.RepId))
 }
 
 func (br *BoxKeeper) ctr_action() {
@@ -133,7 +130,7 @@ func (br *BoxKeeper) ctr_action() {
 			continue
 		}
 
-		PodActives.Each(func(pod *inapi.Pod) {
+		PodRepActives.Each(func(pod *inapi.Pod) {
 
 			for _, box := range pod.Spec.Boxes {
 
@@ -146,9 +143,6 @@ func (br *BoxKeeper) ctr_action() {
 }
 
 func (br *BoxKeeper) ctr_action_box(inst_name string, pod *inapi.Pod, box_spec inapi.PodSpecBoxBound) {
-
-	// br.mmu.Lock([]byte(inst_name))
-	// defer br.mmu.Unlock([]byte(inst_name))
 
 	if len(box_spec.Command) < 1 {
 		box_spec.Command = []string{"/home/action/.sysinner/ininit"}
@@ -220,5 +214,17 @@ func (br *BoxKeeper) ctr_action_box(inst_name string, pod *inapi.Pod, box_spec i
 
 	inst.volume_mounts_refresh()
 
-	go br.docker_command(inst)
+	go func(inst *BoxInstance) {
+		if err := br.docker_command(inst); err != nil {
+			PodRepOpLogs.LogSet(
+				pod.OpRepKey(), pod.Operate.Version,
+				oplog_ctncmd, inapi.PbOpLogError, fmt.Sprintf("box/%s ERR:%s", inst.Name, err.Error()),
+			)
+		} else {
+			PodRepOpLogs.LogSet(
+				pod.OpRepKey(), pod.Operate.Version,
+				oplog_ctncmd, inapi.PbOpLogOK, fmt.Sprintf("box/%s OK", inst.Name),
+			)
+		}
+	}(inst)
 }

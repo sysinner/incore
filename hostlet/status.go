@@ -16,6 +16,7 @@ package hostlet
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"runtime"
 
@@ -32,6 +33,10 @@ import (
 	"github.com/sysinner/incore/inutils"
 	"github.com/sysinner/incore/rpcsrv"
 	"github.com/sysinner/incore/status"
+)
+
+const (
+	inagent_box_status = "%s/%s/home/action/.sysinner/box_status.json"
 )
 
 func status_tracker() {
@@ -164,19 +169,31 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 
 	status.Host.Prs = []*inapi.PbPodRepStatus{}
 
-	// fmt.Println("pod", len(podrunner.PodActives))
+	// fmt.Println("pod", len(podrunner.PodRepActives))
 	// fmt.Println("box", len(podrunner.BoxActives))
 
 	// Pod Rep Status
-	podrunner.PodActives.Each(func(pod *inapi.Pod) {
+	podrunner.PodRepActives.Each(func(pod *inapi.Pod) {
 
 		if pod.Operate.Replica == nil {
 			return
 		}
 
+		if (inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop) &&
+			inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStopped)) ||
+			(inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) &&
+				inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroyed)) {
+			return
+		}
+
 		pod_status := &inapi.PbPodRepStatus{
-			Id:  pod.Meta.ID,
-			Rep: uint32(pod.Operate.Replica.Id),
+			Id:    pod.Meta.ID,
+			Rep:   uint32(pod.Operate.Replica.Id),
+			OpLog: podrunner.PodRepOpLogs.Get(pod.OpRepKey()),
+		}
+
+		if pod_status.OpLog == nil {
+			return
 		}
 
 		s_diff := map[string]int{}
@@ -229,6 +246,16 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 		// fmt.Println(string(js))
 
 		status.Host.Prs = append(status.Host.Prs, pod_status)
+
+		var box_oplog inapi.PbOpLogSets
+		fpath := fmt.Sprintf(inagent_box_status, config.Config.PodHomeDir, pod.OpRepKey())
+		if err := json.DecodeFile(fpath, &box_oplog); err == nil {
+			if box_oplog.Version >= pod_status.OpLog.Version {
+				for _, vlog := range box_oplog.Items {
+					pod_status.OpLog.LogSetEntry(vlog)
+				}
+			}
+		}
 	})
 
 	return inapi.NewApiZoneMasterClient(conn).HostStatusSync(
