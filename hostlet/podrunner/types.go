@@ -33,8 +33,8 @@ const (
 	stats_tick      int64  = 5e9
 	stats_cycle_buf uint32 = 20
 	stats_cycle_log uint32 = 60
-	oplog_podpull          = "hostlet/pod-pull"
-	oplog_ctncmd           = "hostlet/container-command"
+	oplog_podpull          = "hostlet/pod-updater"
+	oplog_ctncmd           = "hostlet/box-keeper"
 )
 
 var (

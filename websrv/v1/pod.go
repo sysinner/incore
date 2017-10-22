@@ -545,7 +545,8 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 			rep_status.Phase = inapi.OpStatusPending
 		} else {
 
-			if (uint32(time.Now().UTC().Unix()) - rep_status.Updated) > 600 {
+			if rep_status.Phase == inapi.OpStatusRunning &&
+				(uint32(time.Now().UTC().Unix())-rep_status.Updated) > 600 {
 				rep_status.Phase = inapi.OpStatusUnknown
 			}
 

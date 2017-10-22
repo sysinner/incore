@@ -116,7 +116,8 @@ func (s *ApiZoneMaster) HostStatusSync(
 		}
 
 		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)
-		if v.Phase == "running" || v.Phase == "stopped" {
+		if v.Phase == inapi.OpStatusRunning ||
+			v.Phase == inapi.OpStatusStopped {
 
 			bp_key := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, v.Id, uint16(v.Rep))
 
@@ -127,21 +128,21 @@ func (s *ApiZoneMaster) HostStatusSync(
 				if bpod.Meta.ID == v.Id {
 					synced := false
 					switch v.Phase {
-					case "running":
+					case inapi.OpStatusRunning:
 						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStart) &&
 							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionRunning) {
 							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionRunning)
 							synced = true
 						}
 
-					case "stopped":
+					case inapi.OpStatusStopped:
 						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStop) &&
 							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStopped) {
 							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionStopped)
 							synced = true
 						}
 
-					case "destory":
+					case inapi.OpStatusDestroyed:
 						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroy) &&
 							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroyed) {
 							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionDestroyed)
