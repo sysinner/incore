@@ -122,11 +122,11 @@ func NsZoneHostBoundPod(zone_id, host_id, pod_id string, rep_id uint16) string {
 	return fmt.Sprintf("/inz/%s/bp/%s/pod/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, rep_id))
 }
 
-func NsZoneHostBoundPodReplicaStatus(zone_id, host_id, pod_id string, rep_id uint16) string {
+func NsZonePodReplicaStatus(zone_id, pod_id string, rep_id uint16) string {
 	if len(pod_id) < 8 {
-		return fmt.Sprintf("/inz/%s/bp/%s/status", zone_id, host_id)
+		return fmt.Sprintf("/inz/%s/prs", zone_id)
 	}
-	return fmt.Sprintf("/inz/%s/bp/%s/status/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, rep_id))
+	return fmt.Sprintf("/inz/%s/prs/%s", zone_id, NsZonePodOpRepKey(pod_id, rep_id))
 }
 
 func NsZonePodServiceMap(pod_id string) string {

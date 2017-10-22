@@ -40,6 +40,8 @@ var (
 	ZoneHostList         inapi.ResHostList
 	ZoneHostListImported = false
 	ZoneHostSecretKeys   types.KvPairs
+	ZonePodRepStatusSets = []*inapi.PbPodRepStatus{}
+	ZonePodList          inapi.PodSets
 )
 
 func IsZoneMaster() bool {
@@ -86,4 +88,32 @@ func Init() error {
 	ZoneId = config.Config.Host.ZoneId
 
 	return nil
+}
+
+func ZonePodRepMergeOperateAction(pod_id string, rep_cap int) uint32 {
+
+	action := uint32(0)
+
+	for rep := uint16(0); rep < uint16(rep_cap); rep++ {
+		v := inapi.PbPodRepStatusSliceGet(ZonePodRepStatusSets, pod_id, uint32(rep))
+		if v == nil {
+			continue
+		}
+		switch v.Phase {
+		case "running":
+			action = action | inapi.OpActionRunning
+		case "stopped":
+			action = action | inapi.OpActionStopped
+
+		case "destroyed":
+			action = action | inapi.OpActionDestroyed
+		}
+	}
+
+	switch action {
+	case inapi.OpActionRunning, inapi.OpActionStopped, inapi.OpActionDestroyed:
+		return action
+	}
+
+	return inapi.OpActionStopped
 }

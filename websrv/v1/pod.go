@@ -28,6 +28,7 @@ import (
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	zm_status "github.com/sysinner/incore/status"
 )
 
 type Pod struct {
@@ -132,7 +133,7 @@ func (c Pod) ListAction() {
 				if fields.Has("operate") {
 
 					if fields.Has("operate/action") {
-						podfs.Operate.Action = pod.Operate.Action
+						podfs.Operate.Action = pod.Operate.Action | zm_status.ZonePodRepMergeOperateAction(pod.Meta.ID, pod.Operate.ReplicaCap)
 					}
 
 					if fields.Has("operate/version") {
@@ -198,6 +199,9 @@ func (c Pod) EntryAction() {
 					set.Status = nil
 				}
 			}
+
+			set.Operate.Action = inapi.OpActionAppend(set.Operate.Action,
+				zm_status.ZonePodRepMergeOperateAction(set.Meta.ID, set.Operate.ReplicaCap))
 		}
 	}
 
@@ -532,11 +536,9 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 			continue
 		}
 
-		var rep_status inapi.PbPodRepStatus
-		if rs := data.ZoneMaster.PvGet(
-			inapi.NsZoneHostBoundPodReplicaStatus(pod.Spec.Zone, rep.Node, pod.Meta.ID, rep.Id),
-		); rs.OK() {
-			rs.Decode(&rep_status)
+		rep_status := inapi.PbPodRepStatusSliceGet(zm_status.ZonePodRepStatusSets, pod.Meta.ID, uint32(rep.Id))
+		if rep_status == nil {
+			continue
 		}
 
 		if rep_status.Phase == "" {
@@ -547,7 +549,7 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 				rep_status.Phase = inapi.OpStatusUnknown
 			}
 
-			status.Replicas = append(status.Replicas, &rep_status)
+			status.Replicas = append(status.Replicas, rep_status)
 		}
 	}
 

@@ -217,6 +217,8 @@ func zone_tracker() {
 						continue
 					}
 
+					status.ZonePodList.Set(&pod)
+
 					for _, opRep := range pod.Operate.Replicas {
 
 						host := status.ZoneHostList.Item(opRep.Node)
@@ -252,6 +254,31 @@ func zone_tracker() {
 		}
 
 		// hlog.Printf("info", "zone-master/host-list %d refreshed", len(status.ZoneHostList.Items))
+	}
+
+	if force_refresh {
+
+		prs_key := inapi.NsZonePodReplicaStatus(status.Zone.Meta.Id, "", 0)
+
+		rs := data.ZoneMaster.PvScan(prs_key, "", "", 100000)
+		if !rs.OK() {
+			hlog.Printf("warn", "refresh pod-replica-status list failed")
+			return
+		}
+
+		rss := rs.KvList()
+		for _, v := range rss {
+
+			var prs inapi.PbPodRepStatus
+			if err := v.Decode(&prs); err != nil {
+				continue
+			}
+
+			status.ZonePodRepStatusSets, _ = inapi.PbPodRepStatusSliceSync(
+				status.ZonePodRepStatusSets, &prs)
+		}
+
+		hlog.Printf("info", "zone-master/pod-replica-status refreshed %d", len(status.ZonePodRepStatusSets))
 	}
 
 	// hlog.Printf("debug", "zone-master/status refreshed")

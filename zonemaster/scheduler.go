@@ -304,6 +304,7 @@ func scheduler_exec_cell(cell_id string) {
 		}
 
 		err_no := 0
+		changed := false
 
 		for _, oprep := range podq.Operate.Replicas {
 
@@ -317,19 +318,23 @@ func scheduler_exec_cell(cell_id string) {
 			}
 
 			//
-			prs_path := inapi.NsZoneHostBoundPodReplicaStatus(
+			prs_path := inapi.NsZonePodReplicaStatus(
 				status.ZoneId,
-				oprep.Node,
 				podq.Meta.ID,
 				oprep.Id,
 			)
-			var prs inapi.PbPodRepStatus
-			if rs := data.ZoneMaster.PvGet(prs_path); rs.OK() {
-				rs.Decode(&prs)
+			prs := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets,
+				podq.Meta.ID, uint32(oprep.Id))
+			if prs == nil {
+				if rs := data.ZoneMaster.PvGet(prs_path); rs.OK() {
+					rs.Decode(prs)
+				}
 			}
-			if prs.Id != podq.Meta.ID {
-				prs.Id = podq.Meta.ID
-				prs.Rep = uint32(oprep.Id)
+			if prs == nil || prs.Id != podq.Meta.ID {
+				prs = &inapi.PbPodRepStatus{
+					Id:  podq.Meta.ID,
+					Rep: uint32(oprep.Id),
+				}
 			}
 
 			prs.OpLog = inapi.NewPbOpLogSets(podq.OpRepKey(), podq.Operate.Version)
@@ -339,10 +344,16 @@ func scheduler_exec_cell(cell_id string) {
 				inapi.PbOpLogOK, "sync to host/"+oprep.Node,
 			)
 
-			if rs := data.ZoneMaster.PvPut(prs_path, prs, nil); !rs.OK() {
-				hlog.Printf("error", "zone/pod-rep-status saved %s, err (%s)", podq.OpRepKey(), rs.Bytex().String())
-				err_no++
-				break
+			changed = false
+			status.ZonePodRepStatusSets, changed = inapi.PbPodRepStatusSliceSync(
+				status.ZonePodRepStatusSets, prs,
+			)
+			if changed {
+				if rs := data.ZoneMaster.PvPut(prs_path, prs, nil); !rs.OK() {
+					hlog.Printf("error", "zone/pod-rep-status saved %s, err (%s)", podq.OpRepKey(), rs.Bytex().String())
+					err_no++
+					break
+				}
 			}
 		}
 

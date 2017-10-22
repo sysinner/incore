@@ -23,7 +23,7 @@ import (
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/hooto/hlog4g/hlog"
-	// "github.com/lessos/lessgo/encoding/json"
+	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/net/portutil"
 	"github.com/lynkdb/iomix/skv"
 	in_db "github.com/sysinner/incore/data"
@@ -409,7 +409,9 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 
 		if !inst.SpecDesired() {
 
-			hlog.Printf("info", "hostlet/box spec changed %s", inst.Name)
+			js1, _ := json.Encode(inst, "")
+
+			hlog.Printf("info", "hostlet/box spec changed %s {{{%s}}}", inst.Name, string(js1))
 
 			if inst.Status.Phase == inapi.OpStatusRunning {
 

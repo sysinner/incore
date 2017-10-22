@@ -75,20 +75,19 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 	for _, v := range opts.Prs {
 
-		path := inapi.NsZoneHostBoundPodReplicaStatus(
+		path := inapi.NsZonePodReplicaStatus(
 			status.ZoneId,
-			opts.Meta.Id,
 			v.Id,
 			uint16(v.Rep),
 		)
 
-		v.Updated = tn
-
-		var prev inapi.PbPodRepStatus
-		if rs := data.ZoneMaster.PvGet(path); rs.OK() {
-			rs.Decode(&prev)
+		prev := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets, v.Id, v.Rep)
+		if prev == nil {
+			if rs := data.ZoneMaster.PvGet(path); rs.OK() {
+				rs.Decode(prev)
+			}
 		}
-		if prev.Id != v.Id {
+		if prev == nil || prev.Id != v.Id {
 			continue
 		}
 		if prev.OpLog == nil {
@@ -101,11 +100,19 @@ func (s *ApiZoneMaster) HostStatusSync(
 			}
 		}
 		v.OpLog = prev.OpLog
+		v.Updated = tn
 
-		if rs := data.ZoneMaster.PvPut(path, v, nil); !rs.OK() {
-			hlog.Printf("error", "zone-master/pod StatusSync %s/%d SET Failed %s",
-				v.Id, v.Rep, rs.Bytex().String())
-			return nil, errors.New("Server Error")
+		changed := false
+		status.ZonePodRepStatusSets, changed = inapi.PbPodRepStatusSliceSync(
+			status.ZonePodRepStatusSets, v,
+		)
+
+		if changed {
+			if rs := data.ZoneMaster.PvPut(path, prev, nil); !rs.OK() {
+				hlog.Printf("error", "zone-master/pod StatusSync %s/%d SET Failed %s",
+					v.Id, v.Rep, rs.Bytex().String())
+				return nil, errors.New("Server Error")
+			}
 		}
 
 		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)

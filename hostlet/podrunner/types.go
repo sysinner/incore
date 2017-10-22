@@ -22,6 +22,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hooto/hlog4g/hlog"
+
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
@@ -101,20 +103,24 @@ func (inst *BoxInstance) SpecDesired() bool {
 
 	//
 	if inst.Status.Name == "" {
+		hlog.Printf("info", "SD")
 		return true // wait init
 	}
 
 	if inst.Status.Phase == "" {
+		hlog.Printf("info", "SD")
 		return false
 	}
 
 	//
 	if inst.Spec.Resources.CpuLimit != inst.Status.ResCpuLimit ||
 		inst.Spec.Resources.MemLimit != inst.Status.ResMemLimit {
+		hlog.Printf("info", "SD")
 		return false
 	}
 
 	if len(inst.Ports) != len(inst.Status.Ports) {
+		hlog.Printf("info", "SD")
 		return false
 	}
 
@@ -128,6 +134,7 @@ func (inst *BoxInstance) SpecDesired() bool {
 			}
 
 			if v.HostPort > 0 && uint32(v.HostPort) != vd.HostPort {
+				hlog.Printf("info", "SD")
 				return false
 			}
 
@@ -143,20 +150,24 @@ func (inst *BoxInstance) SpecDesired() bool {
 	//
 	img2 := inapi.LabelSliceGet(inst.Status.ImageOptions, "docker/image/name")
 	if img2 == nil {
+		hlog.Printf("info", "SD")
 		return false
 	}
 	img1, _ := inst.Spec.Image.Options.Get("docker/image/name")
 	if img2.Value != img1.String() {
+		hlog.Printf("info", "SD")
 		return false
 	}
 
 	//
 	if !inapi.PbVolumeMountSliceEqual(inst.Spec.Mounts, inst.Status.Mounts) {
+		hlog.Printf("info", "SD")
 		return false
 	}
 
 	if len(inst.Spec.Command) != len(inst.Status.Command) ||
 		strings.Join(inst.Spec.Command, " ") != strings.Join(inst.Status.Command, " ") {
+		hlog.Printf("info", "SD")
 		return false
 	}
 

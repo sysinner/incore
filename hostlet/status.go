@@ -193,6 +193,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 		}
 
 		if pod_status.OpLog == nil {
+			hlog.Printf("warn", "No OpLog Found %s", pod.OpRepKey())
 			return
 		}
 
@@ -241,6 +242,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 				pod_status.Phase = string(inapi.OpStatusPending)
 			}
 		}
+		// hlog.Printf("debug", "PodRep %s Phase %s", pod.OpRepKey(), pod_status.Phase)
 
 		// js, _ := json.Encode(pod_status, "  ")
 		// fmt.Println(string(js))
