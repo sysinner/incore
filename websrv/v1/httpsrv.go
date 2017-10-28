@@ -39,6 +39,7 @@ func NewModule() httpsrv.Module {
 	module.ControllerRegister(new(Resource))
 	module.ControllerRegister(new(Podbound))
 	module.ControllerRegister(new(PodStats))
+	module.ControllerRegister(new(Charge))
 
 	return module
 }

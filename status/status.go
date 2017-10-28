@@ -17,6 +17,7 @@ package status
 import (
 	"errors"
 
+	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/config"
@@ -42,7 +43,27 @@ var (
 	ZoneHostSecretKeys   types.KvPairs
 	ZonePodRepStatusSets = []*inapi.PbPodRepStatus{}
 	ZonePodList          inapi.PodSets
+	pod_charge_iam_ak    = iamapi.AccessKey{
+		User: "sysadmin",
+	}
 )
+
+func ZonePodChargeAccessKey() iamapi.AccessKey {
+
+	if Zone == nil {
+		return pod_charge_iam_ak
+	}
+
+	if v, ok := Zone.OptionGet("iam/acc_charge/access_key"); ok {
+		pod_charge_iam_ak.AccessKey = v
+	}
+
+	if v, ok := Zone.OptionGet("iam/acc_charge/secret_key"); ok {
+		pod_charge_iam_ak.SecretKey = v
+	}
+
+	return pod_charge_iam_ak
+}
 
 func IsZoneMaster() bool {
 

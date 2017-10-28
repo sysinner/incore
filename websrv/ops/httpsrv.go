@@ -37,6 +37,7 @@ func NewModule() httpsrv.Module {
 	})
 
 	module.ControllerRegister(new(Host))
+	module.ControllerRegister(new(PodSpec))
 	module.ControllerRegister(new(iamclient.Auth))
 	module.ControllerRegister(new(Index))
 

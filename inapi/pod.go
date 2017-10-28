@@ -23,10 +23,11 @@ import (
 )
 
 var (
-	pod_op_mu   sync.RWMutex
-	pod_sets_mu sync.RWMutex
-	pod_st_mu   sync.RWMutex
-	PodIdReg    = regexp.MustCompile("^[a-f0-9]{16,24}$")
+	pod_op_mu        sync.RWMutex
+	pod_sets_mu      sync.RWMutex
+	pod_st_mu        sync.RWMutex
+	PodIdReg         = regexp.MustCompile("^[a-f0-9]{16,24}$")
+	PodSpecPlanIdReg = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
 )
 
 const (
@@ -76,6 +77,17 @@ type PodPayment struct {
 	TimeClose uint32  `json:"time_close"`
 	Prepay    float64 `json:"prepay"`
 	Payout    float64 `json:"payout"`
+}
+
+type PodEstimateList struct {
+	types.TypeMeta `json:",inline"`
+	Items          []*PodEstimateEntry `json:"items"`
+}
+
+type PodEstimateEntry struct {
+	Name        string  `json:"name"`
+	CycleAmount float64 `json:"cycle_amount"`
+	CycleTime   uint64  `json:"cycle_time"`
 }
 
 func (pod *Pod) AppServicePorts() ServicePorts {
@@ -303,7 +315,25 @@ type PodSpecResourceCompute struct {
 	CpuLimit int64 `json:"cpu_limit,omitempty"`
 
 	// Memory, in bytes.
-	MemoryLimit int64 `json:"memory_limit,omitempty"`
+	MemLimit int64 `json:"mem_limit,omitempty"`
+}
+
+type PodSpecPlanResComputeBounds []*PodSpecPlanResComputeBound
+
+func (s PodSpecPlanResComputeBounds) Len() int {
+	return len(s)
+}
+
+func (s PodSpecPlanResComputeBounds) Less(i, j int) bool {
+	if s[i].CpuLimit < s[j].CpuLimit ||
+		(s[i].CpuLimit == s[j].CpuLimit && s[i].MemLimit < s[j].MemLimit) {
+		return true
+	}
+	return false
+}
+
+func (s PodSpecPlanResComputeBounds) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 type PodSpecResourceComputes []*PodSpecResourceCompute
@@ -331,10 +361,10 @@ func (s PodSpecResourceComputes) Swap(i, j int) {
 }
 
 type PodSpecResourceComputeCharge struct {
-	Type   uint8   `json:"type"`
-	Cycle  uint64  `json:"cycle"`  // default to 3600 seconds
-	Cpu    float64 `json:"cpu"`    // value in Core
-	Memory float64 `json:"memory"` // value in MiB
+	Type  uint8   `json:"type"`
+	Cycle uint64  `json:"cycle"` // default to 3600 seconds
+	Cpu   float64 `json:"cpu"`   // value in Core
+	Mem   float64 `json:"mem"`   // value in MiB
 }
 
 type PodSpecResourceVolume struct {
@@ -384,26 +414,49 @@ type PodSpecPlanResourceCharge struct {
 	Cycle uint64 `json:"cycle"` // default to 3600 seconds
 }
 
+type PodSpecPlanBoxImageBound struct {
+	RefId   string       `json:"ref_id"`
+	Driver  string       `json:"driver,omitempty"`
+	Options types.Labels `json:"options,omitempty"`
+	OsDist  string       `json:"os_dist,omitempty"`
+	Arch    string       `json:"arch,omitempty"`
+}
+
+type PodSpecPlanResComputeBound struct {
+	RefId    string `json:"ref_id"`
+	CpuLimit int64  `json:"cpu_limit"`
+	MemLimit int64  `json:"mem_limit"`
+}
+
+type PodSpecPlanResVolumeBound struct {
+	RefId   string       `json:"ref_id"`
+	Limit   int64        `json:"limit,omitempty"`   // max to 2000GB
+	Request int64        `json:"request,omitempty"` // start from 100MB
+	Step    int64        `json:"step,omitempty"`    // every step by 100MB
+	Default int64        `json:"default,omitempty"` // default to 100MB
+	Labels  types.Labels `json:"labels,omitempty"`
+}
+
 type PodSpecPlan struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
 
-	Status string            `json:"status,omitempty"`
-	Zones  []PodSpecPlanZone `json:"zones,omitempty"`
+	Status string                  `json:"status,omitempty"`
+	Zones  []*PodSpecPlanZoneBound `json:"zones,omitempty"`
 
 	Labels      types.Labels `json:"labels,omitempty"`
 	Annotations types.Labels `json:"annotations,omitempty"`
 
-	Images       []PodSpecBoxImage `json:"images,omitempty"`
-	ImageDefault string            `json:"image_default,omitempty"`
+	Images       []*PodSpecPlanBoxImageBound `json:"images,omitempty"`
+	ImageDefault string                      `json:"image_default,omitempty"`
 
-	ResourceComputes       PodSpecResourceComputes      `json:"res_computes,omitempty"`
+	ResourceComputes       PodSpecPlanResComputeBounds  `json:"res_computes,omitempty"`
 	ResourceComputeDefault string                       `json:"res_compute_default,omitempty"`
 	ResourceComputeCharge  PodSpecResourceComputeCharge `json:"res_compute_charge,omitempty"`
 
-	ResourceVolumes       []PodSpecResourceVolume     `json:"res_volumes,omitempty"`
-	ResourceVolumeDefault string                      `json:"res_volume_default,omitempty"`
-	ResourceVolumeCharge  PodSpecResourceVolumeCharge `json:"res_volume_charge,omitempty"`
+	ResourceVolumes       []*PodSpecPlanResVolumeBound `json:"res_volumes,omitempty"`
+	ResourceVolumeDefault string                       `json:"res_volume_default,omitempty"`
+	ResourceVolumeCharge  PodSpecResourceVolumeCharge  `json:"res_volume_charge,omitempty"`
 
 	ResourceCharge PodSpecPlanResourceCharge `json:"res_charge"`
 }
@@ -413,28 +466,16 @@ func (s *PodSpecPlan) ChargeFix() {
 	s.ResourceCharge.Cycle = 3600
 
 	s.ResourceComputeCharge.Cpu = 0.1
-	s.ResourceComputeCharge.Memory = 0.0001
+	s.ResourceComputeCharge.Mem = 0.0001
 
 	s.ResourceVolumeCharge.CapSize = 0.000004
 }
 
-func (s PodSpecPlan) Image(id string) *PodSpecBoxImage {
+func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {
 
 	for _, v := range s.Images {
 
-		if v.Meta.ID == id {
-			return &v
-		}
-	}
-
-	return nil
-}
-
-func (s PodSpecPlan) ResCompute(id string) *PodSpecResourceCompute {
-
-	for _, v := range s.ResourceComputes {
-
-		if v.Meta.ID == id {
+		if v.RefId == id {
 			return v
 		}
 	}
@@ -442,12 +483,24 @@ func (s PodSpecPlan) ResCompute(id string) *PodSpecResourceCompute {
 	return nil
 }
 
-func (s PodSpecPlan) ResVolume(id string) *PodSpecResourceVolume {
+func (s PodSpecPlan) ResCompute(id string) *PodSpecPlanResComputeBound {
+
+	for _, v := range s.ResourceComputes {
+
+		if v.RefId == id {
+			return v
+		}
+	}
+
+	return nil
+}
+
+func (s PodSpecPlan) ResVolume(id string) *PodSpecPlanResVolumeBound {
 
 	for _, v := range s.ResourceVolumes {
 
-		if v.Meta.ID == id {
-			return &v
+		if v.RefId == id {
+			return v
 		}
 	}
 
@@ -459,24 +512,24 @@ type PodSpecPlanList struct {
 	Items          []PodSpecPlan `json:"items,omitempty"`
 }
 
-type PodSpecPlanZone struct {
-	Name  string   `json:"name,omitempty"`
-	Cells []string `json:"cells,omitempty"`
+type PodSpecPlanZoneBound struct {
+	Name  string            `json:"name,omitempty"`
+	Cells types.ArrayString `json:"cells,omitempty"`
 }
 
-type PodSpecPlanSetup struct {
+type PodCreate struct {
 	types.TypeMeta     `json:",inline"`
-	Pod                string                `json:"pod,omitempty"`
-	Name               string                `json:"name"`
-	Plan               string                `json:"plan"`
-	Zone               string                `json:"zone"`
-	Cell               string                `json:"cell"`
-	ResourceVolume     string                `json:"res_volume"`
-	ResourceVolumeSize int64                 `json:"res_volume_size"`
-	Boxes              []PodSpecPlanSetupBox `json:"boxes"`
+	Pod                string         `json:"pod,omitempty"`
+	Name               string         `json:"name"`
+	Plan               string         `json:"plan"`
+	Zone               string         `json:"zone"`
+	Cell               string         `json:"cell"`
+	ResourceVolume     string         `json:"res_volume"`
+	ResourceVolumeSize int64          `json:"res_volume_size"`
+	Boxes              []PodCreateBox `json:"boxes"`
 }
 
-type PodSpecPlanSetupBox struct {
+type PodCreateBox struct {
 	Name                    string `json:"name"`
 	Image                   string `json:"image"`
 	ResourceCompute         string `json:"res_compute"`
@@ -484,7 +537,7 @@ type PodSpecPlanSetupBox struct {
 	ResourceComputeMemLimit int64  `json:"res_compute_mem_limit,omitempty"`
 }
 
-func (s *PodSpecPlanSetup) Valid(plan PodSpecPlan) error {
+func (s *PodCreate) Valid(plan PodSpecPlan) error {
 
 	if s.Name == "" {
 		return errors.New("No Name Found")
@@ -530,7 +583,7 @@ func (s *PodSpecPlanSetup) Valid(plan PodSpecPlan) error {
 
 	for _, vol := range plan.ResourceVolumes {
 
-		if vol.Meta.ID != s.ResourceVolume {
+		if vol.RefId != s.ResourceVolume {
 			continue
 		}
 
@@ -553,12 +606,12 @@ func (s *PodSpecPlanSetup) Valid(plan PodSpecPlan) error {
 
 		for _, rv := range plan.ResourceComputes {
 
-			if rv.Meta.ID != box.ResourceCompute {
+			if rv.RefId != box.ResourceCompute {
 				continue
 			}
 
 			s.Boxes[i].ResourceComputeCpuLimit = rv.CpuLimit
-			s.Boxes[i].ResourceComputeMemLimit = rv.MemoryLimit
+			s.Boxes[i].ResourceComputeMemLimit = rv.MemLimit
 
 			hit = true
 			break

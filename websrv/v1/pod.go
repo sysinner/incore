@@ -15,6 +15,7 @@
 package v1
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -211,8 +212,8 @@ func (c Pod) EntryAction() {
 func (c Pod) NewAction() {
 
 	var (
-		set  inapi.PodSpecPlanSetup
-		spec inapi.PodSpecPlan
+		set       inapi.PodCreate
+		spec_plan inapi.PodSpecPlan
 	)
 
 	defer c.RenderJson(&set)
@@ -230,18 +231,19 @@ func (c Pod) NewAction() {
 
 	//
 	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
-		rs.Decode(&spec)
+		rs.Decode(&spec_plan)
 	}
-	if spec.Meta.ID == "" || spec.Meta.ID != set.Plan {
+	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
 		set.Error = types.NewErrorMeta("400", "Spec Not Found")
 		return
 	}
 
 	//
-	if err := set.Valid(spec); err != nil {
+	if err := set.Valid(spec_plan); err != nil {
 		set.Error = types.NewErrorMeta("400", err.Error())
 		return
 	}
+	spec_plan.ChargeFix()
 
 	//
 	var zone inapi.ResZone
@@ -263,7 +265,7 @@ func (c Pod) NewAction() {
 		return
 	}
 
-	res_vol := spec.ResVolume(set.ResourceVolume)
+	res_vol := spec_plan.ResVolume(set.ResourceVolume)
 	if res_vol == nil {
 		set.Error = types.NewErrorMeta("400", "No ResourceVolume Found")
 		return
@@ -282,18 +284,19 @@ func (c Pod) NewAction() {
 		},
 		Spec: &inapi.PodSpecBound{
 			Ref: inapi.ObjectReference{
-				Id:      spec.Meta.ID,
-				Name:    spec.Meta.Name,
-				Version: spec.Meta.Version,
+				Id:      spec_plan.Meta.ID,
+				Name:    spec_plan.Meta.Name,
+				Version: spec_plan.Meta.Version,
 			},
 			Zone:   set.Zone,
 			Cell:   set.Cell,
-			Labels: spec.Labels,
+			Labels: spec_plan.Labels,
 			Volumes: []inapi.PodSpecResVolume{
 				{
 					Ref: inapi.ObjectReference{
-						Name:    res_vol.Meta.Name,
-						Version: res_vol.Meta.Version,
+						Id:   res_vol.RefId,
+						Name: res_vol.RefId,
+						// Version: res_vol.Meta.Version,
 					},
 					Name:      "system",
 					SizeLimit: set.ResourceVolumeSize,
@@ -310,13 +313,13 @@ func (c Pod) NewAction() {
 	//
 	for _, v := range set.Boxes {
 
-		img := spec.Image(v.Image)
+		img := spec_plan.Image(v.Image)
 		if img == nil {
 			set.Error = types.NewErrorMeta("400", "No Image Found")
 			return
 		}
 
-		res := spec.ResCompute(v.ResourceCompute)
+		res := spec_plan.ResCompute(v.ResourceCompute)
 		if res == nil {
 			set.Error = types.NewErrorMeta("400", "No ResourceCompute Found")
 			return
@@ -327,9 +330,9 @@ func (c Pod) NewAction() {
 			Updated: types.MetaTimeNow(),
 			Image: inapi.PodSpecBoxImageBound{
 				Ref: &inapi.ObjectReference{
-					Id:      img.Meta.ID,
-					Name:    img.Meta.Name,
-					Version: img.Meta.Version,
+					Id:   img.RefId,
+					Name: img.RefId,
+					// Version: img.Meta.Version,
 				},
 				Driver:  img.Driver,
 				OsDist:  img.OsDist,
@@ -338,18 +341,56 @@ func (c Pod) NewAction() {
 			},
 			Resources: &inapi.PodSpecBoxResComputeBound{
 				Ref: &inapi.ObjectReference{
-					Id:      res.Meta.ID,
-					Name:    res.Meta.Name,
-					Version: res.Meta.Version,
+					Id:   res.RefId,
+					Name: res.RefId,
+					// Version: res.Meta.Version,
 				},
-				CpuLimit: v.ResourceComputeCpuLimit,
-				MemLimit: v.ResourceComputeMemLimit,
+				CpuLimit: res.CpuLimit,
+				MemLimit: res.MemLimit,
 			},
 		})
 	}
 
-	//
+	charge_amount := float64(0)
 
+	// Volumes
+	for _, v := range pod.Spec.Volumes {
+		charge_amount += iamapi.AccountFloat64Round(
+			spec_plan.ResourceVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+	}
+
+	for _, v := range pod.Spec.Boxes {
+
+		if v.Resources != nil {
+			// CPU
+			charge_amount += iamapi.AccountFloat64Round(
+				spec_plan.ResourceComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+
+			// RAM
+			charge_amount += iamapi.AccountFloat64Round(
+				spec_plan.ResourceComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
+		}
+	}
+
+	charge_cycle_min := float64(3600)
+	charge_amount = iamapi.AccountFloat64Round(charge_amount*(charge_cycle_min/3600), 2)
+
+	tnu := uint32(time.Now().Unix())
+	if rsp := iamclient.AccountChargePrepay(iamapi.AccountChargePrepay{
+		User:      pod.Meta.User,
+		Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
+		Prepay:    charge_amount,
+		TimeStart: tnu,
+		TimeClose: tnu + uint32(charge_cycle_min),
+	}, zm_status.ZonePodChargeAccessKey()); rsp.Error != nil {
+		set.Error = rsp.Error
+		return
+	} else if rsp.Kind != "AccountChargePrepay" {
+		set.Error = types.NewErrorMeta("400", "Network Error")
+		return
+	}
+
+	//
 	if rs := data.ZoneMaster.PvNew(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
@@ -367,6 +408,7 @@ func (c Pod) NewAction() {
 	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
 	data.ZoneMaster.PvNew(qmpath, pod, nil)
 
+	set.Pod = pod.Meta.ID
 	set.Kind = "PodInstance"
 }
 

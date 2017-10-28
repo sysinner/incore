@@ -48,6 +48,7 @@ type HostMember struct {
 
 type ConfigCommon struct {
 	filepath              string
+	InstanceId            string                   `json:"instance_id"`
 	Host                  HostMember               `json:"host"`
 	Masters               []inapi.HostNodeAddress  `json:"masters"`
 	IoConnectors          connect.MultiConnOptions `json:"io_connects"`

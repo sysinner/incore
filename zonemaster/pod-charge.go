@@ -134,7 +134,7 @@ func pod_charge_entry(pod inapi.Pod) {
 	for _, v := range pod.Spec.Volumes {
 		// v.SizeLimit = 20 * inapi.ByteGB
 		cycle_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResourceVolumeCharge.CapSize * float64(v.SizeLimit/inapi.ByteMB))
+			spec_plan.ResourceVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
 	}
 
 	for _, v := range pod.Spec.Boxes {
@@ -143,12 +143,12 @@ func pod_charge_entry(pod inapi.Pod) {
 			// CPU
 			// v.Resources.CpuLimit = 1000
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Cpu * (float64(v.Resources.CpuLimit) / 1000))
+				spec_plan.ResourceComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
 
 			// RAM
 			// v.Resources.MemLimit = 1 * inapi.ByteGB
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Memory * float64(v.Resources.MemLimit/inapi.ByteMB))
+				spec_plan.ResourceComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
 		}
 	}
 
@@ -170,9 +170,9 @@ func pod_charge_entry(pod inapi.Pod) {
 	}
 
 	cycle_amount = cycle_amount * (float64(pod.Payment.TimeClose-pod.Payment.TimeStart) / 3600)
-	cycle_amount = iamapi.AccountFloat64Round(cycle_amount)
-	if cycle_amount < 0.0001 {
-		cycle_amount = 0.0001
+	cycle_amount = iamapi.AccountFloat64Round(cycle_amount, 2)
+	if cycle_amount < 0.01 {
+		cycle_amount = 0.01
 	}
 
 	// hlog.Printf("info", "Pod %s AccountCharge AMOUNT %f", pod.Meta.ID, cycle_amount)
