@@ -509,7 +509,17 @@ func (s PodSpecPlan) ResVolume(id string) *PodSpecPlanResVolumeBound {
 
 type PodSpecPlanList struct {
 	types.TypeMeta `json:",inline"`
-	Items          []PodSpecPlan `json:"items,omitempty"`
+	Items          []*PodSpecPlan `json:"items,omitempty"`
+}
+
+func (ls *PodSpecPlanList) Get(plan_id string) *PodSpecPlan {
+	for _, v := range ls.Items {
+		if v.Meta.ID == plan_id {
+			return v
+		}
+	}
+
+	return nil
 }
 
 type PodSpecPlanZoneBound struct {
@@ -631,6 +641,7 @@ type PodOperate struct {
 	ReplicaCap int                `json:"replica_cap,omitempty"`
 	Replicas   PodOperateReplicas `json:"replicas,omitempty"`
 	Replica    *PodOperateReplica `json:"replica,omitempty"`
+	OpLog      []*PbOpLogEntry    `json:"op_log,omitempty"`
 }
 
 type PodOperateReplica struct {
@@ -640,6 +651,15 @@ type PodOperateReplica struct {
 }
 
 type PodOperateReplicas []*PodOperateReplica
+
+func (ls *PodOperateReplicas) InitScheduled() bool {
+	for _, v := range *ls {
+		if v.Node != "" {
+			return true
+		}
+	}
+	return false
+}
 
 func (ls *PodOperateReplicas) CapacitySet(n int) {
 
@@ -707,7 +727,7 @@ type PodStatus struct {
 	Phase          string            `json:"phase,omitempty"`
 	Replicas       []*PbPodRepStatus `json:"replicas,omitempty"`
 	Updated        uint32            `json:"updated,omitempty"`
-	OpLog          *PbOpLogSets      `json:"op_log,omitempty"`
+	OpLog          []*PbOpLogEntry   `json:"op_log,omitempty"`
 }
 
 func (it *Pod) StatusRefresh() {

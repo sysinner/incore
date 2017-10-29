@@ -53,22 +53,22 @@ func TestPrioritizer(t *testing.T) {
 			id:        "2",
 			cpu_used:  8000,
 			cpu_total: 16000,
-			ram_used:  5 * inapi.ByteGB,
-			ram_total: 10 * inapi.ByteGB,
+			mem_used:  5 * inapi.ByteGB,
+			mem_total: 10 * inapi.ByteGB,
 		},
 		{
 			id:        "1",
 			cpu_used:  1000,
 			cpu_total: 16000,
-			ram_used:  1 * inapi.ByteGB,
-			ram_total: 10 * inapi.ByteGB,
+			mem_used:  1 * inapi.ByteGB,
+			mem_total: 10 * inapi.ByteGB,
 		},
 		{
 			id:        "3",
 			cpu_used:  16000,
 			cpu_total: 16000,
-			ram_used:  10 * inapi.ByteGB,
-			ram_total: 10 * inapi.ByteGB,
+			mem_used:  10 * inapi.ByteGB,
+			mem_total: 10 * inapi.ByteGB,
 		},
 	}
 
@@ -102,12 +102,12 @@ func bench_init() {
 			Operate: &inapi.ResHostOperate{
 				Action:  1,
 				CpuUsed: rand.Int63n(16000),
-				RamUsed: int64(rand.Int63n(32 * int64(inapi.ByteGB))),
+				MemUsed: int64(rand.Int63n(32 * int64(inapi.ByteGB))),
 			},
 			Spec: &inapi.ResHostSpec{
 				Capacity: &inapi.ResHostResource{
-					Cpu:    32000,
-					Memory: uint64(64 * int64(inapi.ByteGB)),
+					Cpu: 32000,
+					Mem: uint64(64 * int64(inapi.ByteGB)),
 				},
 			},
 		})

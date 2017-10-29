@@ -122,3 +122,12 @@ func (rs *PbOpLogSets) LogSet(version uint32, name, status, message string) {
 func (rs *PbOpLogSets) LogSetEntry(entry *PbOpLogEntry) {
 	rs.Items, _ = PbOpLogEntrySliceSync(rs.Items, entry)
 }
+
+func NewPbOpLogEntry(name, status, message string) *PbOpLogEntry {
+	return &PbOpLogEntry{
+		Name:    name,
+		Status:  status,
+		Message: message,
+		Updated: uint64(time.Now().UnixNano() / 1e6),
+	}
+}

@@ -306,7 +306,7 @@ func (c Pod) NewAction() {
 		Operate: inapi.PodOperate{
 			Action:     inapi.OpActionStart,
 			Version:    1,
-			ReplicaCap: 1,
+			ReplicaCap: 1, // TODO
 		},
 	}
 
@@ -332,7 +332,6 @@ func (c Pod) NewAction() {
 				Ref: &inapi.ObjectReference{
 					Id:   img.RefId,
 					Name: img.RefId,
-					// Version: img.Meta.Version,
 				},
 				Driver:  img.Driver,
 				OsDist:  img.OsDist,
@@ -343,7 +342,6 @@ func (c Pod) NewAction() {
 				Ref: &inapi.ObjectReference{
 					Id:   res.RefId,
 					Name: res.RefId,
-					// Version: res.Meta.Version,
 				},
 				CpuLimit: res.CpuLimit,
 				MemLimit: res.MemLimit,
@@ -372,11 +370,13 @@ func (c Pod) NewAction() {
 		}
 	}
 
+	charge_amount = charge_amount * float64(pod.Operate.ReplicaCap)
+
 	charge_cycle_min := float64(3600)
 	charge_amount = iamapi.AccountFloat64Round(charge_amount*(charge_cycle_min/3600), 2)
 
 	tnu := uint32(time.Now().Unix())
-	if rsp := iamclient.AccountChargePrepay(iamapi.AccountChargePrepay{
+	if rsp := iamclient.AccountChargePreValid(iamapi.AccountChargePrepay{
 		User:      pod.Meta.User,
 		Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
 		Prepay:    charge_amount,
@@ -385,7 +385,7 @@ func (c Pod) NewAction() {
 	}, zm_status.ZonePodChargeAccessKey()); rsp.Error != nil {
 		set.Error = rsp.Error
 		return
-	} else if rsp.Kind != "AccountChargePrepay" {
+	} else if rsp.Kind != "AccountCharge" {
 		set.Error = types.NewErrorMeta("400", "Network Error")
 		return
 	}
@@ -572,6 +572,10 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 		return status
 	}
 
+	if len(pod.Operate.OpLog) > 0 {
+		status.OpLog = pod.Operate.OpLog
+	}
+
 	for _, rep := range pod.Operate.Replicas {
 
 		if rep.Node == "" {
@@ -596,9 +600,7 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 		}
 	}
 
-	if len(status.Replicas) > 0 {
-		status.Kind = "PodStatus"
-	}
+	status.Kind = "PodStatus"
 
 	status.Refresh(pod.Operate.ReplicaCap)
 

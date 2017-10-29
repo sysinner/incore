@@ -26,7 +26,7 @@ message ResHostOperate {
     string          cell_id   = 2;
     string          zone_id   = 3;
     int64           cpu_used  = 4;
-    int64           ram_used  = 5;
+    int64           mem_used  = 5;
     int64           lss_used  = 6;
     repeated uint32 port_used = 7;
 }
@@ -58,7 +58,7 @@ message ResPlatform {
 }
 
 message ResHostResource {
-    uint64 memory  = 1;
+    uint64 mem     = 1;
     uint64 cpu     = 2;
     uint64 storage = 3;
 }

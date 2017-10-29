@@ -42,12 +42,12 @@ func calculate_occupancy(host *host_fit) host_priority {
 
 	var (
 		cpu_pused = calculate_percentage(host.cpu_used, host.cpu_total)
-		ram_pused = calculate_percentage(host.ram_used, host.ram_total)
+		mem_pused = calculate_percentage(host.mem_used, host.mem_total)
 	)
 
 	return host_priority{
 		id:    host.id,
-		score: (cpu_pused + ram_pused) / 2,
+		score: (cpu_pused + mem_pused) / 2,
 	}
 }
 

@@ -18,8 +18,8 @@ type host_fit struct {
 	id        string
 	cpu_used  int64
 	cpu_total int64
-	ram_used  int64
-	ram_total int64
+	mem_used  int64
+	mem_total int64
 }
 
 // host_priority represents the priority of scheduling to a particular host, lower priority is better.

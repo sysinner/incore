@@ -55,6 +55,66 @@ func (*genericScheduler) Schedule(pod inapi.Pod, hostls inapi.ResHostList) (host
 	return priority_list[0].id, nil
 }
 
+func (*genericScheduler) ScheduleSets(pod inapi.Pod, hostls inapi.ResHostList) (host_ids []string, err error) {
+
+	//
+	if pod.Spec == nil || len(hostls.Items) < 1 {
+		return host_ids, errBadArgument
+	}
+
+	//
+	spec_res := pod.Spec.ResComputeBound()
+	if spec_res == nil {
+		return host_ids, errBadArgument
+	}
+
+	fit_hosts, err := find_hosts_that_fit(pod, hostls)
+	if err != nil {
+		return host_ids, err
+	}
+
+	for _, v := range pod.Operate.Replicas {
+
+		if v.Node != "" {
+			host_ids = append(host_ids, v.Node)
+			continue
+		}
+
+		if len(fit_hosts) == 0 {
+			return host_ids, errors.New("No Host Scheduled")
+		}
+
+		priority_list, err := prioritizer(fit_hosts)
+		if err != nil {
+			return host_ids, err
+		}
+
+		if len(priority_list) == 0 {
+			return host_ids, errors.New("No Host Scheduled")
+		}
+
+		host_ids = append(host_ids, priority_list[0].id)
+
+		for j := range fit_hosts {
+
+			if fit_hosts[j].id != priority_list[0].id {
+				continue
+			}
+
+			fit_hosts[j].cpu_used += spec_res.CpuLimit
+			fit_hosts[j].mem_used += spec_res.MemLimit
+			if fit_hosts[j].cpu_used+spec_res.CpuLimit > fit_hosts[j].cpu_total ||
+				fit_hosts[j].mem_used+spec_res.MemLimit > fit_hosts[j].mem_total {
+				fit_hosts = append(fit_hosts[:j], fit_hosts[j+1:]...)
+			}
+
+			break
+		}
+	}
+
+	return host_ids, nil
+}
+
 func find_hosts_that_fit(
 	pod inapi.Pod,
 	hostls inapi.ResHostList,
@@ -86,16 +146,16 @@ func find_hosts_that_fit(
 		}
 
 		if (src.CpuLimit+v.Operate.CpuUsed) > int64(v.Spec.Capacity.Cpu) ||
-			(src.MemLimit+v.Operate.RamUsed) > int64(v.Spec.Capacity.Memory) {
-			// continue TODO
+			(src.MemLimit+v.Operate.MemUsed) > int64(v.Spec.Capacity.Mem) {
+			continue // TODO
 		}
 
 		hosts = append(hosts, &host_fit{
 			id:        v.Meta.Id,
 			cpu_used:  v.Operate.CpuUsed,
 			cpu_total: int64(v.Spec.Capacity.Cpu),
-			ram_used:  v.Operate.RamUsed,
-			ram_total: int64(v.Spec.Capacity.Memory),
+			mem_used:  v.Operate.MemUsed,
+			mem_total: int64(v.Spec.Capacity.Mem),
 		})
 	}
 

@@ -314,13 +314,13 @@ func (obj *ResHost) SyncOpCpu(cpu int64) {
 	obj.Operate.CpuUsed += cpu
 }
 
-func (obj *ResHost) SyncOpRam(ram int64) {
+func (obj *ResHost) SyncOpMem(ram int64) {
 
 	if obj.Operate == nil {
 		obj.Operate = &ResHostOperate{}
 	}
 
-	obj.Operate.RamUsed += ram
+	obj.Operate.MemUsed += ram
 }
 
 const (

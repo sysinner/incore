@@ -198,7 +198,7 @@ func (c PodSpec) PlanListAction() {
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
 			item.ChargeFix()
-			ls.Items = append(ls.Items, item)
+			ls.Items = append(ls.Items, &item)
 		}
 	}
 

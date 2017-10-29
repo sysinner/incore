@@ -135,7 +135,7 @@ func (c Host) NodeNewAction() {
 	// 	return
 	// }
 
-	if node.Spec.Capacity.Cpu < 1 || node.Spec.Capacity.Memory < 128*1024*1024 {
+	if node.Spec.Capacity.Cpu < 1 || node.Spec.Capacity.Mem < 128*1024*1024 {
 		node.Error = &types.ErrorMeta{"400", "Invalid Capacity.Cpu or Memory"}
 		return
 	}

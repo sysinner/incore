@@ -16,9 +16,12 @@ package zonemaster
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/data"
@@ -27,8 +30,15 @@ import (
 )
 
 var (
-	Scheduler inapi.Scheduler
-	pod_ops   = map[string]*inapi.PodOperate{}
+	Scheduler        inapi.Scheduler
+	pod_ops          = map[string]*inapi.PodOperate{}
+	server_error     = errors.New("server error")
+	zonePodSpecPlans inapi.PodSpecPlanList
+)
+
+const (
+	oplog_zms             = "zone-master/scheduler"
+	oplog_charge_prevalid = "zone-master/scheduler/charge-prevalid"
 )
 
 func scheduler_exec() error {
@@ -44,6 +54,20 @@ func scheduler_exec() error {
 	}
 
 	//
+	zonePodSpecPlans.Items = []*inapi.PodSpecPlan{}
+	rss := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 1000).KvList()
+	for _, v := range rss {
+		var spec_plan inapi.PodSpecPlan
+		if err := v.Decode(&spec_plan); err == nil {
+			spec_plan.ChargeFix()
+			zonePodSpecPlans.Items = append(zonePodSpecPlans.Items, &spec_plan)
+		}
+	}
+	if len(zonePodSpecPlans.Items) < 1 {
+		return errors.New("No PodSpecPlan Found")
+	}
+
+	//
 	for _, cell := range status.Zone.Cells {
 		scheduler_exec_cell(cell.Meta.Id)
 	}
@@ -53,249 +77,30 @@ func scheduler_exec() error {
 
 func scheduler_exec_cell(cell_id string) {
 
-	podqs := []inapi.Pod{}
-
 	// TODO pager
-	if rs := data.ZoneMaster.PvScan(
-		inapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 1000); rs.OK() {
-
-		rss := rs.KvList()
-		for _, v := range rss {
-
-			var pod inapi.Pod
-			if err := v.Decode(&pod); err == nil {
-
-				if pod.Spec != nil &&
-					pod.Spec.Cell != "" {
-					podqs = append(podqs, pod)
-				} else {
-					// TODO error log
-				}
-			}
-		}
-	}
-
-	if len(podqs) == 0 {
+	rss := data.ZoneMaster.PvScan(
+		inapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 1000).KvList()
+	if len(rss) == 0 {
 		return
 	}
 
-	hlog.Printf("info", "scheduling %d podqs", len(podqs))
-
-	for _, podq := range podqs {
-
-		var (
-			prev      inapi.Pod
-			host      *inapi.ResHost
-			host_sync = false
-		)
-
-		if rs := data.ZoneMaster.PvGet(
-			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID),
-		); rs.OK() {
-
-			if err := rs.Decode(&prev); err != nil {
-				hlog.Printf("error", "bad prev podq #%s instance", podq.Meta.ID)
-				// TODO error log
-				continue
-			}
-
-		} else if !rs.NotFound() {
-			// may be io connection error
-			hlog.Printf("error", "failed on get podq #%s", podq.Meta.ID)
+	start := time.Now()
+	for _, v := range rss {
+		var podq inapi.Pod
+		err := v.Decode(&podq)
+		if err != nil {
+			hlog.Printf("error", "invalid data struct: %s", err.Error())
 			continue
 		}
 
-		if len(prev.Operate.Replicas) > 0 {
-			podq.Operate.Replicas = prev.Operate.Replicas
-		} else {
-			podq.Operate.Replicas.CapacitySet(podq.Operate.ReplicaCap)
+		if podq.Spec == nil || podq.Spec.Cell != cell_id {
+			hlog.Printf("error", "invalid data struct: no spec/cell found")
+			continue
 		}
 
-		// podq.OperateRefresh()
-
-		for _, oprep := range podq.Operate.Replicas {
-
-			if oprep.Node == "" {
-
-				host_id, err := Scheduler.Schedule(podq, status.ZoneHostList)
-
-				if err != nil || host_id == "" {
-					// TODO error log
-					continue
-				}
-
-				host = status.ZoneHostList.Item(host_id)
-				if host == nil {
-					continue
-				}
-
-				podq.Operate.Replicas.Set(inapi.PodOperateReplica{
-					Id:   oprep.Id,
-					Node: host_id,
-				})
-
-				res := podq.Spec.ResComputeBound()
-				host.SyncOpCpu(res.CpuLimit)
-				host.SyncOpRam(res.MemLimit)
-
-				host_sync = true
-
-				hlog.Printf("info", "schedule podq #%s on to host #%s (new)", podq.Meta.ID, host_id)
-			} else {
-
-				host = status.ZoneHostList.Item(oprep.Node)
-				if host == nil {
-					// TODO re-schedule
-					continue
-				}
-
-				var (
-					res   = podq.Spec.ResComputeBound()
-					res_p = prev.Spec.ResComputeBound()
-				)
-
-				if res.CpuLimit != res_p.CpuLimit ||
-					res.MemLimit != res_p.MemLimit {
-
-					host.SyncOpCpu(res.CpuLimit - res_p.CpuLimit)
-					host.SyncOpRam(res.MemLimit - res_p.MemLimit)
-
-					host_sync = true
-				}
-			}
-
-			if host == nil {
-				hlog.Printf("warn", "no available host schedule")
-				continue
-			}
-
-			var (
-				host_peer_lan  = inapi.HostNodeAddress(host.Spec.PeerLanAddr)
-				host_peer_port = host_peer_lan.Port()
-				ports          = podq.AppServicePorts()
-			)
-
-			for i, pv := range ports {
-
-				if pv.HostPort > 0 {
-
-					if pv.HostPort == host_peer_port {
-
-						ports[i].HostPort = 0
-
-						hlog.Printf("warn", "the host port %s:%d already in use ",
-							host.Spec.PeerLanAddr, pv.HostPort)
-
-					} else if host.OpPortHas(pv.HostPort) {
-
-						if ppv := oprep.Ports.Get(pv.BoxPort); ppv == nil ||
-							ppv.HostPort != pv.HostPort {
-
-							ports[i].HostPort = 0
-
-							hlog.Printf("warn", "the host port %s:%d is already allocated",
-								host.Spec.PeerLanAddr, pv.HostPort)
-						}
-					} else {
-						host.OpPortAlloc(pv.HostPort)
-						host_sync = true
-					}
-
-					continue
-				}
-
-				for _, pvp := range oprep.Ports {
-
-					if pvp.BoxPort != pv.BoxPort {
-						continue
-					}
-
-					if pvp.HostPort > 0 {
-						ports.Sync(*pvp)
-					}
-
-					break
-				}
-			}
-
-			// TODO delete unused port
-
-			//
-			ports_alloc := []uint16{}
-			for i, p := range ports {
-
-				if p.HostPort > 0 {
-					continue
-				}
-
-				if port_alloc := host.OpPortAlloc(0); port_alloc > 0 {
-
-					ports[i].HostPort = port_alloc
-					host_sync = true
-					ports_alloc = append(ports_alloc, port_alloc)
-
-					hlog.Printf("info", "new port alloc to %s:%d",
-						host.Spec.PeerLanAddr, port_alloc)
-
-				} else {
-					hlog.Printf("warn", "host #%s res-port out range", host.Meta.Id)
-				}
-			}
-
-			//
-			if len(ports) > 0 {
-
-				var nsz inapi.NsPodServiceMap
-
-				if rs := data.ZoneMaster.PvGet(inapi.NsZonePodServiceMap(podq.Meta.ID)); rs.OK() {
-					rs.Decode(&nsz)
-				}
-
-				if nsz.User == "" {
-					nsz.User = podq.Meta.User
-				}
-
-				for _, popv := range ports {
-					nsz.Sync(popv.BoxPort, oprep.Id, host_peer_lan.IP(), popv.HostPort)
-				}
-
-				if nsz.SyncChanged() {
-					nsz.Updated = uint64(types.MetaTimeNow())
-					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(podq.Meta.ID), nsz, nil)
-				}
-			}
-
-			oprep.Ports = ports
-
-			if host_sync {
-
-				hlog.Printf("info", "host #%s sync changes", host.Meta.Id)
-
-				host.OpPortSort()
-
-				if rs := data.ZoneMaster.PvPut(
-					inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
-				); !rs.OK() {
-					hlog.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
-					for _, pa := range ports_alloc {
-						host.OpPortFree(pa)
-					}
-					continue
-				}
-			}
-		}
-
-		if prev.Payment != nil {
-			podq.Payment = prev.Payment
-		}
-
-		if podq.Payment == nil {
-			podq.Payment = &inapi.PodPayment{
-				TimeStart: uint32(time.Now().Unix()),
-				TimeClose: 0,
-				Prepay:    0,
-				Payout:    0,
-			}
+		err = scheduler_exec_pod(&podq)
+		if err != nil && err.Error() != "" {
+			hlog.Print("error", err.Error())
 		}
 
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
@@ -303,62 +108,415 @@ func scheduler_exec_cell(cell_id string) {
 			continue
 		}
 
-		err_no := 0
-		changed := false
-
-		for _, oprep := range podq.Operate.Replicas {
-
-			podq.Operate.Replica = oprep
-			k := inapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, podq.Meta.ID, oprep.Id)
-
-			if rs := data.ZoneMaster.PvPut(k, podq, nil); !rs.OK() {
-				hlog.Printf("error", "zone/podq saved %s, err (%s)", k, rs.Bytex().String())
-				err_no++
-				break
-			}
-
-			//
-			prs_path := inapi.NsZonePodReplicaStatus(
-				status.ZoneId,
-				podq.Meta.ID,
-				oprep.Id,
-			)
-			prs := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets,
-				podq.Meta.ID, uint32(oprep.Id))
-			if prs == nil {
-				if rs := data.ZoneMaster.PvGet(prs_path); rs.OK() {
-					rs.Decode(prs)
-				}
-			}
-			if prs == nil || prs.Id != podq.Meta.ID {
-				prs = &inapi.PbPodRepStatus{
-					Id:  podq.Meta.ID,
-					Rep: uint32(oprep.Id),
-				}
-			}
-
-			prs.OpLog = inapi.NewPbOpLogSets(podq.OpRepKey(), podq.Operate.Version)
-			prs.OpLog.LogSet(
-				podq.Operate.Version,
-				"zone-master/scheduler",
-				inapi.PbOpLogOK, "sync to host/"+oprep.Node,
-			)
-
-			changed = false
-			status.ZonePodRepStatusSets, changed = inapi.PbPodRepStatusSliceSync(
-				status.ZonePodRepStatusSets, prs,
-			)
-			if changed {
-				if rs := data.ZoneMaster.PvPut(prs_path, prs, nil); !rs.OK() {
-					hlog.Printf("error", "zone/pod-rep-status saved %s, err (%s)", podq.OpRepKey(), rs.Bytex().String())
-					err_no++
-					break
-				}
-			}
-		}
-
-		if err_no == 0 {
+		if err == nil {
 			data.ZoneMaster.PvDel(inapi.NsZonePodOpQueue(status.ZoneId, podq.Spec.Cell, podq.Meta.ID), nil)
 		}
 	}
+	hlog.Printf("debug", "scheduling %d pods in %v", len(rss), time.Since(start))
+}
+
+func scheduler_exec_pod(podq *inapi.Pod) error {
+
+	var (
+		prev  inapi.Pod
+		start = time.Now()
+	)
+
+	if rs := data.ZoneMaster.PvGet(
+		inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID),
+	); rs.OK() {
+
+		if err := rs.Decode(&prev); err != nil {
+			hlog.Printf("error", "bad prev podq #%s instance", podq.Meta.ID)
+			// TODO error log
+			return fmt.Errorf("bad prev podq #%s instance", podq.Meta.ID)
+		}
+
+	} else if !rs.NotFound() {
+		return fmt.Errorf("failed on get podq #%s, err: %s", podq.Meta.ID, rs.Bytex().String())
+	}
+
+	if len(prev.Operate.Replicas) > 0 {
+		podq.Operate.Replicas = prev.Operate.Replicas
+	} else {
+		podq.Operate.Replicas.CapacitySet(podq.Operate.ReplicaCap)
+	}
+
+	if podq.Operate.Version == prev.Operate.Version {
+		for _, v := range prev.Operate.OpLog {
+			podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog, v)
+		}
+	}
+
+	if prev.Payment != nil {
+		podq.Payment = prev.Payment
+	} else {
+		podq.Payment = &inapi.PodPayment{
+			TimeStart: uint32(time.Now().Unix()),
+			TimeClose: 0,
+			Prepay:    0,
+			Payout:    0,
+		}
+	}
+
+	if !podq.Operate.Replicas.InitScheduled() {
+
+		//
+		{
+			spec_plan := zonePodSpecPlans.Get(podq.Spec.Ref.Id)
+			if spec_plan == nil {
+				return fmt.Errorf("bad pod.Spec #%s", podq.Meta.ID)
+			}
+
+			charge_amount := float64(0)
+
+			// Volumes
+			for _, v := range podq.Spec.Volumes {
+				charge_amount += iamapi.AccountFloat64Round(
+					spec_plan.ResourceVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+			}
+
+			for _, v := range podq.Spec.Boxes {
+
+				if v.Resources != nil {
+					// CPU
+					charge_amount += iamapi.AccountFloat64Round(
+						spec_plan.ResourceComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+
+					// RAM
+					charge_amount += iamapi.AccountFloat64Round(
+						spec_plan.ResourceComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
+				}
+			}
+
+			charge_amount = charge_amount * float64(podq.Operate.ReplicaCap)
+
+			charge_cycle_min := float64(3600)
+			charge_amount = iamapi.AccountFloat64Round(charge_amount*(charge_cycle_min/3600), 2)
+
+			tnu := uint32(time.Now().Unix())
+			if rsp := iamclient.AccountChargePreValid(iamapi.AccountChargePrepay{
+				User:      podq.Meta.User,
+				Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", podq.Meta.ID)),
+				Prepay:    charge_amount,
+				TimeStart: tnu,
+				TimeClose: tnu + uint32(charge_cycle_min),
+			}, status.ZonePodChargeAccessKey()); rsp.Error != nil {
+
+				status, msg := inapi.PbOpLogWarn, rsp.Error.Message
+				if msg == "" {
+					msg = "Error Code: " + rsp.Error.Code
+				}
+				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
+					status = inapi.PbOpLogError
+				}
+				podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
+					inapi.NewPbOpLogEntry(oplog_charge_prevalid, status, msg),
+				)
+				return errors.New("")
+			} else if rsp.Kind != "AccountCharge" {
+				return errors.New("Network Error")
+			}
+
+			podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
+				inapi.NewPbOpLogEntry(oplog_charge_prevalid, inapi.PbOpLogOK, "Account OK"),
+			)
+		}
+
+		//
+		host_ids, err := Scheduler.ScheduleSets(*podq, status.ZoneHostList)
+		if err != nil || len(host_ids) < len(podq.Operate.Replicas) {
+			podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
+				inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, "no available host schedule (New), waiting"))
+			return errors.New("")
+		}
+
+	} else if prev.Spec != nil {
+
+		var (
+			spec_res   = podq.Spec.ResComputeBound()
+			spec_res_p = prev.Spec.ResComputeBound()
+		)
+
+		if spec_res.CpuLimit > spec_res_p.CpuLimit ||
+			spec_res.MemLimit > spec_res_p.MemLimit {
+
+			cpu_fix := spec_res.CpuLimit - spec_res_p.CpuLimit
+			mem_fix := spec_res.MemLimit - spec_res_p.MemLimit
+
+			for _, oprep := range podq.Operate.Replicas {
+				if oprep.Node == "" {
+					continue
+				}
+
+				host := status.ZoneHostList.Item(oprep.Node)
+				if host == nil || host.Operate == nil || host.Spec == nil || host.Spec.Capacity == nil {
+					podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
+						inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, "no available host schedule (SpecChange), waiting"))
+					return errors.New("")
+				}
+
+				if host.Operate.CpuUsed+cpu_fix > int64(host.Spec.Capacity.Cpu) ||
+					host.Operate.MemUsed+mem_fix > int64(host.Spec.Capacity.Mem) {
+					podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
+						inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, "no available host schedule (SpecChange), waiting"))
+					return errors.New("")
+				}
+			}
+		}
+	}
+
+	exec_ok := 0
+
+	for _, oprep := range podq.Operate.Replicas {
+
+		oplog := scheduler_exec_pod_rep(&prev, podq, oprep)
+		if oplog.Status == inapi.PbOpLogOK {
+			exec_ok++
+		}
+
+		//
+		prs_path := inapi.NsZonePodReplicaStatus(
+			status.ZoneId,
+			podq.Meta.ID,
+			oprep.Id,
+		)
+		prs := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets,
+			podq.Meta.ID, uint32(oprep.Id))
+		if prs == nil {
+			if rs := data.ZoneMaster.PvGet(prs_path); rs.OK() {
+				rs.Decode(prs)
+			}
+		}
+		if prs == nil || prs.Id != podq.Meta.ID {
+			prs = &inapi.PbPodRepStatus{
+				Id:  podq.Meta.ID,
+				Rep: uint32(oprep.Id),
+			}
+		}
+
+		prs.OpLog = inapi.NewPbOpLogSets(podq.OpRepKey(), podq.Operate.Version)
+		prs.OpLog.LogSet(
+			podq.Operate.Version,
+			oplog_zms,
+			oplog.Status, oplog.Message,
+		)
+
+		changed := false
+		status.ZonePodRepStatusSets, changed = inapi.PbPodRepStatusSliceSync(
+			status.ZonePodRepStatusSets, prs,
+		)
+		if changed {
+			if rs := data.ZoneMaster.PvPut(prs_path, prs, nil); !rs.OK() {
+				hlog.Printf("error", "zone/pod-rep-status saved %s, err (%s)", podq.OpRepKey(), rs.Bytex().String())
+			}
+		}
+	}
+
+	msg := fmt.Sprintf("scheduling %d/%d replica sets in %v", exec_ok, len(podq.Operate.Replicas), time.Since(start))
+
+	if exec_ok != len(podq.Operate.Replicas) {
+		podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(
+			podq.Operate.OpLog,
+			inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, msg),
+		)
+		return errors.New("")
+	}
+
+	podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(
+		podq.Operate.OpLog,
+		inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogOK, msg),
+	)
+
+	return nil
+}
+
+func scheduler_exec_pod_rep(prev, podq *inapi.Pod, oprep *inapi.PodOperateReplica) *inapi.PbOpLogEntry {
+
+	var (
+		host      *inapi.ResHost
+		host_sync = false
+	)
+
+	if oprep.Node == "" {
+
+		host_id, err := Scheduler.Schedule(*podq, status.ZoneHostList)
+
+		if err != nil || host_id == "" {
+			// TODO error log
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host schedule")
+		}
+
+		host = status.ZoneHostList.Item(host_id)
+		if host == nil {
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host schedule")
+		}
+
+		podq.Operate.Replicas.Set(inapi.PodOperateReplica{
+			Id:   oprep.Id,
+			Node: host_id,
+		})
+
+		res := podq.Spec.ResComputeBound()
+		host.SyncOpCpu(res.CpuLimit)
+		host.SyncOpMem(res.MemLimit)
+
+		host_sync = true
+
+		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "Data IO error")
+		}
+
+		hlog.Printf("info", "schedule podq #%s on to host #%s (new)", podq.Meta.ID, host_id)
+	} else {
+
+		host = status.ZoneHostList.Item(oprep.Node)
+		if host == nil {
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host schedule")
+		}
+
+		var (
+			res   = podq.Spec.ResComputeBound()
+			res_p = prev.Spec.ResComputeBound()
+		)
+
+		if res.CpuLimit != res_p.CpuLimit ||
+			res.MemLimit != res_p.MemLimit {
+
+			host.SyncOpCpu(res.CpuLimit - res_p.CpuLimit)
+			host.SyncOpMem(res.MemLimit - res_p.MemLimit)
+
+			host_sync = true
+		}
+	}
+
+	var (
+		host_peer_lan  = inapi.HostNodeAddress(host.Spec.PeerLanAddr)
+		host_peer_port = host_peer_lan.Port()
+		ports          = podq.AppServicePorts()
+	)
+
+	for i, pv := range ports {
+
+		if pv.HostPort > 0 {
+
+			if pv.HostPort == host_peer_port {
+
+				ports[i].HostPort = 0
+
+				hlog.Printf("warn", "the host port %s:%d already in use ",
+					host.Spec.PeerLanAddr, pv.HostPort)
+
+			} else if host.OpPortHas(pv.HostPort) {
+
+				if ppv := oprep.Ports.Get(pv.BoxPort); ppv == nil ||
+					ppv.HostPort != pv.HostPort {
+
+					ports[i].HostPort = 0
+
+					hlog.Printf("warn", "the host port %s:%d is already allocated",
+						host.Spec.PeerLanAddr, pv.HostPort)
+				}
+			} else {
+				host.OpPortAlloc(pv.HostPort)
+				host_sync = true
+			}
+
+			continue
+		}
+
+		for _, pvp := range oprep.Ports {
+
+			if pvp.BoxPort != pv.BoxPort {
+				continue
+			}
+
+			if pvp.HostPort > 0 {
+				ports.Sync(*pvp)
+			}
+
+			break
+		}
+	}
+
+	// TODO delete unused port
+
+	//
+	ports_alloc := []uint16{}
+	for i, p := range ports {
+
+		if p.HostPort > 0 {
+			continue
+		}
+
+		if port_alloc := host.OpPortAlloc(0); port_alloc > 0 {
+
+			ports[i].HostPort = port_alloc
+			host_sync = true
+			ports_alloc = append(ports_alloc, port_alloc)
+
+			hlog.Printf("info", "new port alloc to %s:%d",
+				host.Spec.PeerLanAddr, port_alloc)
+
+		} else {
+			hlog.Printf("warn", "host #%s res-port out range", host.Meta.Id)
+		}
+	}
+
+	//
+	if len(ports) > 0 {
+
+		var nsz inapi.NsPodServiceMap
+
+		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodServiceMap(podq.Meta.ID)); rs.OK() {
+			rs.Decode(&nsz)
+		}
+
+		if nsz.User == "" {
+			nsz.User = podq.Meta.User
+		}
+
+		for _, popv := range ports {
+			nsz.Sync(popv.BoxPort, oprep.Id, host_peer_lan.IP(), popv.HostPort)
+		}
+
+		if nsz.SyncChanged() {
+			nsz.Updated = uint64(types.MetaTimeNow())
+			data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(podq.Meta.ID), nsz, nil)
+		}
+	}
+
+	oprep.Ports = ports
+
+	if host_sync {
+
+		hlog.Printf("info", "host #%s sync changes", host.Meta.Id)
+
+		host.OpPortSort()
+
+		if rs := data.ZoneMaster.PvPut(
+			inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
+		); !rs.OK() {
+			hlog.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
+			for _, pa := range ports_alloc {
+				host.OpPortFree(pa)
+			}
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn,
+				fmt.Sprintf("host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String()))
+		}
+
+		// TODO
+	}
+
+	podq.Operate.Replica = oprep
+	k := inapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, podq.Meta.ID, oprep.Id)
+
+	if rs := data.ZoneMaster.PvPut(k, podq, nil); !rs.OK() {
+		hlog.Printf("error", "zone/podq saved %s, err (%s)", k, rs.Bytex().String())
+		return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn,
+			fmt.Sprintf("zone/podq saved %s, err (%s)", k, rs.Bytex().String()))
+	}
+
+	return inapi.NewPbOpLogEntry("", inapi.PbOpLogOK, "sync to host/"+oprep.Node)
 }

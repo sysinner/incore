@@ -18,6 +18,7 @@ package inapi
 // onto hosts.
 type Scheduler interface {
 	Schedule(pod Pod, hosts ResHostList) (host_id string, err error)
+	ScheduleSets(pod Pod, hosts ResHostList) (host_ids []string, err error)
 }
 
 /*
@@ -26,7 +27,7 @@ type ScheduleHostOperate struct {
 	Cell    string      `json:"cell"`
 	Action  uint32      `json:"action"`
 	CpuUsed int64       `json:"cpu_used,omitempty"`
-	RamUsed int64       `json:"ram_used,omitempty"`
+	MemUsed int64       `json:"ram_used,omitempty"`
 	Ports   ArrayUint16 `json:"ports"`
 }
 
@@ -34,7 +35,7 @@ type SchudulePodOperate struct {
 	Id    string       `json:"id"`
 	Host  string       `json:"host"`
 	Cpu   int64        `json:"cpu"`
-	Ram   int64        `json:"ram"`
+	Mem   int64        `json:"ram"`
 	Ports ServicePorts `json:"ports"`
 }
 */

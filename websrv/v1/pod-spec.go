@@ -15,6 +15,8 @@
 package v1
 
 import (
+	"sort"
+
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
@@ -49,14 +51,13 @@ func (c PodSpec) PlanListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO
-	rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100)
-	rss := rs.KvList()
+	rss := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100).KvList()
 	for _, v := range rss {
-
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
 			item.ChargeFix()
-			ls.Items = append(ls.Items, item)
+			sort.Sort(item.ResourceComputes)
+			ls.Items = append(ls.Items, &item)
 		}
 	}
 
