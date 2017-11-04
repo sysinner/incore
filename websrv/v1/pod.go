@@ -194,7 +194,7 @@ func (c Pod) EntryAction() {
 				return
 			}
 			if fields == "status" {
-				if v := pod_status(set.Meta.ID, c.us.UserName); v.Phase != "" {
+				if v := pod_status(set.Meta.ID, c.us.UserName); v.Action != 0 {
 					set.Status = &v
 				} else {
 					set.Status = nil
@@ -265,9 +265,9 @@ func (c Pod) NewAction() {
 		return
 	}
 
-	res_vol := spec_plan.ResVolume(set.ResourceVolume)
+	res_vol := spec_plan.ResVolume(set.ResVolume)
 	if res_vol == nil {
-		set.Error = types.NewErrorMeta("400", "No ResourceVolume Found")
+		set.Error = types.NewErrorMeta("400", "No ResVolume Found")
 		return
 	}
 
@@ -291,15 +291,14 @@ func (c Pod) NewAction() {
 			Zone:   set.Zone,
 			Cell:   set.Cell,
 			Labels: spec_plan.Labels,
-			Volumes: []inapi.PodSpecResVolume{
+			Volumes: []inapi.PodSpecResVolumeBound{
 				{
 					Ref: inapi.ObjectReference{
 						Id:   res_vol.RefId,
 						Name: res_vol.RefId,
-						// Version: res_vol.Meta.Version,
 					},
 					Name:      "system",
-					SizeLimit: set.ResourceVolumeSize,
+					SizeLimit: set.ResVolumeSize,
 				},
 			},
 		},
@@ -307,6 +306,7 @@ func (c Pod) NewAction() {
 			Action:     inapi.OpActionStart,
 			Version:    1,
 			ReplicaCap: 1, // TODO
+			Operated:   uint32(time.Now().Unix()),
 		},
 	}
 
@@ -319,9 +319,9 @@ func (c Pod) NewAction() {
 			return
 		}
 
-		res := spec_plan.ResCompute(v.ResourceCompute)
+		res := spec_plan.ResCompute(v.ResCompute)
 		if res == nil {
-			set.Error = types.NewErrorMeta("400", "No ResourceCompute Found")
+			set.Error = types.NewErrorMeta("400", "No ResCompute Found")
 			return
 		}
 
@@ -354,7 +354,7 @@ func (c Pod) NewAction() {
 	// Volumes
 	for _, v := range pod.Spec.Volumes {
 		charge_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResourceVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
 	}
 
 	for _, v := range pod.Spec.Boxes {
@@ -362,11 +362,11 @@ func (c Pod) NewAction() {
 		if v.Resources != nil {
 			// CPU
 			charge_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
 
 			// RAM
 			charge_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
+				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
 		}
 	}
 
@@ -446,20 +446,33 @@ func (c Pod) OpActionSetAction() {
 		return
 	}
 
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		set.Error = types.NewErrorMeta("400", "the pod instance has been destroyed")
+		return
+	}
+
 	//
 	prev.Operate.Action = op_action
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	tn := uint32(time.Now().Unix())
 
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "ObjectAlreadyExists")
+		if tn < prev.Operate.Operated+600 {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+		}
 		return
 	}
-	data.ZoneMaster.PvPut(qstr, prev, nil)
+
+	prev.Operate.Operated = tn
+	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
+		return
+	}
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 
 	set.Kind = "PodInstance"
 }
@@ -500,6 +513,11 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		set.Error = types.NewErrorMeta("400", "the pod instance has been destroyed")
+		return
+	}
+
 	//
 	if prev.Meta.Name == set.Meta.Name &&
 		prev.Operate.Action == set.Operate.Action {
@@ -516,17 +534,23 @@ func (c Pod) SetInfoAction() {
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	tn := uint32(time.Now().Unix())
 
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "ObjectAlreadyExists")
+		if tn < prev.Operate.Operated+600 {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+		}
 		return
 	}
 
-	data.ZoneMaster.PvPut(qstr, prev, nil)
+	prev.Operate.Operated = tn
+	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
+		return
+	}
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 
 	set.Kind = "PodInstance"
 }
@@ -587,13 +611,13 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 			continue
 		}
 
-		if rep_status.Phase == "" {
-			rep_status.Phase = inapi.OpStatusPending
+		if rep_status.Action == 0 {
+			rep_status.Action = inapi.OpActionPending
 		} else {
 
-			if rep_status.Phase == inapi.OpStatusRunning &&
+			if rep_status.Action == inapi.OpActionRunning &&
 				(uint32(time.Now().UTC().Unix())-rep_status.Updated) > 600 {
-				rep_status.Phase = inapi.OpStatusUnknown
+				rep_status.Action = 0
 			}
 
 			status.Replicas = append(status.Replicas, rep_status)

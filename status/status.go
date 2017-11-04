@@ -120,21 +120,15 @@ func ZonePodRepMergeOperateAction(pod_id string, rep_cap int) uint32 {
 		if v == nil {
 			continue
 		}
-		switch v.Phase {
-		case "running":
-			action = action | inapi.OpActionRunning
-		case "stopped":
-			action = action | inapi.OpActionStopped
 
-		case "destroyed":
-			action = action | inapi.OpActionDestroyed
+		if action == 0 {
+			action = v.Action
+		}
+
+		if action != v.Action {
+			return inapi.OpActionPending
 		}
 	}
 
-	switch action {
-	case inapi.OpActionRunning, inapi.OpActionStopped, inapi.OpActionDestroyed:
-		return action
-	}
-
-	return inapi.OpActionStopped
+	return action
 }

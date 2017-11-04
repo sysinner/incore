@@ -82,6 +82,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 		)
 
 		prev := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets, v.Id, v.Rep)
+
 		if prev == nil {
 			if rs := data.ZoneMaster.PvGet(path); rs.OK() {
 				rs.Decode(prev)
@@ -102,6 +103,13 @@ func (s *ApiZoneMaster) HostStatusSync(
 		v.OpLog = prev.OpLog
 		v.Updated = tn
 
+		for _, v2 := range prev.Boxes {
+			if v2.Name == "" {
+				prev.Boxes = []*inapi.PbPodBoxStatus{}
+				break
+			}
+		}
+
 		changed := false
 		status.ZonePodRepStatusSets, changed = inapi.PbPodRepStatusSliceSync(
 			status.ZonePodRepStatusSets, v,
@@ -116,36 +124,35 @@ func (s *ApiZoneMaster) HostStatusSync(
 		}
 
 		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)
-		if v.Phase == inapi.OpStatusRunning ||
-			v.Phase == inapi.OpStatusStopped {
+		if inapi.OpActionAllow(v.Action, inapi.OpActionRunning) ||
+			inapi.OpActionAllow(v.Action, inapi.OpActionStopped) ||
+			inapi.OpActionAllow(v.Action, inapi.OpActionDestroyed) {
 
 			bp_key := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, v.Id, uint16(v.Rep))
 
 			if rs := data.ZoneMaster.PvGet(bp_key); rs.OK() {
 				var bpod inapi.Pod
-				rs.Decode(&bpod)
+				err := rs.Decode(&bpod)
 
-				if bpod.Meta.ID == v.Id {
+				if err == nil && bpod.Meta.ID == v.Id {
 					synced := false
-					switch v.Phase {
-					case inapi.OpStatusRunning:
+
+					if inapi.OpActionAllow(v.Action, inapi.OpActionRunning) {
 						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStart) &&
 							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionRunning) {
-							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionRunning)
+							bpod.Operate.Action = bpod.Operate.Action | inapi.OpActionRunning
 							synced = true
 						}
-
-					case inapi.OpStatusStopped:
+					} else if inapi.OpActionAllow(v.Action, inapi.OpActionStopped) {
 						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStop) &&
 							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStopped) {
-							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionStopped)
+							bpod.Operate.Action = bpod.Operate.Action | inapi.OpActionStopped
 							synced = true
 						}
-
-					case inapi.OpStatusDestroyed:
+					} else if inapi.OpActionAllow(v.Action, inapi.OpActionDestroyed) {
 						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroy) &&
 							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroyed) {
-							bpod.Operate.Action = inapi.OpActionAppend(bpod.Operate.Action, inapi.OpActionDestroyed)
+							bpod.Operate.Action = bpod.Operate.Action | inapi.OpActionDestroyed
 							synced = true
 						}
 					}
@@ -153,6 +160,8 @@ func (s *ApiZoneMaster) HostStatusSync(
 					if synced {
 						bpod.Meta.Updated = types.MetaTimeNow()
 						data.ZoneMaster.PvPut(bp_key, bpod, nil)
+						hlog.Printf("info", "zone-master/rpc-server sync pod:%s action:%s",
+							bpod.Meta.ID, inapi.OpActionStrings(bpod.Operate.Action))
 					}
 				}
 			}

@@ -53,6 +53,7 @@ func pod_op_pull() {
 
 		var pod inapi.Pod
 		if err := v.Decode(&pod); err != nil {
+			fmt.Println(err)
 			continue
 		}
 
@@ -78,13 +79,18 @@ func pod_op_pull() {
 
 func pod_op_pull_entry(pod *inapi.Pod) error {
 
-	prev := PodRepActives.Get(pod.IterKey())
-	sysdir := vol_agentsys_dir(pod.Meta.ID, pod.Operate.Replica.Id)
+	// fmt.Println("hostlet", pod.Meta.ID, inapi.OpActionStrings(pod.Operate.Action), pod.Operate.Version)
 
-	// if pod.Meta.ID == "5a01876a1cebbe6f" {
-	// 	js, _ := json.Encode(pod, "  ")
-	// 	hlog.Printf("info", "JSON %s %s", pod.Meta.ID, string(js))
-	// }
+	prev := PodRepActives.Get(pod.IterKey())
+
+	if prev != nil {
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) &&
+			inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			return nil
+		}
+	}
+
+	sysdir := vol_agentsys_dir(pod.Meta.ID, pod.Operate.Replica.Id)
 
 	if prev == nil {
 
@@ -103,7 +109,8 @@ func pod_op_pull_entry(pod *inapi.Pod) error {
 
 		PodRepActives.Set(prev)
 
-	} else if pod.Meta.Updated > 1 && pod.Meta.Updated != prev.Meta.Updated {
+	} else if pod.Operate.Version > prev.Operate.Version ||
+		(pod.Meta.Updated > 1 && pod.Meta.Updated != prev.Meta.Updated) {
 
 		prev.Meta.Updated = pod.Meta.Updated
 		prev.Spec = pod.Spec

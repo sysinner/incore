@@ -51,7 +51,7 @@ func (c PodSpec) ResComputeListAction() {
 
 	var ls struct {
 		types.TypeMeta `json:",inline"`
-		Items          inapi.PodSpecResourceComputes `json:"items"`
+		Items          inapi.PodSpecResComputes `json:"items"`
 	}
 	defer c.RenderJson(&ls)
 
@@ -65,7 +65,7 @@ func (c PodSpec) ResComputeListAction() {
 	rss := rs.KvList()
 	for _, v := range rss {
 
-		var item inapi.PodSpecResourceCompute
+		var item inapi.PodSpecResCompute
 		if err := v.Decode(&item); err == nil {
 			ls.Items = append(ls.Items, &item)
 		}
@@ -73,18 +73,18 @@ func (c PodSpec) ResComputeListAction() {
 
 	sort.Sort(ls.Items)
 
-	ls.Kind = "PodSpecResourceComputeList"
+	ls.Kind = "PodSpecResComputeList"
 }
 
 func (c PodSpec) ResComputeNewAction() {
 
 	var set struct {
 		inapi.GeneralObject
-		inapi.PodSpecResourceCompute
+		inapi.PodSpecResCompute
 	}
 	defer c.RenderJson(&set)
 
-	if err := c.Request.JsonDecode(&set.PodSpecResourceCompute); err != nil {
+	if err := c.Request.JsonDecode(&set.PodSpecResCompute); err != nil {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
 		return
 	}
@@ -132,7 +132,7 @@ func (c PodSpec) ResComputeNewAction() {
 
 	rs = data.ZoneMaster.PvPut(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID), set, nil)
 	if rs.OK() {
-		set.Kind = "PodSpecResourceCompute"
+		set.Kind = "PodSpecResCompute"
 	} else {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 	}
@@ -142,11 +142,11 @@ func (c PodSpec) ResComputeSetAction() {
 
 	var set struct {
 		inapi.GeneralObject `json:",inline"`
-		inapi.PodSpecResourceCompute
+		inapi.PodSpecResCompute
 	}
 	defer c.RenderJson(&set)
 
-	if err := c.Request.JsonDecode(&set.PodSpecResourceCompute); err != nil {
+	if err := c.Request.JsonDecode(&set.PodSpecResCompute); err != nil {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
 		return
 	}
@@ -156,7 +156,7 @@ func (c PodSpec) ResComputeSetAction() {
 		return
 	}
 
-	var prev inapi.PodSpecResourceCompute
+	var prev inapi.PodSpecResCompute
 	rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID))
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Spec Not Found")
@@ -174,7 +174,7 @@ func (c PodSpec) ResComputeSetAction() {
 
 	rs = data.ZoneMaster.PvPut(inapi.NsGlobalPodSpec("res/compute", prev.Meta.ID), set, nil)
 	if !rs.OK() {
-		set.Kind = "PodSpecResourceCompute"
+		set.Kind = "PodSpecResCompute"
 	} else {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 	}
@@ -337,20 +337,20 @@ func (c PodSpec) PlanSetAction() {
 	}
 
 	//
-	prev.ResourceComputes = []*inapi.PodSpecPlanResComputeBound{}
+	prev.ResComputes = []*inapi.PodSpecPlanResComputeBound{}
 	rss = data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/compute", ""), "", "", 100).KvList()
 	for _, v := range rss {
 
-		var item inapi.PodSpecResourceCompute
+		var item inapi.PodSpecResCompute
 		if err := v.Decode(&item); err != nil {
 			continue
 		}
 
-		for _, v2 := range set.ResourceComputes {
+		for _, v2 := range set.ResComputes {
 			if v2.RefId != item.Meta.ID {
 				continue
 			}
-			prev.ResourceComputes = append(prev.ResourceComputes, &inapi.PodSpecPlanResComputeBound{
+			prev.ResComputes = append(prev.ResComputes, &inapi.PodSpecPlanResComputeBound{
 				RefId:    item.Meta.ID,
 				CpuLimit: item.CpuLimit,
 				MemLimit: item.MemLimit,
@@ -358,26 +358,26 @@ func (c PodSpec) PlanSetAction() {
 			break
 		}
 	}
-	if len(prev.ResourceComputes) < 1 {
+	if len(prev.ResComputes) < 1 {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
 		return
 	}
 
 	//
-	prev.ResourceVolumes = []*inapi.PodSpecPlanResVolumeBound{}
+	prev.ResVolumes = []*inapi.PodSpecPlanResVolumeBound{}
 	rss = data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 100).KvList()
 	for _, v := range rss {
 
-		var item inapi.PodSpecResourceVolume
+		var item inapi.PodSpecResVolume
 		if err := v.Decode(&item); err != nil {
 			continue
 		}
 
-		for _, v2 := range set.ResourceVolumes {
+		for _, v2 := range set.ResVolumes {
 			if v2.RefId != item.Meta.ID {
 				continue
 			}
-			prev.ResourceVolumes = append(prev.ResourceVolumes, &inapi.PodSpecPlanResVolumeBound{
+			prev.ResVolumes = append(prev.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
 				RefId:   item.Meta.ID,
 				Limit:   item.Limit,
 				Request: item.Request,
@@ -388,7 +388,7 @@ func (c PodSpec) PlanSetAction() {
 			break
 		}
 	}
-	if len(prev.ResourceVolumes) < 1 {
+	if len(prev.ResVolumes) < 1 {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
 		return
 	}
@@ -446,11 +446,11 @@ func (c PodSpec) ResVolumeListAction() {
 	rss := rs.KvList()
 	for _, v := range rss {
 
-		var item inapi.PodSpecResourceVolume
+		var item inapi.PodSpecResVolume
 		if err := v.Decode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
 		}
 	}
 
-	ls.Kind = "PodSpecResourceVolumeList"
+	ls.Kind = "PodSpecResVolumeList"
 }

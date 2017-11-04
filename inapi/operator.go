@@ -26,7 +26,8 @@ var (
 	OpActionStopped   uint32 = 1 << 4
 	OpActionDestroy   uint32 = 1 << 5
 	OpActionDestroyed uint32 = 1 << 6
-	OpActionWarn      uint32 = 1 << 11
+	OpActionPending   uint32 = 1 << 11
+	OpActionWarning   uint32 = 1 << 12
 	oplog_list_mu     sync.RWMutex
 	oplog_sets_mu     sync.RWMutex
 )
@@ -36,7 +37,7 @@ func OpActionValid(op uint32) bool {
 		OpActionStart|OpActionRunning|
 			OpActionStop|OpActionStopped|
 			OpActionDestroy|OpActionDestroyed|
-			OpActionWarn,
+			OpActionPending|OpActionWarning,
 		op,
 	)
 }
@@ -51,6 +52,40 @@ func OpActionRemove(opbase, op uint32) uint32 {
 
 func OpActionAppend(opbase, op uint32) uint32 {
 	return (opbase | op)
+}
+
+func OpActionStrings(action uint32) []string {
+	s := []string{}
+
+	if OpActionAllow(action, OpActionStart) {
+		s = append(s, "start")
+	}
+
+	if OpActionAllow(action, OpActionRunning) {
+		s = append(s, "running")
+	}
+
+	if OpActionAllow(action, OpActionStop) {
+		s = append(s, "stop")
+	}
+
+	if OpActionAllow(action, OpActionDestroy) {
+		s = append(s, "destroy")
+	}
+
+	if OpActionAllow(action, OpActionDestroyed) {
+		s = append(s, "destroyed")
+	}
+
+	if OpActionAllow(action, OpActionPending) {
+		s = append(s, "pending")
+	}
+
+	if OpActionAllow(action, OpActionWarning) {
+		s = append(s, "warning")
+	}
+
+	return s
 }
 
 //

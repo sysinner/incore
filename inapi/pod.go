@@ -73,10 +73,11 @@ type Pod struct {
 }
 
 type PodPayment struct {
-	TimeStart uint32  `json:"time_start"`
-	TimeClose uint32  `json:"time_close"`
-	Prepay    float64 `json:"prepay"`
-	Payout    float64 `json:"payout"`
+	TimeStart   uint32  `json:"time_start"`
+	TimeClose   uint32  `json:"time_close"`
+	Prepay      float64 `json:"prepay"`
+	Payout      float64 `json:"payout"`
+	CycleAmount float64 `json:"cycle_amount"`
 }
 
 type PodEstimateList struct {
@@ -141,6 +142,17 @@ func (ls *PodSets) Set(item *Pod) {
 	*ls = append(*ls, item)
 }
 
+func (ls *PodSets) Del(key string) {
+	pod_sets_mu.Lock()
+	defer pod_sets_mu.Unlock()
+	for i, v := range *ls {
+		if v.IterKey() == key {
+			*ls = append((*ls)[:i], (*ls)[i+1:]...)
+			return
+		}
+	}
+}
+
 func (ls *PodSets) Each(fn func(item *Pod)) {
 	pod_sets_mu.RLock()
 	defer pod_sets_mu.RUnlock()
@@ -158,15 +170,15 @@ type PodList struct {
 
 // PodSpecBound is a description of a bound spec based on PodSpecPlan
 type PodSpecBound struct {
-	Ref     ObjectReference    `json:"ref,omitempty"`
-	Zone    string             `json:"zone,omitempty"`
-	Cell    string             `json:"cell,omitempty"`
-	Labels  types.Labels       `json:"labels,omitempty"`
-	Volumes []PodSpecResVolume `json:"volumes,omitempty"`
-	Boxes   []PodSpecBoxBound  `json:"boxes,omitempty"`
+	Ref     ObjectReference         `json:"ref,omitempty"`
+	Zone    string                  `json:"zone,omitempty"`
+	Cell    string                  `json:"cell,omitempty"`
+	Labels  types.Labels            `json:"labels,omitempty"`
+	Volumes []PodSpecResVolumeBound `json:"volumes,omitempty"`
+	Boxes   []PodSpecBoxBound       `json:"boxes,omitempty"`
 }
 
-func (obj *PodSpecBound) Volume(name string) *PodSpecResVolume {
+func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
 
 	for _, v := range obj.Volumes {
 
@@ -208,7 +220,7 @@ type ObjectReference struct {
 	Title   string `json:"title,omitempty"`
 }
 
-type PodSpecResVolume struct {
+type PodSpecResVolumeBound struct {
 	Ref       ObjectReference `json:"ref,omitempty"`
 	Name      string          `json:"name"`
 	Labels    types.Labels    `json:"labels,omitempty"`
@@ -299,7 +311,7 @@ type PodSpecBoxImageList struct {
 	Items          []PodSpecBoxImage `json:"items,omitempty"`
 }
 
-type PodSpecResourceCompute struct {
+type PodSpecResCompute struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
 
@@ -336,38 +348,39 @@ func (s PodSpecPlanResComputeBounds) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-type PodSpecResourceComputes []*PodSpecResourceCompute
+type PodSpecResComputes []*PodSpecResCompute
 
-type PodSpecResourceComputeList struct {
+type PodSpecResComputeList struct {
 	types.TypeMeta `json:",inline"`
-	Items          PodSpecResourceComputes `json:"items,omitempty"`
+	Items          PodSpecResComputes `json:"items,omitempty"`
 }
 
-func (s PodSpecResourceComputes) Len() int {
+func (s PodSpecResComputes) Len() int {
 	return len(s)
 }
 
-func (s PodSpecResourceComputes) Less(i, j int) bool {
+func (s PodSpecResComputes) Less(i, j int) bool {
 
-	if s[i].CpuLimit < s[j].CpuLimit {
+	if s[i].CpuLimit < s[j].CpuLimit ||
+		(s[i].CpuLimit == s[j].CpuLimit && s[i].MemLimit < s[j].MemLimit) {
 		return true
 	}
 
 	return false
 }
 
-func (s PodSpecResourceComputes) Swap(i, j int) {
+func (s PodSpecResComputes) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-type PodSpecResourceComputeCharge struct {
+type PodSpecResComputeCharge struct {
 	Type  uint8   `json:"type"`
 	Cycle uint64  `json:"cycle"` // default to 3600 seconds
 	Cpu   float64 `json:"cpu"`   // value in Core
 	Mem   float64 `json:"mem"`   // value in MiB
 }
 
-type PodSpecResourceVolume struct {
+type PodSpecResVolume struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
 
@@ -386,12 +399,12 @@ type PodSpecResourceVolume struct {
 	Default int64 `json:"default,omitempty"` // default to 100MB
 }
 
-type PodSpecResourceVolumeList struct {
+type PodSpecResVolumeList struct {
 	types.TypeMeta `json:",inline"`
-	Items          []PodSpecResourceVolume `json:"items,omitempty"`
+	Items          []PodSpecResVolume `json:"items,omitempty"`
 }
 
-type PodSpecResourceVolumeCharge struct {
+type PodSpecResVolumeCharge struct {
 	Type    uint8   `json:"type"`
 	Cycle   uint64  `json:"cycle"`    // default to 3600 seconds
 	CapSize float64 `json:"cap_size"` // value in MiB
@@ -450,25 +463,26 @@ type PodSpecPlan struct {
 	Images       []*PodSpecPlanBoxImageBound `json:"images,omitempty"`
 	ImageDefault string                      `json:"image_default,omitempty"`
 
-	ResourceComputes       PodSpecPlanResComputeBounds  `json:"res_computes,omitempty"`
-	ResourceComputeDefault string                       `json:"res_compute_default,omitempty"`
-	ResourceComputeCharge  PodSpecResourceComputeCharge `json:"res_compute_charge,omitempty"`
+	ResComputes       PodSpecPlanResComputeBounds `json:"res_computes,omitempty"`
+	ResComputeDefault string                      `json:"res_compute_default,omitempty"`
+	ResComputeCharge  PodSpecResComputeCharge     `json:"res_compute_charge,omitempty"`
 
-	ResourceVolumes       []*PodSpecPlanResVolumeBound `json:"res_volumes,omitempty"`
-	ResourceVolumeDefault string                       `json:"res_volume_default,omitempty"`
-	ResourceVolumeCharge  PodSpecResourceVolumeCharge  `json:"res_volume_charge,omitempty"`
+	ResVolumes       []*PodSpecPlanResVolumeBound `json:"res_volumes,omitempty"`
+	ResVolumeDefault string                       `json:"res_volume_default,omitempty"`
+	ResVolumeCharge  PodSpecResVolumeCharge       `json:"res_volume_charge,omitempty"`
 
 	ResourceCharge PodSpecPlanResourceCharge `json:"res_charge"`
 }
 
+// TODO
 func (s *PodSpecPlan) ChargeFix() {
 
 	s.ResourceCharge.Cycle = 3600
 
-	s.ResourceComputeCharge.Cpu = 0.1
-	s.ResourceComputeCharge.Mem = 0.0001
+	s.ResComputeCharge.Cpu = 0.1
+	s.ResComputeCharge.Mem = 0.0001
 
-	s.ResourceVolumeCharge.CapSize = 0.000004
+	s.ResVolumeCharge.CapSize = 0.000004
 }
 
 func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {
@@ -485,7 +499,7 @@ func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {
 
 func (s PodSpecPlan) ResCompute(id string) *PodSpecPlanResComputeBound {
 
-	for _, v := range s.ResourceComputes {
+	for _, v := range s.ResComputes {
 
 		if v.RefId == id {
 			return v
@@ -497,7 +511,7 @@ func (s PodSpecPlan) ResCompute(id string) *PodSpecPlanResComputeBound {
 
 func (s PodSpecPlan) ResVolume(id string) *PodSpecPlanResVolumeBound {
 
-	for _, v := range s.ResourceVolumes {
+	for _, v := range s.ResVolumes {
 
 		if v.RefId == id {
 			return v
@@ -528,23 +542,23 @@ type PodSpecPlanZoneBound struct {
 }
 
 type PodCreate struct {
-	types.TypeMeta     `json:",inline"`
-	Pod                string         `json:"pod,omitempty"`
-	Name               string         `json:"name"`
-	Plan               string         `json:"plan"`
-	Zone               string         `json:"zone"`
-	Cell               string         `json:"cell"`
-	ResourceVolume     string         `json:"res_volume"`
-	ResourceVolumeSize int64          `json:"res_volume_size"`
-	Boxes              []PodCreateBox `json:"boxes"`
+	types.TypeMeta `json:",inline"`
+	Pod            string         `json:"pod,omitempty"`
+	Name           string         `json:"name"`
+	Plan           string         `json:"plan"`
+	Zone           string         `json:"zone"`
+	Cell           string         `json:"cell"`
+	ResVolume      string         `json:"res_volume"`
+	ResVolumeSize  int64          `json:"res_volume_size"`
+	Boxes          []PodCreateBox `json:"boxes"`
 }
 
 type PodCreateBox struct {
-	Name                    string `json:"name"`
-	Image                   string `json:"image"`
-	ResourceCompute         string `json:"res_compute"`
-	ResourceComputeCpuLimit int64  `json:"res_compute_cpu_limit,omitempty"`
-	ResourceComputeMemLimit int64  `json:"res_compute_mem_limit,omitempty"`
+	Name               string `json:"name"`
+	Image              string `json:"image"`
+	ResCompute         string `json:"res_compute"`
+	ResComputeCpuLimit int64  `json:"res_compute_cpu_limit,omitempty"`
+	ResComputeMemLimit int64  `json:"res_compute_mem_limit,omitempty"`
 }
 
 func (s *PodCreate) Valid(plan PodSpecPlan) error {
@@ -577,29 +591,29 @@ func (s *PodCreate) Valid(plan PodSpecPlan) error {
 	}
 	hit = false
 
-	if s.ResourceVolumeSize < 100*ByteMB {
-		return errors.New("Invalid ResourceVolumeSize")
+	if s.ResVolumeSize < 100*ByteMB {
+		return errors.New("Invalid ResVolumeSize")
 	}
 
-	if s.ResourceVolumeSize >= ByteGB {
+	if s.ResVolumeSize >= ByteGB {
 
-		if fix := s.ResourceVolumeSize % ByteGB; fix > 0 {
-			s.ResourceVolumeSize -= fix
+		if fix := s.ResVolumeSize % ByteGB; fix > 0 {
+			s.ResVolumeSize -= fix
 		}
 
-	} else if fix := s.ResourceVolumeSize % ByteMB; fix > 0 {
-		s.ResourceVolumeSize -= fix
+	} else if fix := s.ResVolumeSize % ByteMB; fix > 0 {
+		s.ResVolumeSize -= fix
 	}
 
-	for _, vol := range plan.ResourceVolumes {
+	for _, vol := range plan.ResVolumes {
 
-		if vol.RefId != s.ResourceVolume {
+		if vol.RefId != s.ResVolume {
 			continue
 		}
 
-		if s.ResourceVolumeSize > vol.Limit ||
-			s.ResourceVolumeSize < vol.Request {
-			return errors.New("Invalid ResourceVolumeSize")
+		if s.ResVolumeSize > vol.Limit ||
+			s.ResVolumeSize < vol.Request {
+			return errors.New("Invalid ResVolumeSize")
 		}
 
 		hit = true
@@ -607,28 +621,28 @@ func (s *PodCreate) Valid(plan PodSpecPlan) error {
 	}
 
 	if !hit {
-		return errors.New("No ResourceVolume Found")
+		return errors.New("No ResVolume Found")
 	}
 
 	for i, box := range s.Boxes {
 
 		hit = false
 
-		for _, rv := range plan.ResourceComputes {
+		for _, rv := range plan.ResComputes {
 
-			if rv.RefId != box.ResourceCompute {
+			if rv.RefId != box.ResCompute {
 				continue
 			}
 
-			s.Boxes[i].ResourceComputeCpuLimit = rv.CpuLimit
-			s.Boxes[i].ResourceComputeMemLimit = rv.MemLimit
+			s.Boxes[i].ResComputeCpuLimit = rv.CpuLimit
+			s.Boxes[i].ResComputeMemLimit = rv.MemLimit
 
 			hit = true
 			break
 		}
 
 		if !hit {
-			return errors.New("Invalid ResourceCompute")
+			return errors.New("Invalid ResCompute")
 		}
 	}
 
@@ -642,6 +656,7 @@ type PodOperate struct {
 	Replicas   PodOperateReplicas `json:"replicas,omitempty"`
 	Replica    *PodOperateReplica `json:"replica,omitempty"`
 	OpLog      []*PbOpLogEntry    `json:"op_log,omitempty"`
+	Operated   uint32             `json:"operated,omitempty"`
 }
 
 type PodOperateReplica struct {
@@ -724,7 +739,7 @@ type PodExecutorStatus struct {
 // state of a system.
 type PodStatus struct {
 	types.TypeMeta `json:",inline"`
-	Phase          string            `json:"phase,omitempty"`
+	Action         uint32            `json:"action,omitempty"`
 	Replicas       []*PbPodRepStatus `json:"replicas,omitempty"`
 	Updated        uint32            `json:"updated,omitempty"`
 	OpLog          []*PbOpLogEntry   `json:"op_log,omitempty"`
@@ -738,11 +753,11 @@ func (it *PodStatus) Refresh(rep_cap int) {
 
 	if rep_cap != len(it.Replicas) {
 
-		it.Phase = OpStatusPending
+		it.Action = OpActionPending
 
 	} else {
 
-		s_diff := map[string]int{}
+		s_diff := map[uint32]int{}
 
 		for _, rep := range it.Replicas {
 
@@ -750,30 +765,30 @@ func (it *PodStatus) Refresh(rep_cap int) {
 				it.Updated = rep.Updated
 			}
 
-			switch rep.Phase {
-
-			case OpStatusRunning,
-				OpStatusStopped,
-				OpStatusFailed,
-				OpStatusDestroyed:
-				s_diff[rep.Phase]++
-
-			default:
-				s_diff[OpStatusPending]++
+			if OpActionAllow(rep.Action, OpActionRunning) {
+				s_diff[OpActionRunning]++
+			} else if OpActionAllow(rep.Action, OpActionStopped) {
+				s_diff[OpActionStopped]++
+			} else if OpActionAllow(rep.Action, OpActionDestroyed) {
+				s_diff[OpActionDestroyed]++
+			} else if OpActionAllow(rep.Action, OpActionWarning) {
+				s_diff[OpActionWarning]++
+			} else {
+				s_diff[OpActionPending]++
 			}
 		}
 
 		if len(s_diff) == 1 {
 
 			for k := range s_diff {
-				it.Phase = k
+				it.Action = k
 				break
 			}
 
-		} else if _, ok := s_diff[OpStatusFailed]; ok {
-			it.Phase = OpStatusFailed
+		} else if _, ok := s_diff[OpActionWarning]; ok {
+			it.Action = OpActionWarning
 		} else {
-			it.Phase = OpStatusPending
+			it.Action = OpActionPending
 		}
 	}
 }

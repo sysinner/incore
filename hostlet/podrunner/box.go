@@ -109,7 +109,7 @@ func (br *BoxKeeper) status_update(item *BoxInstance) {
 			inst.PodOpAction = item.PodOpAction
 		}
 
-		if item.Status.Phase == string(inapi.OpStatusDestroyed) {
+		if inapi.OpActionAllow(item.Status.Action, inapi.OpActionDestroyed) {
 			inst.ID, item.ID = "", ""
 		} else if item.ID != "" {
 			inst.ID = item.ID
@@ -130,15 +130,31 @@ func (br *BoxKeeper) ctr_action() {
 			continue
 		}
 
+		dels := []string{}
+
 		PodRepActives.Each(func(pod *inapi.Pod) {
+			// fmt.Println("ctr_action", pod.Meta.ID, inapi.OpActionStrings(pod.Operate.Action))
 
 			for _, box := range pod.Spec.Boxes {
 
 				inst_name := BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, box.Name)
 
+				if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+					BoxActives.Del(inst_name)
+					continue
+				}
+
 				go br.ctr_action_box(inst_name, pod, box)
 			}
+
+			if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+				dels = append(dels, pod.Meta.ID)
+			}
 		})
+
+		for _, v := range dels {
+			PodRepActives.Del(v)
+		}
 	}
 }
 

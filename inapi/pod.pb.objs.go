@@ -12,7 +12,8 @@ func (it *PbPodRepStatus) Equal(it2 *PbPodRepStatus) bool {
 	if it2 == nil ||
 		it.Id != it2.Id ||
 		it.Rep != it2.Rep ||
-		it.Phase != it2.Phase ||
+		it.Action != it2.Action ||
+		it.Node != it2.Node ||
 		!PbPodBoxStatusSliceEqual(it.Boxes, it2.Boxes) ||
 		it.Updated != it2.Updated {
 		return false
@@ -31,8 +32,11 @@ func (it *PbPodRepStatus) Sync(it2 *PbPodRepStatus) bool {
 	if it.Rep != it2.Rep {
 		it.Rep, changed = it2.Rep, true
 	}
-	if it.Phase != it2.Phase {
-		it.Phase, changed = it2.Phase, true
+	if it.Action != it2.Action {
+		it.Action, changed = it2.Action, true
+	}
+	if it.Node != it2.Node {
+		it.Node, changed = it2.Node, true
 	}
 	if rs, ok := PbPodBoxStatusSliceSyncSlice(it.Boxes, it2.Boxes); ok {
 		it.Boxes, changed = rs, true
@@ -69,7 +73,10 @@ func PbPodRepStatusSliceEqual(ls, ls2 []*PbPodRepStatus) bool {
 			if v.Id != v2.Id || v.Rep != v2.Rep {
 				continue
 			}
-			if v.Phase != v2.Phase {
+			if v.Action != v2.Action {
+				return false
+			}
+			if v.Node != v2.Node {
 				return false
 			}
 			if !PbPodBoxStatusSliceEqual(v.Boxes, v2.Boxes) {
@@ -101,8 +108,11 @@ func PbPodRepStatusSliceSync(ls []*PbPodRepStatus, it2 *PbPodRepStatus) ([]*PbPo
 		if v.Id != it2.Id || v.Rep != it2.Rep {
 			continue
 		}
-		if v.Phase != it2.Phase {
-			v.Phase, changed = it2.Phase, true
+		if v.Action != it2.Action {
+			v.Action, changed = it2.Action, true
+		}
+		if v.Node != it2.Node {
+			v.Node, changed = it2.Node, true
 		}
 		if rs, ok := PbPodBoxStatusSliceSyncSlice(v.Boxes, it2.Boxes); ok {
 			v.Boxes, changed = rs, true
@@ -135,8 +145,11 @@ func PbPodRepStatusSliceSyncSlice(ls, ls2 []*PbPodRepStatus) ([]*PbPodRepStatus,
 			if v.Id != v2.Id || v.Rep != v2.Rep {
 				continue
 			}
-			if v.Phase != v2.Phase {
-				v.Phase, changed = v2.Phase, true
+			if v.Action != v2.Action {
+				v.Action, changed = v2.Action, true
+			}
+			if v.Node != v2.Node {
+				v.Node, changed = v2.Node, true
 			}
 			if rs, ok := PbPodBoxStatusSliceSyncSlice(v.Boxes, v2.Boxes); ok {
 				v.Boxes, changed = rs, true
@@ -597,7 +610,7 @@ func (it *PbPodBoxStatus) Equal(it2 *PbPodBoxStatus) bool {
 		!PbServicePortSliceEqual(it.Ports, it2.Ports) ||
 		!PbStringSliceEqual(it.Command, it2.Command) ||
 		!PbPodBoxStatusExecutorSliceEqual(it.Executors, it2.Executors) ||
-		it.Phase != it2.Phase ||
+		it.Action != it2.Action ||
 		it.Started != it2.Started ||
 		it.Updated != it2.Updated {
 		return false
@@ -637,8 +650,8 @@ func (it *PbPodBoxStatus) Sync(it2 *PbPodBoxStatus) bool {
 	if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(it.Executors, it2.Executors); ok {
 		it.Executors, changed = rs, true
 	}
-	if it.Phase != it2.Phase {
-		it.Phase, changed = it2.Phase, true
+	if it.Action != it2.Action {
+		it.Action, changed = it2.Action, true
 	}
 	if it.Started != it2.Started {
 		it.Started, changed = it2.Started, true
@@ -699,7 +712,7 @@ func PbPodBoxStatusSliceEqual(ls, ls2 []*PbPodBoxStatus) bool {
 			if !PbPodBoxStatusExecutorSliceEqual(v.Executors, v2.Executors) {
 				return false
 			}
-			if v.Phase != v2.Phase {
+			if v.Action != v2.Action {
 				return false
 			}
 			if v.Started != v2.Started {
@@ -755,8 +768,8 @@ func PbPodBoxStatusSliceSync(ls []*PbPodBoxStatus, it2 *PbPodBoxStatus) ([]*PbPo
 		if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(v.Executors, it2.Executors); ok {
 			v.Executors, changed = rs, true
 		}
-		if v.Phase != it2.Phase {
-			v.Phase, changed = it2.Phase, true
+		if v.Action != it2.Action {
+			v.Action, changed = it2.Action, true
 		}
 		if v.Started != it2.Started {
 			v.Started, changed = it2.Started, true
@@ -813,8 +826,8 @@ func PbPodBoxStatusSliceSyncSlice(ls, ls2 []*PbPodBoxStatus) ([]*PbPodBoxStatus,
 			if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(v.Executors, v2.Executors); ok {
 				v.Executors, changed = rs, true
 			}
-			if v.Phase != v2.Phase {
-				v.Phase, changed = v2.Phase, true
+			if v.Action != v2.Action {
+				v.Action, changed = v2.Action, true
 			}
 			if v.Started != v2.Started {
 				v.Started, changed = v2.Started, true

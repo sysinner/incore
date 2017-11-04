@@ -107,7 +107,7 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return true // wait init
 	}
 
-	if inst.Status.Phase == "" {
+	if inst.Status.Action == 0 {
 		hlog.Printf("info", "SD")
 		return false
 	}
@@ -176,9 +176,9 @@ func (inst *BoxInstance) SpecDesired() bool {
 
 func (inst *BoxInstance) OpActionDesired() bool {
 
-	if (inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) && inst.Status.Phase == inapi.OpStatusRunning) ||
-		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) && inst.Status.Phase == inapi.OpStatusStopped) ||
-		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) && inst.Status.Phase == inapi.OpStatusDestroyed) {
+	if (inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) && inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning)) ||
+		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) && inapi.OpActionAllow(inst.Status.Action, inapi.OpActionStopped)) ||
+		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) && inapi.OpActionAllow(inst.Status.Action, inapi.OpActionDestroyed)) {
 		return true
 	}
 
@@ -267,6 +267,19 @@ func (ls *BoxInstanceSets) Set(item *BoxInstance) {
 	}
 
 	*ls = append(*ls, item)
+}
+
+func (ls *BoxInstanceSets) Del(name string) {
+
+	box_sets_mu.Lock()
+	defer box_sets_mu.Unlock()
+
+	for i, v := range *ls {
+		if v.Name == name {
+			*ls = append((*ls)[:i], (*ls)[i+1:]...)
+			return
+		}
+	}
 }
 
 func (ls *BoxInstanceSets) Size() int {

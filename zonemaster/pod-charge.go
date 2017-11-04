@@ -16,6 +16,7 @@ package zonemaster
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
@@ -91,20 +92,23 @@ func pod_charge() error {
 	return nil
 }
 
-func pod_charge_entry(pod inapi.Pod) {
+func pod_charge_entry(pod inapi.Pod) bool {
 
 	if pod.Payment == nil {
-		return
+		pod.Payment = &inapi.PodPayment{}
 	}
 
-	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) &&
-		pod.Payment != nil && pod.Payment.Payout > 0 {
-		return
+	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+
+		if (pod.Payment.Payout > 0 && pod.Payment.TimeClose > pod.Payment.TimeStart) ||
+			(pod.Payment.Payout == 0 && pod.Payment.Prepay == 0) {
+			return false
+		}
 	}
 
 	//
 	if pod.Spec == nil || pod.Spec.Ref.Name == "" {
-		return
+		return false
 	}
 	var spec_plan *inapi.PodSpecPlan
 	for _, v := range pod_spec_plans {
@@ -114,43 +118,57 @@ func pod_charge_entry(pod inapi.Pod) {
 		}
 	}
 	if spec_plan == nil {
-		return
+		return false
 	}
 
-	//
-	if n := len(pod.Operate.Replicas); n == 0 || n != pod.Operate.ReplicaCap {
-		return
-	}
-
+	inst_num := 0
 	for _, v := range pod.Operate.Replicas {
-		if v.Node == "" {
-			return // TODO
+		if v.Node != "" {
+			inst_num++
 		}
 	}
 
-	cycle_amount := float64(0)
+	var (
+		cycle_amount = float64(0)
+		tn           = uint32(time.Now().Unix())
+	)
 
-	// Volumes
+	// Res Volumes
 	for _, v := range pod.Spec.Volumes {
 		// v.SizeLimit = 20 * inapi.ByteGB
 		cycle_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResourceVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
 	}
 
+	// Res Computes
 	for _, v := range pod.Spec.Boxes {
 
 		if v.Resources != nil {
-			// CPU
-			// v.Resources.CpuLimit = 1000
+			// CPU v.Resources.CpuLimit = 1000
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
 
-			// RAM
-			// v.Resources.MemLimit = 1 * inapi.ByteGB
+			// MEM v.Resources.MemLimit = 1 * inapi.ByteGB
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
+				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
 		}
 	}
+
+	if cycle_amount == 0 || inst_num == 0 {
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			pod.Payment.TimeClose = tn
+			data.ZoneMaster.PvPut(
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
+				pod,
+				nil,
+			)
+		}
+		return false
+	}
+
+	cycle_amount = iamapi.AccountFloat64Round(cycle_amount*float64(inst_num), 4)
+
+	pod.Payment.CycleAmount = cycle_amount // TODO
 
 	// close prev payment cycle
 	if pod.Payment.Payout > 0 {
@@ -160,20 +178,23 @@ func pod_charge_entry(pod inapi.Pod) {
 		pod.Payment.Payout = 0
 	}
 
-	if pod.Payment.TimeClose <= pod.Payment.TimeStart {
+	if pod.Payment.TimeStart == 0 {
+		pod.Payment.TimeStart = tn - 1
+	}
+
+	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+		pod.Payment.TimeClose = tn
+	} else if pod.Payment.TimeClose <= pod.Payment.TimeStart {
 		pod.Payment.TimeClose = iamapi.AccountChargeCycleTimeClose(
 			iamapi.AccountChargeCycleMonth, pod.Payment.TimeStart+1)
 	}
 
 	if pod.Payment.TimeClose <= pod.Payment.TimeStart {
-		return
+		return false
 	}
 
 	cycle_amount = cycle_amount * (float64(pod.Payment.TimeClose-pod.Payment.TimeStart) / 3600)
 	cycle_amount = iamapi.AccountFloat64Round(cycle_amount, 2)
-	if cycle_amount < 0.01 {
-		cycle_amount = 0.01
-	}
 
 	// hlog.Printf("info", "Pod %s AccountCharge AMOUNT %f", pod.Meta.ID, cycle_amount)
 
@@ -231,6 +252,8 @@ func pod_charge_entry(pod inapi.Pod) {
 			}
 		}
 	}
+
+	return false
 }
 
 func pod_entry_chargeout(pod_id string) {

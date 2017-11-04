@@ -22,10 +22,11 @@ import "inapi/operator.proto";
 message PbPodRepStatus {
     string                  id      = 1; // struct:object_slice_key
     uint32                  rep     = 2; // struct:object_slice_key
-    string                  phase   = 3;
-    repeated PbPodBoxStatus boxes   = 4;
-    PbOpLogSets             op_log  = 5;
-    uint32                  updated = 8; // unix time in seconds
+    uint32                  action  = 3;
+	string                  node    = 4;
+    repeated PbPodBoxStatus boxes   = 5;
+    PbOpLogSets             op_log  = 6;
+    uint32                  updated = 7; // unix time in seconds
 }
 
 enum PbPodSpecBoxImageDriver {
@@ -66,7 +67,7 @@ message PbPodBoxStatus {
     repeated PbServicePort          ports         = 7;
     repeated string                 command       = 8;
     repeated PbPodBoxStatusExecutor executors     = 9;
-    string                          phase         = 10;
+    uint32                          action        = 10;
     uint32                          started       = 11; // unix time in seconds
     uint32                          updated       = 12; // unix time in seconds
 }

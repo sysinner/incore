@@ -189,9 +189,9 @@ func (br *BoxKeeper) docker_status_watch_entry(id string, box_docker *docker.Con
 	}
 
 	if box_docker.State.Running {
-		inst.Status.Phase = string(inapi.OpStatusRunning)
+		inst.Status.Action = inapi.OpActionRunning
 	} else {
-		inst.Status.Phase = string(inapi.OpStatusStopped)
+		inst.Status.Action = inapi.OpActionStopped
 	}
 
 	br.status_update(inst)
@@ -200,6 +200,10 @@ func (br *BoxKeeper) docker_status_watch_entry(id string, box_docker *docker.Con
 func (br *BoxKeeper) docker_stats_entry(box_inst *BoxInstance, timo uint32) {
 
 	if box_inst == nil || box_inst.ID == "" || box_inst.Stats == nil {
+		return
+	}
+
+	if !inapi.OpActionAllow(box_inst.PodOpAction, inapi.OpActionStart) {
 		return
 	}
 
@@ -377,11 +381,11 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) ||
 			inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
 
-			if inst.Status.Phase == inapi.OpStatusRunning {
+			if inst.Status.Action == inapi.OpActionRunning {
 
 				// start := time.Now()
 				if err = br.hidocker.StopContainer(inst.ID, 10); err != nil {
-					inst.Status.Phase = inapi.OpStatusFailed
+					inst.Status.Action = inapi.OpActionWarning
 				}
 				// fmt.Println("stop in", time.Since(start))
 
@@ -394,9 +398,9 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 					ID:    inst.ID,
 					Force: true,
 				}); err == nil {
-					inst.Status.Phase = inapi.OpStatusDestroyed
+					inst.Status.Action = inapi.OpActionDestroyed
 				} else {
-					inst.Status.Phase = inapi.OpStatusFailed
+					inst.Status.Action = inapi.OpActionWarning
 				}
 
 				hlog.Printf("info", "hostlet/box removed %s", inst.Name)
@@ -413,7 +417,7 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 
 			hlog.Printf("info", "hostlet/box spec changed %s {{{%s}}}", inst.Name, string(js1))
 
-			if inst.Status.Phase == inapi.OpStatusRunning {
+			if inst.Status.Action == inapi.OpActionRunning {
 
 				hlog.Printf("info", "hostlet/box StopContainer %s", inst.Name)
 
@@ -421,11 +425,11 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 					return err
 				}
 
-				inst.Status.Phase = inapi.OpStatusStopped
+				inst.Status.Action = inapi.OpActionStopped
 			}
 
-			// if inst.Status.Phase != inapi.OpStatusRunning &&
-			// 	inst.Status.Phase != inapi.OpStatusStopped {
+			// if inst.Status.Action != inapi.OpActionRunning &&
+			// 	inst.Status.Action != inapi.OpActionStopped {
 
 			hlog.Printf("info", "hostlet/box RemoveContainer %s", inst.Name)
 
@@ -433,11 +437,11 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 				ID:    inst.ID,
 				Force: true,
 			}); err != nil {
-				inst.Status.Phase = inapi.OpStatusFailed
+				inst.Status.Action = inapi.OpActionWarning
 				return err
 			}
 
-			inst.ID, inst.Status.Phase = "", inapi.OpStatusDestroyed
+			inst.ID, inst.Status.Action = "", inapi.OpActionDestroyed
 			// } else {
 			// 	return
 			// }
@@ -451,8 +455,14 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 
 			// hlog.Printf("info", "hostlet/box Skip Stop+NotExist %s", inst.Name)
 
-			inst.Status.Phase = inapi.OpStatusStopped
+			inst.Status.Action = inapi.OpActionStopped
 
+			return nil
+		}
+
+		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
+			hlog.Printf("info", "hostlet/box Skip Destroy+NotExist %s", inst.Name)
+			inst.Status.Action = inapi.OpActionDestroyed
 			return nil
 		}
 	}
@@ -495,7 +505,7 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 		//
 		if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", 2048, 2048, 0750); err != nil {
 			hlog.Printf("error", "hostlet/box BOX:%s, FsMakeDir Err:%v", inst.Name, err)
-			inst.Status.Phase = inapi.OpStatusFailed
+			inst.Status.Action = inapi.OpActionWarning
 			return err
 		}
 		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
@@ -507,7 +517,7 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 		imgname, ok := inst.Spec.Image.Options.Get("docker/image/name")
 		if !ok {
 			hlog.Printf("error", "hostlet/box BOX:%s, No Image Name Found", inst.Name)
-			inst.Status.Phase = inapi.OpStatusFailed
+			inst.Status.Action = inapi.OpActionWarning
 			return err
 		}
 
@@ -543,19 +553,19 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 
 		if err != nil || box_docker.ID == "" {
 			hlog.Printf("info", "hostlet/box CreateContainer %s, Err: %v", inst.Name, err)
-			inst.Status.Phase = inapi.OpStatusFailed
+			inst.Status.Action = inapi.OpActionWarning
 			return errors.New("CreateContainer Error " + err.Error())
 		}
 
 		hlog.Printf("info", "hostlet/box CreateContainer %s, DONE", inst.Name)
 
 		// TODO
-		inst.ID, inst.Status.Phase = box_docker.ID, ""
+		inst.ID, inst.Status.Action = box_docker.ID, 0
 	}
 
 	if inst.ID != "" &&
 		inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) &&
-		inst.Status.Phase != inapi.OpStatusRunning {
+		inst.Status.Action != inapi.OpActionRunning {
 
 		hlog.Printf("info", "hostlet/box StartContainer %s", inst.Name)
 
@@ -563,13 +573,13 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 
 		if err != nil {
 			hlog.Printf("info", "hostlet/box StartContainer %s, Error %v", inst.Name, err)
-			inst.Status.Phase = inapi.OpStatusFailed
+			inst.Status.Action = inapi.OpActionWarning
 			return err
 		}
 
 		hlog.Printf("info", "hostlet/box StartContainer %s, DONE", inst.Name)
 
-		inst.Status.Phase = inapi.OpStatusRunning
+		inst.Status.Action = inapi.OpActionRunning
 	} else {
 		hlog.Printf("info", "hostlet/box StartContainer %s, SKIP", inst.Name)
 	}

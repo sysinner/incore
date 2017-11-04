@@ -120,9 +120,9 @@ func (c Charge) PodEstimateAction() {
 		return
 	}
 
-	res_vol := spec_plan.ResVolume(set.ResourceVolume)
+	res_vol := spec_plan.ResVolume(set.ResVolume)
 	if res_vol == nil {
-		rsp.Error = types.NewErrorMeta("400", "No ResourceVolume Found")
+		rsp.Error = types.NewErrorMeta("400", "No ResVolume Found")
 		return
 	}
 
@@ -130,7 +130,7 @@ func (c Charge) PodEstimateAction() {
 		Spec: &inapi.PodSpecBound{
 			Zone: set.Zone,
 			Cell: set.Cell,
-			Volumes: []inapi.PodSpecResVolume{
+			Volumes: []inapi.PodSpecResVolumeBound{
 				{
 					Ref: inapi.ObjectReference{
 						Id:   res_vol.RefId,
@@ -138,7 +138,7 @@ func (c Charge) PodEstimateAction() {
 						// Version: res_vol.Meta.Version,
 					},
 					Name:      "system",
-					SizeLimit: set.ResourceVolumeSize,
+					SizeLimit: set.ResVolumeSize,
 				},
 			},
 		},
@@ -156,9 +156,9 @@ func (c Charge) PodEstimateAction() {
 			return
 		}
 
-		res := spec_plan.ResCompute(v.ResourceCompute)
+		res := spec_plan.ResCompute(v.ResCompute)
 		if res == nil {
-			rsp.Error = types.NewErrorMeta("400", "No ResourceCompute Found")
+			rsp.Error = types.NewErrorMeta("400", "No ResCompute Found")
 			return
 		}
 
@@ -185,7 +185,7 @@ func (c Charge) PodEstimateAction() {
 	// Volumes
 	for _, v := range pod.Spec.Volumes {
 		amount_vol += iamapi.AccountFloat64Round(
-			spec_plan.ResourceVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
 	}
 
 	for _, v := range pod.Spec.Boxes {
@@ -193,11 +193,11 @@ func (c Charge) PodEstimateAction() {
 		if v.Resources != nil {
 			// CPU
 			amount_cpu += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
 
 			// RAM
 			amount_mem += iamapi.AccountFloat64Round(
-				spec_plan.ResourceComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
+				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
 		}
 	}
 

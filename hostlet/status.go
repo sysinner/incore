@@ -179,10 +179,8 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 			return
 		}
 
-		if (inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop) &&
-			inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStopped)) ||
-			(inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) &&
-				inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroyed)) {
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop|inapi.OpActionStopped) ||
+			inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			return
 		}
 
@@ -197,7 +195,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 			return
 		}
 
-		s_diff := map[string]int{}
+		action := uint32(0)
 
 		//
 		for _, bspec := range pod.Spec.Boxes {
@@ -206,42 +204,22 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 
 			box_inst := podrunner.BoxActives.Get(inst_name)
 			if box_inst == nil {
-				s_diff[inapi.OpStatusPending]++
+				action = inapi.OpActionPending
 				continue
 			}
 
-			switch box_inst.Status.Phase {
+			if action == 0 {
+				action = box_inst.Status.Action
+			}
 
-			case inapi.OpStatusRunning,
-				inapi.OpStatusStopped,
-				inapi.OpStatusFailed,
-				inapi.OpStatusDestroyed:
-				s_diff[box_inst.Status.Phase]++
-
-			default:
-				s_diff[inapi.OpStatusPending]++
+			if action != box_inst.Status.Action {
+				action = inapi.OpActionPending
 			}
 
 			pod_status.Boxes = append(pod_status.Boxes, &box_inst.Status)
 		}
 
-		if len(pod.Spec.Boxes) != len(pod_status.Boxes) {
-			pod_status.Phase = string(inapi.OpStatusPending)
-		} else {
-
-			if len(s_diff) == 1 {
-
-				for k := range s_diff {
-					pod_status.Phase = string(k)
-					break
-				}
-
-			} else if _, ok := s_diff[inapi.OpStatusFailed]; ok {
-				pod_status.Phase = string(inapi.OpStatusFailed)
-			} else {
-				pod_status.Phase = string(inapi.OpStatusPending)
-			}
-		}
+		pod_status.Action = action
 		// hlog.Printf("debug", "PodRep %s Phase %s", pod.OpRepKey(), pod_status.Phase)
 
 		// js, _ := json.Encode(pod_status, "  ")

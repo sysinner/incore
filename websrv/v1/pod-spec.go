@@ -56,7 +56,7 @@ func (c PodSpec) PlanListAction() {
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
 			item.ChargeFix()
-			sort.Sort(item.ResourceComputes)
+			sort.Sort(item.ResComputes)
 			ls.Items = append(ls.Items, &item)
 		}
 	}
@@ -64,20 +64,20 @@ func (c PodSpec) PlanListAction() {
 	ls.Kind = "PodSpecPlanList"
 }
 
-func (c PodSpec) ResourceVolumeListAction() {
+func (c PodSpec) ResVolumeListAction() {
 
-	ls := inapi.PodSpecResourceVolumeList{}
+	ls := inapi.PodSpecResVolumeList{}
 	defer c.RenderJson(&ls)
 
 	rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 1000)
 	rss := rs.KvList()
 	for _, v := range rss {
 
-		var item inapi.PodSpecResourceVolume
+		var item inapi.PodSpecResVolume
 		if err := v.Decode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
 		}
 	}
 
-	ls.Kind = "PodSpecResourceVolumeList"
+	ls.Kind = "PodSpecResVolumeList"
 }
