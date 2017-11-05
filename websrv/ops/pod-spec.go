@@ -341,8 +341,7 @@ func (c PodSpec) PlanSetAction() {
 	}
 
 	//
-	prev.ResComputeDefault = ""
-	prev.ResComputes = []*inapi.PodSpecPlanResComputeBound{}
+	prev.ResComputes = inapi.PodSpecPlanResComputeBounds{}
 	rss = data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/compute", ""), "", "", 100).KvList()
 	for _, v := range rss {
 
@@ -354,9 +353,6 @@ func (c PodSpec) PlanSetAction() {
 		for _, v2 := range set.ResComputes {
 			if v2.RefId != item.Meta.ID {
 				continue
-			}
-			if prev.ResComputeDefault == "" {
-				prev.ResComputeDefault = item.Meta.ID
 			}
 			prev.ResComputes = append(prev.ResComputes, &inapi.PodSpecPlanResComputeBound{
 				RefId:    item.Meta.ID,
@@ -370,6 +366,8 @@ func (c PodSpec) PlanSetAction() {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
 		return
 	}
+	sort.Sort(prev.ResComputes)
+	prev.ResComputeDefault = prev.ResComputes[0].RefId
 
 	//
 	prev.ResVolumeDefault = ""

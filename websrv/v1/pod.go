@@ -206,6 +206,15 @@ func (c Pod) EntryAction() {
 		}
 	}
 
+	for _, v := range set.Operate.Replicas {
+		if host := zm_status.ZoneHostList.Item(v.Node); host != nil {
+			for _, v2 := range v.Ports {
+				v2.LanAddr = host.Spec.PeerLanAddr
+				v2.WanAddr = host.Spec.PeerWanAddr
+			}
+		}
+	}
+
 	set.Kind = "Pod"
 }
 

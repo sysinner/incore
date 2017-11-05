@@ -32,6 +32,10 @@ type ServicePort struct {
 	BoxPort uint16 `json:"box_port"`
 	// Optional: If specified, this must be a valid port number, 0 < x < 65536.
 	HostPort uint16 `json:"host_port,omitempty"`
+	// Optional
+	LanAddr string `json:"lan_addr,omitempty"`
+	// Optional
+	WanAddr string `json:"wan_addr,omitempty"`
 }
 
 type ServicePorts []*ServicePort
