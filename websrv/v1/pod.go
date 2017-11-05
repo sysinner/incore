@@ -85,6 +85,11 @@ func (c Pod) ListAction() {
 				continue
 			}
 
+			if c.Params.Int64("destroy_enable") != 1 &&
+				inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
+				continue
+			}
+
 			if len(fields) > 0 {
 
 				podfs := inapi.Pod{
@@ -209,7 +214,11 @@ func (c Pod) EntryAction() {
 	for _, v := range set.Operate.Replicas {
 		if host := zm_status.ZoneHostList.Item(v.Node); host != nil {
 			for _, v2 := range v.Ports {
-				v2.LanAddr = host.Spec.PeerLanAddr
+				if i := strings.IndexByte(host.Spec.PeerLanAddr, ':'); i > 0 {
+					v2.LanAddr = host.Spec.PeerLanAddr[:i]
+				} else {
+					v2.LanAddr = host.Spec.PeerLanAddr
+				}
 				v2.WanAddr = host.Spec.PeerWanAddr
 			}
 		}
