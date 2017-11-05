@@ -308,6 +308,7 @@ func (c PodSpec) PlanSetAction() {
 	}
 
 	//
+	prev.ImageDefault = ""
 	prev.Images = []*inapi.PodSpecPlanBoxImageBound{}
 	rss = data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("box/image", ""), "", "", 100).KvList()
 	for _, v := range rss {
@@ -320,6 +321,9 @@ func (c PodSpec) PlanSetAction() {
 		for _, v2 := range set.Images {
 			if v2.RefId != item.Meta.ID {
 				continue
+			}
+			if prev.ImageDefault == "" {
+				prev.ImageDefault = item.Meta.ID
 			}
 			prev.Images = append(prev.Images, &inapi.PodSpecPlanBoxImageBound{
 				RefId:   item.Meta.ID,
@@ -337,6 +341,7 @@ func (c PodSpec) PlanSetAction() {
 	}
 
 	//
+	prev.ResComputeDefault = ""
 	prev.ResComputes = []*inapi.PodSpecPlanResComputeBound{}
 	rss = data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/compute", ""), "", "", 100).KvList()
 	for _, v := range rss {
@@ -349,6 +354,9 @@ func (c PodSpec) PlanSetAction() {
 		for _, v2 := range set.ResComputes {
 			if v2.RefId != item.Meta.ID {
 				continue
+			}
+			if prev.ResComputeDefault == "" {
+				prev.ResComputeDefault = item.Meta.ID
 			}
 			prev.ResComputes = append(prev.ResComputes, &inapi.PodSpecPlanResComputeBound{
 				RefId:    item.Meta.ID,
@@ -364,6 +372,7 @@ func (c PodSpec) PlanSetAction() {
 	}
 
 	//
+	prev.ResVolumeDefault = ""
 	prev.ResVolumes = []*inapi.PodSpecPlanResVolumeBound{}
 	rss = data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 100).KvList()
 	for _, v := range rss {
@@ -376,6 +385,9 @@ func (c PodSpec) PlanSetAction() {
 		for _, v2 := range set.ResVolumes {
 			if v2.RefId != item.Meta.ID {
 				continue
+			}
+			if prev.ResVolumeDefault == "" {
+				prev.ResVolumeDefault = item.Meta.ID
 			}
 			prev.ResVolumes = append(prev.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
 				RefId:   item.Meta.ID,

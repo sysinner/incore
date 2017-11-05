@@ -38,9 +38,9 @@ var (
 )
 
 const (
-	oplog_zms                 = "zone-master/scheduler"
-	oplog_zms_destroy         = "zone-master/scheduler/destroy"
-	oplog_zms_charge_prevalid = "zone-master/scheduler/charge-prevalid"
+	oplog_zms         = "zone-master/scheduler"
+	oplog_zms_destroy = "zone-master/scheduler/destroy"
+	oplog_zms_charge  = "zone-master/scheduler/charge"
 )
 
 type host_res_usage struct {
@@ -75,6 +75,7 @@ func scheduler_exec() error {
 	}
 
 	//
+	host_res_usages := map[string]*host_res_usage{}
 	rss = data.ZoneMaster.PvScan(
 		inapi.NsZonePodInstance(status.ZoneId, ""), "", "", 10000).KvList()
 	for _, v := range rss {
@@ -84,6 +85,45 @@ func scheduler_exec() error {
 		}
 		if scheduler_status_refresh(&pod) {
 			data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil)
+		}
+
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			continue
+		}
+
+		spec_res := pod.Spec.ResComputeBound()
+		for _, rp := range pod.Operate.Replicas {
+			if rp.Node == "" {
+				continue
+			}
+			hres, _ := host_res_usages[pod.Meta.ID]
+			if hres == nil {
+				hres = &host_res_usage{}
+				host_res_usages[pod.Meta.ID] = hres
+			}
+			hres.cpu += spec_res.CpuLimit
+			hres.mem += spec_res.MemLimit
+		}
+	}
+
+	for _, host := range status.ZoneHostList.Items {
+
+		res, ok := host_res_usages[host.Meta.Id]
+
+		if !ok {
+			if host.Operate.CpuUsed > 0 {
+				host.Operate.CpuUsed = 0
+			}
+			if host.Operate.MemUsed > 0 {
+				host.Operate.MemUsed = 0
+			}
+		} else {
+			if host.Operate.CpuUsed != res.cpu {
+				host.Operate.CpuUsed = res.cpu
+			}
+			if host.Operate.MemUsed != res.mem {
+				host.Operate.MemUsed = res.mem
+			}
 		}
 	}
 
@@ -285,7 +325,7 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 					status = inapi.PbOpLogError
 				}
 				podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
-					inapi.NewPbOpLogEntry(oplog_zms_charge_prevalid, status, msg),
+					inapi.NewPbOpLogEntry(oplog_zms_charge, status, msg),
 				)
 				return errors.New("")
 			} else if rsp.Kind != "AccountCharge" {
@@ -293,7 +333,7 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 			}
 
 			podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
-				inapi.NewPbOpLogEntry(oplog_zms_charge_prevalid, inapi.PbOpLogOK, "Account OK"),
+				inapi.NewPbOpLogEntry(oplog_zms_charge, inapi.PbOpLogOK, "PreValid OK"),
 			)
 		}
 
@@ -409,23 +449,23 @@ func scheduler_exec_pod_destroy(podq *inapi.Pod) error {
 
 	start := time.Now()
 
-	hlog.Printf("info", "destroy pod/%s, version:%d", podq.Meta.ID, podq.Operate.Version)
+	// hlog.Printf("info", "destroy pod/%s, version:%d", podq.Meta.ID, podq.Operate.Version)
 
 	for _, oprep := range podq.Operate.Replicas {
 
 		if oprep.Node != "" {
 			bdk := inapi.NsZoneHostBoundPod(status.ZoneId, oprep.Node, podq.Meta.ID, oprep.Id)
 			if rs := data.ZoneMaster.PvGet(bdk); rs.OK() {
-				// hlog.Printf("info", "destroy pod/%s", podq.Meta.ID)
 				var pod_bound inapi.Pod
 				if err := rs.Decode(&pod_bound); err == nil && pod_bound.Meta.ID == podq.Meta.ID {
-					hlog.Printf("info", "destroy pod/%s", podq.Meta.ID)
 					if !inapi.OpActionAllow(pod_bound.Operate.Action, inapi.OpActionDestroy) {
+
 						pod_bound.Operate.Action = inapi.OpActionDestroy
 						pod_bound.Operate.Version = podq.Operate.Version
 
 						data.ZoneMaster.PvPut(bdk, pod_bound, nil)
-						hlog.Printf("info", "destroy pod/%s-%d action:%s", podq.Meta.ID, oprep.Id, strings.Join(inapi.OpActionStrings(podq.Operate.Action), ","))
+						hlog.Printf("info", "destroy pod/%s-%d action:%s",
+							podq.Meta.ID, oprep.Id, strings.Join(inapi.OpActionStrings(podq.Operate.Action), ","))
 					}
 				}
 			}

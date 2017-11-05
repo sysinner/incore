@@ -202,6 +202,10 @@ func pod_charge_entry(pod inapi.Pod) bool {
 
 	if pod.Payment.TimeClose == time_close_now && pod.Payment.Prepay == 0 {
 
+		// hlog.Printf("info", "Pod %s AccountChargePrepay %f %d %d",
+		// 	pod.Meta.ID, cycle_amount,
+		// 	pod.Payment.TimeStart, pod.Payment.TimeClose)
+
 		if rsp := iamclient.AccountChargePrepay(iamapi.AccountChargePrepay{
 			User:      pod.Meta.User,
 			Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
@@ -220,6 +224,15 @@ func pod_charge_entry(pod inapi.Pod) bool {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
 					pod_entry_chargeout(pod.Meta.ID)
+					//
+					pod.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(pod.Operate.OpLog,
+						inapi.NewPbOpLogEntry(oplog_zms_charge, inapi.PbOpLogWarn, rsp.Error.Message))
+
+					data.ZoneMaster.PvPut(
+						inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
+						pod,
+						nil,
+					)
 				}
 				hlog.Printf("error", "Pod %s AccountChargePrepay %f %s",
 					pod.Meta.ID, pod.Payment.Prepay, rsp.Error.Code+" : "+rsp.Error.Message)
@@ -227,6 +240,9 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		}
 
 	} else if pod.Payment.TimeClose < time_close_now && pod.Payment.Payout == 0 {
+
+		// hlog.Printf("error", "Pod %s AccountChargePayout %f %d %d",
+		// 	pod.Meta.ID, pod.Payment.Payout, pod.Payment.TimeStart, pod.Payment.TimeClose)
 
 		if rsp := iamclient.AccountChargePayout(iamapi.AccountChargePayout{
 			User:      pod.Meta.User,
