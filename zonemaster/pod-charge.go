@@ -195,8 +195,11 @@ func pod_charge_entry(pod inapi.Pod) bool {
 
 	cycle_amount = cycle_amount * (float64(pod.Payment.TimeClose-pod.Payment.TimeStart) / 3600)
 	cycle_amount = iamapi.AccountFloat64Round(cycle_amount, 2)
+	if cycle_amount < 0.01 {
+		cycle_amount = 0.01
+	}
 
-	// hlog.Printf("info", "Pod %s AccountCharge AMOUNT %f", pod.Meta.ID, cycle_amount)
+	// hlog.Printf("info", "Pod %s AccountCharge AMOUNT %f, NUM: %d", pod.Meta.ID, cycle_amount, inst_num)
 
 	time_close_now := iamapi.AccountChargeCycleTimeCloseNow(iamapi.AccountChargeCycleMonth)
 

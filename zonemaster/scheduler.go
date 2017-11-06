@@ -307,6 +307,9 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 
 			charge_cycle_min := float64(3600)
 			charge_amount = iamapi.AccountFloat64Round(charge_amount*(charge_cycle_min/3600), 2)
+			if charge_amount < 0.01 {
+				charge_amount = 0.01
+			}
 
 			tnu := uint32(time.Now().Unix())
 			if rsp := iamclient.AccountChargePreValid(iamapi.AccountChargePrepay{
