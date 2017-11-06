@@ -288,6 +288,15 @@ func (c Pod) NewAction() {
 		set.Error = types.NewErrorMeta("400", "No ResVolume Found")
 		return
 	}
+	if set.ResVolumeSize < res_vol.Request {
+		set.ResVolumeSize = res_vol.Request
+	} else if set.ResVolumeSize > res_vol.Limit {
+		set.ResVolumeSize = res_vol.Limit
+	} else {
+		if fix := set.ResVolumeSize % res_vol.Step; fix > 0 {
+			set.ResVolumeSize += res_vol.Step
+		}
+	}
 
 	tn := types.MetaTimeNow()
 	id := iox_utils.Uint32ToHexString(uint32(tn.Time().Unix())) + idhash.RandHexString(8)
@@ -392,6 +401,9 @@ func (c Pod) NewAction() {
 
 	charge_cycle_min := float64(3600)
 	charge_amount = iamapi.AccountFloat64Round(charge_amount*(charge_cycle_min/3600), 2)
+	if charge_amount < 0.01 {
+		charge_amount = 0.01
+	}
 
 	tnu := uint32(time.Now().Unix())
 	if rsp := iamclient.AccountChargePreValid(iamapi.AccountChargePrepay{
