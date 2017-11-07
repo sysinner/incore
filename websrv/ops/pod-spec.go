@@ -202,6 +202,10 @@ func (c PodSpec) PlanListAction() {
 		}
 	}
 
+	sort.Slice(ls.Items, func(i, j int) bool {
+		return ls.Items[i].SortOrder < ls.Items[j].SortOrder
+	})
+
 	ls.Kind = "PodSpecPlanList"
 }
 
@@ -407,6 +411,13 @@ func (c PodSpec) PlanSetAction() {
 	prev.Annotations = set.Annotations
 	prev.Meta.Name = set.Meta.Name
 	prev.Status = set.Status
+	prev.SortOrder = set.SortOrder
+
+	if prev.SortOrder < 0 {
+		prev.SortOrder = 0
+	} else if prev.SortOrder > 15 {
+		prev.SortOrder = 15
+	}
 
 	prev.Meta.Updated = types.MetaTimeNow()
 

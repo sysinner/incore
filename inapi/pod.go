@@ -454,8 +454,9 @@ type PodSpecPlan struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
 
-	Status string                  `json:"status,omitempty"`
-	Zones  []*PodSpecPlanZoneBound `json:"zones,omitempty"`
+	Status    string                  `json:"status,omitempty"`
+	Zones     []*PodSpecPlanZoneBound `json:"zones,omitempty"`
+	SortOrder int                     `json:"sort_order"`
 
 	Labels      types.Labels `json:"labels,omitempty"`
 	Annotations types.Labels `json:"annotations,omitempty"`

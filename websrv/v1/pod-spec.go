@@ -55,11 +55,18 @@ func (c PodSpec) PlanListAction() {
 	for _, v := range rss {
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
+			if item.Status != inapi.SpecStatusActive {
+				continue
+			}
 			item.ChargeFix()
 			sort.Sort(item.ResComputes)
 			ls.Items = append(ls.Items, &item)
 		}
 	}
+
+	sort.Slice(ls.Items, func(i, j int) bool {
+		return ls.Items[i].SortOrder < ls.Items[j].SortOrder
+	})
 
 	ls.Kind = "PodSpecPlanList"
 }
