@@ -230,6 +230,8 @@ func (c Pod) AppSetAction() {
 
 	app.Spec.Configurator = nil
 
+	app_operate_option_render(&app, false)
+
 	pod.Apps.Sync(app)
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()

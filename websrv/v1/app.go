@@ -15,9 +15,11 @@
 package v1
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
@@ -160,6 +162,8 @@ func (c App) EntryAction() {
 	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(c.Params.Get("id"))); rs.OK() {
 		rs.Decode(&app)
 	}
+
+	app_operate_option_render(&app, true)
 
 	if app.Meta.ID == "" || app.Meta.User != c.us.UserName {
 		c.RenderJson(types.NewTypeErrorMeta(inapi.ErrCodeObjectNotFound, "App Not Found"))
@@ -408,6 +412,8 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	if pod.Meta.ID != app.Operate.PodId {
 		return types.NewErrorMeta("404", "No Pod Found")
 	}
+
+	app_operate_option_render(&app, false)
 
 	pod.Apps.Sync(app)
 	pod.Operate.Version++
@@ -750,4 +756,41 @@ func (c App) ConfigAction() {
 	}
 
 	rsp.Kind = "AppInstConfig"
+}
+
+var ex_arr = map[string]string{}
+
+func app_operate_option_render(app *inapi.AppInstance, spec_render bool) {
+	if len(ex_arr) == 0 {
+		ex_arr["xcs_sysinner_iam_service_url"] = iamclient.ServiceUrl
+		ex_arr["xcs_sysinner_iam_service_url_frontend"] = iamclient.ServiceUrlFrontend
+	}
+
+	for _, v := range app.Operate.Options {
+		for _, v2 := range v.Items {
+			if strings.Index(v2.Value, "{{.") < 0 {
+				continue
+			}
+			if tpl, err := template.New("s").Parse(v2.Value); err == nil {
+				var dst bytes.Buffer
+				if err := tpl.Execute(&dst, ex_arr); err == nil {
+					v.Items.Set(v2.Name, dst.String())
+				}
+			}
+		}
+	}
+
+	if spec_render && app.Spec.Configurator != nil {
+		for _, v := range app.Spec.Configurator.Fields {
+			if strings.Index(v.Default, "{{.") < 0 {
+				continue
+			}
+			if tpl, err := template.New("s").Parse(v.Default); err == nil {
+				var dst bytes.Buffer
+				if err := tpl.Execute(&dst, ex_arr); err == nil {
+					v.Default = dst.String()
+				}
+			}
+		}
+	}
 }
