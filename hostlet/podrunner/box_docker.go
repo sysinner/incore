@@ -76,13 +76,7 @@ func (br *BoxKeeper) docker_status_watcher() {
 		}
 
 		for _, vc := range rsc {
-
-			box_docker, err := br.hidocker.InspectContainer(vc.ID)
-			if err != nil || box_docker == nil {
-				continue
-			}
-
-			br.docker_status_watch_entry(vc.ID, box_docker)
+			br.docker_status_watch_entry(vc.ID)
 		}
 
 		if !br.inited {
@@ -120,7 +114,12 @@ func (br *BoxKeeper) docker_status_watcher() {
 	}
 }
 
-func (br *BoxKeeper) docker_status_watch_entry(id string, box_docker *docker.Container) {
+func (br *BoxKeeper) docker_status_watch_entry(id string) {
+
+	box_docker, err := br.hidocker.InspectContainer(id)
+	if err != nil || box_docker == nil {
+		return
+	}
 
 	pod_id, rep_id, box_name := BoxInstanceNameParse(box_docker.Config.Hostname)
 	if pod_id == "" {
@@ -580,6 +579,9 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 		hlog.Printf("info", "hostlet/box StartContainer %s, DONE", inst.Name)
 
 		inst.Status.Action = inapi.OpActionRunning
+
+		time.Sleep(1e9)
+		br.docker_status_watch_entry(inst.ID)
 	} else {
 		hlog.Printf("info", "hostlet/box StartContainer %s, SKIP", inst.Name)
 	}
