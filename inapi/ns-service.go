@@ -55,6 +55,23 @@ func (ls *NsPodServiceMap) Get(port uint16) *NsPodServiceEntry {
 	return nil
 }
 
+func (ls *NsPodServiceMap) GetIp(port uint16) string {
+
+	ns_pod_service_mu.RLock()
+	defer ns_pod_service_mu.RUnlock()
+
+	for _, vs := range ls.Services {
+
+		if vs.Port == port {
+			if len(vs.Items) > 0 {
+				return vs.Items[0].Ip
+			}
+		}
+	}
+
+	return "localhost"
+}
+
 func (ls *NsPodServiceMap) Sync(port uint16,
 	rep uint16, host_ip string, host_port uint16) (changed bool) {
 
