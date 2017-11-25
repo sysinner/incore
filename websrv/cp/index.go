@@ -39,7 +39,7 @@ func (c Index) IndexAction() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <title>Control Panel - SysInner</title>
+  <title>SysInner Panel</title>
   <script src="/in/cp/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/cp/~/cp/js/main.js?v=` + inpanel.VersionHash + `"></script>
   <link rel="stylesheet" href="/in/cp/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">

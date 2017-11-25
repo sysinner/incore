@@ -412,7 +412,7 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 
 		if !inst.SpecDesired() {
 
-			js1, _ := json.Encode(inst, "")
+			js1, _ := json.Encode(inst, " ")
 
 			hlog.Printf("info", "hostlet/box spec changed %s {{{%s}}}", inst.Name, string(js1))
 
