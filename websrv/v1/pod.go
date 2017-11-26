@@ -74,6 +74,8 @@ func (c Pod) ListAction() {
 		fields.Sort()
 	}
 
+	action := uint32(c.Params.Uint64("operate_action"))
+
 	for _, v := range rss {
 
 		var pod inapi.Pod
@@ -87,6 +89,10 @@ func (c Pod) ListAction() {
 
 			if c.Params.Int64("destroy_enable") != 1 &&
 				inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
+				continue
+			}
+
+			if action > 0 && !inapi.OpActionAllow(pod.Operate.Action, action) {
 				continue
 			}
 
