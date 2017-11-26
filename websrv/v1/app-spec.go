@@ -23,9 +23,7 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
-	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	iox_utils "github.com/lynkdb/iomix/utils"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -77,7 +75,7 @@ func (c AppSpec) ListAction() {
 		}
 
 		if c.Params.Get("qry_text") != "" &&
-			!strings.Contains(spec.Meta.Name, c.Params.Get("qry_text")) {
+			!strings.Contains(spec.Meta.ID, c.Params.Get("qry_text")) {
 			continue
 		}
 
@@ -89,9 +87,7 @@ func (c AppSpec) ListAction() {
 				},
 			}
 
-			if fields.Has("meta/name") {
-				specf.Meta.Name = spec.Meta.Name
-			}
+
 
 			if fields.Has("meta/user") {
 				specf.Meta.User = spec.Meta.User
@@ -197,8 +193,10 @@ func (c AppSpec) EntryAction() {
 		set.Meta.User = ""
 		set.Meta.Created = 0
 		set.Meta.Updated = 0
+		set.Meta.ID = strings.ToLower(set.Meta.Name)
+		set.Meta.Name = ""
 		c.Response.Out.Header().Set("Content-Disposition",
-			fmt.Sprintf("attachment; filename=app_spec_%s.json", set.Meta.Name))
+			fmt.Sprintf("attachment; filename=app_spec_%s.json", set.Meta.ID))
 	}
 
 	set.Kind = "AppSpec"
@@ -214,6 +212,12 @@ func (c AppSpec) SetAction() {
 
 	if err := c.Request.JsonDecode(&req); err != nil {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	req.Meta.ID = strings.ToLower(req.Meta.ID)
+	if !inapi.AppSpecIdReg.MatchString(req.Meta.ID) {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid ID")
 		return
 	}
 
@@ -235,21 +239,30 @@ func (c AppSpec) SetAction() {
 	var (
 		tn      = types.MetaTimeNow()
 		set_new = false
+		reqVersion, _ = strconv.Atoi(req.Meta.Version) 
 	)
 
 	if prev.Meta.ID == "" {
 
 		prev = req
 
-		prev.Meta.ID = iox_utils.Uint32ToHexString(uint32(tn.Time().Unix())) + idhash.RandHexString(8)
 		prev.Meta.Created = tn
 		prev.Meta.User = c.us.UserName
 		set_new = true
 
 	} else {
 
-		// TODO
+		prevVersion, _ := strconv.Atoi(prev.Meta.Version)
+		if reqVersion == 0 {
+			reqVersion = prevVersion
+		} else if reqVersion < prevVersion {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid meta/version")
+			return
+		} else if reqVersion == prevVersion {
+			reqVersion++
+		}
 
+		// TODO
 		prev.Meta.Name = req.Meta.Name
 		prev.Packages = req.Packages
 
@@ -314,10 +327,10 @@ func (c AppSpec) SetAction() {
 
 	prev.Meta.Updated = tn
 
-	// INCR Resource Version
-	resVersion, _ := strconv.Atoi(prev.Meta.Version)
-	resVersion++
-	prev.Meta.Version = strconv.Itoa(resVersion)
+	if reqVersion < 1 {
+		reqVersion = 1
+	}
+	prev.Meta.Version = strconv.Itoa(reqVersion)
 
 	if set_new {
 		rs = data.ZoneMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)

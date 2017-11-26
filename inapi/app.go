@@ -27,6 +27,7 @@ var (
 	app_op_ref_mu         sync.RWMutex
 	app_spec_cfg_name_re2 = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
 	AppIdRe2              = regexp.MustCompile("^[a-f0-9]{16,24}$")
+	AppSpecIdReg          = regexp.MustCompile("^[a-z]{1}[a-z0-9_-]{2,39}$")
 )
 
 type AppPhase string
@@ -92,7 +93,7 @@ type AppSpecDepend struct {
 }
 
 func (it *AppSpecDepend) Valid() error {
-	if !AppIdRe2.MatchString(it.Id) {
+	if !AppSpecIdReg.MatchString(it.Id) {
 		return errors.New("Invalid AppSpecDepend.ID")
 	}
 	return nil
