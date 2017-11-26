@@ -87,8 +87,6 @@ func (c AppSpec) ListAction() {
 				},
 			}
 
-
-
 			if fields.Has("meta/user") {
 				specf.Meta.User = spec.Meta.User
 			}
@@ -237,9 +235,9 @@ func (c AppSpec) SetAction() {
 	}
 
 	var (
-		tn      = types.MetaTimeNow()
-		set_new = false
-		reqVersion, _ = strconv.Atoi(req.Meta.Version) 
+		tn            = types.MetaTimeNow()
+		set_new       = false
+		reqVersion, _ = strconv.Atoi(req.Meta.Version)
 	)
 
 	if prev.Meta.ID == "" {

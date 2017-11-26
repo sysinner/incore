@@ -301,8 +301,8 @@ func (c App) ListOpResAction() {
 			continue
 		}
 
-		if inst.Spec.Meta.Name != "sysinner-httplb" &&
-			inst.Spec.Meta.Name != "nginx" {
+		if inst.Spec.Meta.ID != "sysinner-httplb" &&
+			inst.Spec.Meta.ID != "nginx" {
 			continue
 		}
 
@@ -324,6 +324,7 @@ func (c App) ListOpResAction() {
 				Meta: inst.Meta,
 				Spec: inapi.AppSpec{
 					Meta: types.InnerObjectMeta{
+						ID:   inst.Spec.Meta.ID,
 						Name: inst.Spec.Meta.Name,
 					},
 				},
