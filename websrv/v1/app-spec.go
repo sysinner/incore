@@ -191,8 +191,6 @@ func (c AppSpec) EntryAction() {
 		set.Meta.User = ""
 		set.Meta.Created = 0
 		set.Meta.Updated = 0
-		set.Meta.ID = strings.ToLower(set.Meta.Name)
-		set.Meta.Name = ""
 		c.Response.Out.Header().Set("Content-Disposition",
 			fmt.Sprintf("attachment; filename=app_spec_%s.json", set.Meta.ID))
 	}

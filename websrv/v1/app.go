@@ -206,34 +206,28 @@ func (c App) SetAction() {
 
 	} else {
 
-		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); !rs.OK() {
-
-			if !rs.NotFound() {
-				rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
-				return
-			}
-
-			prev = set
-
-		} else {
-
+		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); rs.OK() {
 			rs.Decode(&prev)
+		}
 
-			if prev.Meta.User != c.us.UserName ||
-				prev.Meta.ID != set.Meta.ID {
-				rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
-				return
-			}
+		if prev.Meta.ID != set.Meta.ID || prev.Meta.User != c.us.UserName {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
+			return
+		}
 
-			prev.Meta.Name = set.Meta.Name
-			prev.Operate.ResBoundRoles = set.Operate.ResBoundRoles
+		if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+			rsp.Error = types.NewErrorMeta("400", "the app instance has been destroyed")
+			return
+		}
 
-			if set.Operate.Action > 0 &&
-				inapi.OpActionValid(set.Operate.Action) &&
-				prev.Operate.Action != set.Operate.Action {
-				prev.Operate.Action = set.Operate.Action
-				deploy = true
-			}
+		prev.Meta.Name = set.Meta.Name
+		prev.Operate.ResBoundRoles = set.Operate.ResBoundRoles
+
+		if set.Operate.Action > 0 &&
+			inapi.OpActionValid(set.Operate.Action) &&
+			prev.Operate.Action != set.Operate.Action {
+			prev.Operate.Action = set.Operate.Action
+			deploy = true
 		}
 	}
 
@@ -258,6 +252,30 @@ func (c App) SetAction() {
 	}
 
 	if set_new {
+
+		if prev.Operate.PodId == "" {
+			rsp.Error = types.NewErrorMeta("400", "Operate.PodId Not Bound")
+			return
+		}
+
+		var pod inapi.Pod
+		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(prev.Operate.PodId)); !rs.OK() {
+			rsp.Error = types.NewErrorMeta("500", "Server Error")
+			return
+		} else {
+			rs.Decode(&pod)
+		}
+
+		if pod.Meta.ID != prev.Operate.PodId {
+			rsp.Error = types.NewErrorMeta("400", "Operate.PodId Not Found")
+			return
+		}
+
+		if err := app_pod_conflict_check(&pod, &prev); err != nil {
+			rsp.Error = types.NewErrorMeta("400", err.Error())
+			return
+		}
+
 		rs = in_db.ZoneMaster.PvNew(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
 	} else {
 		rs = in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
@@ -274,6 +292,54 @@ func (c App) SetAction() {
 
 	rsp.Meta.ID = prev.Meta.ID
 	rsp.Kind = "App"
+}
+
+func app_pod_conflict_check(pod *inapi.Pod, app *inapi.AppInstance) error {
+
+	for _, v := range pod.Apps {
+
+		if app.Meta.ID == v.Meta.ID {
+			continue
+		}
+
+		if v.Spec.Meta.ID == app.Spec.Meta.ID {
+			return fmt.Errorf(
+				"conflict of AppSpec. another app (%s) has been bound to pod (%s)",
+				v.Meta.ID, app.Operate.PodId)
+		}
+
+		for _, p := range app.Spec.Packages {
+			for _, p2 := range v.Spec.Packages {
+				if p.Name == p2.Name {
+					return fmt.Errorf(
+						"conflict of AppSpec/Package. another app (%s) had bound the package (%s) to pod (%s)",
+						v.Meta.ID, p.Name, app.Operate.PodId)
+				}
+			}
+		}
+
+		for _, e := range app.Spec.Executors {
+			for _, e2 := range v.Spec.Executors {
+				if e.Name == e2.Name {
+					return fmt.Errorf(
+						"conflict of AppSpec/Executor. another app (%s) had bound the executor (%s) to pod (%s)",
+						v.Meta.ID, e.Name, app.Operate.PodId)
+				}
+			}
+		}
+
+		for _, sp := range app.Spec.ServicePorts {
+			for _, sp2 := range v.Spec.ServicePorts {
+				if sp.Name == sp2.Name || sp.BoxPort == sp2.BoxPort {
+					return fmt.Errorf(
+						"conflict of AppSpec/ServicePort. another app (%s) had bound the port (%s/%d) to pod (%s)",
+						v.Meta.ID, sp2.Name, sp2.BoxPort, app.Operate.PodId)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c App) ListOpResAction() {
@@ -374,6 +440,11 @@ func (c App) OpActionSetAction() {
 
 	if app.Operate.PodId == "" {
 		rsp.Error = types.NewErrorMeta("400", "No Pod Bound")
+		return
+	}
+
+	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
+		rsp.Error = types.NewErrorMeta("400", "the app instance has been destroyed")
 		return
 	}
 

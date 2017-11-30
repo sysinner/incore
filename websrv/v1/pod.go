@@ -74,6 +74,11 @@ func (c Pod) ListAction() {
 		fields.Sort()
 	}
 
+	var exp_app_filter_notin types.ArrayString
+	if v := c.Params.Get("exp_app_filter_notin"); v != "" {
+		exp_app_filter_notin = types.ArrayString(strings.Split(v, ","))
+	}
+
 	action := uint32(c.Params.Uint64("operate_action"))
 
 	for _, v := range rss {
@@ -96,6 +101,19 @@ func (c Pod) ListAction() {
 				continue
 			}
 
+			if len(exp_app_filter_notin) > 0 {
+				found := false
+				for _, vpa := range pod.Apps {
+					if exp_app_filter_notin.Has(vpa.Spec.Meta.ID) {
+						found = true
+						break
+					}
+				}
+				if found {
+					continue
+				}
+			}
+
 			if len(fields) > 0 {
 
 				podfs := inapi.Pod{
@@ -114,6 +132,10 @@ func (c Pod) ListAction() {
 
 				if fields.Has("spec") && pod.Spec != nil {
 					podfs.Spec = &inapi.PodSpecBound{}
+
+					if fields.Has("spec/ref/id") {
+						podfs.Spec.Ref.Id = pod.Spec.Ref.Id
+					}
 
 					if fields.Has("spec/ref/name") {
 						podfs.Spec.Ref.Name = pod.Spec.Ref.Name
