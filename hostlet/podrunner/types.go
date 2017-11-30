@@ -204,6 +204,10 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 
 	for _, app := range inst.Apps {
 
+		if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
+			continue
+		}
+
 		for _, pkg := range app.Spec.Packages {
 
 			ls, _ = inapi.PbVolumeMountSliceSync(ls, &inapi.PbVolumeMount{

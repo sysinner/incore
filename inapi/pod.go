@@ -97,6 +97,10 @@ func (pod *Pod) AppServicePorts() ServicePorts {
 
 	for _, va := range pod.Apps {
 
+		if OpActionAllow(va.Operate.Action, OpActionDestroy) {
+			continue
+		}
+
 		for _, sp := range va.Spec.ServicePorts {
 			ports.Sync(*sp)
 		}

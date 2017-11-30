@@ -251,6 +251,10 @@ func (c App) SetAction() {
 		prev.Spec = spec
 	}
 
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		prev.Operate.Action = prev.Operate.Action | inapi.OpActionStop
+	}
+
 	if set_new {
 
 		if prev.Operate.PodId == "" {
@@ -446,6 +450,10 @@ func (c App) OpActionSetAction() {
 	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
 		rsp.Error = types.NewErrorMeta("400", "the app instance has been destroyed")
 		return
+	}
+
+	if inapi.OpActionAllow(op_action, inapi.OpActionDestroy) {
+		op_action = op_action | inapi.OpActionStop
 	}
 
 	if app.Operate.Action != op_action {

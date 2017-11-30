@@ -103,6 +103,22 @@ func (br *BoxKeeper) status_update(item *BoxInstance) {
 
 	if inst := BoxActives.Get(item.Name); inst != nil {
 
+		if len(inst.Status.ImageOptions) != len(item.Status.ImageOptions) {
+			inst.Status.ImageOptions = item.Status.ImageOptions
+		}
+
+		if len(inst.Status.Mounts) != len(item.Status.Mounts) {
+			inst.Status.Mounts = item.Status.Mounts
+		}
+
+		if len(inst.Status.Ports) != len(item.Status.Ports) {
+			inst.Status.Ports = item.Status.Ports
+		}
+
+		if len(inst.Status.Executors) != len(item.Status.Executors) {
+			inst.Status.Executors = item.Status.Executors
+		}
+
 		inst.Status.Sync(&item.Status)
 
 		if inst.PodOpAction != item.PodOpAction && item.PodOpAction > 0 {

@@ -509,6 +509,16 @@ func (c Pod) OpActionSetAction() {
 		return
 	}
 
+	if inapi.OpActionAllow(op_action, inapi.OpActionDestroy) {
+		for _, v := range prev.Apps {
+			if !inapi.OpActionAllow(v.Operate.Action, inapi.OpActionDestroy) {
+				set.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("Action Denied: the app (%s / %s) is running", v.Meta.ID, v.Meta.Name))
+				return
+			}
+		}
+	}
+
 	//
 	prev.Operate.Action = op_action
 	prev.Operate.Version++
@@ -581,6 +591,16 @@ func (c Pod) SetInfoAction() {
 		prev.Operate.Action == set.Operate.Action {
 		set.Kind = "PodInstance"
 		return
+	}
+
+	if inapi.OpActionAllow(set.Operate.Action, inapi.OpActionDestroy) {
+		for _, v := range prev.Apps {
+			if !inapi.OpActionAllow(v.Operate.Action, inapi.OpActionDestroy) {
+				set.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("Action Denied: the app (%s / %s) is running", v.Meta.ID, v.Meta.Name))
+				return
+			}
+		}
 	}
 
 	prev.Meta.Name = set.Meta.Name
