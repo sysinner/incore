@@ -89,7 +89,7 @@ func cfg_render(src, dst string) error {
 		for _, op := range app.Operate.Options {
 			for _, item := range op.Items {
 				key := keyenc(fmt.Sprintf("app__%s__option__%s__%s",
-					app.Spec.Meta.Name,
+					app.Spec.Meta.ID,
 					op.Name,
 					item.Name,
 				))
