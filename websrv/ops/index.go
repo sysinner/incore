@@ -28,7 +28,7 @@ func (c Index) IndexAction() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <title>Ops</title>
+  <title>SysInner Ops</title>
   <script src="/in/ops/~/lessui/js/sea.js"></script>
   <script src="/in/ops/~/ops/js/main.js"></script>
   <script type="text/javascript">
