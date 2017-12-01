@@ -44,8 +44,9 @@ const (
 )
 
 type host_res_usage struct {
-	cpu int64
-	mem int64
+	cpu   int64
+	mem   int64
+	ports types.ArrayUint16
 }
 
 func scheduler_exec() error {
@@ -81,7 +82,7 @@ func scheduler_exec() error {
 	for _, v := range rss {
 		var pod inapi.Pod
 		if err := v.Decode(&pod); err != nil {
-			continue
+			return err
 		}
 		if scheduler_status_refresh(&pod) {
 			data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil)
@@ -96,33 +97,60 @@ func scheduler_exec() error {
 			if rp.Node == "" {
 				continue
 			}
-			hres, _ := host_res_usages[pod.Meta.ID]
+			hres, _ := host_res_usages[rp.Node]
 			if hres == nil {
 				hres = &host_res_usage{}
-				host_res_usages[pod.Meta.ID] = hres
+				host_res_usages[rp.Node] = hres
 			}
 			hres.cpu += spec_res.CpuLimit
 			hres.mem += spec_res.MemLimit
+
+			for _, rpp := range rp.Ports {
+				hres.ports.Set(rpp.HostPort)
+			}
 		}
 	}
 
 	for _, host := range status.ZoneHostList.Items {
 
-		res, ok := host_res_usages[host.Meta.Id]
+		var (
+			res, ok = host_res_usages[host.Meta.Id]
+			sync    = false
+		)
 
 		if !ok {
 			if host.Operate.CpuUsed > 0 {
-				host.Operate.CpuUsed = 0
+				host.Operate.CpuUsed, sync = 0, true
 			}
 			if host.Operate.MemUsed > 0 {
-				host.Operate.MemUsed = 0
+				host.Operate.MemUsed, sync = 0, true
+			}
+			if len(host.Operate.PortUsed) > 0 {
+				host.Operate.PortUsed, sync = []uint32{}, true
 			}
 		} else {
 			if host.Operate.CpuUsed != res.cpu {
-				host.Operate.CpuUsed = res.cpu
+				host.Operate.CpuUsed, sync = res.cpu, true
 			}
 			if host.Operate.MemUsed != res.mem {
-				host.Operate.MemUsed = res.mem
+				host.Operate.MemUsed, sync = res.mem, true
+			}
+			if len(res.ports) > 0 && len(res.ports) != len(host.Operate.PortUsed) {
+				for _, vp := range res.ports {
+					host.Operate.PortUsed = append(host.Operate.PortUsed, uint32(vp))
+				}
+				sync = true
+			}
+		}
+
+		if sync {
+
+			host.OpPortSort()
+
+			if rs := data.ZoneMaster.PvPut(
+				inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
+			); !rs.OK() {
+				return fmt.Errorf("host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
 			}
 		}
 	}
