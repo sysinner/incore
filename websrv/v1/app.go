@@ -16,6 +16,7 @@ package v1
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -280,6 +281,11 @@ func (c App) SetAction() {
 			return
 		}
 
+		if err := app_pod_res_check(&pod, &prev); err != nil {
+			rsp.Error = types.NewErrorMeta("400", err.Error()+", try to select another pod to deploy this application")
+			return
+		}
+
 		rs = in_db.ZoneMaster.PvNew(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
 	} else {
 		rs = in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
@@ -296,6 +302,33 @@ func (c App) SetAction() {
 
 	rsp.Meta.ID = prev.Meta.ID
 	rsp.Kind = "App"
+}
+
+func app_pod_res_check(pod *inapi.Pod, app *inapi.AppInstance) error {
+
+	if pod.Spec == nil {
+		return errors.New("this pod currently unavailable")
+	}
+
+	if vol := pod.Spec.Volume("system"); vol == nil {
+		return errors.New("pod currently unavailable")
+	} else if app.Spec.ExpRes.VolMin > vol.SizeLimit {
+		return fmt.Errorf("AppSpec requires at least %0.1f GB sytem volume space",
+			float64(app.Spec.ExpRes.VolMin)/float64(inapi.ByteGB))
+	}
+
+	res := pod.Spec.ResComputeBound()
+	if app.Spec.ExpRes.CpuMin > res.CpuLimit {
+		return fmt.Errorf("AppSpec requires at least %d m CPU resource",
+			app.Spec.ExpRes.CpuMin)
+	}
+
+	if app.Spec.ExpRes.MemMin > res.MemLimit {
+		return fmt.Errorf("AppSpec requires at least %d MB Memory space",
+			app.Spec.ExpRes.MemMin/inapi.ByteMB)
+	}
+
+	return nil
 }
 
 func app_pod_conflict_check(pod *inapi.Pod, app *inapi.AppInstance) error {

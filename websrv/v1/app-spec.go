@@ -261,6 +261,7 @@ func (c AppSpec) SetAction() {
 		// TODO
 		prev.Meta.Name = req.Meta.Name
 		prev.Packages = req.Packages
+		prev.ExpRes = req.ExpRes
 
 		prev.Depends = []inapi.AppSpecDepend{}
 		for _, v := range req.Depends {
@@ -327,6 +328,32 @@ func (c AppSpec) SetAction() {
 		reqVersion = 1
 	}
 	prev.Meta.Version = strconv.Itoa(reqVersion)
+
+	//
+	if prev.ExpRes.CpuMin < 100 {
+		prev.ExpRes.CpuMin = 100
+	}
+	if fix := prev.ExpRes.CpuMin % 100; fix > 0 {
+		prev.ExpRes.CpuMin += fix
+	}
+
+	//
+	mem_min_min := 8 * inapi.ByteMB
+	if prev.ExpRes.MemMin < mem_min_min {
+		prev.ExpRes.MemMin = mem_min_min
+	}
+	if fix := prev.ExpRes.MemMin % mem_min_min; fix > 0 {
+		prev.ExpRes.MemMin += fix
+	}
+
+	//
+	vol_min_min := 100 * inapi.ByteMB
+	if prev.ExpRes.VolMin < vol_min_min {
+		prev.ExpRes.VolMin = vol_min_min
+	}
+	if fix := prev.ExpRes.VolMin % vol_min_min; fix > 0 {
+		prev.ExpRes.VolMin += fix
+	}
 
 	if set_new {
 		rs = data.ZoneMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)

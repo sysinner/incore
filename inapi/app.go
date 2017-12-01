@@ -106,16 +106,23 @@ func (it *AppSpecDepend) IterKey() string {
 //
 type AppSpec struct {
 	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta"`
-	Roles          types.ArrayUint32     `json:"roles,omitempty"`
-	Vendor         string                `json:"vendor,omitempty"`
-	Description    string                `json:"description,omitempty"`
-	Packages       AppPackages           `json:"packages,omitempty"`
-	Executors      Executors             `json:"executors,omitempty"`
-	VolumeMounts   AppVolumeMounts       `json:"volume_mounts,omitempty"`
-	ServicePorts   ServicePorts          `json:"service_ports,omitempty"`
-	Configurator   *AppConfigurator      `json:"configurator,omitempty"`
-	Depends        []AppSpecDepend       `json:"depends,omitempty"`
+	Meta           types.InnerObjectMeta  `json:"meta"`
+	Roles          types.ArrayUint32      `json:"roles,omitempty"`
+	Vendor         string                 `json:"vendor,omitempty"`
+	Description    string                 `json:"description,omitempty"`
+	Packages       AppPackages            `json:"packages,omitempty"`
+	Executors      Executors              `json:"executors,omitempty"`
+	VolumeMounts   AppVolumeMounts        `json:"volume_mounts,omitempty"`
+	ServicePorts   ServicePorts           `json:"service_ports,omitempty"`
+	Configurator   *AppConfigurator       `json:"configurator,omitempty"`
+	Depends        []AppSpecDepend        `json:"depends,omitempty"`
+	ExpRes         AppSpecResRequirements `json:"exp_res,omitempty"`
+}
+
+type AppSpecResRequirements struct {
+	CpuMin int64 `json:"cpu_min,omitempty"`
+	MemMin int64 `json:"mem_min,omitempty"`
+	VolMin int64 `json:"vol_min,omitempty"`
 }
 
 type AppSpecList struct {
