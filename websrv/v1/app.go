@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 	"text/template"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -200,7 +201,7 @@ func (c App) SetAction() {
 
 		prev = set
 
-		prev.Meta.ID = iox_utils.Uint32ToHexString(uint32(tn.Time().Unix())) + idhash.RandHexString(8)
+		prev.Meta.ID = iox_utils.Uint32ToHexString(uint32(time.Now().Unix())) + idhash.RandHexString(8)
 		prev.Meta.Created = tn
 		prev.Meta.User = c.us.UserName
 		set_new = true
