@@ -507,9 +507,6 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 			inst.Status.Action = inapi.OpActionWarning
 			return err
 		}
-		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
-		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", agentSrc, agentDst).Output()
-		exec.Command(cmd_install, bashrcSrc, bashrcDst).Output()
 
 		// hlog.Printf("info", "hostlet/box CreateContainer %s, homefs:%s", inst.Name, dirPodHome)
 
@@ -567,6 +564,11 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 		inst.Status.Action != inapi.OpActionRunning {
 
 		hlog.Printf("info", "hostlet/box StartContainer %s", inst.Name)
+
+		//
+		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
+		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", agentSrc, agentDst).Output()
+		exec.Command(cmd_install, bashrcSrc, bashrcDst).Output()
 
 		err = br.hidocker.StartContainer(inst.ID, nil)
 
