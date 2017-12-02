@@ -65,7 +65,7 @@ func (c Index) IndexAction() {
   </div>
   <div class="footer">
     <span class="copy">&copy;2017&nbsp;</span>
-    <a href="http://www.sysinner.com" target="_blank">SysInner.com</a>
+    <span class="url-info">Powered by <a href="http://www.sysinner.com" target="_blank">Sysinner.com</a></span>
   </div>
 </div>
 </div>
