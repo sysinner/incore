@@ -103,7 +103,12 @@ func Init() error {
 
 	//
 	if Config.PodHomeDir == "" {
-		Config.PodHomeDir = Prefix + "/var/pods"
+		if strings.HasPrefix(Prefix, "/opt/sysinner/in") {
+			os.MkdirAll("/opt/sysinner/pods", 0755)
+			Config.PodHomeDir = "/opt/sysinner/pods"
+		} else {
+			Config.PodHomeDir = Prefix + "/var/pods"
+		}
 	}
 
 	if Config.IamServiceUrlFrontend != "" && !strings.HasPrefix(Config.IamServiceUrlFrontend, "http") {
@@ -167,7 +172,7 @@ func init_host() error {
 	}
 
 	if len(Config.Host.SecretKey) < 32 {
-		Config.Host.SecretKey = idhash.RandBase64String(32)
+		Config.Host.SecretKey = idhash.RandBase64String(40)
 		Config.Sync()
 	}
 
