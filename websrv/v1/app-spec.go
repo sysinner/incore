@@ -343,7 +343,7 @@ func (c AppSpec) SetAction() {
 		prev.ExpRes.MemMin = mem_min_min
 	}
 	if fix := prev.ExpRes.MemMin % mem_min_min; fix > 0 {
-		prev.ExpRes.MemMin += fix
+		prev.ExpRes.MemMin += (mem_min_min - fix)
 	}
 
 	//
@@ -352,9 +352,10 @@ func (c AppSpec) SetAction() {
 		prev.ExpRes.VolMin = vol_min_min
 	}
 	if fix := prev.ExpRes.VolMin % vol_min_min; fix > 0 {
-		prev.ExpRes.VolMin += fix
+		prev.ExpRes.VolMin += (vol_min_min - fix)
 	}
 
+	//
 	if set_new {
 		rs = data.ZoneMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
 	} else {
