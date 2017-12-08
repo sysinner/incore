@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 	"text/template"
+	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
