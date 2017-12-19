@@ -30,7 +30,7 @@ type AppSpec struct {
 }
 
 var (
-	public_roles = []uint32{100, 101}
+	public_roles = []uint32{1, 100, 101}
 )
 
 func (c AppSpec) ListAction() {
@@ -67,7 +67,8 @@ func (c AppSpec) ListAction() {
 
 			specf := inapi.AppSpec{
 				Meta: types.InnerObjectMeta{
-					ID: spec.Meta.ID,
+					ID:   spec.Meta.ID,
+					Name: spec.Meta.Name,
 				},
 			}
 
@@ -91,6 +92,10 @@ func (c AppSpec) ListAction() {
 					}
 					specf.Depends = append(specf.Depends, depf)
 				}
+			}
+
+			if fields.Has("description") {
+				specf.Description = spec.Description
 			}
 
 			if fields.Has("packages") {

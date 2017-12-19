@@ -83,7 +83,8 @@ func (c AppSpec) ListAction() {
 
 			specf := inapi.AppSpec{
 				Meta: types.InnerObjectMeta{
-					ID: spec.Meta.ID,
+					ID:   spec.Meta.ID,
+					Name: spec.Meta.Name,
 				},
 			}
 
@@ -97,6 +98,10 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("meta/updated") {
 				specf.Meta.Updated = spec.Meta.Updated
+			}
+
+			if fields.Has("description") {
+				specf.Description = spec.Description
 			}
 
 			if fields.Has("depends") {
