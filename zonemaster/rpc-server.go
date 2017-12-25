@@ -21,6 +21,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/auth"
@@ -63,6 +64,44 @@ func (s *ApiZoneMaster) HostStatusSync(
 	//
 	if opts.Spec.PeerLanAddr != "" && opts.Spec.PeerLanAddr != host.Spec.PeerLanAddr {
 		zm_host_addr_change(opts, host.Spec.PeerLanAddr)
+	}
+
+	if opts.Status != nil && opts.Status.Stats != nil {
+		arrs := inapi.NewPbStatsIndexList(600, 60)
+		for _, v := range opts.Status.Stats.Items {
+			for _, v2 := range v.Items {
+				arrs.Sync(v.Name, v2.Time, v2.Value)
+			}
+		}
+		for _, v := range arrs.Items {
+			pk := inapi.NsZoneSysHostStats(status.ZoneId, opts.Meta.Id, v.Time)
+
+			var stats_index inapi.PbStatsIndexFeed
+			if rs := data.ZoneMaster.ProgGet(pk); rs.OK() {
+				rs.Decode(&stats_index)
+				if stats_index.Time < 1 {
+					continue
+				}
+			}
+
+			stats_index.Time = v.Time
+			for _, entry := range v.Items {
+				for _, sv := range entry.Items {
+					stats_index.Sync(entry.Name, sv.Time, sv.Value)
+				}
+			}
+
+			if len(stats_index.Items) > 0 {
+				data.ZoneMaster.ProgPut(
+					pk,
+					skv.NewProgValue(stats_index),
+					&skv.ProgWriteOptions{
+						Expired: time.Now().Add(30 * 24 * time.Hour),
+					},
+				)
+			}
+		}
+		opts.Status.Stats = nil
 	}
 
 	//
@@ -108,6 +147,45 @@ func (s *ApiZoneMaster) HostStatusSync(
 				prev.Boxes = []*inapi.PbPodBoxStatus{}
 				break
 			}
+		}
+
+		if v.Stats != nil {
+			arrs := inapi.NewPbStatsIndexList(600, 60)
+			for _, entry := range v.Stats.Items {
+				for _, v2 := range entry.Items {
+					arrs.Sync(entry.Name, v2.Time, v2.Value)
+				}
+			}
+			for _, iv := range arrs.Items {
+				pk := inapi.NsZonePodRepStats(status.ZoneId, v.Id, uint16(v.Rep), "sys", iv.Time)
+
+				var stats_index inapi.PbStatsIndexFeed
+				if rs := data.ZoneMaster.ProgGet(pk); rs.OK() {
+					rs.Decode(&stats_index)
+					if stats_index.Time < 1 {
+						continue
+					}
+				}
+
+				stats_index.Time = iv.Time
+				for _, entry := range iv.Items {
+					for _, sv := range entry.Items {
+						stats_index.Sync(entry.Name, sv.Time, sv.Value)
+					}
+				}
+
+				if len(stats_index.Items) > 0 {
+					data.ZoneMaster.ProgPut(
+						pk,
+						skv.NewProgValue(stats_index),
+						&skv.ProgWriteOptions{
+							Expired: time.Now().Add(30 * 24 * time.Hour),
+						},
+					)
+				}
+			}
+
+			v.Stats = nil
 		}
 
 		changed := false

@@ -16,6 +16,7 @@ package v1
 
 import (
 	"encoding/base64"
+	"fmt"
 	"strings"
 
 	"github.com/hooto/httpsrv"
@@ -23,7 +24,6 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
-
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
@@ -34,16 +34,13 @@ type PodStats struct {
 }
 
 func (c *PodStats) Init() int {
-
-	//
 	c.us, _ = iamclient.SessionInstance(c.Session)
-
 	if !c.us.IsLogin() {
 		c.Response.Out.WriteHeader(401)
-		c.RenderJson(types.NewTypeErrorMeta(iamapi.ErrCodeUnauthorized, "Unauthorized"))
+		c.RenderJson(types.NewTypeErrorMeta(
+			iamapi.ErrCodeUnauthorized, "Unauthorized"))
 		return 1
 	}
-
 	return 0
 }
 
@@ -93,24 +90,26 @@ func (c PodStats) FeedAction() {
 
 	fq.Fix()
 
+	js, _ := json.Encode(fq, "  ")
+	fmt.Println("qry", string(js))
+
 	if fq.TimeStart >= fq.TimeCutset {
 		c.RenderJson(types.NewTypeErrorMeta("400", "Bad Request"))
 		return
 	}
 
-	feed := inapi.NewTimeStatsFeed(fq.TimeCycle)
-	defer c.RenderJson(feed)
-
 	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
 		obj.Decode(&pod)
 		if pod.Meta.ID == "" || pod.Meta.User != c.us.UserName {
-			feed.Error = types.NewErrorMeta("404", "Pod Not Found")
+			c.RenderJson(types.NewTypeErrorMeta("400", "Pod Not Found"))
 			return
 		}
 	} else {
-		feed.Error = types.NewErrorMeta("404", "Pod Not Found")
+		c.RenderJson(types.NewTypeErrorMeta("400", "Pod Not Found"))
 		return
 	}
+
+	feed := inapi.NewPbStatsSampleFeed(fq.TimeCycle)
 
 	// feed.Debugs.Set("time_start", fmt.Sprintf("%d", fq.TimeStart))
 	// feed.Debugs.Set("time_starts", time.Unix(int64(fq.TimeStart), 0))
@@ -128,25 +127,27 @@ func (c PodStats) FeedAction() {
 			pod.Meta.ID,
 			0,
 			"sys",
-			fq.TimeCutset,
+			fq.TimeCutset+600,
 		),
 		50000,
 	); rs.OK() {
 
 		ls := rs.KvList()
-		var vf inapi.TimeStatsFeed
+		var ifeed inapi.PbStatsIndexFeed
 		for _, v := range ls {
 
-			if err := v.Decode(&vf); err != nil {
+			if err := v.Decode(&ifeed); err != nil {
 				continue
 			}
 
-			for _, v2 := range vf.Items {
-				if fq.Get(v2.Name) == nil {
+			for _, ientry := range ifeed.Items {
+				if fq.Get(ientry.Name) == nil {
 					continue
 				}
-				for _, v3 := range v2.Items {
-					feed.Sync(v2.Name, v3.Time, v3.Value, "ow")
+				for _, iv := range ientry.Items {
+					if iv.Time <= fq.TimeCutset {
+						feed.SampleSync(ientry.Name, iv.Time, iv.Value)
+					}
 				}
 			}
 		}
@@ -155,7 +156,7 @@ func (c PodStats) FeedAction() {
 	for _, v := range feed.Items {
 
 		for i := fq.TimeStart; i <= fq.TimeCutset; i += fq.TimeCycle {
-			v.Sync(i, 0, "ex", true)
+			v.SyncTrim(i, 0)
 		}
 		v.Sort()
 
@@ -167,8 +168,19 @@ func (c PodStats) FeedAction() {
 		if fqi == nil {
 			continue
 		}
+
 		if fqi.Delta {
+			last_value := int64(0)
 			for i := len(v.Items) - 1; i > 0; i-- {
+
+				if v.Items[i].Value <= 0 {
+					if last_value > 0 {
+						v.Items[i].Value = last_value
+					}
+				} else {
+					last_value = v.Items[i].Value
+				}
+
 				if v.Items[i].Value >= v.Items[i-1].Value && v.Items[i-1].Value > 0 {
 					v.Items[i].Value = v.Items[i].Value - v.Items[i-1].Value
 				} else {
@@ -181,4 +193,5 @@ func (c PodStats) FeedAction() {
 	}
 
 	feed.Kind = "TimeStatsFeed"
+	c.RenderJson(feed)
 }

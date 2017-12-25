@@ -15,6 +15,7 @@
 package inapi
 
 //go:generate protoc --go_out=plugins=grpc:. inapi/*.proto
+//go:generate protobuf_slice "inapi/*.proto"
 
 import (
 	"sync"

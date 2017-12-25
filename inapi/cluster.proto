@@ -18,6 +18,7 @@ package inapi;
 
 import "inapi/base.proto";
 import "inapi/pod.proto";
+import "inapi/stats.proto";
 
 
 // host
@@ -64,8 +65,9 @@ message ResHostResource {
 }
 
 message ResHostStatus {
-    string phase  = 1;
-    uint64 uptime = 2;
+    string            phase  = 1;
+    uint64            uptime = 2;
+    PbStatsSampleFeed stats  = 3;
 }
 
 message ResZone {

@@ -91,7 +91,7 @@ func (br *BoxKeeper) stats_watcher() {
 			}
 
 			if inst.Stats == nil {
-				inst.Stats = inapi.NewTimeStatsFeed(stats_cycle_buf)
+				inst.Stats = inapi.NewPbStatsSampleFeed(stats_sample_cycle)
 			}
 
 			go br.docker_stats_entry(inst, timo)
@@ -193,7 +193,7 @@ func (br *BoxKeeper) ctr_action_box(inst_name string, pod *inapi.Pod, box_spec i
 			Spec:         box_spec,
 			Apps:         pod.Apps,
 			Ports:        pod.Operate.Replica.Ports, // TODO
-			Stats:        inapi.NewTimeStatsFeed(stats_cycle_buf),
+			Stats:        inapi.NewPbStatsSampleFeed(stats_sample_cycle),
 		}
 
 		BoxActives.Set(inst)

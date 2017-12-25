@@ -10,6 +10,7 @@ It is generated from these files:
 	inapi/cluster.proto
 	inapi/operator.proto
 	inapi/pod.proto
+	inapi/stats.proto
 
 It has these top-level messages:
 	ErrorMeta
@@ -34,6 +35,11 @@ It has these top-level messages:
 	PbServicePort
 	PbPodBoxStatusExecutor
 	PbPodBoxStatus
+	PbStatsSampleFeed
+	PbStatsSampleEntry
+	PbStatsSampleValue
+	PbStatsIndexList
+	PbStatsIndexFeed
 */
 package inapi
 

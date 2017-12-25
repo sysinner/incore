@@ -30,17 +30,23 @@ import (
 )
 
 const (
-	stats_tick      int64  = 5e9
-	stats_cycle_buf uint32 = 20
-	stats_cycle_log uint32 = 60
-	oplog_podpull          = "hostlet/pod-updater"
-	oplog_ctncmd           = "hostlet/box-keeper"
+	stats_tick         int64  = 5e9
+	stats_sample_cycle uint32 = 20
+	stats_log_cycle    uint32 = 60
+	oplog_podpull             = "hostlet/pod-updater"
+	oplog_ctncmd              = "hostlet/box-keeper"
 )
 
 var (
 	vol_podhome_fmt      = "%s/%s.%s/home/action"
 	vol_agentsys_dir_fmt = "%s/%s.%s/home/action/.sysinner"
 	BoxInstanceNameReg   = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})-([a-z]{1}[a-z0-9]{0,19})$")
+	stats_feed_names     = []string{
+		"ram/us", "ram/cc",
+		"net/rs", "net/ws",
+		"cpu/us",
+		"fs/rn", "fs/rs", "fs/wn", "fs/ws",
+	}
 )
 
 func vol_podhome_dir(pod_id string, rep_id uint16) string {
@@ -67,7 +73,7 @@ type BoxInstance struct {
 	Retry         int
 	Env           []inapi.EnvVar
 	Status        inapi.PbPodBoxStatus
-	Stats         *inapi.TimeStatsFeed
+	Stats         *inapi.PbStatsSampleFeed
 }
 
 func BoxInstanceName(pod_id string, rep *inapi.PodOperateReplica, box_name string) string {

@@ -80,6 +80,10 @@ func NsZoneSysHostStatus(zone_id, host_id string) string {
 	return fmt.Sprintf("/inz/%s/host/%s/status", zone_id, host_id)
 }
 
+func NsZoneSysHostStats(zone_id, host_id string, timo uint32) skv.ProgKey {
+	return skv.NewProgKey("inz", zone_id, "hs", host_id, timo)
+}
+
 func NsZoneSysMasterLeader(zone_id string) string {
 	return fmt.Sprintf("/inz/%s/sys/zm/leader", zone_id)
 }

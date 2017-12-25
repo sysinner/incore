@@ -18,13 +18,20 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lynkdb/iomix/skv"
-	"github.com/shirou/gopsutil/mem"
 	"golang.org/x/net/context"
+
+	ps_cpu "github.com/shirou/gopsutil/cpu"
+	ps_disk "github.com/shirou/gopsutil/disk"
+	ps_mem "github.com/shirou/gopsutil/mem"
+	ps_net "github.com/shirou/gopsutil/net"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
@@ -37,6 +44,21 @@ import (
 
 const (
 	inagent_box_status = "%s/%s/home/action/.sysinner/box_status.json"
+)
+
+var (
+	stats_podrep_names = []string{
+		"ram/us", "ram/cc",
+		"net/rs", "net/ws",
+		"cpu/us",
+		"fs/rn", "fs/rs", "fs/wn", "fs/ws",
+	}
+	stats_host_names = []string{
+		"ram/us", "ram/cc",
+		"net/rs", "net/ws",
+		"cpu/sys", "cpu/user",
+		"fs/sp/rn", "fs/sp/rs", "fs/sp/wn", "fs/sp/ws",
+	}
 )
 
 func status_tracker() {
@@ -159,7 +181,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 
 	if status.Host.Spec.Capacity == nil {
 
-		vm, _ := mem.VirtualMemory()
+		vm, _ := ps_mem.VirtualMemory()
 
 		status.Host.Spec.Capacity = &inapi.ResHostResource{
 			Cpu: uint64(runtime.NumCPU()) * 1000,
@@ -171,6 +193,12 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 
 	// fmt.Println("pod", len(podrunner.PodRepActives))
 	// fmt.Println("box", len(podrunner.BoxActives))
+
+	if stats := host_stats_get(); stats != nil {
+		status.Host.Status.Stats = stats
+		// js, _ := json.Encode(stats, "  ")
+		// fmt.Println("send", string(js))
+	}
 
 	// Pod Rep Status
 	podrunner.PodRepActives.Each(func(pod *inapi.Pod) {
@@ -217,6 +245,25 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 			}
 
 			pod_status.Boxes = append(pod_status.Boxes, &box_inst.Status)
+
+			if bspec.Name == "main" && box_inst.Stats != nil {
+
+				//
+				var (
+					feed            = inapi.NewPbStatsSampleFeed(stats_log_cycle)
+					ec_time  uint32 = 0
+					ec_value int64  = 0
+				)
+				for _, name := range stats_podrep_names {
+					if ec_time, ec_value = box_inst.Stats.Extract(name, stats_log_cycle, ec_time); ec_value >= 0 {
+						feed.SampleSync(name, ec_time, ec_value)
+					}
+				}
+
+				if len(feed.Items) > 0 {
+					pod_status.Stats = feed
+				}
+			}
 		}
 
 		pod_status.Action = action
@@ -241,4 +288,90 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 	return inapi.NewApiZoneMasterClient(conn).HostStatusSync(
 		context.Background(), &status.Host,
 	)
+}
+
+var (
+	stats_sample_cycle uint32 = 5
+	stats_log_cycle    uint32 = 20
+	host_stats                = inapi.NewPbStatsSampleFeed(stats_sample_cycle)
+)
+
+func host_stats_get() *inapi.PbStatsSampleFeed {
+
+	timo := uint32(time.Now().Unix())
+
+	// RAM
+	vm, _ := ps_mem.VirtualMemory()
+	host_stats.SampleSync("ram/us", timo, int64(vm.Used))
+	host_stats.SampleSync("ram/cc", timo, int64(vm.Cached))
+
+	// Networks
+	nio, _ := ps_net.IOCounters(false)
+	if len(nio) > 0 {
+		host_stats.SampleSync("net/rs", timo, int64(nio[0].BytesRecv))
+		host_stats.SampleSync("net/ws", timo, int64(nio[0].BytesSent))
+	}
+
+	// CPU
+	cio, _ := ps_cpu.Times(false)
+	if len(cio) > 0 {
+		host_stats.SampleSync("cpu/sys", timo, int64(cio[0].User))
+		host_stats.SampleSync("cpu/user", timo, int64(cio[0].System))
+	}
+
+	// Storage IO
+	devs, _ := ps_disk.Partitions(false)
+	if dev_name := disk_dev_name(devs, config.Config.PodHomeDir); dev_name != "" {
+		if diom, err := ps_disk.IOCounters(dev_name); err == nil {
+			if dio, ok := diom[dev_name]; ok {
+				host_stats.SampleSync("fs/sp/rn", timo, int64(dio.ReadCount))
+				host_stats.SampleSync("fs/sp/rs", timo, int64(dio.ReadBytes))
+				host_stats.SampleSync("fs/sp/wn", timo, int64(dio.WriteCount))
+				host_stats.SampleSync("fs/sp/ws", timo, int64(dio.WriteBytes))
+			}
+		}
+	}
+
+	//
+	var (
+		feed            = inapi.NewPbStatsSampleFeed(stats_log_cycle)
+		ec_time  uint32 = 0
+		ec_value int64  = 0
+	)
+	for _, name := range stats_host_names {
+		if ec_time, ec_value = host_stats.Extract(name, stats_log_cycle, ec_time); ec_value >= 0 {
+			feed.SampleSync(name, ec_time, ec_value)
+		}
+	}
+
+	if len(feed.Items) > 0 {
+		return feed
+	}
+
+	return nil
+}
+
+func disk_dev_name(pls []ps_disk.PartitionStat, path string) string {
+
+	path = filepath.Clean(path)
+
+	for {
+
+		for _, v := range pls {
+			if path == v.Mountpoint {
+				if strings.HasPrefix(v.Device, "/dev/") {
+					return v.Device[5:]
+				}
+				return ""
+			}
+		}
+
+		if i := strings.LastIndex(path, "/"); i > 0 {
+			path = path[:i]
+		} else {
+			break
+		}
+	}
+
+	return ""
 }

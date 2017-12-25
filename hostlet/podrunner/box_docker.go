@@ -25,8 +25,6 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/net/portutil"
-	"github.com/lynkdb/iomix/skv"
-	in_db "github.com/sysinner/incore/data"
 
 	in_cf "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
@@ -237,11 +235,10 @@ func (br *BoxKeeper) docker_stats_entry(box_inst *BoxInstance, timo uint32) {
 	}
 
 	// RAM
-	box_inst.Stats.Sync("ram/us", timo,
-		int64(stats.MemoryStats.Usage), "avg")
-
-	box_inst.Stats.Sync("ram/cc", timo,
-		int64(stats.MemoryStats.Stats.Cache), "avg")
+	box_inst.Stats.SampleSync("ram/us", timo,
+		int64(stats.MemoryStats.Usage))
+	box_inst.Stats.SampleSync("ram/cc", timo,
+		int64(stats.MemoryStats.Stats.Cache))
 
 	// Networks
 	net_io_rs := int64(0)
@@ -250,13 +247,12 @@ func (br *BoxKeeper) docker_stats_entry(box_inst *BoxInstance, timo uint32) {
 		net_io_rs += int64(v.RxBytes)
 		net_io_ws += int64(v.TxBytes)
 	}
-
-	box_inst.Stats.Sync("net/rs", timo, net_io_rs, "ow")
-	box_inst.Stats.Sync("net/ws", timo, net_io_ws, "ow")
+	box_inst.Stats.SampleSync("net/rs", timo, net_io_rs)
+	box_inst.Stats.SampleSync("net/ws", timo, net_io_ws)
 
 	// CPU
-	box_inst.Stats.Sync("cpu/us", timo,
-		int64(stats.CPUStats.CPUUsage.TotalUsage), "ow")
+	box_inst.Stats.SampleSync("cpu/us", timo,
+		int64(stats.CPUStats.CPUUsage.TotalUsage))
 
 	// Storage IO
 	fs_rn := int64(0)
@@ -281,49 +277,10 @@ func (br *BoxKeeper) docker_stats_entry(box_inst *BoxInstance, timo uint32) {
 			fs_wn += int64(v.Value)
 		}
 	}
-	box_inst.Stats.Sync("fs/rn", timo, fs_rn, "ow")
-	box_inst.Stats.Sync("fs/rs", timo, fs_rs, "ow")
-	box_inst.Stats.Sync("fs/wn", timo, fs_wn, "ow")
-	box_inst.Stats.Sync("fs/ws", timo, fs_ws, "ow")
-
-	ar := []string{
-		"ram/us", "ram/cc",
-		"net/rs", "net/ws",
-		"cpu/us",
-		"fs/rn", "fs/rs", "fs/wn", "fs/ws",
-	}
-	feed := inapi.NewTimeStatsFeed(stats_cycle_buf)
-	feed_tc := uint32(0)
-	for _, v := range ar {
-		if entry, tc := box_inst.Stats.CycleSplit(v, stats_cycle_log); entry != nil {
-			if tc < 1 {
-				continue
-			}
-
-			feed_tc = tc
-			for _, v2 := range entry.Items {
-				feed.Sync(v, v2.Time, v2.Value, "ow")
-			}
-		}
-	}
-
-	if feed_tc > 0 {
-		in_db.HiMaster.ProgPut(
-			inapi.NsZonePodRepStats(
-				in_sts.ZoneId,
-				box_inst.PodID,
-				box_inst.RepId,
-				"sys",
-				feed_tc,
-			),
-			skv.NewProgValue(feed),
-			&skv.ProgWriteOptions{
-				Expired: time.Now().Add(30 * 24 * time.Hour),
-			},
-		)
-		// hlog.Printf("info", "docker.Stats at %d %v",
-		// 	feed_tc, time.Unix(int64(feed_tc), 0))
-	}
+	box_inst.Stats.SampleSync("fs/rn", timo, fs_rn)
+	box_inst.Stats.SampleSync("fs/rs", timo, fs_rs)
+	box_inst.Stats.SampleSync("fs/wn", timo, fs_wn)
+	box_inst.Stats.SampleSync("fs/ws", timo, fs_ws)
 }
 
 func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
