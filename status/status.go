@@ -103,7 +103,7 @@ func Init() error {
 			PeerWanAddr: string(config.Config.Host.WanAddr),
 		},
 		Status: &inapi.ResHostStatus{
-			Uptime: uint64(time.Now().Unix()),
+			Uptime: uint32(time.Now().Unix()),
 		},
 	}
 

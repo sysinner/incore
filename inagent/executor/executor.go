@@ -32,7 +32,7 @@ import (
 )
 
 func oplog_name(name string) string {
-	return "box/executor/" + name
+	return "box/exec/" + name
 }
 
 func Runner(home_dir string) {

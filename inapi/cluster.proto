@@ -66,7 +66,7 @@ message ResHostResource {
 
 message ResHostStatus {
     string            phase  = 1;
-    uint64            uptime = 2;
+    uint32            uptime = 2;
     PbStatsSampleFeed stats  = 3;
 }
 
