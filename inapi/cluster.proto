@@ -61,7 +61,6 @@ message ResPlatform {
 message ResHostResource {
     uint64                 mem  = 1;
     uint64                 cpu  = 2;
-    repeated ResHostVolume vols = 3;
 }
 
 message ResHostVolume {
@@ -71,9 +70,10 @@ message ResHostVolume {
 }
 
 message ResHostStatus {
-    string            phase  = 1;
-    uint32            uptime = 2;
-    PbStatsSampleFeed stats  = 3;
+    string                 phase   = 1;
+    uint32                 uptime  = 2;
+    repeated ResHostVolume volumes = 3;
+    PbStatsSampleFeed      stats   = 4;
 }
 
 message ResZone {

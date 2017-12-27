@@ -194,7 +194,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 
 	tn := time.Now()
 
-	if len(status.Host.Spec.Capacity.Vols) == 0 ||
+	if len(status.Host.Status.Volumes) == 0 ||
 		tn.Unix()-sync_vols_last > 600 {
 
 		var (
@@ -240,7 +240,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 				return false
 			})
 
-			status.Host.Spec.Capacity.Vols = vols
+			status.Host.Status.Volumes = vols
 		}
 
 		sync_vols_last = tn.Unix()
