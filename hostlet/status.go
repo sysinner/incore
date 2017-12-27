@@ -368,6 +368,8 @@ func disk_dev_name(pls []ps_disk.PartitionStat, path string) string {
 
 		if i := strings.LastIndex(path, "/"); i > 0 {
 			path = path[:i]
+		} else if len(path) > 1 && path[0] == '/' {
+			path = "/"
 		} else {
 			break
 		}
