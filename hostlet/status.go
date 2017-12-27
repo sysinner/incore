@@ -20,11 +20,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
+	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
 
@@ -109,7 +111,8 @@ func status_tracker() {
 }
 
 var (
-	sync_nsz_lasts = map[string]uint64{}
+	sync_nsz_lasts       = map[string]uint64{}
+	sync_vols_last int64 = 0
 )
 
 func sync_nsz() {
@@ -187,6 +190,60 @@ func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
 			Cpu: uint64(runtime.NumCPU()) * 1000,
 			Mem: vm.Total,
 		}
+	}
+
+	tn := time.Now()
+
+	if len(status.Host.Spec.Capacity.Vols) == 0 ||
+		tn.Unix()-sync_vols_last > 600 {
+
+		var (
+			devs, _ = ps_disk.Partitions(false)
+			vols    = []*inapi.ResHostVolume{}
+		)
+
+		sort.Slice(devs, func(i, j int) bool {
+			if strings.Compare(devs[i].Device+devs[i].Mountpoint, devs[j].Device+devs[j].Device) < 0 {
+				return true
+			}
+			return false
+		})
+
+		ars := types.ArrayString{}
+		for _, dev := range devs {
+
+			if ars.Has(dev.Device) {
+				continue
+			}
+			ars.Set(dev.Device)
+
+			if !strings.HasPrefix(dev.Device, "/dev/") ||
+				strings.HasPrefix(dev.Mountpoint, "/boot") {
+				continue
+			}
+
+			if st, err := ps_disk.Usage(dev.Mountpoint); err == nil {
+				vols = append(vols, &inapi.ResHostVolume{
+					Name:  dev.Mountpoint,
+					Total: st.Total,
+					Used:  st.Used,
+				})
+			}
+		}
+
+		if len(vols) > 0 {
+
+			sort.Slice(vols, func(i, j int) bool {
+				if strings.Compare(vols[i].Name, vols[j].Name) < 0 {
+					return true
+				}
+				return false
+			})
+
+			status.Host.Spec.Capacity.Vols = vols
+		}
+
+		sync_vols_last = tn.Unix()
 	}
 
 	status.Host.Prs = []*inapi.PbPodRepStatus{}

@@ -59,9 +59,15 @@ message ResPlatform {
 }
 
 message ResHostResource {
-    uint64 mem     = 1;
-    uint64 cpu     = 2;
-    uint64 storage = 3;
+    uint64                 mem  = 1;
+    uint64                 cpu  = 2;
+    repeated ResHostVolume vols = 3;
+}
+
+message ResHostVolume {
+    string name  = 1;
+    uint64 total = 2;
+    uint64 used  = 3;
 }
 
 message ResHostStatus {

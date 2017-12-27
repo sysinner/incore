@@ -23,6 +23,7 @@ It has these top-level messages:
 	ResHostSpec
 	ResPlatform
 	ResHostResource
+	ResHostVolume
 	ResHostStatus
 	ResZone
 	ResCell
