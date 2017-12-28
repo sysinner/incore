@@ -16,7 +16,6 @@ package v1
 
 import (
 	"encoding/base64"
-	"fmt"
 	"strings"
 
 	"github.com/hooto/httpsrv"
@@ -89,9 +88,6 @@ func (c PodStats) FeedAction() {
 	}
 
 	fq.Fix()
-
-	js, _ := json.Encode(fq, "  ")
-	fmt.Println("qry", string(js))
 
 	if fq.TimeStart >= fq.TimeCutset {
 		c.RenderJson(types.NewTypeErrorMeta("400", "Bad Request"))
