@@ -129,8 +129,25 @@ func (c Resource) DomainNewAction() {
 		return
 	}
 
-	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, set.Meta.Name)
+	if ar := strings.Split(set.Meta.Name, "."); len(ar) > 2 {
 
+		obj_name_main := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, strings.Join(ar[len(ar)-2:], "."))
+
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(obj_name_main)); rs.OK() {
+			var res inapi.Resource
+			if err := rs.Decode(&res); err != nil {
+				set.Error = types.NewErrorMeta(inapi.ErrCodeObjectExists, "Domain Exists")
+				return
+			}
+
+			if res.Meta.User != c.us.UserName {
+				set.Error = types.NewErrorMeta(inapi.ErrCodeObjectExists, "Domain signed ("+obj_name_main+") by another user")
+				return
+			}
+		}
+	}
+
+	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, set.Meta.Name)
 	inst := inapi.Resource{
 		Meta: types.InnerObjectMeta{
 			ID:      idhash.HashToHexString([]byte(obj_name), 16),
