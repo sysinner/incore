@@ -46,7 +46,7 @@ const (
 type host_res_usage struct {
 	cpu   int64
 	mem   int64
-	ports types.ArrayUint16
+	ports types.ArrayUint32
 }
 
 func scheduler_exec() error {
@@ -97,17 +97,20 @@ func scheduler_exec() error {
 			if rp.Node == "" {
 				continue
 			}
-			hres, _ := host_res_usages[rp.Node]
-			if hres == nil {
+			hres, ok := host_res_usages[rp.Node]
+			if !ok {
 				hres = &host_res_usage{}
-				host_res_usages[rp.Node] = hres
 			}
 			hres.cpu += spec_res.CpuLimit
 			hres.mem += spec_res.MemLimit
 
 			for _, rpp := range rp.Ports {
-				hres.ports.Set(rpp.HostPort)
+				if rpp.HostPort > 0 {
+					hres.ports.Set(uint32(rpp.HostPort))
+				}
 			}
+
+			host_res_usages[rp.Node] = hres
 		}
 	}
 
@@ -135,11 +138,8 @@ func scheduler_exec() error {
 			if host.Operate.MemUsed != res.mem {
 				host.Operate.MemUsed, sync = res.mem, true
 			}
-			if len(res.ports) > 0 && len(res.ports) != len(host.Operate.PortUsed) {
-				for _, vp := range res.ports {
-					host.Operate.PortUsed = append(host.Operate.PortUsed, uint32(vp))
-				}
-				sync = true
+			if !res.ports.Equal(host.Operate.PortUsed) {
+				host.Operate.PortUsed, sync = res.ports, true
 			}
 		}
 

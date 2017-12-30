@@ -246,7 +246,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 	es.Action.Append(inapi.ExecutorActionPending)
 	es.Plan.Updated = types.MetaTimeNow()
 	if es.Cmd == nil {
-		es.Cmd = exec.Command("/bin/bash", "--rcfile", "/home/action/.bashrc")
+		es.Cmd = exec.Command("bash", "--rcfile", "/home/action/.bashrc")
 	}
 
 	//
@@ -306,8 +306,10 @@ func executor_cmd(name string, cmd *exec.Cmd, script string) error {
 	}
 
 	// in.Write([]byte("set -e\nset -o pipefail\n" + script + "\nexit\n"))
-	in.Write([]byte("set -e\nset -o pipefail\n" + script + "\nexit\n"))
+	in.Write([]byte("source /home/action/.bashrc\nset -e\nset -o pipefail\n" + script + "\nexit\n"))
 	in.Close()
+
+	// hlog.Printf("info", "executor:%s cmd:{{{%s}}}", name, script)
 
 	// cmd.Stdin = strings.NewReader("set -e\nset -o pipefail\n" + script + "\nexit\n")
 
