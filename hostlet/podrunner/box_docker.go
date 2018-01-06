@@ -431,7 +431,9 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 		agentSrc   = in_cf.Prefix + "/bin/inagent"
 		agentDst   = dirPodHome + "/.sysinner/inagent"
 		bashrcDst  = dirPodHome + "/.bashrc"
+		bashpfDst  = dirPodHome + "/.bash_profile"
 		bashrcSrc  = in_cf.Prefix + "/misc/bash/bashrc"
+		bashpfSrc  = in_cf.Prefix + "/misc/bash/bash_profile"
 		expPorts   = map[docker.Port]struct{}{}
 		bindPorts  = map[docker.Port][]docker.PortBinding{}
 	)
@@ -526,6 +528,7 @@ func (br *BoxKeeper) docker_command(inst *BoxInstance) error {
 		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
 		exec.Command(cmd_install, "-m", "755", "-g", "root", "-o", "root", agentSrc, agentDst).Output()
 		exec.Command(cmd_install, bashrcSrc, bashrcDst).Output()
+		exec.Command(cmd_install, bashpfSrc, bashpfDst).Output()
 
 		err = br.hidocker.StartContainer(inst.ID, nil)
 

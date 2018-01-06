@@ -708,3 +708,95 @@ func pod_status(pod_id string, user_name string) inapi.PodStatus {
 
 	return status
 }
+
+func (c Pod) AccessSetAction() {
+
+	var (
+		set  inapi.Pod
+		prev inapi.Pod
+	)
+
+	defer c.RenderJson(&set)
+
+	if err := c.Request.JsonDecode(&set); err != nil {
+		set.Error = types.NewErrorMeta("400", err.Error())
+		return
+	}
+
+	if set.Operate.Access == nil {
+		set.Error = types.NewErrorMeta("400", "Access Settings Not Found")
+		return
+	}
+
+	if len(set.Operate.Access.SshKey) > 512 { // TODO
+		set.Error = types.NewErrorMeta("400", "Invalid SSH Key")
+		return
+	}
+
+	if set.Operate.Access.SshOn && len(set.Operate.Access.SshKey) < 128 {
+		set.Error = types.NewErrorMeta("400", "Invalid SSH Key")
+		return
+	}
+
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
+		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
+		return
+	} else {
+		rs.Decode(&prev)
+	}
+
+	if prev.Meta.ID != set.Meta.ID {
+		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
+		return
+	}
+
+	if prev.Meta.User != c.us.UserName {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
+		return
+	}
+
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		set.Error = types.NewErrorMeta("400", "the pod instance has been destroyed")
+		return
+	}
+
+	if prev.Operate.Access == nil {
+		prev.Operate.Access = &inapi.PodOperateAccess{}
+	}
+
+	if set.Operate.Access.SshOn != prev.Operate.Access.SshOn {
+		prev.Operate.Access.SshOn = set.Operate.Access.SshOn
+	}
+
+	if prev.Operate.Access.SshOn {
+		set.Operate.Access.SshKey = strings.TrimSpace(set.Operate.Access.SshKey)
+		if set.Operate.Access.SshKey != prev.Operate.Access.SshKey {
+			prev.Operate.Access.SshKey = set.Operate.Access.SshKey
+		}
+	} else {
+		prev.Operate.Access.SshKey = ""
+	}
+
+	prev.Operate.Version++
+	prev.Meta.Updated = types.MetaTimeNow()
+
+	tn := uint32(time.Now().Unix())
+
+	// Pod Map to Cell Queue
+	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+		if tn < prev.Operate.Operated+600 {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+		}
+		return
+	}
+
+	prev.Operate.Operated = tn
+	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
+		return
+	}
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+
+	set.Kind = "PodInstance"
+}

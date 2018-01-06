@@ -106,6 +106,13 @@ func (pod *Pod) AppServicePorts() ServicePorts {
 		}
 	}
 
+	if pod.Operate.Access != nil && pod.Operate.Access.SshOn {
+		ports.Sync(ServicePort{
+			Name:    "sshd",
+			BoxPort: 2022,
+		})
+	}
+
 	return ports
 }
 
@@ -662,6 +669,7 @@ type PodOperate struct {
 	Replica    *PodOperateReplica `json:"replica,omitempty"`
 	OpLog      []*PbOpLogEntry    `json:"op_log,omitempty"`
 	Operated   uint32             `json:"operated,omitempty"`
+	Access     *PodOperateAccess  `json:"access,omitempty"`
 }
 
 type PodOperateReplica struct {
@@ -733,6 +741,11 @@ func (ls *PodOperateReplicas) Get(rep_id uint16) *PodOperateReplica {
 	}
 
 	return nil
+}
+
+type PodOperateAccess struct {
+	SshOn  bool   `json:"ssh_on"`
+	SshKey string `json:"ssh_key,omitempty"`
 }
 
 type PodExecutorStatus struct {

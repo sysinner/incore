@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"text/template"
@@ -35,6 +36,10 @@ func oplog_name(name string) string {
 	return "box/exec/" + name
 }
 
+var (
+	last_version uint32 = 0
+)
+
 func Runner(home_dir string) {
 
 	for {
@@ -47,37 +52,90 @@ func Runner(home_dir string) {
 			continue
 		}
 
-		if pod.Apps == nil || len(pod.Apps) < 0 {
-			hlog.Printf("debug", "No Apps Found")
+		if err := executor_init_ssh(&pod); err != nil {
+			hlog.Printf("error", err.Error())
 			continue
 		}
 
-		data_maps := map[string]string{}
+		if pod.Apps != nil && len(pod.Apps) > 0 {
 
-		for _, app := range pod.Apps {
+			data_maps := map[string]string{}
 
-			for _, p := range app.Spec.Packages {
-				data_maps[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
-			}
-		}
+			for _, app := range pod.Apps {
 
-		for _, app := range pod.Apps {
-
-			for _, ve := range app.Spec.Executors {
-
-				hlog.Printf("debug", "AppExec %s", ve.Name)
-
-				ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.ID, ve.Name))
-
-				status.Executors.Sync(ve)
-				if sts, msg := executor_action(ve, data_maps, app.Operate.Action); sts != "" {
-					status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(ve.Name)), sts, msg)
+				for _, p := range app.Spec.Packages {
+					data_maps[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
 				}
 			}
+
+			for _, app := range pod.Apps {
+
+				for _, ve := range app.Spec.Executors {
+
+					hlog.Printf("debug", "AppExec %s", ve.Name)
+
+					ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.ID, ve.Name))
+
+					status.Executors.Sync(ve)
+					if sts, msg := executor_action(ve, data_maps, app.Operate.Action); sts != "" {
+						status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(ve.Name)), sts, msg)
+					}
+				}
+			}
+
+			json.EncodeToFile(status.OpLog, home_dir+"/.sysinner/box_status.json", "  ")
 		}
 
-		json.EncodeToFile(status.OpLog, home_dir+"/.sysinner/box_status.json", "  ")
+		if last_version != pod.Operate.Version {
+			last_version = pod.Operate.Version
+			hlog.Printf("info", "Operate.Version %d", pod.Operate.Version)
+		}
 	}
+}
+
+var executor_init_ssh_keeper = `
+if pidof sshd; then
+    exit 0
+fi
+
+/usr/sbin/sshd -p 2022
+`
+
+func executor_init_ssh(pod *inapi.Pod) error {
+
+	if pod.Operate.Access != nil && pod.Operate.Access.SshOn {
+
+		//
+		if last_version < pod.Operate.Version {
+
+			fp, err := os.OpenFile("/home/action/.ssh/authorized_keys", os.O_RDWR|os.O_CREATE, 0644)
+			if err != nil {
+				return err
+			}
+			defer fp.Close()
+
+			fp.Seek(0, 0)
+			fp.Truncate(0)
+
+			if _, err = fp.WriteString(pod.Operate.Access.SshKey + "\n"); err != nil {
+				return err
+			}
+		}
+
+		//
+		if _, err := exec.Command("/bin/sh", "-c", executor_init_ssh_keeper).Output(); err != nil {
+			return err
+		}
+	} else {
+		//
+		if last_version < pod.Operate.Version {
+			if _, err := exec.Command("/bin/sh", "-c", "killall sshd").Output(); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32) (string, string) {
