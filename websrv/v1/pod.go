@@ -160,6 +160,10 @@ func (c Pod) ListAction() {
 							afs.Meta.ID = a.Meta.ID
 						}
 
+						if fields.Has("apps/meta/name") {
+							afs.Meta.Name = a.Meta.Name
+						}
+
 						podfs.Apps = append(podfs.Apps, afs)
 					}
 				}
@@ -608,6 +612,96 @@ func (c Pod) SetInfoAction() {
 		prev.Operate.Action = set.Operate.Action
 		prev.Operate.Version++
 	}
+
+	//
+	prev.Meta.Updated = types.MetaTimeNow()
+
+	tn := uint32(time.Now().Unix())
+
+	// Pod Map to Cell Queue
+	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+		if tn < prev.Operate.Operated+600 {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+		}
+		return
+	}
+
+	prev.Operate.Operated = tn
+	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
+		return
+	}
+	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+
+	set.Kind = "PodInstance"
+}
+
+func (c Pod) DeleteAction() {
+
+	var (
+		set    types.TypeMeta
+		prev   inapi.Pod
+		pod_id = c.Params.Get("pod_id")
+	)
+
+	defer c.RenderJson(&set)
+
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
+		return
+	} else {
+		rs.Decode(&prev)
+	}
+
+	if prev.Meta.ID != pod_id {
+		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
+		return
+	}
+
+	if prev.Meta.User != c.us.UserName {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
+		return
+	}
+
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		set.Error = types.NewErrorMeta("400", "the pod instance has been destroyed")
+		return
+	}
+
+	for i, v := range prev.Apps {
+
+		var app inapi.AppInstance
+
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(v.Meta.ID)); !rs.OK() {
+			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+			return
+		} else {
+			rs.Decode(&app)
+		}
+
+		if app.Meta.ID != v.Meta.ID {
+			set.Error = types.NewErrorMeta("500", fmt.Sprintf("App %s Not Found", v.Meta.ID))
+			return
+		}
+
+		if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
+			continue
+		}
+
+		app.Operate.Action = inapi.OpActionDestroy
+		app.Meta.Updated = types.MetaTimeNow()
+
+		if rs := data.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(v.Meta.ID), app, nil); !rs.OK() {
+			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+			return
+		}
+
+		prev.Apps[i].Operate.Action = inapi.OpActionDestroy
+	}
+
+	prev.Operate.Action = inapi.OpActionDestroy
+	prev.Operate.Version++
 
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
