@@ -28,6 +28,7 @@ var (
 	pod_st_mu        sync.RWMutex
 	PodIdReg         = regexp.MustCompile("^[a-f0-9]{16,24}$")
 	PodSpecPlanIdReg = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
+	PodDestroyTTL    = uint32(864000)
 )
 
 const (

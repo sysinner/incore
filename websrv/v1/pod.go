@@ -544,7 +544,15 @@ func (c Pod) OpActionSetAction() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+			Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+		})
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+	} else {
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	}
 
 	set.Kind = "PodInstance"
 }
@@ -632,7 +640,15 @@ func (c Pod) SetInfoAction() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+			Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+		})
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+	} else {
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	}
 
 	set.Kind = "PodInstance"
 }
@@ -722,7 +738,15 @@ func (c Pod) DeleteAction() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+			Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+		})
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+	} else {
+		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	}
 
 	set.Kind = "PodInstance"
 }

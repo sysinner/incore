@@ -88,10 +88,14 @@ func scheduler_exec() error {
 			data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil)
 		}
 
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
-			if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroyed) {
-				continue
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			if uint32(time.Now().Unix())-pod.Operate.Operated > inapi.PodDestroyTTL {
+				if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstanceDestroy(status.ZoneId, pod.Meta.ID), pod, nil); rs.OK() {
+					data.ZoneMaster.PvDel(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), nil)
+					hlog.Printf("warn", "zone-master/pod/backup:%s", pod.Meta.ID)
+				}
 			}
+			continue
 		}
 
 		spec_res := pod.Spec.ResComputeBound()

@@ -47,6 +47,10 @@ func NsGlobalPodInstance(pod_id string) string {
 	return fmt.Sprintf("/ing/pi/%s", pod_id)
 }
 
+func NsGlobalPodInstanceDestroyed(pod_id string) string {
+	return fmt.Sprintf("/ing/pid/%s", pod_id)
+}
+
 func NsGlobalAppSpec(spec_id string) string {
 	return fmt.Sprintf("/ing/as/%s", spec_id)
 }
@@ -103,6 +107,10 @@ func NsZonePodOpQueue(zone_id, cell_id, pod_id string) string {
 
 func NsZonePodInstance(zone_id, pod_id string) string {
 	return fmt.Sprintf("/inz/%s/pi/%s", zone_id, pod_id)
+}
+
+func NsZonePodInstanceDestroy(zone_id, pod_id string) string {
+	return fmt.Sprintf("/inz/%s/pid/%s", zone_id, pod_id)
 }
 
 func NsZonePodRepStats(zone_id, pod_id string, rep_id uint16, name string, timo uint32) skv.ProgKey {
