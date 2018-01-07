@@ -36,10 +36,6 @@ func oplog_name(name string) string {
 	return "box/exec/" + name
 }
 
-var (
-	last_version uint32 = 0
-)
-
 func Runner(home_dir string) {
 
 	for {
@@ -86,27 +82,32 @@ func Runner(home_dir string) {
 			json.EncodeToFile(status.OpLog, home_dir+"/.sysinner/box_status.json", "  ")
 		}
 
-		if last_version != pod.Operate.Version {
-			last_version = pod.Operate.Version
-			hlog.Printf("info", "Operate.Version %d", pod.Operate.Version)
-		}
 	}
 }
 
-var executor_init_ssh_keeper = `
+var (
+	ssh_init_version uint32 = 0
+	ssh_init_start          = `
 if pidof sshd; then
     exit 0
 fi
 
 /usr/sbin/sshd -p 2022
 `
+)
 
 func executor_init_ssh(pod *inapi.Pod) error {
 
 	if pod.Operate.Access != nil && pod.Operate.Access.SshOn {
 
 		//
-		if last_version < pod.Operate.Version {
+		if ssh_init_version < pod.Operate.Version {
+
+			for _, v := range []string{"rsa", "ecdsa", "ed25519"} {
+				if err := executor_init_ssh_keygen(v); err != nil {
+					return err
+				}
+			}
 
 			fp, err := os.OpenFile("/home/action/.ssh/authorized_keys", os.O_RDWR|os.O_CREATE, 0644)
 			if err != nil {
@@ -123,19 +124,39 @@ func executor_init_ssh(pod *inapi.Pod) error {
 		}
 
 		//
-		if _, err := exec.Command("/bin/sh", "-c", executor_init_ssh_keeper).Output(); err != nil {
+		if _, err := exec.Command("/bin/sh", "-c", ssh_init_start).Output(); err != nil {
 			return err
 		}
 	} else {
 		//
-		if last_version < pod.Operate.Version {
+		if ssh_init_version < pod.Operate.Version {
 			if _, err := exec.Command("/bin/sh", "-c", "killall sshd").Output(); err != nil {
 				return err
 			}
 		}
 	}
 
+	if ssh_init_version != pod.Operate.Version {
+		ssh_init_version = pod.Operate.Version
+		hlog.Printf("info", "ssh_init_version %d", pod.Operate.Version)
+	}
+
 	return nil
+}
+
+func executor_init_ssh_keygen(name string) error {
+
+	_, err := os.Stat("/home/action/.ssh")
+	if err != nil {
+		os.Mkdir("/home/action/.ssh", 0755)
+	}
+
+	path := fmt.Sprintf("/home/action/.ssh/ssh_host_%s_key", name)
+	if _, err = os.Stat(path); err != nil {
+		_, err = exec.Command("sh", "-c", "ssh-keygen -t "+name+" -f "+path+" -N ''").Output()
+	}
+
+	return err
 }
 
 func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32) (string, string) {

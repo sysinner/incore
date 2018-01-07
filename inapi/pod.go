@@ -108,7 +108,7 @@ func (pod *Pod) AppServicePorts() ServicePorts {
 
 	if pod.Operate.Access != nil && pod.Operate.Access.SshOn {
 		ports.Sync(ServicePort{
-			Name:    "sshd",
+			Name:    "ssh",
 			BoxPort: 2022,
 		})
 	}
