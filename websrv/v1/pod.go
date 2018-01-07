@@ -524,7 +524,7 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	//
-	prev.Operate.Action = op_action
+	prev.Operate.Action = inapi.OpActionControlFilter(op_action)
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
@@ -609,7 +609,7 @@ func (c Pod) SetInfoAction() {
 
 	prev.Meta.Name = set.Meta.Name
 	if set.Operate.Action > 0 {
-		prev.Operate.Action = set.Operate.Action
+		prev.Operate.Action = inapi.OpActionControlFilter(set.Operate.Action)
 		prev.Operate.Version++
 	}
 
@@ -623,8 +623,8 @@ func (c Pod) SetInfoAction() {
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
 		if tn < prev.Operate.Operated+600 {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+			return
 		}
-		return
 	}
 
 	prev.Operate.Operated = tn
@@ -713,8 +713,8 @@ func (c Pod) DeleteAction() {
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
 		if tn < prev.Operate.Operated+600 {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+			return
 		}
-		return
 	}
 
 	prev.Operate.Operated = tn

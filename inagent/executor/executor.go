@@ -98,7 +98,11 @@ fi
 
 func executor_init_ssh(pod *inapi.Pod) error {
 
-	if pod.Operate.Access != nil && pod.Operate.Access.SshOn {
+	if pod.Operate.Access == nil {
+		return nil
+	}
+
+	if pod.Operate.Access.SshOn {
 
 		//
 		if ssh_init_version < pod.Operate.Version {
@@ -127,13 +131,9 @@ func executor_init_ssh(pod *inapi.Pod) error {
 		if _, err := exec.Command("/bin/sh", "-c", ssh_init_start).Output(); err != nil {
 			return err
 		}
-	} else {
-		//
-		if ssh_init_version < pod.Operate.Version {
-			if _, err := exec.Command("/bin/sh", "-c", "killall sshd").Output(); err != nil {
-				return err
-			}
-		}
+
+	} else if ssh_init_version > 0 && ssh_init_version < pod.Operate.Version {
+		exec.Command("/bin/sh", "-c", "killall sshd").Output()
 	}
 
 	if ssh_init_version != pod.Operate.Version {

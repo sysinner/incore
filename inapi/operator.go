@@ -54,6 +54,19 @@ func OpActionAppend(opbase, op uint32) uint32 {
 	return (opbase | op)
 }
 
+func OpActionControlFilter(opbase uint32) uint32 {
+
+	if OpActionAllow(opbase, OpActionDestroy) {
+		opbase = OpActionRemove(opbase, OpActionStart|OpActionStop)
+	} else if OpActionAllow(opbase, OpActionStop) {
+		opbase = OpActionRemove(opbase, OpActionStart)
+	} else if OpActionAllow(opbase, OpActionStart) {
+		opbase = OpActionRemove(opbase, OpActionStop)
+	}
+
+	return opbase
+}
+
 func OpActionStrings(action uint32) []string {
 	s := []string{}
 
@@ -67,6 +80,10 @@ func OpActionStrings(action uint32) []string {
 
 	if OpActionAllow(action, OpActionStop) {
 		s = append(s, "stop")
+	}
+
+	if OpActionAllow(action, OpActionStopped) {
+		s = append(s, "stopped")
 	}
 
 	if OpActionAllow(action, OpActionDestroy) {

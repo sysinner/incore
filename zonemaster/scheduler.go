@@ -88,8 +88,10 @@ func scheduler_exec() error {
 			data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil)
 		}
 
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
-			continue
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
+			if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroyed) {
+				continue
+			}
 		}
 
 		spec_res := pod.Spec.ResComputeBound()
@@ -112,6 +114,9 @@ func scheduler_exec() error {
 
 			host_res_usages[rp.Node] = hres
 		}
+
+		// fmt.Println("pod", pod.Meta.ID, pod.Meta.User, spec_res.CpuLimit, spec_res.MemLimit,
+		//	pod.Operate.Action, strings.Join(inapi.OpActionStrings(pod.Operate.Action), ","))
 	}
 
 	for _, host := range status.ZoneHostList.Items {
@@ -165,6 +170,8 @@ func scheduler_exec() error {
 
 func scheduler_status_refresh(pod *inapi.Pod) bool {
 
+	pod.Operate.Action = inapi.OpActionControlFilter(pod.Operate.Action)
+
 	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) ||
 		inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop|inapi.OpActionStopped) ||
 		inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
@@ -203,7 +210,11 @@ func scheduler_status_refresh(pod *inapi.Pod) bool {
 		}
 	}
 
-	if action == 0 {
+	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) &&
+		((action == 0 && len(rss) == 0) || action == inapi.OpActionDestroyed) &&
+		uint32(time.Now().Unix())-pod.Operate.Operated > 3600 {
+		action = inapi.OpActionDestroyed
+	} else if action == 0 {
 		return false
 	}
 
@@ -259,6 +270,8 @@ func scheduler_exec_cell(cell_id string) {
 
 func scheduler_exec_pod(podq *inapi.Pod) error {
 
+	// hlog.Printf("error", "exec podq #%s instance", podq.Meta.ID)
+
 	var (
 		prev  inapi.Pod
 		start = time.Now()
@@ -277,9 +290,6 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 	} else if !rs.NotFound() {
 		return fmt.Errorf("failed on get podq #%s, err: %s", podq.Meta.ID, rs.Bytex().String())
 	}
-
-	// hlog.Printf("error", "exec podq #%s instance", podq.Meta.ID)
-	// fmt.Println("pod", inapi.OpActionStrings(podq.Operate.Action))
 
 	if len(prev.Operate.Replicas) > 0 {
 		podq.Operate.Replicas = prev.Operate.Replicas
@@ -479,8 +489,9 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 func scheduler_exec_pod_destroy(podq *inapi.Pod) error {
 
 	start := time.Now()
+	del_num := 0
 
-	// hlog.Printf("info", "destroy pod/%s, version:%d", podq.Meta.ID, podq.Operate.Version)
+	hlog.Printf("info", "destroy pod/%s, version:%d", podq.Meta.ID, podq.Operate.Version)
 
 	for _, oprep := range podq.Operate.Replicas {
 
@@ -494,12 +505,16 @@ func scheduler_exec_pod_destroy(podq *inapi.Pod) error {
 						pod_bound.Operate.Action = inapi.OpActionDestroy
 						pod_bound.Operate.Version = podq.Operate.Version
 
+						del_num += 1
+
 						data.ZoneMaster.PvPut(bdk, pod_bound, nil)
 						hlog.Printf("info", "destroy pod/%s-%d action:%s",
 							podq.Meta.ID, oprep.Id, strings.Join(inapi.OpActionStrings(podq.Operate.Action), ","))
 					}
 				}
 			}
+		} else {
+			del_num += 1
 		}
 
 		//
@@ -544,6 +559,10 @@ func scheduler_exec_pod_destroy(podq *inapi.Pod) error {
 		podq.Operate.OpLog,
 		inapi.NewPbOpLogEntry(oplog_zms_destroy, inapi.PbOpLogInfo, msg),
 	)
+
+	if del_num >= len(podq.Operate.Replicas) {
+		podq.Operate.Action = podq.Operate.Action | inapi.OpActionDestroyed
+	}
 
 	return nil
 }
