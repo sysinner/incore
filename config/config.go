@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	Version = "0.3.1.alpha.1"
+	Version = "0.3.4.alpha"
 )
 
 type HostMember struct {

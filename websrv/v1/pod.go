@@ -130,6 +130,10 @@ func (c Pod) ListAction() {
 					podfs.Meta.Updated = pod.Meta.Updated
 				}
 
+				if fields.Has("meta/user") {
+					podfs.Meta.User = pod.Meta.User
+				}
+
 				if fields.Has("spec") && pod.Spec != nil {
 					podfs.Spec = &inapi.PodSpecBound{}
 
