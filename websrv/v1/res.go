@@ -20,6 +20,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
+	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
@@ -27,6 +28,14 @@ import (
 type Resource struct {
 	*httpsrv.Controller
 	us iamapi.UserSession
+}
+
+func (c *Resource) owner_or_sysadmin_allow(user, privilege string) bool {
+	if user == c.us.UserName ||
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		return true
+	}
+	return false
 }
 
 func (c *Resource) Init() int {
@@ -71,9 +80,14 @@ func (c Resource) ListAction() {
 
 		if err := v.Decode(&inst); err == nil {
 
-			if inst.Meta.User != c.us.UserName {
+			// TOPO
+			if c.Params.Get("filter_meta_user") == "all" &&
+				iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+				//
+			} else if inst.Meta.User != c.us.UserName {
 				continue
 			}
+
 			if len(fields) > 0 {
 
 				instf := inapi.Resource{

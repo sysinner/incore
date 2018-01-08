@@ -31,6 +31,7 @@ import (
 	"github.com/lessos/lessgo/types"
 	iox_utils "github.com/lynkdb/iomix/utils"
 
+	"github.com/sysinner/incore/config"
 	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
@@ -52,6 +53,14 @@ func (c *App) Init() int {
 	}
 
 	return 0
+}
+
+func (c *App) owner_or_sysadmin_allow(user, privilege string) bool {
+	if user == c.us.UserName ||
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		return true
+	}
+	return false
 }
 
 func (c App) ListAction() {
@@ -77,7 +86,11 @@ func (c App) ListAction() {
 			continue
 		}
 
-		if inst.Meta.User != c.us.UserName {
+		// TOPO
+		if c.Params.Get("filter_meta_user") == "all" &&
+			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+			//
+		} else if inst.Meta.User != c.us.UserName {
 			continue
 		}
 
@@ -167,7 +180,7 @@ func (c App) EntryAction() {
 
 	app_operate_option_render(&app, true)
 
-	if app.Meta.ID == "" || app.Meta.User != c.us.UserName {
+	if app.Meta.ID == "" || !c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		c.RenderJson(types.NewTypeErrorMeta(inapi.ErrCodeObjectNotFound, "App Not Found"))
 	} else {
 		app.Kind = "App"
@@ -212,7 +225,7 @@ func (c App) SetAction() {
 			rs.Decode(&prev)
 		}
 
-		if prev.Meta.ID != set.Meta.ID || prev.Meta.User != c.us.UserName {
+		if prev.Meta.ID != set.Meta.ID || !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 			rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 			return
 		}
@@ -471,7 +484,7 @@ func (c App) OpActionSetAction() {
 		rs.Decode(&app)
 	}
 	if app.Meta.ID != app_id ||
-		app.Meta.User != c.us.UserName {
+		!c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		rsp.Error = types.NewErrorMeta("400", "App Not Found, or Access Denied")
 		return
 	}
@@ -570,7 +583,7 @@ func (c App) OpResSetAction() {
 		return
 	}
 
-	if res.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(res.Meta.User, "sysinner.admin") {
 		rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
@@ -585,20 +598,20 @@ func (c App) OpResSetAction() {
 	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); rs.OK() {
 		rs.Decode(&app)
 	}
-	if app.Meta.ID == "" {
+	if app.Meta.ID == "" || !c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		rsp.Error = types.NewErrorMeta("400", "App Not Found, or Access Denied")
 		return
 	}
 
-	res_prev := app.Operate.Options.Get(res.Meta.Name)
-	if res_prev != nil && res_prev.User != c.us.UserName {
-		rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
-		return
-	}
+	// res_prev := app.Operate.Options.Get(res.Meta.Name)
+	// if res_prev != nil && res_prev.User != res.Meta.User {
+	// 	rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
+	// 	return
+	// }
 
 	opt := inapi.AppOption{
 		Name:    types.NewNameIdentifier("res/" + res.Meta.Name),
-		User:    c.us.UserName,
+		User:    res.Meta.User,
 		Updated: uint64(types.MetaTimeNow()),
 	}
 	for _, v := range res.Bounds {
@@ -670,7 +683,7 @@ func (c App) ConfigAction() {
 	}
 
 	if app.Meta.ID != set.Id ||
-		app.Meta.User != c.us.UserName {
+		!c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
@@ -792,7 +805,7 @@ func (c App) ConfigAction() {
 				rsp.Error = types.NewErrorMeta("400", "No AppConfigBound Found")
 				return
 			}
-			if app_ref.Meta.User != c.us.UserName {
+			if !c.owner_or_sysadmin_allow(app_ref.Meta.User, "sysinner.admin") {
 				rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
 				return
 			}

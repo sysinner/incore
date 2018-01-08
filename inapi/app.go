@@ -287,16 +287,11 @@ func (ls *AppOptions) Set(item AppOption) (changed bool) {
 
 		if v.Name == item.Name {
 
-			if v.User != item.User {
-				return false // TODO
-			}
-
 			if item.Updated > v.Updated {
-				(*ls)[i] = &item
-				return true
+				(*ls)[i], changed = &item, true
 			}
 
-			return false
+			return changed
 		}
 	}
 

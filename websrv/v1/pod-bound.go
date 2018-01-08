@@ -68,6 +68,14 @@ func (c *Podbound) Init() int {
 	return 0
 }
 
+func (c *Podbound) owner_or_sysadmin_allow(user, privilege string) bool {
+	if user == c.us.UserName ||
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		return true
+	}
+	return false
+}
+
 func (c Podbound) IndexAction() {
 
 	c.AutoRender = false
@@ -100,7 +108,7 @@ func (c Podbound) IndexAction() {
 		return
 	}
 
-	if pod.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 		c.Response.Out.WriteHeader(403)
 		return
 	}

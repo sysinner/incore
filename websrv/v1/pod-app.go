@@ -18,8 +18,10 @@ import (
 	"fmt"
 
 	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
+	"github.com/sysinner/incore/config"
 	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
@@ -48,7 +50,7 @@ func (c Pod) AppSyncAction() {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
-	if app.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -70,7 +72,7 @@ func (c Pod) AppSyncAction() {
 	for i, srvport := range app.Spec.ServicePorts {
 
 		if srvport.HostPort > 0 && srvport.HostPort <= 1024 {
-			if c.us.UserName != "sysadmin" {
+			if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
 				set.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
 				return
 			}
@@ -126,7 +128,7 @@ func (c Pod) AppSyncAction() {
 		for _, spv := range dep_spec.ServicePorts {
 
 			if spv.HostPort > 0 && spv.HostPort <= 1024 {
-				if c.us.UserName != "sysadmin" {
+				if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
 					set.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
 					return
 				}
@@ -151,7 +153,7 @@ func (c Pod) AppSyncAction() {
 	}
 	if pod.Meta.ID == "" ||
 		pod.Meta.ID != app.Operate.PodId ||
-		pod.Meta.User != c.us.UserName {
+		!c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
@@ -192,7 +194,7 @@ func (c Pod) AppSetAction() {
 		return
 	}
 
-	if app.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
@@ -204,7 +206,7 @@ func (c Pod) AppSetAction() {
 		obj.Decode(&pod)
 	}
 	if pod.Meta.ID == "" || pod.Meta.ID != app.Operate.PodId ||
-		pod.Meta.User != c.us.UserName {
+		!c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
@@ -218,7 +220,7 @@ func (c Pod) AppSetAction() {
 	for i, srvport := range app.Spec.ServicePorts {
 
 		if srvport.HostPort > 0 && srvport.HostPort <= 1024 {
-			if c.us.UserName != "sysadmin" {
+			if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
 				rsp.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
 				return
 			}

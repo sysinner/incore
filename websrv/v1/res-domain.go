@@ -94,7 +94,7 @@ func (c Resource) DomainAction() {
 		return
 	}
 
-	if prev.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
@@ -210,7 +210,7 @@ func (c Resource) DomainSetAction() {
 		return
 	}
 
-	if prev.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
@@ -278,7 +278,7 @@ func (c Resource) DomainBoundAction() {
 		return
 	}
 
-	if prev.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}

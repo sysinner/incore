@@ -27,6 +27,7 @@ import (
 	"github.com/lynkdb/iomix/skv"
 	iox_utils "github.com/lynkdb/iomix/utils"
 
+	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	zm_status "github.com/sysinner/incore/status"
@@ -49,6 +50,14 @@ func (c *Pod) Init() int {
 	}
 
 	return 0
+}
+
+func (c *Pod) owner_or_sysadmin_allow(user, privilege string) bool {
+	if user == c.us.UserName ||
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		return true
+	}
+	return false
 }
 
 func (c Pod) ListAction() {
@@ -88,7 +97,10 @@ func (c Pod) ListAction() {
 		if err := v.Decode(&pod); err == nil {
 
 			// TOPO
-			if pod.Meta.User != c.us.UserName {
+			if c.Params.Get("filter_meta_user") == "all" &&
+				iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+				//
+			} else if pod.Meta.User != c.us.UserName {
 				continue
 			}
 
@@ -215,7 +227,7 @@ func (c Pod) EntryAction() {
 	if zone_id == "" {
 		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(id)); rs.OK() {
 			rs.Decode(&set)
-			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
+			if set.Meta.ID == "" || !c.owner_or_sysadmin_allow(set.Meta.User, "sysinner.admin") {
 				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
 				return
@@ -229,13 +241,13 @@ func (c Pod) EntryAction() {
 		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(zone_id, id)); rs.OK() {
 
 			rs.Decode(&set)
-			if set.Meta.ID == "" || set.Meta.User != c.us.UserName {
+			if set.Meta.ID == "" || !c.owner_or_sysadmin_allow(set.Meta.User, "sysinner.admin") {
 				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
 				return
 			}
 			if fields == "status" {
-				if v := pod_status(set.Meta.ID, c.us.UserName); v.Action != 0 {
+				if v := c.status(set, set.Meta.ID); v.Action != 0 {
 					set.Status = &v
 				} else {
 					set.Status = nil
@@ -507,7 +519,7 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	if prev.Meta.ID != pod_id ||
-		prev.Meta.User != c.us.UserName {
+		!c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta("400", "Pod Not Found or Access Denied")
 		return
 	}
@@ -592,7 +604,7 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
-	if prev.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -679,7 +691,7 @@ func (c Pod) DeleteAction() {
 		return
 	}
 
-	if prev.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -756,44 +768,35 @@ func (c Pod) DeleteAction() {
 }
 
 func (c Pod) StatusAction() {
-
-	rsp := inapi.PodStatus{}
-
-	defer c.RenderJson(&rsp)
-
-	rsp = pod_status(c.Params.Get("id"), c.us.UserName)
+	set := c.status(inapi.Pod{}, c.Params.Get("id"))
+	c.RenderJson(set)
 }
 
-func pod_status(pod_id string, user_name string) inapi.PodStatus {
+func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 
-	var (
-		pod    inapi.Pod
-		status inapi.PodStatus
-	)
-
-	//
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); rs.OK() {
-		rs.Decode(&pod)
-	}
+	var status inapi.PodStatus
 
 	if pod.Meta.ID == "" {
-		status.Error = types.NewErrorMeta("404.01", "Pod Not Found")
-		return status
-	}
 
-	if user_name != pod.Meta.User {
-		status.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
-		return status
-	}
+		//
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); rs.OK() {
+			rs.Decode(&pod)
+		}
 
-	//
-	if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); rs.OK() {
-		rs.Decode(&pod)
-	}
+		if pod.Meta.ID == "" {
+			status.Error = types.NewErrorMeta("404.01", "Pod Not Found")
+			return status
+		}
 
-	if pod.Meta.ID == "" {
-		status.Error = types.NewErrorMeta("404.02", "Pod Not Found")
-		return status
+		//
+		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); rs.OK() {
+			rs.Decode(&pod)
+		}
+
+		if pod.Meta.ID == "" || !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
+			status.Error = types.NewErrorMeta("404.02", "Pod Not Found or Access Denied")
+			return status
+		}
 	}
 
 	if len(pod.Operate.OpLog) > 0 {
@@ -872,7 +875,7 @@ func (c Pod) AccessSetAction() {
 		return
 	}
 
-	if prev.Meta.User != c.us.UserName {
+	if !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}

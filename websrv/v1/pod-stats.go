@@ -23,6 +23,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
+	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
@@ -41,6 +42,14 @@ func (c *PodStats) Init() int {
 		return 1
 	}
 	return 0
+}
+
+func (c *PodStats) owner_or_sysadmin_allow(user, privilege string) bool {
+	if user == c.us.UserName ||
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		return true
+	}
+	return false
 }
 
 func (c PodStats) FeedAction() {
@@ -96,7 +105,7 @@ func (c PodStats) FeedAction() {
 
 	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
 		obj.Decode(&pod)
-		if pod.Meta.ID == "" || pod.Meta.User != c.us.UserName {
+		if pod.Meta.ID == "" || !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 			c.RenderJson(types.NewTypeErrorMeta("400", "Pod Not Found"))
 			return
 		}
