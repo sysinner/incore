@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -121,6 +122,9 @@ func cfg_render(src, dst string) error {
 		return err
 	}
 
+	if _, err := os.Stat(dst); err != nil {
+		os.MkdirAll(filepath.Dir(dst), 0755)
+	}
 	fpdst, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
