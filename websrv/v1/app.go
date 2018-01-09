@@ -29,6 +29,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 	iox_utils "github.com/lynkdb/iomix/utils"
 
 	"github.com/sysinner/incore/config"
@@ -69,7 +70,7 @@ func (c App) ListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	rs := in_db.ZoneMaster.PvRevScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
+	rs := in_db.ZoneMaster.PvRevScan(inapi.NsGlobalAppInstance(""), "", "", 10000)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -91,6 +92,18 @@ func (c App) ListAction() {
 			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
 			//
 		} else if inst.Meta.User != c.us.UserName {
+			continue
+		}
+
+		// patch
+		if inapi.OpActionAllow(inst.Operate.Action, inapi.OpActionDestroy) {
+			if m := v.Meta(); m == nil || m.Expired == 0 {
+				if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(inst.Meta.ID), inst, nil); rs.OK() {
+					in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(inst.Meta.ID), inst, &skv.ProgWriteOptions{
+						Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+					})
+				}
+			}
 			continue
 		}
 
@@ -315,9 +328,18 @@ func (c App) SetAction() {
 	}
 
 	if deploy {
-		appInstDeploy(prev)
+		if rsp.Error = appInstDeploy(prev); rsp.Error != nil {
+			return
+		}
 	}
 
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(prev.Meta.ID), prev, nil); rs.OK() {
+			rs = in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+				Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+			})
+		}
+	}
 	rsp.Meta.ID = prev.Meta.ID
 	rsp.Kind = "App"
 }
@@ -522,6 +544,14 @@ func (c App) OpActionSetAction() {
 
 	if rsp.Error = appInstDeploy(app); rsp.Error != nil {
 		return
+	}
+
+	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
+		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(app.Meta.ID), app, nil); rs.OK() {
+			in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.ProgWriteOptions{
+				Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+			})
+		}
 	}
 
 	rsp.Kind = "App"

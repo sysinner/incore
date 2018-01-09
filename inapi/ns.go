@@ -59,6 +59,10 @@ func NsGlobalAppInstance(instance_id string) string {
 	return fmt.Sprintf("/ing/ai/%s", instance_id)
 }
 
+func NsGlobalAppInstanceDestroyed(instance_id string) string {
+	return fmt.Sprintf("/ing/aid/%s", instance_id)
+}
+
 func NsGlobalResInstance(meta_name string) string {
 	return fmt.Sprintf("/ing/rs/%s", meta_name)
 }

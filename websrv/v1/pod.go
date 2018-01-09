@@ -71,9 +71,9 @@ func (c Pod) ListAction() {
 	// TODO pager
 	var rs *skv.Result
 	if zone_id := c.Params.Get("zone_id"); zone_id != "" {
-		rs = data.ZoneMaster.PvRevScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 1000)
+		rs = data.ZoneMaster.PvRevScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 10000)
 	} else {
-		rs = data.ZoneMaster.PvRevScan(inapi.NsGlobalPodInstance(""), "", "", 1000)
+		rs = data.ZoneMaster.PvRevScan(inapi.NsGlobalPodInstance(""), "", "", 10000)
 	}
 	rss := rs.KvList()
 
