@@ -27,6 +27,8 @@ import (
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/inpack/ipapi"
+	ips_data "github.com/sysinner/inpack/server/data"
 )
 
 type AppSpec struct {
@@ -358,6 +360,32 @@ func (c AppSpec) SetAction() {
 	}
 	if fix := prev.ExpRes.VolMin % vol_min_min; fix > 0 {
 		prev.ExpRes.VolMin += (vol_min_min - fix)
+	}
+
+	for _, v := range prev.Depends {
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); !rs.OK() {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecDepend ("+v.Id+") Not Found")
+			return
+		}
+	}
+
+	for _, v := range prev.Packages {
+		version := ipapi.PackageVersion{
+			Version: types.Version(v.Version),
+			Release: types.Version(v.Release),
+			Dist:    v.Dist,
+			Arch:    v.Arch,
+		}
+		if err := version.Valid(); err != nil {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, err.Error())
+			return
+		}
+		id := ipapi.PackageMetaId(v.Name, version)
+		if rs := ips_data.Data.ProgGet(ipapi.DataPackKey(id)); !rs.OK() {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
+				ipapi.PackageFilename(v.Name, version)+") Not Found")
+			return
+		}
 	}
 
 	//
