@@ -16,6 +16,8 @@ package ops
 
 import (
 	"github.com/hooto/httpsrv"
+
+	"github.com/sysinner/inpanel"
 )
 
 type Index struct {
@@ -24,14 +26,19 @@ type Index struct {
 
 func (c Index) IndexAction() {
 
+	c.AutoRender = false
+	c.Response.Out.Header().Set("Cache-Control", "no-cache")
+
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <title>SysInner Ops</title>
-  <script src="/in/ops/~/lessui/js/sea.js"></script>
-  <script src="/in/ops/~/ops/js/main.js"></script>
+  <title>inPanel Ops</title>
+  <script src="/in/ops/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
+  <script src="/in/ops/~/ops/js/main.js?v=` + inpanel.VersionHash + `"></script>
+  <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/favicon.png">
   <script type="text/javascript">
+    inOps.version = "` + inpanel.VersionHash + `";
     window.onload = inOps.Boot();
   </script>
 </head>

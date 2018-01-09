@@ -118,6 +118,10 @@ func (c App) ListAction() {
 				instf.Meta.Name = inst.Meta.Name
 			}
 
+			if fields.Has("meta/user") {
+				instf.Meta.User = inst.Meta.User
+			}
+
 			if fields.Has("meta/updated") {
 				instf.Meta.Updated = inst.Meta.Updated
 			}
