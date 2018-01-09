@@ -299,7 +299,7 @@ func (c App) SetAction() {
 			return
 		}
 
-		if err := app_pod_res_check(&pod, &prev); err != nil {
+		if err := app_pod_res_check(&pod, &prev.Spec.ExpRes); err != nil {
 			rsp.Error = types.NewErrorMeta("400", err.Error()+", try to select another pod to deploy this application")
 			return
 		}
@@ -322,7 +322,7 @@ func (c App) SetAction() {
 	rsp.Kind = "App"
 }
 
-func app_pod_res_check(pod *inapi.Pod, app *inapi.AppInstance) error {
+func app_pod_res_check(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) error {
 
 	if pod.Spec == nil {
 		return errors.New("this pod currently unavailable")
@@ -330,20 +330,20 @@ func app_pod_res_check(pod *inapi.Pod, app *inapi.AppInstance) error {
 
 	if vol := pod.Spec.Volume("system"); vol == nil {
 		return errors.New("pod currently unavailable")
-	} else if app.Spec.ExpRes.VolMin > vol.SizeLimit {
+	} else if app_spec_res.VolMin > vol.SizeLimit {
 		return fmt.Errorf("AppSpec requires at least %0.1f GB sytem volume space",
-			float64(app.Spec.ExpRes.VolMin)/float64(inapi.ByteGB))
+			float64(app_spec_res.VolMin)/float64(inapi.ByteGB))
 	}
 
 	res := pod.Spec.ResComputeBound()
-	if app.Spec.ExpRes.CpuMin > res.CpuLimit {
+	if app_spec_res.CpuMin > res.CpuLimit {
 		return fmt.Errorf("AppSpec requires at least %d m CPU resource",
-			app.Spec.ExpRes.CpuMin)
+			app_spec_res.CpuMin)
 	}
 
-	if app.Spec.ExpRes.MemMin > res.MemLimit {
+	if app_spec_res.MemMin > res.MemLimit {
 		return fmt.Errorf("AppSpec requires at least %d MB Memory space",
-			app.Spec.ExpRes.MemMin/inapi.ByteMB)
+			app_spec_res.MemMin/inapi.ByteMB)
 	}
 
 	return nil

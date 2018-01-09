@@ -83,9 +83,20 @@ func (c Pod) ListAction() {
 		fields.Sort()
 	}
 
-	var exp_app_filter_notin types.ArrayString
-	if v := c.Params.Get("exp_app_filter_notin"); v != "" {
-		exp_app_filter_notin = types.ArrayString(strings.Split(v, ","))
+	var exp_filter_app_notin types.ArrayString
+	if v := c.Params.Get("exp_filter_app_notin"); v != "" {
+		exp_filter_app_notin = types.ArrayString(strings.Split(v, ","))
+	}
+
+	var exp_filter_app_spec_res inapi.AppSpecResRequirements
+	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
+			var spec inapi.AppSpec
+			rs.Decode(&spec)
+			if spec.Meta.ID == v {
+				exp_filter_app_spec_res = spec.ExpRes
+			}
+		}
 	}
 
 	action := uint32(c.Params.Uint64("operate_action"))
@@ -113,15 +124,21 @@ func (c Pod) ListAction() {
 				continue
 			}
 
-			if len(exp_app_filter_notin) > 0 {
+			if len(exp_filter_app_notin) > 0 {
 				found := false
 				for _, vpa := range pod.Apps {
-					if exp_app_filter_notin.Has(vpa.Spec.Meta.ID) {
+					if exp_filter_app_notin.Has(vpa.Spec.Meta.ID) {
 						found = true
 						break
 					}
 				}
 				if found {
+					continue
+				}
+			}
+
+			if exp_filter_app_spec_res.CpuMin > 0 {
+				if err := app_pod_res_check(&pod, &exp_filter_app_spec_res); err != nil {
 					continue
 				}
 			}
@@ -422,6 +439,19 @@ func (c Pod) NewAction() {
 				MemLimit: res.MemLimit,
 			},
 		})
+	}
+
+	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
+			var app_spec inapi.AppSpec
+			rs.Decode(&app_spec)
+			if app_spec.Meta.ID == v && app_spec.ExpRes.CpuMin > 0 {
+				if err := app_pod_res_check(&pod, &app_spec.ExpRes); err != nil {
+					set.Error = types.NewErrorMeta("400", err.Error())
+					return
+				}
+			}
+		}
 	}
 
 	charge_amount := float64(0)

@@ -353,8 +353,8 @@ func (c AppSpec) SetAction() {
 
 	//
 	vol_min_min := 100 * inapi.ByteMB
-	if prev.ExpRes.VolMin < vol_min_min {
-		prev.ExpRes.VolMin = vol_min_min
+	if prev.ExpRes.VolMin > (900 * inapi.ByteMB) {
+		vol_min_min = inapi.ByteGB
 	}
 	if fix := prev.ExpRes.VolMin % vol_min_min; fix > 0 {
 		prev.ExpRes.VolMin += (vol_min_min - fix)
