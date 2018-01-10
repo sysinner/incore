@@ -632,7 +632,9 @@ func (c App) OpResSetAction() {
 	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); rs.OK() {
 		rs.Decode(&app)
 	}
-	if app.Meta.ID == "" || !c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
+	if app.Meta.ID == "" ||
+		(!app.Operate.ResBoundRoles.MatchAny(c.us.Roles) &&
+			!c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin")) {
 		rsp.Error = types.NewErrorMeta("400", "App Not Found, or Access Denied")
 		return
 	}
