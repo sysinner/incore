@@ -388,6 +388,12 @@ func (c AppSpec) SetAction() {
 		}
 	}
 
+	for i, v := range prev.Executors {
+		if v.Priority > inapi.SpecExecutorPriorityMax {
+			prev.Executors[i].Priority = inapi.SpecExecutorPriorityMax
+		}
+	}
+
 	//
 	if set_new {
 		rs = data.ZoneMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)

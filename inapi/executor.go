@@ -41,7 +41,13 @@ type SpecExecutor struct {
 	Description    string                `json:"description,omitempty"`
 	Labels         types.Labels          `json:"labels,omitempty"`
 	Executor       Executor              `json:"executor,omitempty"`
+	Priority       uint8                 `json:"priority,omitempty"`
 }
+
+const (
+	SpecExecutorPriorityDefault uint8 = 8
+	SpecExecutorPriorityMax     uint8 = 15
+)
 
 type SpecExecutorList struct {
 	types.TypeMeta `json:",inline"`

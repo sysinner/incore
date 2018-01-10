@@ -64,24 +64,50 @@ func Runner(home_dir string) {
 				}
 			}
 
-			for _, app := range pod.Apps {
+			for priority := uint8(0); priority <= inapi.SpecExecutorPriorityMax; {
 
-				for _, ve := range app.Spec.Executors {
+				pdone := 0
 
-					hlog.Printf("debug", "AppExec %s", ve.Name)
+				for _, app := range pod.Apps {
 
-					ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.ID, ve.Name))
-
-					status.Executors.Sync(ve)
-					if sts, msg := executor_action(ve, data_maps, app.Operate.Action); sts != "" {
-						status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(ve.Name)), sts, msg)
+					if !inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStart) &&
+						!inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStop) {
+						continue
 					}
+
+					for _, ve := range app.Spec.Executors {
+
+						if priority != ve.Priority {
+							continue
+						}
+
+						pdone++
+
+						ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.ID, ve.Name))
+
+						if es := status.Statuses.Get(ve.Name); es != nil {
+							if es.Action.Allow(inapi.ExecutorActionStarted) ||
+								es.Action.Allow(inapi.ExecutorActionStopped) {
+								pdone--
+							}
+						}
+
+						status.Executors.Sync(ve)
+						if sts, msg := executor_action(ve, data_maps, app.Operate.Action); sts != "" {
+							status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(ve.Name)), sts, msg)
+						}
+					}
+				}
+
+				if pdone == 0 {
+					priority++
+				} else {
+					time.Sleep(1e9)
 				}
 			}
 
 			json.EncodeToFile(status.OpLog, home_dir+"/.sysinner/box_status.json", "  ")
 		}
-
 	}
 }
 
@@ -388,7 +414,7 @@ func executor_cmd(name string, cmd *exec.Cmd, script string) error {
 	in.Write([]byte("source /home/action/.bashrc\nset -e\nset -o pipefail\n" + script + "\nexit\n"))
 	in.Close()
 
-	hlog.Printf("info", "executor:%s cmd:{{{%s}}}", name, script)
+	// hlog.Printf("info", "executor:%s cmd:{{{%s}}}", name, script)
 
 	// cmd.Stdin = strings.NewReader("set -e\nset -o pipefail\n" + script + "\nexit\n")
 
