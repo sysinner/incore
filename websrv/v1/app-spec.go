@@ -24,6 +24,7 @@ import (
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -69,6 +70,14 @@ func (c AppSpec) ListAction() {
 		var spec inapi.AppSpec
 		if err := v.Decode(&spec); err != nil {
 			continue
+		}
+
+		//
+		if rs := data.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
+			data.ZoneMaster.ProgPut(
+				inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version),
+				skv.NewProgValue(spec),
+				nil)
 		}
 
 		if spec.Meta.User != c.us.UserName &&
@@ -164,6 +173,48 @@ func (c AppSpec) ListAction() {
 	ls.Kind = "AppSpecList"
 }
 
+func (c AppSpec) VersionListAction() {
+
+	ls := inapi.AppSpecVersionList{}
+	defer c.RenderJson(&ls)
+
+	if c.Params.Get("id") == "" {
+		ls.Error = types.NewErrorMeta("400", "ID can not be null")
+		return
+	}
+
+	var spec inapi.AppSpec
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+		rs.Decode(&spec)
+	}
+
+	if spec.Meta.User != c.us.UserName &&
+		!spec.Roles.MatchAny(c.us.Roles) {
+		ls.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AppSpec Not Found or Access Denied")
+		return
+	}
+
+	rs := data.ZoneMaster.ProgRevScan(
+		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "0"),
+		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "99999999"), 50)
+	rss := rs.KvList()
+
+	for _, v := range rss {
+
+		var spec inapi.AppSpec
+		if err := v.Decode(&spec); err != nil {
+			continue
+		}
+
+		ls.Items = append(ls.Items, inapi.AppSpecVersionEntry{
+			Version: spec.Meta.Version,
+			Created: uint64(spec.Meta.Updated),
+		})
+	}
+
+	ls.Kind = "AppSpecVersionList"
+}
+
 func (c AppSpec) EntryAction() {
 
 	set := inapi.AppSpec{}
@@ -179,12 +230,21 @@ func (c AppSpec) EntryAction() {
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); obj.OK() {
-		obj.Decode(&set)
+	version := c.Params.Get("version")
+	if version != "" {
+		if rs := data.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
+			rs.Decode(&set)
+		}
+	} else if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+		rs.Decode(&set)
 	}
 
 	if set.Meta.ID != c.Params.Get("id") {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound, "AppSpec Not Found")
+		if version != "" {
+			version = ", version " + version
+		}
+		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
+			fmt.Sprintf("AppSpec Not Found : %s%s", c.Params.Get("id"), version))
 		return
 	}
 
@@ -192,6 +252,16 @@ func (c AppSpec) EntryAction() {
 		!set.Roles.MatchAny(c.us.Roles) {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
+	}
+
+	if version != "" && c.Params.Get("last_version") == "true" {
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(set.Meta.ID)); rs.OK() {
+			var last_spec inapi.AppSpec
+			rs.Decode(&last_spec)
+			if inapi.NewAppSpecVersion(last_spec.Meta.Version).Compare(inapi.NewAppSpecVersion(set.Meta.Version)) == 1 {
+				set.LastVersion = last_spec.Meta.Version
+			}
+		}
 	}
 
 	if c.Params.Get("download") == "true" {
@@ -363,7 +433,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	for _, v := range prev.Depends {
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); !rs.OK() {
+		if rs := data.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecDepend ("+v.Id+") Not Found")
 			return
 		}
@@ -401,6 +471,15 @@ func (c AppSpec) SetAction() {
 		rs = data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
 	}
 
+	if !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		return
+	}
+
+	rs = data.ZoneMaster.ProgPut(
+		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+		skv.NewProgValue(prev),
+		nil)
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 	} else {
@@ -442,8 +521,8 @@ func (c AppSpec) CfgSetAction() {
 	}
 
 	var prev inapi.AppSpec
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); obj.OK() {
-		obj.Decode(&prev)
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
+		rs.Decode(&prev)
 	}
 
 	if prev.Meta.ID == "" {
@@ -499,8 +578,16 @@ func (c AppSpec) CfgSetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !obj.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+	if rs := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		return
+	}
+
+	if rs := data.ZoneMaster.ProgPut(
+		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+		skv.NewProgValue(prev),
+		nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}
 
@@ -542,8 +629,8 @@ func (c AppSpec) CfgFieldDelAction() {
 	}
 
 	var prev inapi.AppSpec
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); obj.OK() {
-		obj.Decode(&prev)
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
+		rs.Decode(&prev)
 	}
 
 	if prev.Meta.ID == "" {
@@ -574,8 +661,16 @@ func (c AppSpec) CfgFieldDelAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if obj := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !obj.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, obj.Bytex().String())
+	if rs := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		return
+	}
+
+	if rs := data.ZoneMaster.ProgPut(
+		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+		skv.NewProgValue(prev),
+		nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}
 

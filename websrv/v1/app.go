@@ -95,7 +95,7 @@ func (c App) ListAction() {
 			continue
 		}
 
-		// patch
+		// UPGRADE 0.3.5 to 0.3.6
 		if inapi.OpActionAllow(inst.Operate.Action, inapi.OpActionDestroy) {
 			if m := v.Meta(); m == nil || m.Expired == 0 {
 				if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(inst.Meta.ID), inst, nil); rs.OK() {
@@ -255,6 +255,10 @@ func (c App) SetAction() {
 		prev.Meta.Name = set.Meta.Name
 		prev.Operate.ResBoundRoles = set.Operate.ResBoundRoles
 
+		if set.Spec.Meta.Version != "" && set.Spec.Meta.Version != prev.Spec.Meta.Version {
+			prev.Spec.Meta.Version = set.Spec.Meta.Version
+		}
+
 		if set.Operate.Action > 0 &&
 			inapi.OpActionValid(set.Operate.Action) &&
 			prev.Operate.Action != set.Operate.Action {
@@ -265,23 +269,23 @@ func (c App) SetAction() {
 
 	prev.Meta.Updated = tn
 
-	var spec inapi.AppSpec
-	rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
-	if !rs.OK() {
-		rsp.Error = types.NewErrorMeta("400", "Bad Request")
-		return
+	var rs *skv.Result
+	if prev.Spec.Meta.Version != "" {
+		rs = in_db.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
 	} else {
+		rs = in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
+	}
+	var spec inapi.AppSpec
+	if rs.OK() {
 		rs.Decode(&spec)
 	}
 
 	if spec.Meta.ID == "" || spec.Meta.ID != prev.Spec.Meta.ID {
-		rsp.Error = types.NewErrorMeta("400", "Bad Request")
+		rsp.Error = types.NewErrorMeta("400", fmt.Sprintf("AppSpec Not Found %s/%s", prev.Spec.Meta.ID, prev.Spec.Meta.Version))
 		return
 	}
 
-	if prev.Spec.Meta.Version != spec.Meta.Version {
-		prev.Spec = spec
-	}
+	prev.Spec = spec
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		prev.Operate.Action = prev.Operate.Action | inapi.OpActionStop
@@ -467,8 +471,9 @@ func (c App) ListOpResAction() {
 				Meta: inst.Meta,
 				Spec: inapi.AppSpec{
 					Meta: types.InnerObjectMeta{
-						ID:   inst.Spec.Meta.ID,
-						Name: inst.Spec.Meta.Name,
+						ID:      inst.Spec.Meta.ID,
+						Name:    inst.Spec.Meta.Name,
+						Version: inst.Spec.Meta.Version,
 					},
 				},
 				Operate: inapi.AppOperate{
@@ -737,11 +742,16 @@ func (c App) ConfigAction() {
 			}
 
 			var app_spec inapi.AppSpec
-			if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); rs.OK() {
+			if rs := in_db.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); rs.OK() {
 				rs.Decode(&app_spec)
-				if app_spec.Configurator != nil && len(app_spec.Configurator.Fields) > 0 {
-					app_configurator = app_spec.Configurator
+			}
+			if app_spec.Meta.ID != v.Id { // TODO
+				if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); rs.OK() {
+					rs.Decode(&app_spec)
 				}
+			}
+			if app_spec.Configurator != nil && len(app_spec.Configurator.Fields) > 0 {
+				app_configurator = app_spec.Configurator
 			}
 
 			break

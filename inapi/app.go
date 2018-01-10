@@ -107,6 +107,7 @@ func (it *AppSpecDepend) IterKey() string {
 type AppSpec struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta  `json:"meta"`
+	LastVersion    string                 `json:"last_version,omitempty"`
 	Roles          types.ArrayUint32      `json:"roles,omitempty"`
 	Vendor         string                 `json:"vendor,omitempty"`
 	Description    string                 `json:"description,omitempty"`
@@ -128,6 +129,16 @@ type AppSpecResRequirements struct {
 type AppSpecList struct {
 	types.TypeMeta `json:",inline"`
 	Items          []AppSpec `json:"items,omitempty"`
+}
+
+type AppSpecVersionEntry struct {
+	Version string `json:"version"`
+	Created uint64 `json:"created"`
+}
+
+type AppSpecVersionList struct {
+	types.TypeMeta `json:",inline"`
+	Items          []AppSpecVersionEntry `json:"items,omitempty"`
 }
 
 type AppPackages []VolumePackage

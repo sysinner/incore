@@ -17,6 +17,7 @@ package inapi
 import (
 	"encoding/binary"
 	"fmt"
+	"strconv"
 
 	"github.com/lynkdb/iomix/skv"
 )
@@ -53,6 +54,14 @@ func NsGlobalPodInstanceDestroyed(pod_id string) string {
 
 func NsGlobalAppSpec(spec_id string) string {
 	return fmt.Sprintf("/ing/as/%s", spec_id)
+}
+
+func NsGlobalAppSpecVersion(spec_id, version string) skv.ProgKey {
+	u32, _ := strconv.Atoi(version)
+	if u32 > 65535 {
+		u32 = 65535 // TODO
+	}
+	return skv.NewProgKey("ing", "asv", spec_id, uint32(u32))
 }
 
 func NsGlobalAppInstance(instance_id string) string {

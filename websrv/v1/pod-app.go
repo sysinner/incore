@@ -96,12 +96,16 @@ func (c Pod) AppSyncAction() {
 	for _, dv := range app.Spec.Depends {
 
 		var dep_spec inapi.AppSpec
-		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(dv.Id)); !rs.OK() {
-			set.Error = types.NewErrorMeta("400",
-				fmt.Sprintf("Not Dependent AppSpec (%s) Found", dv.Name))
-			return
-		} else {
+		if rs := in_db.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(dv.Id, dv.Version)); rs.OK() {
 			rs.Decode(&dep_spec)
+		} else if rs = in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(dv.Id)); rs.OK() { // TODO
+			rs.Decode(&dep_spec)
+		}
+
+		if dep_spec.Meta.ID != dv.Id {
+			set.Error = types.NewErrorMeta("400",
+				fmt.Sprintf("Not Dependent AppSpec (%s/v%s) Found", dv.Name, dv.Version))
+			return
 		}
 
 		//
