@@ -569,12 +569,21 @@ func (c Pod) OpActionSetAction() {
 		}
 	}
 
+	tn := uint32(time.Now().Unix())
+
+	if (inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) && inapi.OpActionAllow(op_action, inapi.OpActionStart)) ||
+		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(op_action, inapi.OpActionStop)) {
+
+		if tn-prev.Operate.Operated < 60 {
+			set.Error = types.NewErrorMeta("400", "too many operations in 1 minute, try again later")
+			return
+		}
+	}
+
 	//
 	prev.Operate.Action = inapi.OpActionControlFilter(op_action)
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
-
-	tn := uint32(time.Now().Unix())
 
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
@@ -661,6 +670,17 @@ func (c Pod) SetInfoAction() {
 		}
 	}
 
+	tn := uint32(time.Now().Unix())
+
+	if (inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) && inapi.OpActionAllow(set.Operate.Action, inapi.OpActionStart)) ||
+		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(set.Operate.Action, inapi.OpActionStop)) {
+
+		if tn-prev.Operate.Operated < 60 {
+			set.Error = types.NewErrorMeta("400", "too many operations in 1 minute, try again later")
+			return
+		}
+	}
+
 	prev.Meta.Name = set.Meta.Name
 	if set.Operate.Action > 0 {
 		prev.Operate.Action = inapi.OpActionControlFilter(set.Operate.Action)
@@ -669,8 +689,6 @@ func (c Pod) SetInfoAction() {
 
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
-
-	tn := uint32(time.Now().Unix())
 
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)

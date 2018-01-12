@@ -495,7 +495,7 @@ func (s *PodSpecPlan) ChargeFix() {
 	s.ResComputeCharge.Cpu = 0.1
 	s.ResComputeCharge.Mem = 0.0001
 
-	s.ResVolumeCharge.CapSize = 0.000004
+	s.ResVolumeCharge.CapSize = 0.000008
 }
 
 func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {
