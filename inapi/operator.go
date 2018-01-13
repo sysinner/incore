@@ -28,6 +28,7 @@ var (
 	OpActionDestroyed uint32 = 1 << 6
 	OpActionPending   uint32 = 1 << 11
 	OpActionWarning   uint32 = 1 << 12
+	OpActionResFree   uint32 = 1 << 24
 	oplog_list_mu     sync.RWMutex
 	oplog_sets_mu     sync.RWMutex
 )
@@ -100,6 +101,10 @@ func OpActionStrings(action uint32) []string {
 
 	if OpActionAllow(action, OpActionWarning) {
 		s = append(s, "warning")
+	}
+
+	if OpActionAllow(action, OpActionResFree) {
+		s = append(s, "resfree")
 	}
 
 	return s

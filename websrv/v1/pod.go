@@ -33,6 +33,11 @@ import (
 	zm_status "github.com/sysinner/incore/status"
 )
 
+var (
+	pod_action_set_time_min   uint32 = 60
+	pod_action_queue_time_min uint32 = 600
+)
+
 type Pod struct {
 	*httpsrv.Controller
 	us iamapi.UserSession
@@ -574,7 +579,7 @@ func (c Pod) OpActionSetAction() {
 	if (inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) && inapi.OpActionAllow(op_action, inapi.OpActionStart)) ||
 		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(op_action, inapi.OpActionStop)) {
 
-		if tn-prev.Operate.Operated < 60 {
+		if tn-prev.Operate.Operated < pod_action_set_time_min {
 			set.Error = types.NewErrorMeta("400", "too many operations in 1 minute, try again later")
 			return
 		}
@@ -588,7 +593,7 @@ func (c Pod) OpActionSetAction() {
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		if tn < prev.Operate.Operated+600 {
+		if tn-prev.Operate.Operated < pod_action_queue_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return
@@ -675,7 +680,7 @@ func (c Pod) SetInfoAction() {
 	if (inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) && inapi.OpActionAllow(set.Operate.Action, inapi.OpActionStart)) ||
 		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(set.Operate.Action, inapi.OpActionStop)) {
 
-		if tn-prev.Operate.Operated < 60 {
+		if tn-prev.Operate.Operated < pod_action_set_time_min {
 			set.Error = types.NewErrorMeta("400", "too many operations in 1 minute, try again later")
 			return
 		}
@@ -693,7 +698,7 @@ func (c Pod) SetInfoAction() {
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		if tn < prev.Operate.Operated+600 {
+		if tn-prev.Operate.Operated < pod_action_queue_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
 		}
@@ -791,7 +796,7 @@ func (c Pod) DeleteAction() {
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		if tn < prev.Operate.Operated+600 {
+		if tn-prev.Operate.Operated < pod_action_set_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
 		}
@@ -958,7 +963,7 @@ func (c Pod) AccessSetAction() {
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
-		if tn < prev.Operate.Operated+600 {
+		if tn-prev.Operate.Operated < pod_action_queue_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return

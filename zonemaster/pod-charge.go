@@ -141,7 +141,8 @@ func pod_charge_entry(pod inapi.Pod) bool {
 	}
 
 	// Res Computes
-	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) {
+	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) &&
+		!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) {
 		for _, v := range pod.Spec.Boxes {
 			if v.Resources == nil {
 				continue

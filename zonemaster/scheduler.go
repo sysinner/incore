@@ -31,10 +31,11 @@ import (
 )
 
 var (
-	Scheduler        inapi.Scheduler
-	pod_ops          = map[string]*inapi.PodOperate{}
-	server_error     = errors.New("server error")
-	zonePodSpecPlans inapi.PodSpecPlanList
+	Scheduler             inapi.Scheduler
+	pod_ops               = map[string]*inapi.PodOperate{}
+	server_error          = errors.New("server error")
+	zonePodSpecPlans      inapi.PodSpecPlanList
+	pod_res_free_time_min uint32 = 60
 )
 
 const (
@@ -76,7 +77,10 @@ func scheduler_exec() error {
 	}
 
 	//
-	host_res_usages := map[string]*host_res_usage{}
+	var (
+		tn              = uint32(time.Now().Unix())
+		host_res_usages = map[string]*host_res_usage{}
+	)
 	rss = data.ZoneMaster.PvScan(
 		inapi.NsZonePodInstance(status.ZoneId, ""), "", "", 10000).KvList()
 	for _, v := range rss {
@@ -84,6 +88,8 @@ func scheduler_exec() error {
 		if err := v.Decode(&pod); err != nil {
 			return err
 		}
+		status.ZonePodList.Set(&pod)
+
 		if scheduler_status_refresh(&pod) {
 			data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil)
 		}
@@ -98,17 +104,34 @@ func scheduler_exec() error {
 			continue
 		}
 
+		// TODO
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop|inapi.OpActionStopped) &&
+			!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) &&
+			tn-pod.Operate.Operated > pod_res_free_time_min {
+
+			pod.Operate.Action = pod.Operate.Action | inapi.OpActionResFree
+			//
+			if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil); !rs.OK() {
+				return errors.New(rs.Bytex().String())
+			}
+			hlog.Printf("warn", "zone-master/pod/stopped %s, SKIP ResMerge", pod.Meta.ID)
+		}
+
 		spec_res := pod.Spec.ResComputeBound()
 		for _, rp := range pod.Operate.Replicas {
 			if rp.Node == "" {
 				continue
 			}
+
 			hres, ok := host_res_usages[rp.Node]
 			if !ok {
 				hres = &host_res_usage{}
 			}
-			hres.cpu += spec_res.CpuLimit
-			hres.mem += spec_res.MemLimit
+
+			if !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) {
+				hres.cpu += spec_res.CpuLimit
+				hres.mem += spec_res.MemLimit
+			}
 
 			for _, rpp := range rp.Ports {
 				if rpp.HostPort > 0 {
@@ -235,7 +258,7 @@ func scheduler_exec_cell(cell_id string) {
 
 	// TODO pager
 	rss := data.ZoneMaster.PvScan(
-		inapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 1000).KvList()
+		inapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 10000).KvList()
 	if len(rss) == 0 {
 		return
 	}
@@ -277,8 +300,8 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 	// hlog.Printf("error", "exec podq #%s instance", podq.Meta.ID)
 
 	var (
-		prev  inapi.Pod
 		start = time.Now()
+		prev  inapi.Pod
 	)
 
 	if rs := data.ZoneMaster.PvGet(
@@ -293,6 +316,13 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 
 	} else if !rs.NotFound() {
 		return fmt.Errorf("failed on get podq #%s, err: %s", podq.Meta.ID, rs.Bytex().String())
+	}
+
+	// fmt.Println("status", podq.Meta.ID, inapi.OpActionStrings(podq.Operate.Action),
+	// 	inapi.OpActionStrings(prev.Operate.Action))
+
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionResFree) {
+		podq.Operate.Action = podq.Operate.Action | inapi.OpActionResFree
 	}
 
 	if len(prev.Operate.Replicas) > 0 {
@@ -386,7 +416,7 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 		host_ids, err := Scheduler.ScheduleSets(*podq, status.ZoneHostList)
 		if err != nil || len(host_ids) < len(podq.Operate.Replicas) {
 			podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
-				inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, "no available host schedule (New), waiting"))
+				inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, "no available host resources (New), waiting"))
 			return errors.New("")
 		}
 
@@ -395,13 +425,19 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 		var (
 			spec_res   = podq.Spec.ResComputeBound()
 			spec_res_p = prev.Spec.ResComputeBound()
+			p_res_cpu  = spec_res_p.CpuLimit
+			p_res_mem  = spec_res_p.MemLimit
 		)
 
-		if spec_res.CpuLimit > spec_res_p.CpuLimit ||
-			spec_res.MemLimit > spec_res_p.MemLimit {
+		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionResFree) {
+			p_res_cpu, p_res_mem = 0, 0
+		}
 
-			cpu_fix := spec_res.CpuLimit - spec_res_p.CpuLimit
-			mem_fix := spec_res.MemLimit - spec_res_p.MemLimit
+		if spec_res.CpuLimit > p_res_cpu ||
+			spec_res.MemLimit > p_res_mem {
+
+			cpu_fix := spec_res.CpuLimit - p_res_cpu
+			mem_fix := spec_res.MemLimit - p_res_mem
 
 			for _, oprep := range podq.Operate.Replicas {
 				if oprep.Node == "" {
@@ -411,14 +447,18 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 				host := status.ZoneHostList.Item(oprep.Node)
 				if host == nil || host.Operate == nil || host.Spec == nil || host.Spec.Capacity == nil {
 					podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
-						inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, "no available host schedule (SpecChange), waiting"))
+						inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn,
+							"no available host resources (Spec/Action Changed), waiting"))
 					return errors.New("")
 				}
 
-				if host.Operate.CpuUsed+cpu_fix > int64(host.Spec.Capacity.Cpu) ||
-					host.Operate.MemUsed+mem_fix > int64(host.Spec.Capacity.Mem) {
+				if err := Scheduler.ScheduleHostValid(inapi.ScheduleEntry{
+					Cpu: cpu_fix,
+					Mem: mem_fix,
+				}, host); err != nil {
 					podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
-						inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn, "no available host schedule (SpecChange), waiting"))
+						inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogWarn,
+							"no available host resources (Spec/Action Changed), waiting"))
 					return errors.New("")
 				}
 			}
@@ -486,6 +526,11 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 		podq.Operate.OpLog,
 		inapi.NewPbOpLogEntry(oplog_zms, inapi.PbOpLogOK, msg),
 	)
+
+	if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionResFree) &&
+		!inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStop) {
+		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionResFree)
+	}
 
 	return nil
 }
@@ -568,6 +613,10 @@ func scheduler_exec_pod_destroy(podq *inapi.Pod) error {
 		podq.Operate.Action = podq.Operate.Action | inapi.OpActionDestroyed
 	}
 
+	if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionResFree) {
+		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionResFree)
+	}
+
 	return nil
 }
 
@@ -584,12 +633,12 @@ func scheduler_exec_pod_rep(prev, podq *inapi.Pod, oprep *inapi.PodOperateReplic
 
 		if err != nil || host_id == "" {
 			// TODO error log
-			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host schedule")
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host resources")
 		}
 
 		host = status.ZoneHostList.Item(host_id)
 		if host == nil {
-			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host schedule")
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host resources")
 		}
 
 		podq.Operate.Replicas.Set(inapi.PodOperateReplica{
@@ -613,7 +662,7 @@ func scheduler_exec_pod_rep(prev, podq *inapi.Pod, oprep *inapi.PodOperateReplic
 
 		host = status.ZoneHostList.Item(oprep.Node)
 		if host == nil {
-			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host schedule")
+			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "no available host resources")
 		}
 
 		var (

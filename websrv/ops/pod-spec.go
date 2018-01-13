@@ -239,11 +239,11 @@ func (c PodSpec) PlanSetAction() {
 	defer c.RenderJson(&set)
 
 	if err := c.Request.JsonDecode(&set); err != nil {
-		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request 01")
 		return
 	}
 	if !inapi.PodSpecPlanIdReg.MatchString(set.Meta.ID) {
-		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request 02")
 		return
 	}
 
@@ -307,7 +307,7 @@ func (c PodSpec) PlanSetAction() {
 		}
 	}
 	if len(prev.Zones) < 1 {
-		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request 03")
 		return
 	}
 
@@ -340,7 +340,7 @@ func (c PodSpec) PlanSetAction() {
 		}
 	}
 	if len(prev.Images) < 1 {
-		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request 04")
 		return
 	}
 
@@ -367,7 +367,7 @@ func (c PodSpec) PlanSetAction() {
 		}
 	}
 	if len(prev.ResComputes) < 1 {
-		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request 05")
 		return
 	}
 	sort.Sort(prev.ResComputes)
@@ -403,7 +403,7 @@ func (c PodSpec) PlanSetAction() {
 		}
 	}
 	if len(prev.ResVolumes) < 1 {
-		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request 06")
 		return
 	}
 

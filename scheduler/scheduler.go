@@ -22,6 +22,8 @@ import (
 
 var (
 	errBadArgument = errors.New("BadArgument")
+	cpu_over_rate  = float64(3.0)
+	mem_over_rate  = float64(1.1)
 )
 
 type genericScheduler struct {
@@ -145,19 +147,35 @@ func find_hosts_that_fit(
 			continue
 		}
 
-		if (src.CpuLimit+v.Operate.CpuUsed) > int64(v.Spec.Capacity.Cpu) ||
-			(src.MemLimit+v.Operate.MemUsed) > int64(v.Spec.Capacity.Mem) {
+		cap_cpu := int64(float64(v.Spec.Capacity.Cpu) * cpu_over_rate)
+		cap_mem := int64(float64(v.Spec.Capacity.Mem) * mem_over_rate)
+
+		if (src.CpuLimit+v.Operate.CpuUsed) > cap_cpu ||
+			(src.MemLimit+v.Operate.MemUsed) > cap_mem {
 			continue // TODO
 		}
 
 		hosts = append(hosts, &host_fit{
 			id:        v.Meta.Id,
 			cpu_used:  v.Operate.CpuUsed,
-			cpu_total: int64(v.Spec.Capacity.Cpu),
+			cpu_total: cap_cpu,
 			mem_used:  v.Operate.MemUsed,
-			mem_total: int64(v.Spec.Capacity.Mem),
+			mem_total: cap_mem,
 		})
 	}
 
 	return hosts, nil
+}
+
+func (*genericScheduler) ScheduleHostValid(entry inapi.ScheduleEntry, host *inapi.ResHost) error {
+
+	cap_cpu := int64(float64(host.Spec.Capacity.Cpu) * cpu_over_rate)
+	cap_mem := int64(float64(host.Spec.Capacity.Mem) * mem_over_rate)
+
+	if (entry.Cpu+host.Operate.CpuUsed) > cap_cpu ||
+		(entry.Mem+host.Operate.MemUsed) > cap_mem {
+		return errors.New("No Res Fit")
+	}
+
+	return nil
 }

@@ -19,6 +19,12 @@ package inapi
 type Scheduler interface {
 	Schedule(pod Pod, hosts ResHostList) (host_id string, err error)
 	ScheduleSets(pod Pod, hosts ResHostList) (host_ids []string, err error)
+	ScheduleHostValid(entry ScheduleEntry, host *ResHost) error
+}
+
+type ScheduleEntry struct {
+	Cpu int64
+	Mem int64
 }
 
 /*
