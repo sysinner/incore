@@ -459,47 +459,7 @@ func (c Pod) NewAction() {
 		}
 	}
 
-	charge_amount := float64(0)
-
-	// Volumes
-	for _, v := range pod.Spec.Volumes {
-		charge_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
-	}
-
-	for _, v := range pod.Spec.Boxes {
-
-		if v.Resources != nil {
-			// CPU
-			charge_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
-
-			// RAM
-			charge_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
-		}
-	}
-
-	charge_amount = charge_amount * float64(pod.Operate.ReplicaCap)
-
-	charge_cycle_min := float64(3600)
-	charge_amount = iamapi.AccountFloat64Round(charge_amount*(charge_cycle_min/3600), 2)
-	if charge_amount < 0.01 {
-		charge_amount = 0.01
-	}
-
-	tnu := uint32(time.Now().Unix())
-	if rsp := iamclient.AccountChargePreValid(iamapi.AccountChargePrepay{
-		User:      pod.Meta.User,
-		Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
-		Prepay:    charge_amount,
-		TimeStart: tnu,
-		TimeClose: tnu + uint32(charge_cycle_min),
-	}, zm_status.ZonePodChargeAccessKey()); rsp.Error != nil {
-		set.Error = rsp.Error
-		return
-	} else if rsp.Kind != "AccountCharge" {
-		set.Error = types.NewErrorMeta("400", "Network Error")
+	if set.Error = podAccountChargePreValid(&pod, &spec_plan); set.Error != nil {
 		return
 	}
 
@@ -955,10 +915,10 @@ func (c Pod) AccessSetAction() {
 		prev.Operate.Access.SshKey = ""
 	}
 
+	tn := uint32(time.Now().Unix())
+
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
-
-	tn := uint32(time.Now().Unix())
 
 	// Pod Map to Cell Queue
 	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
@@ -977,4 +937,234 @@ func (c Pod) AccessSetAction() {
 	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 
 	set.Kind = "PodInstance"
+}
+
+func (c Pod) SpecSetAction() {
+
+	var (
+		set       inapi.PodCreate
+		spec_plan inapi.PodSpecPlan
+		prev      inapi.Pod
+	)
+	defer c.RenderJson(&set)
+
+	if err := c.Request.JsonDecode(&set); err != nil {
+		set.Error = types.NewErrorMeta("400", err.Error())
+		return
+	}
+
+	if set.Pod == "" {
+		set.Error = types.NewErrorMeta("400", "Pod can not be null")
+		return
+	}
+
+	//
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(set.Pod)); rs.OK() {
+		rs.Decode(&prev)
+	}
+	if prev.Meta.ID != set.Pod {
+		set.Error = types.NewErrorMeta("400", "Pod Not Found")
+		return
+	}
+
+	if !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
+		return
+	}
+
+	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
+		set.Error = types.NewErrorMeta("400", "the pod instance has been destroyed")
+		return
+	}
+
+	if prev.Spec.Zone != set.Zone || prev.Spec.Cell != set.Cell {
+		set.Error = types.NewErrorMeta("400", "invalid zone or cell set")
+		return
+	}
+
+	//
+	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
+		rs.Decode(&spec_plan)
+	}
+	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
+		set.Error = types.NewErrorMeta("400", "Spec Not Found")
+		return
+	}
+
+	//
+	if err := set.Valid(spec_plan); err != nil {
+		set.Error = types.NewErrorMeta("400", err.Error())
+		return
+	}
+	spec_plan.ChargeFix()
+
+	res_vol := spec_plan.ResVolume(set.ResVolume)
+	if res_vol == nil {
+		set.Error = types.NewErrorMeta("400", "No ResVolume Found")
+		return
+	}
+	if set.ResVolumeSize < res_vol.Request {
+		set.ResVolumeSize = res_vol.Request
+	} else if set.ResVolumeSize > res_vol.Limit {
+		set.ResVolumeSize = res_vol.Limit
+	} else {
+		if fix := set.ResVolumeSize % res_vol.Step; fix > 0 {
+			set.ResVolumeSize += res_vol.Step
+		}
+	}
+
+	if prev.Spec.Ref.Id != spec_plan.Meta.ID || prev.Spec.Ref.Version != spec_plan.Meta.Version {
+		prev.Spec.Ref.Id = spec_plan.Meta.ID
+		prev.Spec.Ref.Name = spec_plan.Meta.Name
+		prev.Spec.Ref.Version = spec_plan.Meta.Version
+	}
+
+	for i, v := range prev.Spec.Volumes {
+
+		if v.Name != "system" {
+			continue
+		}
+
+		if v.Ref.Id != res_vol.RefId {
+			prev.Spec.Volumes[i].Ref.Id = res_vol.RefId
+			prev.Spec.Volumes[i].Ref.Name = res_vol.RefId
+		}
+
+		if v.SizeLimit != set.ResVolumeSize {
+			prev.Spec.Volumes[i].SizeLimit = set.ResVolumeSize
+		}
+	}
+
+	prev.Spec.Labels = spec_plan.Labels
+
+	//
+	prev.Spec.Boxes = []inapi.PodSpecBoxBound{}
+	for _, v := range set.Boxes {
+
+		img := spec_plan.Image(v.Image)
+		if img == nil {
+			set.Error = types.NewErrorMeta("400", "No Image Found")
+			return
+		}
+
+		res := spec_plan.ResCompute(v.ResCompute)
+		if res == nil {
+			set.Error = types.NewErrorMeta("400", "No ResCompute Found")
+			return
+		}
+
+		prev.Spec.Boxes = append(prev.Spec.Boxes, inapi.PodSpecBoxBound{
+			Name:    v.Name,
+			Updated: types.MetaTimeNow(),
+			Image: inapi.PodSpecBoxImageBound{
+				Ref: &inapi.ObjectReference{
+					Id:   img.RefId,
+					Name: img.RefId,
+				},
+				Driver:  img.Driver,
+				OsDist:  img.OsDist,
+				Arch:    img.Arch,
+				Options: img.Options,
+			},
+			Resources: &inapi.PodSpecBoxResComputeBound{
+				Ref: &inapi.ObjectReference{
+					Id:   res.RefId,
+					Name: res.RefId,
+				},
+				CpuLimit: res.CpuLimit,
+				MemLimit: res.MemLimit,
+			},
+		})
+	}
+
+	for _, app := range prev.Apps {
+
+		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(app.Spec.Meta.ID)); rs.OK() {
+			var app_spec inapi.AppSpec
+			rs.Decode(&app_spec)
+			if app_spec.Meta.ID == app.Spec.Meta.ID && app_spec.ExpRes.CpuMin > 0 {
+				if err := app_pod_res_check(&prev, &app_spec.ExpRes); err != nil {
+					set.Error = types.NewErrorMeta("400", err.Error())
+					return
+				}
+			}
+		}
+	}
+
+	if set.Error = podAccountChargePreValid(&prev, &spec_plan); set.Error != nil {
+		return
+	}
+
+	tn := uint32(time.Now().Unix())
+	prev.Operate.Version++
+	prev.Meta.Updated = types.MetaTimeNow()
+
+	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+		if tn-prev.Operate.Operated < pod_action_queue_time_min {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+		}
+		return
+	}
+
+	prev.Operate.Operated = tn
+
+	//
+	if rs := data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		return
+	}
+
+	// Pod Map to Cell Queue
+	data.ZoneMaster.PvPut(qstr, prev, nil)
+
+	set.Pod = prev.Meta.ID
+	set.Kind = "PodInstance"
+}
+
+func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *types.ErrorMeta {
+
+	charge_amount := float64(0)
+
+	// Volumes
+	for _, v := range pod.Spec.Volumes {
+		charge_amount += iamapi.AccountFloat64Round(
+			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+	}
+
+	for _, v := range pod.Spec.Boxes {
+
+		if v.Resources != nil {
+			// CPU
+			charge_amount += iamapi.AccountFloat64Round(
+				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+
+			// RAM
+			charge_amount += iamapi.AccountFloat64Round(
+				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
+		}
+	}
+
+	charge_amount = charge_amount * float64(pod.Operate.ReplicaCap)
+
+	charge_cycle_min := float64(3600)
+	charge_amount = iamapi.AccountFloat64Round(charge_amount*(charge_cycle_min/3600), 2)
+	if charge_amount < 0.01 {
+		charge_amount = 0.01
+	}
+
+	tn := uint32(time.Now().Unix())
+	if rsp := iamclient.AccountChargePreValid(iamapi.AccountChargePrepay{
+		User:      pod.Meta.User,
+		Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
+		Prepay:    charge_amount,
+		TimeStart: tn,
+		TimeClose: tn + uint32(charge_cycle_min),
+	}, zm_status.ZonePodChargeAccessKey()); rsp.Error != nil {
+		return rsp.Error
+	} else if rsp.Kind != "AccountCharge" {
+		return types.NewErrorMeta("400", "Network Error")
+	}
+
+	return nil
 }

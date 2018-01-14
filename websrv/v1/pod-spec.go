@@ -45,6 +45,31 @@ func (c *PodSpec) Init() int {
 	return 0
 }
 
+func (c PodSpec) PlanEntryAction() {
+
+	set := inapi.PodSpecPlan{}
+	defer c.RenderJson(&set)
+
+	rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", c.Params.Get("id")))
+	if !rs.OK() {
+		set.Error = types.NewErrorMeta("404", "No Spec Found")
+		return
+	}
+
+	var item inapi.PodSpecPlan
+	rs.Decode(&item)
+	if item.Meta.ID != c.Params.Get("id") {
+		set.Error = types.NewErrorMeta("404", "No Spec Found")
+		return
+	}
+
+	item.ChargeFix()
+	sort.Sort(item.ResComputes)
+
+	set = item
+	set.Kind = "PodSpecPlan"
+}
+
 func (c PodSpec) PlanListAction() {
 
 	ls := inapi.PodSpecPlanList{}
