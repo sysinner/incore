@@ -76,7 +76,7 @@ func (c AppSpec) ListAction() {
 		if rs := data.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
 			data.ZoneMaster.ProgPut(
 				inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version),
-				skv.NewProgValue(spec),
+				skv.NewValueObject(spec),
 				nil)
 		}
 
@@ -478,7 +478,7 @@ func (c AppSpec) SetAction() {
 
 	rs = data.ZoneMaster.ProgPut(
 		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewProgValue(prev),
+		skv.NewValueObject(prev),
 		nil)
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
@@ -585,7 +585,7 @@ func (c AppSpec) CfgSetAction() {
 
 	if rs := data.ZoneMaster.ProgPut(
 		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewProgValue(prev),
+		skv.NewValueObject(prev),
 		nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
@@ -668,7 +668,7 @@ func (c AppSpec) CfgFieldDelAction() {
 
 	if rs := data.ZoneMaster.ProgPut(
 		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewProgValue(prev),
+		skv.NewValueObject(prev),
 		nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return

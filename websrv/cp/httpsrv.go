@@ -46,6 +46,12 @@ func NewIndexModule() httpsrv.Module {
 
 	module := httpsrv.NewModule("in_cp_index")
 
+	module.RouteSet(httpsrv.Route{
+		Type:       httpsrv.RouteTypeStatic,
+		Path:       "~",
+		StaticPath: config.Prefix + "/webui",
+	})
+
 	module.ControllerRegister(new(Index))
 
 	return module

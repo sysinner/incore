@@ -98,7 +98,7 @@ func (c Podbound) IndexAction() {
 
 		if pod.Meta.ID == pod_id {
 			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.ProgWriteOptions{
-				Expired: time.Now().Add(3600e9),
+				Expired: uint64(time.Now().Add(3600e9).UnixNano()),
 			})
 		}
 	}
@@ -193,7 +193,7 @@ func pbPodInstanceSpec(pod_id string, rep_id uint16) *inapi.Pod {
 
 		if pod.Meta.ID == pod_id {
 			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.ProgWriteOptions{
-				Expired: time.Now().Add(3600e9),
+				Expired: uint64(time.Now().Add(3600e9).UnixNano()),
 			})
 		}
 	}

@@ -27,7 +27,8 @@ import (
 
 var (
 	Prefix string
-	Host   = inapi.ResHost{
+	inited bool = false
+	Host        = inapi.ResHost{
 		Meta:    &inapi.ObjectMeta{},
 		Operate: &inapi.ResHostOperate{},
 		Spec:    &inapi.ResHostSpec{},
@@ -44,6 +45,7 @@ var (
 	ZoneHostSecretKeys   types.KvPairs
 	ZonePodRepStatusSets = []*inapi.PbPodRepStatus{}
 	ZonePodList          inapi.PodSets
+	ZonePodServiceMaps   = []*inapi.NsPodServiceMap{}
 	pod_charge_iam_ak    = iamapi.AccessKey{
 		User: "sysadmin",
 	}
@@ -68,6 +70,15 @@ func ZonePodChargeAccessKey() iamapi.AccessKey {
 
 func IsZoneMaster() bool {
 
+	if len(LocalZoneMasterList.Items) == 0 {
+		for _, v := range config.Config.Masters {
+			if v == config.Config.Host.LanAddr {
+				return true
+			}
+		}
+		return false
+	}
+
 	for _, v := range LocalZoneMasterList.Items {
 
 		if v.Id == Host.Meta.Id {
@@ -79,7 +90,15 @@ func IsZoneMaster() bool {
 }
 
 func IsZoneMasterLeader() bool {
-	return LocalZoneMasterList.Leader == Host.Meta.Id
+	return ZoneMasterList.Leader == Host.Meta.Id
+}
+
+func ZoneMasters() []string {
+	zms := []string{}
+	for _, v := range ZoneMasterList.Items {
+		zms = append(zms, v.Addr)
+	}
+	return zms
 }
 
 func Init() error {
@@ -109,7 +128,13 @@ func Init() error {
 
 	ZoneId = config.Config.Host.ZoneId
 
+	inited = true
+
 	return nil
+}
+
+func HostletReady() bool {
+	return inited
 }
 
 func ZonePodRepMergeOperateAction(pod_id string, rep_cap int) uint32 {

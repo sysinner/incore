@@ -15,6 +15,8 @@
 package ops
 
 import (
+	"fmt"
+
 	"github.com/hooto/httpsrv"
 
 	"github.com/sysinner/inpanel"
@@ -39,6 +41,9 @@ func (c Index) IndexAction() {
   <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/favicon.png">
   <script type="text/javascript">
     inOps.version = "` + inpanel.VersionHash + `";
+    inOps.nav_cluster_zone = ` + fmt.Sprintf("%v", inpanel.OpsClusterZone) + `;
+    inOps.nav_cluster_cell = ` + fmt.Sprintf("%v", inpanel.OpsClusterCell) + `;
+    inOps.nav_cluster_host = ` + fmt.Sprintf("%v", inpanel.OpsClusterHost) + `;
     window.onload = inOps.Boot();
   </script>
 </head>

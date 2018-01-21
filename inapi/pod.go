@@ -206,14 +206,16 @@ func (obj *PodSpecBound) ResComputeBound() *PodSpecBoxResComputeBound {
 
 	rs := &PodSpecBoxResComputeBound{}
 
-	for _, v := range obj.Boxes {
+	if obj != nil && obj.Boxes != nil {
+		for _, v := range obj.Boxes {
 
-		if v.Resources == nil {
-			continue
+			if v.Resources == nil {
+				continue
+			}
+
+			rs.CpuLimit += v.Resources.CpuLimit
+			rs.MemLimit += v.Resources.MemLimit
 		}
-
-		rs.CpuLimit += v.Resources.CpuLimit
-		rs.MemLimit += v.Resources.MemLimit
 	}
 
 	return rs

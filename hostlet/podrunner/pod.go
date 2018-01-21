@@ -22,7 +22,6 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 
-	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
 	in_sts "github.com/sysinner/incore/status"
@@ -39,23 +38,10 @@ func pod_op_pull() {
 		return
 	}
 
-	// TOPO Watch()
-	rss := in_db.HiMaster.PvScan(
-		inapi.NsZoneHostBoundPod(
-			in_sts.ZoneId,
-			in_sts.Host.Meta.Id,
-			"",
-			0,
-		), "", "", max_pod_limit,
-	).KvList()
+	// TOPO
+	for _, pod := range PodQueue {
 
-	for _, v := range rss {
-
-		var pod inapi.Pod
-		if err := v.Decode(&pod); err != nil {
-			fmt.Println(err)
-			continue
-		}
+		PodQueue.Del(pod.IterKey())
 
 		if pod.Meta.ID == "" ||
 			pod.Operate.Replica == nil ||
@@ -63,7 +49,7 @@ func pod_op_pull() {
 			continue
 		}
 
-		if err := pod_op_pull_entry(&pod); err != nil {
+		if err := pod_op_pull_entry(pod); err != nil {
 			PodRepOpLogs.LogSet(
 				pod.OpRepKey(), pod.Operate.Version,
 				oplog_podpull, inapi.PbOpLogError, fmt.Sprintf("pod/%s err:%s", pod.Meta.ID, err.Error()),

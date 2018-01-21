@@ -100,7 +100,7 @@ func (c App) ListAction() {
 			if m := v.Meta(); m == nil || m.Expired == 0 {
 				if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(inst.Meta.ID), inst, nil); rs.OK() {
 					in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(inst.Meta.ID), inst, &skv.ProgWriteOptions{
-						Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+						Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 					})
 				}
 			}
@@ -269,7 +269,7 @@ func (c App) SetAction() {
 
 	prev.Meta.Updated = tn
 
-	var rs *skv.Result
+	var rs skv.Result
 	if prev.Spec.Meta.Version != "" {
 		rs = in_db.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
 	} else {
@@ -340,7 +340,7 @@ func (c App) SetAction() {
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(prev.Meta.ID), prev, nil); rs.OK() {
 			rs = in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
-				Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 			})
 		}
 	}
@@ -554,7 +554,7 @@ func (c App) OpActionSetAction() {
 	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
 		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(app.Meta.ID), app, nil); rs.OK() {
 			in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.ProgWriteOptions{
-				Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 			})
 		}
 	}

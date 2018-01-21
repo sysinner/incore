@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
@@ -40,7 +41,7 @@ type ApiZoneMaster struct{}
 func (s *ApiZoneMaster) HostStatusSync(
 	ctx context.Context,
 	opts *inapi.ResHost,
-) (*inapi.ResZoneMasterList, error) {
+) (*inapi.ResHostBound, error) {
 
 	// fmt.Println("host status sync", opts.Meta.Id, opts.Status.Uptime)
 	if !status.IsZoneMasterLeader() {
@@ -94,9 +95,9 @@ func (s *ApiZoneMaster) HostStatusSync(
 			if len(stats_index.Items) > 0 {
 				data.ZoneMaster.ProgPut(
 					pk,
-					skv.NewProgValue(stats_index),
+					skv.NewValueObject(stats_index),
 					&skv.ProgWriteOptions{
-						Expired: time.Now().Add(30 * 24 * time.Hour),
+						Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
 					},
 				)
 			}
@@ -177,9 +178,9 @@ func (s *ApiZoneMaster) HostStatusSync(
 				if len(stats_index.Items) > 0 {
 					data.ZoneMaster.ProgPut(
 						pk,
-						skv.NewProgValue(stats_index),
+						skv.NewValueObject(stats_index),
 						&skv.ProgWriteOptions{
-							Expired: time.Now().Add(30 * 24 * time.Hour),
+							Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
 						},
 					)
 				}
@@ -248,7 +249,17 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 	// hlog.Printf("info", "zone-master/rpc-server hostlet synced pods:%d", len(opts.Prs))
 
-	return &status.ZoneMasterList, nil
+	bds := &inapi.ResHostBound{
+		Masters:   &status.ZoneMasterList,
+		ExpPsmaps: status.ZonePodServiceMaps,
+	}
+
+	for _, v := range status.ZonePodList {
+		js, _ := json.Encode(v, "")
+		bds.ExpPods = append(bds.ExpPods, string(js))
+	}
+
+	return bds, nil
 }
 
 func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {

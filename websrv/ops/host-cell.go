@@ -103,8 +103,6 @@ func (c Host) CellSetAction() {
 
 	cell.Meta.Updated = uint64(types.MetaTimeNow())
 
-	var prevVersion uint64
-
 	// global
 	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)); rs.NotFound() {
 
@@ -126,7 +124,7 @@ func (c Host) CellSetAction() {
 
 	data.ZoneMaster.PvPut(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
 		cell, &skv.ProgWriteOptions{
-			PrevVersion: prevVersion,
+		// PrevVersion: prevVersion,
 		})
 
 	// zone

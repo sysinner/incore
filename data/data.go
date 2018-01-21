@@ -20,6 +20,5 @@ import (
 
 var (
 	LocalDB    skv.Connector
-	HiMaster   skv.Connector
 	ZoneMaster skv.Connector
 )

@@ -16,9 +16,13 @@ package ops
 
 import (
 	"github.com/lessos/lessgo/types"
+	"golang.org/x/net/context"
 
+	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/rpcsrv"
+	"github.com/sysinner/incore/status"
 )
 
 func (c Host) NodeListAction() {
@@ -96,64 +100,89 @@ func (c Host) NodeEntryAction() {
 
 func (c Host) NodeNewAction() {
 
-	var (
-		node struct {
-			inapi.GeneralObject
-			inapi.ResHost
-		}
-		cell inapi.ResCell
-	)
-	defer c.RenderJson(&node)
+	var set struct {
+		inapi.GeneralObject
+		inapi.ResHostNew
+	}
+	defer c.RenderJson(&set)
 
-	if err := c.Request.JsonDecode(&node.ResHost); err != nil {
-		node.Error = &types.ErrorMeta{"400", err.Error()}
+	if !status.IsZoneMasterLeader() {
+		set.Error = &types.ErrorMeta{"400", "Invalid ZoneMaster Leader"}
 		return
 	}
 
-	if !inapi.ResSysHostIdReg.MatchString(node.Meta.Id) {
-		node.Error = &types.ErrorMeta{"400", "Invalid Node Id"}
+	if err := c.Request.JsonDecode(&set.ResHostNew); err != nil {
+		set.Error = &types.ErrorMeta{"400", err.Error()}
 		return
 	}
 
-	if node.Operate == nil || node.Operate.ZoneId == "" || node.Operate.CellId == "" {
-		node.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
+	if set.ZoneId == "" || set.CellId == "" {
+		set.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
 		return
 	}
-	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(node.Operate.ZoneId, node.Operate.CellId)); !rs.OK() {
-		node.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
+	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(set.ZoneId, set.CellId)); !rs.OK() {
+		set.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
 		return
 	}
 
 	//
-	if !inapi.HostNodeAddress(node.Spec.PeerLanAddr).Valid() {
-		node.Error = &types.ErrorMeta{"400", "Peer LAN Address Not Valid"}
+	if !inapi.HostNodeAddress(set.PeerLanAddr).Valid() {
+		set.Error = &types.ErrorMeta{"400", "Peer LAN Address Not Valid"}
 		return
 	}
 
-	// if !host_sk_re.MatchString(node.Spec.SecretKey) {
-	// 	node.Error = &types.ErrorMeta{"400", "Invalid Secret Key"}
-	// 	return
-	// }
-
-	if node.Spec.Capacity.Cpu < 1 || node.Spec.Capacity.Mem < 128*1024*1024 {
-		node.Error = &types.ErrorMeta{"400", "Invalid Capacity.Cpu or Memory"}
+	if !inapi.ResSysHostSecretKeyReg.MatchString(set.SecretKey) {
+		set.Error = &types.ErrorMeta{"400", "Invalid Secret Key"}
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(node.Operate.ZoneId, node.Operate.CellId)); obj.OK() {
-		obj.Decode(&cell)
+	set.ZoneMasters = status.ZoneMasters()
+	set.ZoneInpackServiceUrl = config.Config.InpackServiceUrl
+
+	//
+	conn, err := rpcsrv.ClientConn(set.PeerLanAddr)
+	if err != nil {
+		set.Error = types.NewErrorMeta("400", "Invalid Peer Address %s"+set.PeerLanAddr)
+		return
 	}
-	if cell.Meta.Id == "" {
-		node.Error = &types.ErrorMeta{"400", "Zone or Cell Not Found"}
+
+	node, err := inapi.NewApiHostMemberClient(conn).HostJoin(
+		context.Background(), &set.ResHostNew,
+	)
+	if err != nil {
+		set.Error = types.NewErrorMeta("400", err.Error())
+		return
+	}
+
+	if node == nil || node.Meta == nil || node.Operate == nil || node.Spec == nil {
+		set.Error = types.NewErrorMeta("500", "Server Error")
+		return
+	}
+
+	if !inapi.ResSysHostIdReg.MatchString(node.Meta.Id) {
+		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
 	}
 
 	node.Meta.Created = uint64(types.MetaTimeNow())
 	node.Meta.Updated = uint64(types.MetaTimeNow())
+	node.Operate.ZoneId = set.ZoneId
+	node.Operate.CellId = set.CellId
+	node.Operate.Action = set.Action
 
-	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil)
+	status.ZoneHostList.Sync(*node)
 
-	node.Kind = "HostNode"
+	if rs := data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", "Server Error")
+		return
+	}
+
+	data.ZoneMaster.PvPut(
+		inapi.NsZoneSysHostSecretKey(set.ZoneId, node.Meta.Id), set.SecretKey, nil)
+
+	status.ZoneHostSecretKeys.Set(node.Operate.ZoneId, set.SecretKey)
+
+	set.Kind = "HostNode"
 }
 
 func (c Host) NodeSetAction() {

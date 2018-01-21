@@ -19,6 +19,7 @@ package inapi;
 import "inapi/base.proto";
 import "inapi/pod.proto";
 import "inapi/stats.proto";
+import "inapi/ns-service.proto";
 
 
 // host
@@ -38,6 +39,19 @@ message ResHost {
     ResHostSpec             spec    = 3;
     ResHostStatus           status  = 4;
     repeated PbPodRepStatus prs     = 5;
+}
+
+
+message ResHostNew {
+	string name = 1;
+    uint32 action = 2;
+	string zone_id = 3;
+	string cell_id = 4;
+	string peer_lan_addr = 5;
+	string secret_key = 6;
+	repeated string zone_masters = 7;
+	string zone_iam_service_url = 8;
+	string zone_inpack_service_url = 9;
 }
 
 message ResHostList {
@@ -76,6 +90,12 @@ message ResHostStatus {
     PbStatsSampleFeed      stats   = 4;
 }
 
+message ResHostBound {
+    ResZoneMasterList masters  = 2;
+    repeated string   exp_pods = 5;
+    repeated NsPodServiceMap exp_psmaps = 6;
+}
+
 message ResZone {
     ObjectMeta       meta      = 2;
     int32            phase     = 3;
@@ -106,6 +126,10 @@ message ResZoneMasterList {
     repeated ResZoneMasterNode items   = 4;
 }
 
+service ApiHostMember {
+    rpc HostJoin (ResHostNew) returns (ResHost) {}
+}
+
 service ApiZoneMaster {
-    rpc HostStatusSync (ResHost) returns (ResZoneMasterList) {}
+    rpc HostStatusSync (ResHost) returns (ResHostBound) {}
 }

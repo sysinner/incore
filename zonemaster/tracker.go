@@ -46,20 +46,27 @@ func zone_tracker() {
 		return
 	}
 
+	if status.ZoneId == "" {
+		hlog.Printf("error", "config.json host/zone_id Not Found")
+		return
+	}
+
 	// if leader active
 	leader_path := inapi.NsZoneSysMasterLeader(status.Host.Operate.ZoneId)
 	if rs := data.ZoneMaster.PvGet(leader_path); rs.NotFound() {
 
-		status.ZoneMasterList.Leader = ""
+		if !inapi.ResSysHostIdReg.MatchString(status.Host.Meta.Id) {
+			return
+		}
 
 		if rs2 := data.ZoneMaster.PvNew(
 			leader_path,
 			status.Host.Meta.Id,
 			&skv.ProgWriteOptions{
-				Expired: time.Now().Add(12e9),
+				Expired: uint64(time.Now().Add(12e9).UnixNano()),
 			},
 		); rs2.OK() {
-			status.ZoneMasterList.Leader = rs.Bytex().String()
+			status.ZoneMasterList.Leader = status.Host.Meta.Id
 			force_refresh = true
 			hlog.Printf("warn", "new zone-master/leader %s", status.Host.Meta.Id)
 		} else {
@@ -68,8 +75,10 @@ func zone_tracker() {
 		}
 
 	} else if rs.OK() {
-		if status.ZoneMasterList.Leader != rs.Bytex().String() {
-			status.ZoneMasterList.Leader = rs.Bytex().String()
+		node_id := rs.String()
+		if inapi.ResSysHostIdReg.MatchString(node_id) &&
+			status.ZoneMasterList.Leader != node_id {
+			status.ZoneMasterList.Leader = node_id
 			force_refresh = true
 		}
 	} else {
@@ -83,13 +92,13 @@ func zone_tracker() {
 	}
 
 	// refresh zone-master leader ttl
-	pv := skv.NewProgValue(status.Host.Meta.Id)
+	pv := skv.NewValueObject(status.Host.Meta.Id)
 	if rs := data.ZoneMaster.PvPut(
 		leader_path,
 		status.Host.Meta.Id,
 		&skv.ProgWriteOptions{
 			PrevSum: pv.Crc32(),
-			Expired: time.Now().Add(12e9),
+			Expired: uint64(time.Now().Add(12e9).UnixNano()),
 		},
 	); !rs.OK() {
 		hlog.Printf("warn", "refresh zone-master leader ttl failed")
@@ -110,7 +119,7 @@ func zone_tracker() {
 
 			var zone inapi.ResZone
 			if err := rs.Decode(&zone); err != nil {
-				hlog.Printf("error", "No ZoneInfo Setup")
+				hlog.Printf("error", "No ZoneInfo Setup in db")
 				return
 			}
 
@@ -120,7 +129,7 @@ func zone_tracker() {
 		}
 
 		if status.Zone == nil {
-			hlog.Printf("error", "No ZoneInfo Setup")
+			hlog.Printf("error", "No ZoneInfo Setup in status")
 			return
 		}
 	}
@@ -256,6 +265,22 @@ func zone_tracker() {
 		// hlog.Printf("info", "zone-master/host-list %d refreshed", len(status.ZoneHostList.Items))
 	}
 
+	//
+	if rs := data.ZoneMaster.PvScan(inapi.NsZonePodServiceMap(""), "", "", 10000); rs.OK() {
+
+		rs.KvEach(func(v *skv.ResultEntry) int {
+
+			var nsz inapi.NsPodServiceMap
+			if err := v.Decode(&nsz); err == nil {
+				nsz.Id = string(v.Key)
+				status.ZonePodServiceMaps, _ = inapi.NsPodServiceMapSliceSync(status.ZonePodServiceMaps, &nsz)
+			}
+
+			return 0
+		})
+	}
+
+	//
 	if force_refresh {
 
 		prs_key := inapi.NsZonePodReplicaStatus(status.Zone.Meta.Id, "", 0)

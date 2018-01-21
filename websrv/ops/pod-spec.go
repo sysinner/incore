@@ -62,16 +62,20 @@ func (c PodSpec) ResComputeListAction() {
 
 	// TODO
 	rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/compute", ""), "", "", 100)
-	rss := rs.KvList()
-	for _, v := range rss {
+	if rs.OK() {
+		rss := rs.KvList()
+		for _, v := range rss {
 
-		var item inapi.PodSpecResCompute
-		if err := v.Decode(&item); err == nil {
-			ls.Items = append(ls.Items, &item)
+			var item inapi.PodSpecResCompute
+			if err := v.Decode(&item); err == nil {
+				ls.Items = append(ls.Items, &item)
+			}
+		}
+
+		if len(ls.Items) > 1 {
+			sort.Sort(ls.Items)
 		}
 	}
-
-	sort.Sort(ls.Items)
 
 	ls.Kind = "PodSpecResComputeList"
 }

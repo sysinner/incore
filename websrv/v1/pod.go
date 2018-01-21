@@ -74,7 +74,7 @@ func (c Pod) ListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	var rs *skv.Result
+	var rs skv.Result
 	if zone_id := c.Params.Get("zone_id"); zone_id != "" {
 		rs = data.ZoneMaster.PvRevScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 10000)
 	} else {
@@ -567,7 +567,7 @@ func (c Pod) OpActionSetAction() {
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
-			Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
 		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
@@ -672,7 +672,7 @@ func (c Pod) SetInfoAction() {
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
-			Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
 		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
@@ -770,7 +770,7 @@ func (c Pod) DeleteAction() {
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
-			Expired: time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second),
+			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
 		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {

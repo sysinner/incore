@@ -234,3 +234,12 @@ func init_user() error {
 
 	return nil
 }
+
+func IsZoneMaster() bool {
+	for _, v := range Config.Masters {
+		if Config.Host.LanAddr == v {
+			return true
+		}
+	}
+	return false
+}

@@ -27,7 +27,6 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
 
 	ps_cpu "github.com/shirou/gopsutil/cpu"
@@ -90,24 +89,37 @@ func status_tracker() {
 	}
 
 	//
-	if len(status.LocalZoneMasterList.Items) == 0 {
+	if len(status.LocalZoneMasterList.Items) == 0 && len(config.Config.Masters) == 0 {
 		hlog.Printf("warn", "No MasterList.Items Found")
 		return
 	}
 
 	zms, err := msgZoneMasterHostStatusSync()
 	if err != nil {
-		hlog.Printf("warn", "No MasterList.LeaderAddr Found %s", err.Error())
+		hlog.Printf("warn", "ZoneMaster HostStatusSync: %s", err.Error())
 		return
 	}
 
-	// fmt.Println(zms)
-	if status.LocalZoneMasterList.SyncList(*zms) {
-		hlog.Printf("warn", "CHANGED LZML")
-		// TODO
+	if zms.ExpPods != nil {
+		for _, v := range zms.ExpPods {
+			var pod inapi.Pod
+			if err := json.Decode([]byte(v), &pod); err == nil {
+				podrunner.PodQueue.Set(&pod)
+			}
+		}
 	}
 
-	sync_nsz()
+	// fmt.Println(zms)
+	if zms.Masters != nil {
+		if status.LocalZoneMasterList.SyncList(*zms.Masters) {
+			hlog.Printf("warn", "CHANGED LZML")
+			// TODO
+		}
+	}
+
+	if zms.ExpPsmaps != nil {
+		sync_nsz(zms.ExpPsmaps)
+	}
 }
 
 var (
@@ -115,41 +127,42 @@ var (
 	sync_vols_last int64 = 0
 )
 
-func sync_nsz() {
+func sync_nsz(ls []*inapi.NsPodServiceMap) {
 
 	os.MkdirAll("/dev/shm/sysinner/nsz", 0755)
 
-	rs := data.HiMaster.PvScan(inapi.NsZonePodServiceMap(""), "", "", 10000)
+	for _, v := range ls {
 
-	rs.KvEach(func(v *skv.ResultEntry) int {
-
-		var nsz inapi.NsPodServiceMap
-		if err := v.Decode(&nsz); err != nil {
-			return 0
+		if len(v.Id) < 8 {
+			continue
 		}
 
-		last, ok := sync_nsz_lasts[string(v.Key)]
-		if !ok || nsz.Updated > last {
-			json.EncodeToFile(nsz, "/dev/shm/sysinner/nsz/"+string(v.Key), "")
-			sync_nsz_lasts[string(v.Key)] = nsz.Updated
+		last, ok := sync_nsz_lasts[v.Id]
+		if !ok || v.Updated > last {
+			json.EncodeToFile(v, "/dev/shm/sysinner/nsz/"+v.Id, "")
+			sync_nsz_lasts[v.Id] = v.Updated
 		}
-
-		return 0
-	})
+	}
 }
 
-func msgZoneMasterHostStatusSync() (*inapi.ResZoneMasterList, error) {
+func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 
 	//
 	addr := status.LocalZoneMasterList.LeaderAddr()
-	if addr == nil {
-		return nil, errors.New("No MasterList.LeaderAddr Found")
+	if addr == "" {
+		if len(config.Config.Masters) > 0 {
+			addr = string(config.Config.Masters[0])
+		}
+		if addr == "" {
+			return nil, errors.New("No MasterList.LeaderAddr Found")
+		}
 	}
+	// hlog.Printf("info", "No MasterList.LeaderAddr Addr: %s", addr)
 
 	//
-	conn, err := rpcsrv.ClientConn(*addr)
+	conn, err := rpcsrv.ClientConn(addr)
 	if err != nil {
-		hlog.Printf("error", "No MasterList.LeaderAddr Found")
+		hlog.Printf("error", "No MasterList.LeaderAddr Found: %s", addr)
 		return nil, err
 	}
 
@@ -372,8 +385,8 @@ func host_stats_get() *inapi.PbStatsSampleFeed {
 	// CPU
 	cio, _ := ps_cpu.Times(false)
 	if len(cio) > 0 {
-		host_stats.SampleSync("cpu/sys", timo, int64(cio[0].User))
-		host_stats.SampleSync("cpu/user", timo, int64(cio[0].System))
+		host_stats.SampleSync("cpu/sys", timo, int64(cio[0].User*float64(1e7)))
+		host_stats.SampleSync("cpu/user", timo, int64(cio[0].System*float64(1e7)))
 	}
 
 	// Storage IO

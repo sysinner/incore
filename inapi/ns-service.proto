@@ -12,32 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package podrunner
+syntax = "proto3";
 
-import (
-	"github.com/sysinner/incore/inapi"
-)
+package inapi;
 
-var (
-	PodRepActives  inapi.PodSets
-	PodRepOpLogs   inapi.OpLogList
-	BoxActives     BoxInstanceSets
-	pod_op_pulling = false
-	PodQueue       inapi.PodSets // TODO
-)
-
-func Run() error {
-
-	go func() {
-
-		if pod_op_pulling {
-			return
-		}
-
-		pod_op_pulling = true
-		pod_op_pull()
-		pod_op_pulling = false
-	}()
-
-	return nil
+message NsPodServiceHost {
+    uint32 rep = 1; // struct:object_slice_key
+    string ip = 2;
+    uint32 port = 3;
 }
+
+message NsPodServiceEntry {
+    uint32 port = 1; // struct:object_slice_key
+    repeated NsPodServiceHost items = 2;
+}
+
+message NsPodServiceMap {
+    string id = 1; // struct:object_slice_key
+    string user = 2;
+    repeated NsPodServiceEntry services = 3;
+    uint64 updated = 4;
+}
+

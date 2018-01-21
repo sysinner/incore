@@ -22,7 +22,7 @@ type PbStatsSampleFeed struct {
 func (m *PbStatsSampleFeed) Reset()                    { *m = PbStatsSampleFeed{} }
 func (m *PbStatsSampleFeed) String() string            { return proto.CompactTextString(m) }
 func (*PbStatsSampleFeed) ProtoMessage()               {}
-func (*PbStatsSampleFeed) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (*PbStatsSampleFeed) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
 
 func (m *PbStatsSampleFeed) GetKind() string {
 	if m != nil {
@@ -53,7 +53,7 @@ type PbStatsSampleEntry struct {
 func (m *PbStatsSampleEntry) Reset()                    { *m = PbStatsSampleEntry{} }
 func (m *PbStatsSampleEntry) String() string            { return proto.CompactTextString(m) }
 func (*PbStatsSampleEntry) ProtoMessage()               {}
-func (*PbStatsSampleEntry) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
+func (*PbStatsSampleEntry) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{1} }
 
 func (m *PbStatsSampleEntry) GetName() string {
 	if m != nil {
@@ -77,7 +77,7 @@ type PbStatsSampleValue struct {
 func (m *PbStatsSampleValue) Reset()                    { *m = PbStatsSampleValue{} }
 func (m *PbStatsSampleValue) String() string            { return proto.CompactTextString(m) }
 func (*PbStatsSampleValue) ProtoMessage()               {}
-func (*PbStatsSampleValue) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{2} }
+func (*PbStatsSampleValue) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{2} }
 
 func (m *PbStatsSampleValue) GetTime() uint32 {
 	if m != nil {
@@ -102,7 +102,7 @@ type PbStatsIndexList struct {
 func (m *PbStatsIndexList) Reset()                    { *m = PbStatsIndexList{} }
 func (m *PbStatsIndexList) String() string            { return proto.CompactTextString(m) }
 func (*PbStatsIndexList) ProtoMessage()               {}
-func (*PbStatsIndexList) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{3} }
+func (*PbStatsIndexList) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{3} }
 
 func (m *PbStatsIndexList) GetIndexCycle() uint32 {
 	if m != nil {
@@ -133,7 +133,7 @@ type PbStatsIndexFeed struct {
 func (m *PbStatsIndexFeed) Reset()                    { *m = PbStatsIndexFeed{} }
 func (m *PbStatsIndexFeed) String() string            { return proto.CompactTextString(m) }
 func (*PbStatsIndexFeed) ProtoMessage()               {}
-func (*PbStatsIndexFeed) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{4} }
+func (*PbStatsIndexFeed) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{4} }
 
 func (m *PbStatsIndexFeed) GetTime() uint32 {
 	if m != nil {
@@ -157,9 +157,9 @@ func init() {
 	proto.RegisterType((*PbStatsIndexFeed)(nil), "inapi.PbStatsIndexFeed")
 }
 
-func init() { proto.RegisterFile("inapi/stats.proto", fileDescriptor4) }
+func init() { proto.RegisterFile("inapi/stats.proto", fileDescriptor5) }
 
-var fileDescriptor4 = []byte{
+var fileDescriptor5 = []byte{
 	// 268 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xcc, 0xcc, 0x4b, 0x2c,
 	0xc8, 0xd4, 0x2f, 0x2e, 0x49, 0x2c, 0x29, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05,

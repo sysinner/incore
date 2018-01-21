@@ -35,7 +35,7 @@ func InitData(items map[string]interface{}) error {
 			continue
 		}
 
-		if rs := data.ZoneMaster.PvPut(k, v, nil); !rs.OK() {
+		if rs := data.ZoneMaster.PvNew(k, v, nil); !rs.OK() {
 			return fmt.Errorf("zonemaster.initdata error on put key : %s", k)
 		}
 

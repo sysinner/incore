@@ -145,13 +145,13 @@ func (ls *ResZone) OptionDel(name string) {
 	}
 }
 
-func (obj *ResZoneMasterList) LeaderAddr() *string {
+func (obj *ResZoneMasterList) LeaderAddr() string {
 
 	if v := obj.Item(obj.Leader); v != nil {
-		return &v.Addr
+		return string(v.Addr)
 	}
 
-	return nil
+	return ""
 }
 
 func (obj *ResZoneMasterList) Item(id string) *ResZoneMasterNode {

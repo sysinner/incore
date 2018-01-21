@@ -765,12 +765,39 @@ func scheduler_exec_pod_rep(prev, podq *inapi.Pod, oprep *inapi.PodOperateReplic
 		if nsz.User == "" {
 			nsz.User = podq.Meta.User
 		}
-
-		for _, popv := range ports {
-			nsz.Sync(popv.BoxPort, oprep.Id, host_peer_lan.IP(), popv.HostPort)
+		if nsz.Id == "" {
+			nsz.Id = podq.Meta.ID
 		}
 
-		if nsz.SyncChanged() {
+		changed := false
+
+		for _, popv := range ports {
+
+			if nsz.Sync(&inapi.NsPodServiceMap{
+				Id:   podq.Meta.ID,
+				User: podq.Meta.User,
+				Services: []*inapi.NsPodServiceEntry{
+					{
+						Port: uint32(popv.BoxPort),
+						Items: []*inapi.NsPodServiceHost{
+							{
+								Rep:  uint32(oprep.Id),
+								Ip:   host_peer_lan.IP(),
+								Port: uint32(popv.HostPort),
+							},
+						},
+					},
+				},
+			}) {
+				changed = true
+			}
+
+			// } popv.BoxPort, oprep.Id, host_peer_lan.IP(), popv.HostPort) {
+			// 	changed = true
+			// }
+		}
+
+		if changed {
 			nsz.Updated = uint64(types.MetaTimeNow())
 			data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(podq.Meta.ID), nsz, nil)
 		}

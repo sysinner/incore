@@ -35,7 +35,7 @@ var PbPodSpecBoxImageDriver_value = map[string]int32{
 func (x PbPodSpecBoxImageDriver) String() string {
 	return proto.EnumName(PbPodSpecBoxImageDriver_name, int32(x))
 }
-func (PbPodSpecBoxImageDriver) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (PbPodSpecBoxImageDriver) EnumDescriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
 type PbPodRepStatus struct {
 	Id      string             `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
@@ -51,7 +51,7 @@ type PbPodRepStatus struct {
 func (m *PbPodRepStatus) Reset()                    { *m = PbPodRepStatus{} }
 func (m *PbPodRepStatus) String() string            { return proto.CompactTextString(m) }
 func (*PbPodRepStatus) ProtoMessage()               {}
-func (*PbPodRepStatus) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (*PbPodRepStatus) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
 func (m *PbPodRepStatus) GetId() string {
 	if m != nil {
@@ -119,7 +119,7 @@ type PbVolumeMount struct {
 func (m *PbVolumeMount) Reset()                    { *m = PbVolumeMount{} }
 func (m *PbVolumeMount) String() string            { return proto.CompactTextString(m) }
 func (*PbVolumeMount) ProtoMessage()               {}
-func (*PbVolumeMount) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
+func (*PbVolumeMount) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
 
 func (m *PbVolumeMount) GetName() string {
 	if m != nil {
@@ -158,7 +158,7 @@ type PbServicePort struct {
 func (m *PbServicePort) Reset()                    { *m = PbServicePort{} }
 func (m *PbServicePort) String() string            { return proto.CompactTextString(m) }
 func (*PbServicePort) ProtoMessage()               {}
-func (*PbServicePort) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{2} }
+func (*PbServicePort) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{2} }
 
 func (m *PbServicePort) GetName() string {
 	if m != nil {
@@ -192,7 +192,7 @@ type PbPodBoxStatusExecutor struct {
 func (m *PbPodBoxStatusExecutor) Reset()                    { *m = PbPodBoxStatusExecutor{} }
 func (m *PbPodBoxStatusExecutor) String() string            { return proto.CompactTextString(m) }
 func (*PbPodBoxStatusExecutor) ProtoMessage()               {}
-func (*PbPodBoxStatusExecutor) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{3} }
+func (*PbPodBoxStatusExecutor) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{3} }
 
 func (m *PbPodBoxStatusExecutor) GetName() string {
 	if m != nil {
@@ -248,7 +248,7 @@ type PbPodBoxStatus struct {
 func (m *PbPodBoxStatus) Reset()                    { *m = PbPodBoxStatus{} }
 func (m *PbPodBoxStatus) String() string            { return proto.CompactTextString(m) }
 func (*PbPodBoxStatus) ProtoMessage()               {}
-func (*PbPodBoxStatus) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{4} }
+func (*PbPodBoxStatus) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{4} }
 
 func (m *PbPodBoxStatus) GetName() string {
 	if m != nil {
@@ -343,9 +343,9 @@ func init() {
 	proto.RegisterEnum("inapi.PbPodSpecBoxImageDriver", PbPodSpecBoxImageDriver_name, PbPodSpecBoxImageDriver_value)
 }
 
-func init() { proto.RegisterFile("inapi/pod.proto", fileDescriptor3) }
+func init() { proto.RegisterFile("inapi/pod.proto", fileDescriptor4) }
 
-var fileDescriptor3 = []byte{
+var fileDescriptor4 = []byte{
 	// 673 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x54, 0x41, 0x6f, 0x13, 0x3d,
 	0x10, 0xfd, 0x92, 0xed, 0x26, 0xd9, 0x49, 0xd2, 0x2f, 0x58, 0xa5, 0xb8, 0xad, 0x8a, 0xa2, 0x70,

@@ -8,6 +8,7 @@ Package inapi is a generated protocol buffer package.
 It is generated from these files:
 	inapi/base.proto
 	inapi/cluster.proto
+	inapi/ns-service.proto
 	inapi/operator.proto
 	inapi/pod.proto
 	inapi/stats.proto
@@ -19,16 +20,21 @@ It has these top-level messages:
 	Label
 	ResHostOperate
 	ResHost
+	ResHostNew
 	ResHostList
 	ResHostSpec
 	ResPlatform
 	ResHostResource
 	ResHostVolume
 	ResHostStatus
+	ResHostBound
 	ResZone
 	ResCell
 	ResZoneMasterNode
 	ResZoneMasterList
+	NsPodServiceHost
+	NsPodServiceEntry
+	NsPodServiceMap
 	PbOpLogEntry
 	PbOpLogSets
 	PbPodRepStatus

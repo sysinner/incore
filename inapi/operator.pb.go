@@ -23,7 +23,7 @@ type PbOpLogEntry struct {
 func (m *PbOpLogEntry) Reset()                    { *m = PbOpLogEntry{} }
 func (m *PbOpLogEntry) String() string            { return proto.CompactTextString(m) }
 func (*PbOpLogEntry) ProtoMessage()               {}
-func (*PbOpLogEntry) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (*PbOpLogEntry) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 func (m *PbOpLogEntry) GetName() string {
 	if m != nil {
@@ -62,7 +62,7 @@ type PbOpLogSets struct {
 func (m *PbOpLogSets) Reset()                    { *m = PbOpLogSets{} }
 func (m *PbOpLogSets) String() string            { return proto.CompactTextString(m) }
 func (*PbOpLogSets) ProtoMessage()               {}
-func (*PbOpLogSets) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
+func (*PbOpLogSets) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
 
 func (m *PbOpLogSets) GetName() string {
 	if m != nil {
@@ -90,9 +90,9 @@ func init() {
 	proto.RegisterType((*PbOpLogSets)(nil), "inapi.PbOpLogSets")
 }
 
-func init() { proto.RegisterFile("inapi/operator.proto", fileDescriptor2) }
+func init() { proto.RegisterFile("inapi/operator.proto", fileDescriptor3) }
 
-var fileDescriptor2 = []byte{
+var fileDescriptor3 = []byte{
 	// 190 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x8f, 0xc1, 0x8a, 0xc2, 0x30,
 	0x10, 0x86, 0xe9, 0x36, 0x6d, 0xd9, 0xe9, 0xee, 0x25, 0x8a, 0xe4, 0x58, 0x7a, 0xaa, 0x97, 0x0a,
