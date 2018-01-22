@@ -129,6 +129,7 @@ func find_hosts_that_fit(
 	// if sysvol == nil {
 	// 	return hosts, errBadArgument
 	// }
+	docker_on, rkt_on := pod.Spec.DriverBound()
 
 	//
 	src := pod.Spec.ResComputeBound()
@@ -144,6 +145,14 @@ func find_hosts_that_fit(
 			v.Operate.CellId != pod.Spec.Cell ||
 			v.Spec == nil ||
 			v.Spec.Capacity == nil {
+			continue
+		}
+
+		if docker_on && len(v.Spec.ExpDockerVersion) < 2 {
+			continue
+		}
+
+		if rkt_on && v.Spec.ExpRktVersion == "" {
 			continue
 		}
 

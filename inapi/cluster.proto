@@ -64,6 +64,8 @@ message ResHostSpec {
     uint32          http_port     = 5;
     string          peer_lan_addr = 6;
     string          peer_wan_addr = 7;
+    string exp_docker_version = 10;
+    string exp_rkt_version = 11;
 }
 
 message ResPlatform {

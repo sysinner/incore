@@ -33,7 +33,7 @@ var (
 
 const (
 	PodSpecBoxImageDocker = "docker"
-	PodSpecBoxImageRockit = "rkt"
+	PodSpecBoxImageRkt    = "rkt"
 )
 
 const (
@@ -200,6 +200,20 @@ func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
 	}
 
 	return nil
+}
+
+func (obj *PodSpecBound) DriverBound() (docker_on, rkt_on bool) {
+	if obj != nil && obj.Boxes != nil {
+		for _, v := range obj.Boxes {
+
+			if v.Image.Driver == PodSpecBoxImageDocker {
+				docker_on = true
+			} else if v.Image.Driver == PodSpecBoxImageRkt {
+				rkt_on = true
+			}
+		}
+	}
+	return docker_on, rkt_on
 }
 
 func (obj *PodSpecBound) ResComputeBound() *PodSpecBoxResComputeBound {

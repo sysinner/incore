@@ -33,7 +33,8 @@ import (
 )
 
 var (
-	timeout = time.Second * 10
+	timeout            = time.Second * 10
+	client_cmd_timeout = time.Second * 3
 )
 
 func (br *BoxKeeper) docker_status_watcher() {
@@ -54,14 +55,25 @@ func (br *BoxKeeper) docker_status_watcher() {
 
 				br.hidocker, err = docker.NewClient(docker_unixsock)
 				if err != nil {
-					hlog.Printf("fatal", "Can not connect to Docker Server, Error: %s", err)
-					time.Sleep(1e9)
+					in_sts.Host.Spec.ExpDockerVersion = ""
+					time.Sleep(2e9)
+					// hlog.Printf("warn", "Can not connect to Docker Server, Error: %s", err)
 					continue
 				}
+
+				br.hidocker.SetTimeout(client_cmd_timeout)
 
 				break
 			}
 		}
+
+		info, err := br.hidocker.Info()
+		if err != nil {
+			in_sts.Host.Spec.ExpDockerVersion = ""
+			br.hidocker = nil
+			continue
+		}
+		in_sts.Host.Spec.ExpDockerVersion = info.ServerVersion
 
 		// refresh current statuses
 		rsc, err := br.hidocker.ListContainers(docker.ListContainersOptions{
