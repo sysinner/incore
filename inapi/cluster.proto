@@ -43,15 +43,15 @@ message ResHost {
 
 
 message ResHostNew {
-	string name = 1;
+    string name = 1;
     uint32 action = 2;
-	string zone_id = 3;
-	string cell_id = 4;
-	string peer_lan_addr = 5;
-	string secret_key = 6;
-	repeated string zone_masters = 7;
-	string zone_iam_service_url = 8;
-	string zone_inpack_service_url = 9;
+    string zone_id = 3;
+    string cell_id = 4;
+    string peer_lan_addr = 5;
+    string secret_key = 6;
+    repeated string zone_masters = 7;
+    string zone_iam_service_url = 8;
+    string zone_inpack_service_url = 9;
 }
 
 message ResHostList {
@@ -113,6 +113,7 @@ message ResCell {
     string     zone_id     = 3;
     int32      phase       = 4;
     string     description = 5;
+    int32      node_num    = 6;
 }
 
 message ResZoneMasterNode {

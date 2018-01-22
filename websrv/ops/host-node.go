@@ -120,8 +120,17 @@ func (c Host) NodeNewAction() {
 		set.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
 		return
 	}
+
+	var cell inapi.ResCell
 	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(set.ZoneId, set.CellId)); !rs.OK() {
 		set.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
+		return
+	} else {
+		rs.Decode(&cell)
+	}
+
+	if cell.Meta.Id != set.CellId {
+		set.Error = &types.ErrorMeta{"400", "Cell Not Found"}
 		return
 	}
 
@@ -181,6 +190,11 @@ func (c Host) NodeNewAction() {
 		inapi.NsZoneSysHostSecretKey(set.ZoneId, node.Meta.Id), set.SecretKey, nil)
 
 	status.ZoneHostSecretKeys.Set(node.Operate.ZoneId, set.SecretKey)
+
+	cell.NodeNum++
+
+	data.ZoneMaster.PvPut(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell, nil)
+	data.ZoneMaster.PvPut(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell, nil)
 
 	set.Kind = "HostNode"
 }
