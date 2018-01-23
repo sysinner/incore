@@ -189,7 +189,7 @@ func (c Host) NodeNewAction() {
 	data.ZoneMaster.PvPut(
 		inapi.NsZoneSysHostSecretKey(set.ZoneId, node.Meta.Id), set.SecretKey, nil)
 
-	status.ZoneHostSecretKeys.Set(node.Operate.ZoneId, set.SecretKey)
+	status.ZoneHostSecretKeys.Set(node.Meta.Id, set.SecretKey)
 
 	cell.NodeNum++
 
@@ -241,4 +241,43 @@ func (c Host) NodeSetAction() {
 	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), prev, nil)
 
 	node.Kind = "HostNode"
+}
+
+func (c Host) NodeSecretKeySetAction() {
+
+	var set struct {
+		inapi.GeneralObject
+		ZoneId    string `json:"zone_id"`
+		NodeId    string `json:"node_id"`
+		SecretKey string `json:"secret_key"`
+	}
+	defer c.RenderJson(&set)
+
+	if err := c.Request.JsonDecode(&set); err != nil {
+		set.Error = &types.ErrorMeta{"400", err.Error()}
+		return
+	}
+
+	if set.NodeId == "" || set.ZoneId == "" {
+		set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
+		return
+	}
+
+	if !inapi.ResSysHostSecretKeyReg.MatchString(set.SecretKey) {
+		set.Error = &types.ErrorMeta{"400", "Invalid Secret Key"}
+		return
+	}
+
+	//
+	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysHost(set.ZoneId, set.NodeId)); !rs.OK() {
+		set.Error = &types.ErrorMeta{"400", "Node Not Found"}
+		return
+	}
+
+	data.ZoneMaster.PvPut(
+		inapi.NsZoneSysHostSecretKey(set.ZoneId, set.NodeId), set.SecretKey, nil)
+
+	status.ZoneHostSecretKeys.Set(set.NodeId, set.SecretKey)
+
+	set.Kind = "HostNode"
 }
