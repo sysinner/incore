@@ -108,7 +108,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 	//
 	if host.SyncStatus(*opts) {
 		data.ZoneMaster.PvPut(inapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host, nil)
-		hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
+		// hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
 	}
 
 	tn := uint32(time.Now().Unix())

@@ -30,6 +30,7 @@ var (
 	ResSysCellIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{2,11}$")
 	ResSysHostIdReg        = regexp.MustCompile("^[0-9a-f]{12,16}$")
 	ResSysHostSecretKeyReg = regexp.MustCompile("^[0-9a-zA-Z\\+\\/]{20,40}$")
+	ResSysNodeNameReg      = regexp.MustCompile("^[0-9a-zA-Z._\\-]{1,30}$")
 
 	res_zone_mu            sync.RWMutex
 	resLabelNameReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9-._/]{0,99}$")
