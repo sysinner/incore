@@ -33,10 +33,6 @@ import (
 	"github.com/sysinner/incore/inapi"
 )
 
-const (
-	Version = "0.3.x"
-)
-
 type HostMember struct {
 	Id        string                `json:"id"`
 	ZoneId    string                `json:"zone_id,omitempty"`
