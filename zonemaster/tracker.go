@@ -15,6 +15,7 @@
 package zonemaster
 
 import (
+	"strings"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -293,7 +294,48 @@ func zone_tracker() {
 			var nsz inapi.NsPodServiceMap
 			if err := v.Decode(&nsz); err == nil {
 				nsz.Id = string(v.Key)
+				nsz_sync := false
+
+				if pod := status.ZonePodList.Get(inapi.NsZonePodOpRepKey(nsz.Id, 0)); pod != nil {
+					for _, rep := range pod.Operate.Replicas {
+
+						lan_addr := ""
+						if host := status.ZoneHostList.Item(rep.Node); host != nil {
+							lan_addr = host.Spec.PeerLanAddr
+							if i := strings.IndexByte(lan_addr, ':'); i > 0 {
+								lan_addr = lan_addr[:i]
+							}
+						}
+
+						if lan_addr == "" {
+							continue
+						}
+
+						for _, sport := range rep.Ports {
+
+							pse := nsz.Get(uint16(sport.BoxPort))
+							if pse == nil {
+								continue
+							}
+							psh := inapi.NsPodServiceHostSliceGet(pse.Items, uint32(rep.Id))
+							if psh == nil {
+								continue
+							}
+
+							if psh.Ip == lan_addr {
+								continue
+							}
+
+							psh.Ip, nsz_sync = lan_addr, true
+						}
+					}
+				}
+
 				status.ZonePodServiceMaps, _ = inapi.NsPodServiceMapSliceSync(status.ZonePodServiceMaps, &nsz)
+
+				if nsz_sync {
+					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(nsz.Id), nsz, nil)
+				}
 			}
 
 			return 0

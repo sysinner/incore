@@ -38,6 +38,12 @@ func Start() error {
 
 	hlog.Printf("info", "hostlet started")
 
+	podrunner.BoxDrivers = append(podrunner.BoxDrivers, &podrunner.BoxDriverRkt{})
+
+	for _, dv := range podrunner.BoxDrivers {
+		go dv.Run()
+	}
+
 	go func() {
 
 		for {

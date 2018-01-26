@@ -29,6 +29,17 @@ import (
 	in_sts "github.com/sysinner/incore/status"
 )
 
+type BoxDriver interface {
+	Name() string
+	Run()
+	ActionCommand(inst *BoxInstance) error
+	StatsCollect(inst *BoxInstance, timo uint32) error
+}
+
+var (
+	BoxDrivers []BoxDriver
+)
+
 type BoxKeeper struct {
 	mu       sync.Mutex
 	inited   bool

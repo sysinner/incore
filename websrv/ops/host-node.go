@@ -207,13 +207,10 @@ func (c Host) NodeNewAction() {
 
 func (c Host) NodeSetAction() {
 
-	var (
-		set struct {
-			inapi.GeneralObject
-			inapi.ResHost
-		}
-		prev inapi.ResHost
-	)
+	var set struct {
+		inapi.GeneralObject
+		inapi.ResHost
+	}
 	defer c.RenderJson(&set)
 
 	if err := c.Request.JsonDecode(&set.ResHost); err != nil {
@@ -221,8 +218,7 @@ func (c Host) NodeSetAction() {
 		return
 	}
 
-	if set.Meta == nil || set.Meta.Id == "" ||
-		set.Operate == nil || set.Operate.ZoneId == "" || set.Operate.CellId == "" {
+	if set.Meta == nil || set.Meta.Id == "" || set.Operate == nil {
 		set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
 		return
 	}
@@ -232,15 +228,12 @@ func (c Host) NodeSetAction() {
 		return
 	}
 
-	//
-	obj := data.ZoneMaster.PvGet(inapi.NsZoneSysHost(set.Operate.ZoneId, set.Meta.Id))
-	if obj.OK() {
-		obj.Decode(&prev)
-	}
-	if prev.Meta == nil || prev.Meta.Id != set.Meta.Id {
-		set.Error = &types.ErrorMeta{"404", "Host Not Found"}
+	prev := status.ZoneHostList.Item(set.Meta.Id)
+	if prev == nil {
+		set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
 		return
 	}
+
 	prev.Meta.Updated = uint64(types.MetaTimeNow())
 	if set.Operate.Action != prev.Operate.Action {
 		prev.Operate.Action = set.Operate.Action
@@ -249,7 +242,7 @@ func (c Host) NodeSetAction() {
 		prev.Meta.Name = set.Meta.Name
 	}
 
-	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(set.Operate.ZoneId, set.Meta.Id), prev, nil)
+	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev, nil)
 
 	set.Kind = "HostNode"
 }
@@ -270,7 +263,7 @@ func (c Host) NodeSecretKeySetAction() {
 	}
 
 	if set.NodeId == "" || set.ZoneId == "" {
-		set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
+		set.Error = &types.ErrorMeta{"400", "Node Not Found"}
 		return
 	}
 
@@ -279,14 +272,14 @@ func (c Host) NodeSecretKeySetAction() {
 		return
 	}
 
-	//
-	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysHost(set.ZoneId, set.NodeId)); !rs.OK() {
+	prev := status.ZoneHostList.Item(set.NodeId)
+	if prev == nil || prev.Operate.ZoneId != set.ZoneId {
 		set.Error = &types.ErrorMeta{"400", "Node Not Found"}
 		return
 	}
 
 	data.ZoneMaster.PvPut(
-		inapi.NsZoneSysHostSecretKey(set.ZoneId, set.NodeId), set.SecretKey, nil)
+		inapi.NsZoneSysHostSecretKey(prev.Operate.ZoneId, set.NodeId), set.SecretKey, nil)
 
 	status.ZoneHostSecretKeys.Set(set.NodeId, set.SecretKey)
 
