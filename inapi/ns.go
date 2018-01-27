@@ -76,6 +76,10 @@ func NsGlobalResInstance(meta_name string) string {
 	return fmt.Sprintf("/ing/rs/%s", meta_name)
 }
 
+func NsGlobalSetQueuePod(zone_id, cell_id, pod_id string) string {
+	return fmt.Sprintf("/ing/sq/%s/pod/%s/%s", zone_id, cell_id, pod_id)
+}
+
 //
 func NsZoneSysInfo(zone_id string) string {
 	return fmt.Sprintf("/inz/%s/sys/zone/info", zone_id)
@@ -111,11 +115,6 @@ func NsZoneSysMasterNode(zone_id, node_id string) string {
 
 func NsZoneSysCellScheduler(zone_id, cell_id string) string {
 	return fmt.Sprintf("/inz/%s/sys/job/%s/scheduler", zone_id, cell_id)
-}
-
-//
-func NsZonePodOpQueue(zone_id, cell_id, pod_id string) string {
-	return fmt.Sprintf("/inz/%s/po/%s/%s", zone_id, cell_id, pod_id)
 }
 
 func NsZonePodInstance(zone_id, pod_id string) string {

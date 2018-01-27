@@ -50,7 +50,7 @@ func (c PodSpec) PlanEntryAction() {
 	set := inapi.PodSpecPlan{}
 	defer c.RenderJson(&set)
 
-	rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", c.Params.Get("id")))
+	rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", c.Params.Get("id")))
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta("404", "No Spec Found")
 		return
@@ -76,7 +76,7 @@ func (c PodSpec) PlanListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO
-	rss := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100).KvList()
+	rss := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100).KvList()
 	for _, v := range rss {
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
@@ -101,7 +101,7 @@ func (c PodSpec) ResVolumeListAction() {
 	ls := inapi.PodSpecResVolumeList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 1000)
+	rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 1000)
 	rss := rs.KvList()
 	for _, v := range rss {
 

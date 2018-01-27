@@ -103,7 +103,7 @@ func (c PodStats) FeedAction() {
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
+	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
 		obj.Decode(&pod)
 		if pod.Meta.ID == "" || !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 			c.RenderJson(types.NewTypeErrorMeta("400", "Pod Not Found"))

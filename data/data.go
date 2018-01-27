@@ -19,6 +19,7 @@ import (
 )
 
 var (
-	LocalDB    skv.Connector
-	ZoneMaster skv.Connector
+	LocalDB      skv.Connector
+	ZoneMaster   skv.Connector
+	GlobalMaster skv.Connector
 )

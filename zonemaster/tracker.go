@@ -217,8 +217,7 @@ func zone_tracker() {
 		if !status.ZoneHostListImported {
 
 			if len(cell_counter) > 0 {
-				if rs := data.ZoneMaster.PvScan(
-					inapi.NsGlobalSysCell(status.Host.Operate.ZoneId, ""), "", "", 1000); rs.OK() {
+				if rs := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(status.Host.Operate.ZoneId, ""), "", "", 1000); rs.OK() {
 					rss := rs.KvList()
 					for _, v := range rss {
 						var cell inapi.ResCell
@@ -226,8 +225,9 @@ func zone_tracker() {
 							if n, ok := cell_counter[cell.Meta.Id]; ok && n != cell.NodeNum {
 								cell.NodeNum = n
 
-								data.ZoneMaster.PvPut(inapi.NsGlobalSysCell(status.Host.Operate.ZoneId, cell.Meta.Id), cell, nil)
-								data.ZoneMaster.PvPut(inapi.NsZoneSysCell(status.Host.Operate.ZoneId, cell.Meta.Id), cell, nil)
+								if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysCell(status.Host.Operate.ZoneId, cell.Meta.Id), cell, nil); rs.OK() {
+									data.ZoneMaster.PvPut(inapi.NsZoneSysCell(status.Host.Operate.ZoneId, cell.Meta.Id), cell, nil)
+								}
 							}
 						}
 					}

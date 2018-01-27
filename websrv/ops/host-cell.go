@@ -30,7 +30,7 @@ func (c Host) CellListAction() {
 	zoneid := c.Params.Get("zoneid")
 
 	//
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
 		sets.Error = &types.ErrorMeta{
 			Code:    "404",
 			Message: "Zone Not Found",
@@ -39,7 +39,7 @@ func (c Host) CellListAction() {
 	}
 
 	//
-	rss := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(zoneid, ""), "", "", 100).KvList()
+	rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(zoneid, ""), "", "", 100).KvList()
 	for _, v := range rss {
 
 		var cell inapi.ResCell
@@ -59,9 +59,7 @@ func (c Host) CellEntryAction() {
 	}
 	defer c.RenderJson(&set)
 
-	if rs := data.ZoneMaster.PvGet(
-		inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid")),
-	); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))); rs.OK() {
 		rs.Decode(&set.ResCell)
 	}
 
@@ -88,7 +86,7 @@ func (c Host) CellSetAction() {
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(cell.ZoneId)); obj.OK() {
+	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(cell.ZoneId)); obj.OK() {
 		obj.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
@@ -104,7 +102,7 @@ func (c Host) CellSetAction() {
 	cell.Meta.Updated = uint64(types.MetaTimeNow())
 
 	// global
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)); rs.NotFound() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)); rs.NotFound() {
 
 		cell.Meta.Created = uint64(types.MetaTimeNow())
 	} else if rs.OK() {
@@ -122,7 +120,7 @@ func (c Host) CellSetAction() {
 		return
 	}
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
+	data.GlobalMaster.PvPut(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
 		cell, &skv.ProgWriteOptions{
 		// PrevVersion: prevVersion,
 		})

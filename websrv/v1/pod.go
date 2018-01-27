@@ -78,7 +78,7 @@ func (c Pod) ListAction() {
 	if zone_id := c.Params.Get("zone_id"); zone_id != "" {
 		rs = data.ZoneMaster.PvRevScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 10000)
 	} else {
-		rs = data.ZoneMaster.PvRevScan(inapi.NsGlobalPodInstance(""), "", "", 10000)
+		rs = data.GlobalMaster.PvRevScan(inapi.NsGlobalPodInstance(""), "", "", 10000)
 	}
 	rss := rs.KvList()
 
@@ -95,7 +95,7 @@ func (c Pod) ListAction() {
 
 	var exp_filter_app_spec_res inapi.AppSpecResRequirements
 	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
 			var spec inapi.AppSpec
 			rs.Decode(&spec)
 			if spec.Meta.ID == v {
@@ -247,7 +247,7 @@ func (c Pod) EntryAction() {
 	defer c.RenderJson(&set)
 
 	if zone_id == "" {
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(id)); rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(id)); rs.OK() {
 			rs.Decode(&set)
 			if set.Meta.ID == "" || !c.owner_or_sysadmin_allow(set.Meta.User, "sysinner.admin") {
 				set = inapi.Pod{}
@@ -318,7 +318,7 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
 		rs.Decode(&spec_plan)
 	}
 	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
@@ -335,7 +335,7 @@ func (c Pod) NewAction() {
 
 	//
 	var zone inapi.ResZone
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(set.Zone)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(set.Zone)); rs.OK() {
 		rs.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
@@ -345,7 +345,7 @@ func (c Pod) NewAction() {
 
 	//
 	var cell inapi.ResCell
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysCell(set.Zone, set.Cell)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(set.Zone, set.Cell)); rs.OK() {
 		rs.Decode(&cell)
 	}
 	if cell.Meta.Id == "" {
@@ -447,7 +447,7 @@ func (c Pod) NewAction() {
 	}
 
 	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
 			if app_spec.Meta.ID == v && app_spec.ExpRes.CpuMin > 0 {
@@ -464,7 +464,7 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	if rs := data.ZoneMaster.PvNew(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvNew(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
@@ -478,8 +478,8 @@ func (c Pod) NewAction() {
 	*/
 
 	// Pod Map to Cell Queue
-	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	data.ZoneMaster.PvNew(qmpath, pod, nil)
+	sqkey := inapi.NsGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	data.GlobalMaster.PvNew(sqkey, pod, nil)
 
 	set.Pod = pod.Meta.ID
 	set.Kind = "PodInstance"
@@ -506,7 +506,7 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	var prev inapi.Pod
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Pod Not Found")
 		return
 	} else {
@@ -551,8 +551,8 @@ func (c Pod) OpActionSetAction() {
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	// Pod Map to Cell Queue
-	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < pod_action_queue_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
@@ -560,18 +560,18 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 	}
 
 	set.Kind = "PodInstance"
@@ -596,7 +596,7 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
@@ -656,8 +656,8 @@ func (c Pod) SetInfoAction() {
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	// Pod Map to Cell Queue
-	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < pod_action_queue_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -665,18 +665,18 @@ func (c Pod) SetInfoAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 	}
 
 	set.Kind = "PodInstance"
@@ -692,7 +692,7 @@ func (c Pod) DeleteAction() {
 
 	defer c.RenderJson(&set)
 
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
@@ -718,7 +718,7 @@ func (c Pod) DeleteAction() {
 
 		var app inapi.AppInstance
 
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(v.Meta.ID)); !rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(v.Meta.ID)); !rs.OK() {
 			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 			return
 		} else {
@@ -737,7 +737,7 @@ func (c Pod) DeleteAction() {
 		app.Operate.Action = inapi.OpActionDestroy
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if rs := data.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(v.Meta.ID), app, nil); !rs.OK() {
+		if rs := data.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(v.Meta.ID), app, nil); !rs.OK() {
 			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 			return
 		}
@@ -754,8 +754,8 @@ func (c Pod) DeleteAction() {
 	tn := uint32(time.Now().Unix())
 
 	// Pod Map to Cell Queue
-	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < pod_action_set_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -763,18 +763,18 @@ func (c Pod) DeleteAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
-		data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 	}
 
 	set.Kind = "PodInstance"
@@ -792,7 +792,7 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 	if pod.Meta.ID == "" {
 
 		//
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); rs.OK() {
 			rs.Decode(&pod)
 		}
 
@@ -876,7 +876,7 @@ func (c Pod) AccessSetAction() {
 		return
 	}
 
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
@@ -921,8 +921,8 @@ func (c Pod) AccessSetAction() {
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	// Pod Map to Cell Queue
-	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < pod_action_queue_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
@@ -930,11 +930,11 @@ func (c Pod) AccessSetAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.ZoneMaster.PvPut(qstr, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
-	data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 
 	set.Kind = "PodInstance"
 }
@@ -959,7 +959,7 @@ func (c Pod) SpecSetAction() {
 	}
 
 	//
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(set.Pod)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.Pod)); rs.OK() {
 		rs.Decode(&prev)
 	}
 	if prev.Meta.ID != set.Pod {
@@ -983,7 +983,7 @@ func (c Pod) SpecSetAction() {
 	}
 
 	//
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
 		rs.Decode(&spec_plan)
 	}
 	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
@@ -1079,7 +1079,7 @@ func (c Pod) SpecSetAction() {
 
 	for _, app := range prev.Apps {
 
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(app.Spec.Meta.ID)); rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(app.Spec.Meta.ID)); rs.OK() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
 			if app_spec.Meta.ID == app.Spec.Meta.ID && app_spec.ExpRes.CpuMin > 0 {
@@ -1099,8 +1099,8 @@ func (c Pod) SpecSetAction() {
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.ZoneMaster.PvGet(qstr); rs.OK() {
+	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < pod_action_queue_time_min {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
@@ -1110,13 +1110,13 @@ func (c Pod) SpecSetAction() {
 	prev.Operate.Operated = tn
 
 	//
-	if rs := data.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
 
 	// Pod Map to Cell Queue
-	data.ZoneMaster.PvPut(qstr, prev, nil)
+	data.GlobalMaster.PvPut(sqkey, prev, nil)
 
 	set.Pod = prev.Meta.ID
 	set.Kind = "PodInstance"

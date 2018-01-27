@@ -64,7 +64,7 @@ func scheduler_exec() error {
 
 	//
 	zonePodSpecPlans.Items = []*inapi.PodSpecPlan{}
-	rss := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 1000).KvList()
+	rss := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 1000).KvList()
 	for _, v := range rss {
 		var spec_plan inapi.PodSpecPlan
 		if err := v.Decode(&spec_plan); err == nil {
@@ -257,8 +257,8 @@ func scheduler_status_refresh(pod *inapi.Pod) bool {
 func scheduler_exec_cell(cell_id string) {
 
 	// TODO pager
-	rss := data.ZoneMaster.PvScan(
-		inapi.NsZonePodOpQueue(status.ZoneId, cell_id, ""), "", "", 10000).KvList()
+	rss := data.GlobalMaster.PvScan(
+		inapi.NsGlobalSetQueuePod(status.ZoneId, cell_id, ""), "", "", 10000).KvList()
 	if len(rss) == 0 {
 		return
 	}
@@ -289,7 +289,7 @@ func scheduler_exec_cell(cell_id string) {
 		}
 
 		if err == nil {
-			data.ZoneMaster.PvDel(inapi.NsZonePodOpQueue(status.ZoneId, podq.Spec.Cell, podq.Meta.ID), nil)
+			data.GlobalMaster.PvDel(inapi.NsGlobalSetQueuePod(status.ZoneId, podq.Spec.Cell, podq.Meta.ID), nil)
 		}
 	}
 	hlog.Printf("debug", "scheduling %d pods in %v", len(rss), time.Since(start))

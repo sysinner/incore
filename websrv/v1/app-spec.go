@@ -56,7 +56,7 @@ func (c AppSpec) ListAction() {
 	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.ZoneMaster.PvRevScan(inapi.NsGlobalAppSpec(""), "", "", 200)
+	rs := data.GlobalMaster.PvRevScan(inapi.NsGlobalAppSpec(""), "", "", 200)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -73,9 +73,8 @@ func (c AppSpec) ListAction() {
 		}
 
 		//
-		if rs := data.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
-			data.ZoneMaster.ProgPut(
-				inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version),
+		if rs := data.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
+			data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version),
 				skv.NewValueObject(spec),
 				nil)
 		}
@@ -184,7 +183,7 @@ func (c AppSpec) VersionListAction() {
 	}
 
 	var spec inapi.AppSpec
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
 		rs.Decode(&spec)
 	}
 
@@ -194,8 +193,7 @@ func (c AppSpec) VersionListAction() {
 		return
 	}
 
-	rs := data.ZoneMaster.ProgRevScan(
-		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "0"),
+	rs := data.GlobalMaster.ProgRevScan(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "0"),
 		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "99999999"), 50)
 	rss := rs.KvList()
 
@@ -232,10 +230,10 @@ func (c AppSpec) EntryAction() {
 
 	version := c.Params.Get("version")
 	if version != "" {
-		if rs := data.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
+		if rs := data.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
 			rs.Decode(&set)
 		}
-	} else if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+	} else if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
 		rs.Decode(&set)
 	}
 
@@ -255,7 +253,7 @@ func (c AppSpec) EntryAction() {
 	}
 
 	if version != "" && c.Params.Get("last_version") == "true" {
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(set.Meta.ID)); rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(set.Meta.ID)); rs.OK() {
 			var last_spec inapi.AppSpec
 			rs.Decode(&last_spec)
 			if inapi.NewAppSpecVersion(last_spec.Meta.Version).Compare(inapi.NewAppSpecVersion(set.Meta.Version)) == 1 {
@@ -295,7 +293,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	var prev inapi.AppSpec
-	rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID))
+	rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID))
 	if !rs.OK() {
 		if !rs.NotFound() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
@@ -433,7 +431,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	for _, v := range prev.Depends {
-		if rs := data.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
+		if rs := data.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecDepend ("+v.Id+") Not Found")
 			return
 		}
@@ -466,9 +464,9 @@ func (c AppSpec) SetAction() {
 
 	//
 	if set_new {
-		rs = data.ZoneMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
+		rs = data.GlobalMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
 	} else {
-		rs = data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
+		rs = data.GlobalMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
 	}
 
 	if !rs.OK() {
@@ -476,8 +474,7 @@ func (c AppSpec) SetAction() {
 		return
 	}
 
-	rs = data.ZoneMaster.ProgPut(
-		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+	rs = data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
 		skv.NewValueObject(prev),
 		nil)
 	if !rs.OK() {
@@ -521,7 +518,7 @@ func (c AppSpec) CfgSetAction() {
 	}
 
 	var prev inapi.AppSpec
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
 		rs.Decode(&prev)
 	}
 
@@ -578,13 +575,12 @@ func (c AppSpec) CfgSetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if rs := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}
 
-	if rs := data.ZoneMaster.ProgPut(
-		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+	if rs := data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
 		skv.NewValueObject(prev),
 		nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
@@ -629,7 +625,7 @@ func (c AppSpec) CfgFieldDelAction() {
 	}
 
 	var prev inapi.AppSpec
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
 		rs.Decode(&prev)
 	}
 
@@ -661,13 +657,12 @@ func (c AppSpec) CfgFieldDelAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if rs := data.ZoneMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}
 
-	if rs := data.ZoneMaster.ProgPut(
-		inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+	if rs := data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
 		skv.NewValueObject(prev),
 		nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())

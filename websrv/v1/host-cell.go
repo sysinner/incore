@@ -29,14 +29,14 @@ func (c Host) CellListAction() {
 	zones := []string{}
 
 	if zoneid := c.Params.Get("zoneid"); zoneid != "" {
-		if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
 			sets.Error = types.NewErrorMeta("404", "Zone Not Found")
 			return
 		}
 		zones = append(zones, zoneid)
 	} else {
 
-		rss := data.ZoneMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
+		rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
 		for _, v := range rss {
 			var zone inapi.ResZone
 			if err := v.Decode(&zone); err == nil {
@@ -47,7 +47,7 @@ func (c Host) CellListAction() {
 
 	//
 	for _, z := range zones {
-		rss := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(z, ""), "", "", 100).KvList()
+		rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(z, ""), "", "", 100).KvList()
 		for _, v := range rss {
 			var cell inapi.ResCell
 			if err := v.Decode(&cell); err == nil {
@@ -67,9 +67,7 @@ func (c Host) CellEntryAction() {
 	}
 	defer c.RenderJson(&set)
 
-	if rs := data.ZoneMaster.PvGet(
-		inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid")),
-	); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))); rs.OK() {
 		rs.Decode(&set.ResCell)
 	}
 

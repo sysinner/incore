@@ -70,7 +70,7 @@ func (c App) ListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	rs := in_db.ZoneMaster.PvRevScan(inapi.NsGlobalAppInstance(""), "", "", 10000)
+	rs := in_db.GlobalMaster.PvRevScan(inapi.NsGlobalAppInstance(""), "", "", 10000)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -98,8 +98,8 @@ func (c App) ListAction() {
 		// UPGRADE 0.3.5 to 0.3.6
 		if inapi.OpActionAllow(inst.Operate.Action, inapi.OpActionDestroy) {
 			if m := v.Meta(); m == nil || m.Expired == 0 {
-				if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(inst.Meta.ID), inst, nil); rs.OK() {
-					in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(inst.Meta.ID), inst, &skv.ProgWriteOptions{
+				if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(inst.Meta.ID), inst, nil); rs.OK() {
+					in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(inst.Meta.ID), inst, &skv.ProgWriteOptions{
 						Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 					})
 				}
@@ -191,7 +191,7 @@ func (c App) ListAction() {
 func (c App) EntryAction() {
 
 	var app inapi.AppInstance
-	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(c.Params.Get("id"))); rs.OK() {
+	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(c.Params.Get("id"))); rs.OK() {
 		rs.Decode(&app)
 	}
 
@@ -238,7 +238,7 @@ func (c App) SetAction() {
 
 	} else {
 
-		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); rs.OK() {
+		if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); rs.OK() {
 			rs.Decode(&prev)
 		}
 
@@ -271,9 +271,9 @@ func (c App) SetAction() {
 
 	var rs skv.Result
 	if prev.Spec.Meta.Version != "" {
-		rs = in_db.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
+		rs = in_db.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
 	} else {
-		rs = in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
+		rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
 	}
 	var spec inapi.AppSpec
 	if rs.OK() {
@@ -299,7 +299,7 @@ func (c App) SetAction() {
 		}
 
 		var pod inapi.Pod
-		if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(prev.Operate.PodId)); !rs.OK() {
+		if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(prev.Operate.PodId)); !rs.OK() {
 			rsp.Error = types.NewErrorMeta("500", "Server Error")
 			return
 		} else {
@@ -321,9 +321,9 @@ func (c App) SetAction() {
 			return
 		}
 
-		rs = in_db.ZoneMaster.PvNew(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
+		rs = in_db.GlobalMaster.PvNew(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
 	} else {
-		rs = in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
+		rs = in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
 	}
 
 	if !rs.OK() {
@@ -338,8 +338,8 @@ func (c App) SetAction() {
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(prev.Meta.ID), prev, nil); rs.OK() {
-			rs = in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(prev.Meta.ID), prev, nil); rs.OK() {
+			rs = in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
 				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 			})
 		}
@@ -434,7 +434,7 @@ func (c App) ListOpResAction() {
 	}
 
 	// TODO pager
-	rs := in_db.ZoneMaster.PvScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
+	rs := in_db.GlobalMaster.PvScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
 	rss := rs.KvList()
 	for _, v := range rss {
 
@@ -511,7 +511,7 @@ func (c App) OpActionSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(app_id)); rs.OK() {
+	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(app_id)); rs.OK() {
 		rs.Decode(&app)
 	}
 	if app.Meta.ID != app_id ||
@@ -539,9 +539,7 @@ func (c App) OpActionSetAction() {
 		app.Operate.Action = op_action
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if rs := in_db.ZoneMaster.PvPut(
-			inapi.NsGlobalAppInstance(app.Meta.ID), app, nil,
-		); !rs.OK() {
+		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
 			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 			return
 		}
@@ -552,8 +550,8 @@ func (c App) OpActionSetAction() {
 	}
 
 	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
-		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(app.Meta.ID), app, nil); rs.OK() {
-			in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.ProgWriteOptions{
+		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(app.Meta.ID), app, nil); rs.OK() {
+			in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.ProgWriteOptions{
 				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 			})
 		}
@@ -569,7 +567,7 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	}
 
 	var pod inapi.Pod
-	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId)); !rs.OK() {
+	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId)); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	} else {
 		rs.Decode(&pod)
@@ -585,13 +583,13 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
+	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	}
 
 	// Pod Map to Cell Queue
-	qmpath := inapi.NsZonePodOpQueue(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.ZoneMaster.PvPut(qmpath, pod, nil); !rs.OK() {
+	sqkey := inapi.NsGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	if rs := in_db.GlobalMaster.PvPut(sqkey, pod, nil); !rs.OK() {
 		return types.NewErrorMeta("500", rs.Bytex().String())
 	}
 
@@ -614,7 +612,7 @@ func (c App) OpResSetAction() {
 
 	//
 	var res inapi.Resource
-	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
+	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
 		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	} else if err := rs.Decode(&res); err != nil {
@@ -634,7 +632,7 @@ func (c App) OpResSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); rs.OK() {
+	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); rs.OK() {
 		rs.Decode(&app)
 	}
 	if app.Meta.ID == "" ||
@@ -671,13 +669,13 @@ func (c App) OpResSetAction() {
 		res.Meta.Updated = types.MetaTime(opt.Updated)
 
 		//
-		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalResInstance(res.Meta.Name), res, nil); !rs.OK() {
+		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalResInstance(res.Meta.Name), res, nil); !rs.OK() {
 			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 			return
 		}
 		// }
 
-		if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
+		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
 			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 			return
 		}
@@ -719,7 +717,7 @@ func (c App) ConfigAction() {
 	}
 
 	var app inapi.AppInstance
-	if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); rs.OK() {
+	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); rs.OK() {
 		rs.Decode(&app)
 	}
 
@@ -742,11 +740,11 @@ func (c App) ConfigAction() {
 			}
 
 			var app_spec inapi.AppSpec
-			if rs := in_db.ZoneMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); rs.OK() {
+			if rs := in_db.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); rs.OK() {
 				rs.Decode(&app_spec)
 			}
 			if app_spec.Meta.ID != v.Id { // TODO
-				if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); rs.OK() {
+				if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); rs.OK() {
 					rs.Decode(&app_spec)
 				}
 			}
@@ -844,7 +842,7 @@ func (c App) ConfigAction() {
 			}
 
 			var app_ref inapi.AppInstance
-			if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(value)); rs.OK() {
+			if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(value)); rs.OK() {
 				rs.Decode(&app_ref)
 			}
 			if app_ref.Meta.ID != value {
@@ -868,7 +866,7 @@ func (c App) ConfigAction() {
 
 			if pv, ok := app_op_opt.Items.Get(field.Name); ok && len(pv.String()) >= 12 && pv.String() != value {
 
-				if rs := in_db.ZoneMaster.PvGet(inapi.NsGlobalAppInstance(pv.String())); rs.OK() {
+				if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(pv.String())); rs.OK() {
 
 					var app_refp inapi.AppInstance
 					rs.Decode(&app_refp)
@@ -880,7 +878,7 @@ func (c App) ConfigAction() {
 							app_refp_opt.Subs.Remove(app.Meta.ID)
 							app_refp.Operate.Options.Sync(*app_refp_opt)
 
-							if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, nil); !rs.OK() {
+							if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, nil); !rs.OK() {
 								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 								return
 							}
@@ -899,7 +897,7 @@ func (c App) ConfigAction() {
 				opt_ref.Subs.Insert(app.Meta.ID)
 				app_ref.Operate.Options.Sync(*opt_ref)
 
-				if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, nil); !rs.OK() {
+				if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, nil); !rs.OK() {
 					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 					return
 				}
@@ -923,7 +921,7 @@ func (c App) ConfigAction() {
 	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.ZoneMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
+	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
 		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}

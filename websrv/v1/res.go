@@ -65,7 +65,7 @@ func (c Resource) ListAction() {
 		return
 	}
 
-	rs := data.ZoneMaster.PvScan(inapi.NsGlobalResInstance(c.Params.Get("type")), "", "", 1000)
+	rs := data.GlobalMaster.PvScan(inapi.NsGlobalResInstance(c.Params.Get("type")), "", "", 1000)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -159,7 +159,7 @@ func (c Resource) OperatePodSetAction() {
 
 	var prev inapi.Resource
 
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	} else if err := rs.Decode(&prev); err != nil {
@@ -181,7 +181,7 @@ func (c Resource) OperatePodSetAction() {
 		prev.Operate.AppId = set.Operate.AppId // check
 
 		//
-		data.ZoneMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.ProgWriteOptions{
 			Force: true,
 		})
 

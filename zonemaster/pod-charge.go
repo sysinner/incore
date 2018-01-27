@@ -57,7 +57,7 @@ func pod_charge() error {
 
 	// TODO
 	pod_spec_plans = []*inapi.PodSpecPlan{}
-	if rs := data.ZoneMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100); rs.OK() {
+	if rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100); rs.OK() {
 		rss := rs.KvList()
 		for _, v := range rss {
 			var item inapi.PodSpecPlan
@@ -310,8 +310,8 @@ func pod_entry_chargeout(pod_id string) {
 	data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev, nil)
 
 	// Pod Map to Cell Queue
-	qstr := inapi.NsZonePodOpQueue(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	data.ZoneMaster.PvPut(qstr, prev, nil)
+	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	data.GlobalMaster.PvPut(sqkey, prev, nil)
 
 	hlog.Printf("info", "Pod %s AccountChargeOut", prev.Meta.ID)
 }

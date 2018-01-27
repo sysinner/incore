@@ -349,7 +349,7 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 		}
 	*/
 
-	if rs := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(status.ZoneId)); rs.OK() {
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(status.ZoneId)); rs.OK() {
 
 		var zone inapi.ResZone
 		if err := rs.Decode(&zone); err == nil {
@@ -360,11 +360,13 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
 					zone.LanAddrs[i] = host.Spec.PeerLanAddr
 
-					hlog.Printf("warn", "ZoneMaster NsGlobalSysZone %s->%s",
+					hlog.Printf("warn", "ZoneMaster GlobalSysZone %s->%s",
 						addr_prev, host.Spec.PeerLanAddr)
 
-					data.ZoneMaster.PvPut(inapi.NsGlobalSysZone(status.ZoneId), zone, nil)
-					data.ZoneMaster.PvPut(inapi.NsZoneSysInfo(status.ZoneId), zone, nil)
+					// TOPO
+					if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysZone(status.ZoneId), zone, nil); rs.OK() {
+						data.ZoneMaster.PvPut(inapi.NsZoneSysInfo(status.ZoneId), zone, nil)
+					}
 
 					break
 				}

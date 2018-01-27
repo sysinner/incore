@@ -38,7 +38,7 @@ func (c AppSpec) ListAction() {
 	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.ZoneMaster.PvRevScan(inapi.NsGlobalAppSpec(""), "", "", 200)
+	rs := data.GlobalMaster.PvRevScan(inapi.NsGlobalAppSpec(""), "", "", 200)
 	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
@@ -161,7 +161,7 @@ func (c AppSpec) EntryAction() {
 		return
 	}
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); obj.OK() {
+	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); obj.OK() {
 		obj.Decode(&set)
 	}
 

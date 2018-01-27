@@ -199,8 +199,13 @@ func (c Host) NodeNewAction() {
 
 	cell.NodeNum++
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell, nil)
-	data.ZoneMaster.PvPut(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell, nil)
+	// TOPO
+	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell, nil); rs.OK() {
+		data.ZoneMaster.PvPut(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell, nil)
+	} else {
+		set.Error = types.NewErrorMeta("500", "Server Error")
+		return
+	}
 
 	set.Kind = "HostNode"
 }

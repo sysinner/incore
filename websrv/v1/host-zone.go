@@ -27,7 +27,7 @@ func (c Host) ZoneListAction() {
 	defer c.RenderJson(&ls)
 
 	//
-	rs := data.ZoneMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
+	rs := data.GlobalMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
 
 	for _, v := range rs {
 
@@ -39,7 +39,7 @@ func (c Host) ZoneListAction() {
 
 		if c.Params.Get("fields") == "cells" {
 
-			rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
+			rs2 := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
 
 			for _, v2 := range rs2 {
 
@@ -66,7 +66,7 @@ func (c Host) ZoneEntryAction() {
 
 	defer c.RenderJson(&set)
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
+	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
 
 		if err := obj.Decode(&set.ResZone); err != nil {
 			set.Error = types.NewErrorMeta("400", err.Error())
@@ -74,7 +74,7 @@ func (c Host) ZoneEntryAction() {
 
 			if c.Params.Get("fields") == "cells" {
 
-				rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
+				rs2 := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
 
 				for _, v2 := range rs2 {
 

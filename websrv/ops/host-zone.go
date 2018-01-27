@@ -30,7 +30,7 @@ func (c Host) ZoneListAction() {
 	defer c.RenderJson(&ls)
 
 	//
-	rs := data.ZoneMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
+	rs := data.GlobalMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
 
 	for _, v := range rs {
 
@@ -42,7 +42,7 @@ func (c Host) ZoneListAction() {
 
 		if c.Params.Get("fields") == "cells" {
 
-			rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
+			rs2 := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
 
 			for _, v2 := range rs2 {
 
@@ -69,7 +69,7 @@ func (c Host) ZoneEntryAction() {
 
 	defer c.RenderJson(&set)
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
+	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(c.Params.Get("id"))); obj.OK() {
 
 		if err := obj.Decode(&set.ResZone); err != nil {
 			set.Error = &types.ErrorMeta{"400", err.Error()}
@@ -77,7 +77,7 @@ func (c Host) ZoneEntryAction() {
 
 			if c.Params.Get("fields") == "cells" {
 
-				rs2 := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
+				rs2 := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id, ""), "", "", 100).KvList()
 
 				for _, v2 := range rs2 {
 
@@ -145,7 +145,7 @@ func (c Host) ZoneSetAction() {
 		}
 	}
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsGlobalSysZone(set.Meta.Id)); obj.OK() {
+	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(set.Meta.Id)); obj.OK() {
 
 		var prev inapi.ResZone
 		if err := obj.Decode(&prev); err == nil {
@@ -158,7 +158,7 @@ func (c Host) ZoneSetAction() {
 
 	//
 	/*
-		if obj := data.ZoneMaster.PvGet(inapi.NsGlobalDataBucket(set.Meta.Id)); obj.OK() {
+		if obj := data.GlobalMaster.PvGet(inapi.NsGlobalDataBucket(set.Meta.Id)); obj.OK() {
 
 			bucket_ns := btapi.BucketNameService{
 				Phase: 1,
@@ -194,7 +194,7 @@ func (c Host) ZoneSetAction() {
 	*/
 
 	/*
-		if rs := data.ZoneMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id), "", "", 100); rs.OK() {
+		if rs := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id), "", "", 100); rs.OK() {
 
 			cell := btapi.HostCell{
 				Meta: types.ObjectMeta{
@@ -218,7 +218,7 @@ func (c Host) ZoneSetAction() {
 
 	set.Meta.Updated = uint64(types.MetaTimeNow())
 
-	data.ZoneMaster.PvPut(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, nil)
+	data.GlobalMaster.PvPut(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, nil)
 
 	set.Kind = "HostZone"
 }
