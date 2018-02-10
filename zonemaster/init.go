@@ -24,22 +24,42 @@ import (
 
 func InitData(items map[string]interface{}) error {
 
+	if data.GlobalMaster == nil {
+		return fmt.Errorf("data.GlobalMaster Not Init")
+	}
+
 	if data.ZoneMaster == nil {
 		return fmt.Errorf("data.ZoneMaster Not Init")
 	}
 
 	for k, v := range items {
 
-		if rs := data.ZoneMaster.PvGet(k); rs.OK() {
-			hlog.Printf("debug", "zm.init.data skip %s", k)
-			continue
-		}
+		if len(k) > 5 && (k[:5] == "/ing/" || k[:5] == "/iam/") {
 
-		if rs := data.ZoneMaster.PvNew(k, v, nil); !rs.OK() {
-			return fmt.Errorf("zonemaster.initdata error on put key : %s", k)
-		}
+			if rs := data.GlobalMaster.PvGet(k); rs.OK() {
+				hlog.Printf("debug", "gm.init.data skip %s", k)
+				continue
+			}
 
-		hlog.Printf("info", "zm.init.data set %s", k)
+			if rs := data.GlobalMaster.PvNew(k, v, nil); !rs.OK() {
+				return fmt.Errorf("gm.initdata error on put key : %s", k)
+			} else {
+				hlog.Printf("info", "gm.init.data set %s", k)
+			}
+
+		} else {
+
+			if rs := data.ZoneMaster.PvGet(k); rs.OK() {
+				hlog.Printf("debug", "zm.init.data skip %s", k)
+				continue
+			}
+
+			if rs := data.ZoneMaster.PvNew(k, v, nil); !rs.OK() {
+				return fmt.Errorf("zonemaster.initdata error on put key : %s", k)
+			} else {
+				hlog.Printf("info", "zm.init.data set %s", k)
+			}
+		}
 	}
 
 	/*

@@ -211,6 +211,7 @@ func zone_tracker() {
 				status.ZoneHostList.Sync(o)
 			} else {
 				// TODO
+				hlog.Printf("error", "refresh host list ### %s", v.Value)
 			}
 		}
 

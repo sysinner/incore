@@ -38,7 +38,7 @@ func TestResHostListSync(t *testing.T) {
 
 	dst.Sync(ResHost{
 		Meta: &ObjectMeta{
-		// Id: "",
+			// Id: "",
 		},
 	})
 

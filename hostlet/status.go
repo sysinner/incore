@@ -231,7 +231,8 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 			ars.Set(dev.Device)
 
 			if !strings.HasPrefix(dev.Device, "/dev/") ||
-				strings.HasPrefix(dev.Mountpoint, "/boot") {
+				strings.HasPrefix(dev.Mountpoint, "/boot") ||
+				strings.Contains(dev.Mountpoint, "/devicemapper/mnt/") {
 				continue
 			}
 
