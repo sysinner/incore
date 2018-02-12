@@ -106,6 +106,7 @@ message ResZone {
     repeated string  lan_addrs = 6;
     repeated ResCell cells     = 7;
     repeated Label   options   = 8;
+    string           wan_api   = 9;
 }
 
 message ResCell {

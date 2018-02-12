@@ -148,6 +148,37 @@ func zone_tracker() {
 		}
 	}
 
+	// refresh globa zones
+	if rs := data.GlobalMaster.PvScan(
+		inapi.NsGlobalSysZone(""), "", "", 50); !rs.OK() {
+		hlog.Printf("warn", "refresh global-zones failed")
+		return
+	} else {
+
+		rss := rs.KvList()
+
+		for _, v := range rss {
+
+			var o inapi.ResZone
+			if err := v.Decode(&o); err == nil {
+				found := false
+				for i, pv := range status.GlobalZones {
+					if pv.Meta.Id != o.Meta.Id {
+						continue
+					}
+					found = true
+
+					if pv.Meta.Updated < o.Meta.Updated {
+						status.GlobalZones[i] = o
+					}
+				}
+				if !found {
+					status.GlobalZones = append(status.GlobalZones, o)
+				}
+			}
+		}
+	}
+
 	// refresh zone-master list
 	if rs := data.ZoneMaster.PvScan(
 		inapi.NsZoneSysMasterNode(status.Host.Operate.ZoneId, ""), "", "", 100); !rs.OK() {

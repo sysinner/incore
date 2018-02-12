@@ -46,6 +46,7 @@ func (c Index) IndexAction() {
   <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/favicon.png">
   <script type="text/javascript">
     inCp.version = "` + inpanel.VersionHash + `";
+    inCp.zone_id = "` + inpanel.ZoneId + `";
     window.onload = inCp.Boot(` + login + `);
   </script>
 </head>

@@ -31,6 +31,15 @@ func NewModule() httpsrv.Module {
 		},
 	})
 
+	module.RouteSet(httpsrv.Route{
+		Type: httpsrv.RouteTypeBasic,
+		Path: "/zonebound/:zone_id",
+		Params: map[string]string{
+			"controller": "zonebound",
+			"action":     "index",
+		},
+	})
+
 	module.ControllerRegister(new(PodSpec))
 	module.ControllerRegister(new(Pod))
 	module.ControllerRegister(new(AppSpec))
@@ -40,6 +49,7 @@ func NewModule() httpsrv.Module {
 	module.ControllerRegister(new(Podbound))
 	module.ControllerRegister(new(PodStats))
 	module.ControllerRegister(new(Charge))
+	module.ControllerRegister(new(Zonebound))
 
 	return module
 }

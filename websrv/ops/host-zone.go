@@ -123,6 +123,15 @@ func (c Host) ZoneSetAction() {
 		return
 	}
 
+	set.WanApi = strings.Trim(strings.TrimSpace(set.WanApi), "/")
+	if len(set.WanApi) > 0 {
+		if !strings.HasPrefix(set.WanApi, "http://") &&
+			!strings.HasPrefix(set.WanApi, "https://") {
+			set.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid Address (%s)", set.WanApi))
+			return
+		}
+	}
+
 	for _, addr := range set.WanAddrs {
 
 		if !inapi.HostNodeAddress(addr).Valid() {

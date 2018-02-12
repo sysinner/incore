@@ -37,6 +37,9 @@ var (
 	LocalZoneMasterList inapi.ResZoneMasterList
 
 	//
+	GlobalZones []inapi.ResZone
+
+	//
 	ZoneId               string
 	Zone                 *inapi.ResZone
 	ZoneMasterList       inapi.ResZoneMasterList
