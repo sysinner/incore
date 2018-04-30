@@ -120,6 +120,11 @@ func status_tracker() {
 	if zms.ExpPsmaps != nil {
 		sync_nsz(zms.ExpPsmaps)
 	}
+
+	if len(zms.ZoneInpackServiceUrl) > 10 && zms.ZoneInpackServiceUrl != config.Config.InpackServiceUrl {
+		config.Config.InpackServiceUrl = zms.ZoneInpackServiceUrl
+		config.Config.Sync()
+	}
 }
 
 var (

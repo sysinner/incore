@@ -40,6 +40,10 @@ func NsGlobalSysCell(zone_id, cell_id string) string {
 	return fmt.Sprintf("/ing/sys/cell/%s/%s", zone_id, cell_id)
 }
 
+func NsGlobalSysHost(zone_id, host_id string) string {
+	return fmt.Sprintf("/ing/sys/host/%s/%s", zone_id, host_id)
+}
+
 func NsGlobalPodSpec(stype, id string) string {
 	return fmt.Sprintf("/ing/ps/%s/%s", stype, id)
 }
@@ -50,6 +54,10 @@ func NsGlobalPodInstance(pod_id string) string {
 
 func NsGlobalPodInstanceDestroyed(pod_id string) string {
 	return fmt.Sprintf("/ing/pid/%s", pod_id)
+}
+
+func NsGlobalPodStatus(zone_id, pod_id string) string {
+	return fmt.Sprintf("/ing/z/%s/pst/%s", zone_id, pod_id)
 }
 
 func NsGlobalAppSpec(spec_id string) string {
@@ -144,6 +152,13 @@ func NsZoneHostBoundPod(zone_id, host_id, pod_id string, rep_id uint16) string {
 		return fmt.Sprintf("/inz/%s/bp/%s/pod", zone_id, host_id)
 	}
 	return fmt.Sprintf("/inz/%s/bp/%s/pod/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, rep_id))
+}
+
+func NsZonePodStatus(zone_id, pod_id string) string {
+	if len(pod_id) < 8 {
+		return fmt.Sprintf("/inz/%s/pst", zone_id)
+	}
+	return fmt.Sprintf("/inz/%s/pst/%s", zone_id, pod_id)
 }
 
 func NsZonePodReplicaStatus(zone_id, pod_id string, rep_id uint16) string {

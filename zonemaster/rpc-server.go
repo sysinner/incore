@@ -250,8 +250,9 @@ func (s *ApiZoneMaster) HostStatusSync(
 	// hlog.Printf("info", "zone-master/rpc-server hostlet synced pods:%d", len(opts.Prs))
 
 	bds := &inapi.ResHostBound{
-		Masters:   &status.ZoneMasterList,
-		ExpPsmaps: status.ZonePodServiceMaps,
+		Masters:              &status.ZoneMasterList,
+		ExpPsmaps:            status.ZonePodServiceMaps,
+		ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
 	}
 
 	for _, v := range status.ZonePodList {

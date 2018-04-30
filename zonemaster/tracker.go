@@ -24,10 +24,14 @@ import (
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/status"
+
+	iam_api "github.com/hooto/iam/iamapi"
+	iam_db "github.com/hooto/iam/store"
 )
 
 var (
 	zm_leader_refreshed int64 = 0
+	zm_pod_statuses           = map[string]uint32{}
 )
 
 func zone_tracker() {
@@ -106,6 +110,40 @@ func zone_tracker() {
 		return
 	}
 
+	// refresh pod's statuses
+	for _, v := range status.ZonePodList {
+
+		if v.Spec == nil || v.Spec.Zone != status.Host.Operate.ZoneId {
+			continue
+		}
+
+		if v.Operate.ReplicaCap < 1 {
+			continue
+		}
+
+		action := status.ZonePodRepMergeOperateAction(v.Meta.ID, v.Operate.ReplicaCap)
+		if action < 1 {
+			continue
+		}
+
+		if v2, ok := zm_pod_statuses[v.Meta.ID]; ok && v2 == action {
+			continue
+		}
+
+		pst := inapi.PodStatus{
+			Action: action,
+		}
+		rs := data.ZoneMaster.PvPut(inapi.NsZonePodStatus(status.Host.Operate.ZoneId, v.Meta.ID), pst, nil)
+		if !rs.OK() {
+			continue
+		}
+		rs = data.GlobalMaster.PvPut(inapi.NsGlobalPodStatus(status.Host.Operate.ZoneId, v.Meta.ID), pst, nil)
+		if !rs.OK() {
+			continue
+		}
+		zm_pod_statuses[v.Meta.ID] = action
+	}
+
 	if !force_refresh &&
 		time.Now().UTC().Unix()-zm_leader_refreshed < 60 {
 		hlog.Printf("debug", "zone-master/refresh SKIP")
@@ -132,6 +170,23 @@ func zone_tracker() {
 		if status.Zone == nil {
 			hlog.Printf("error", "No ZoneInfo Setup in status")
 			return
+		}
+
+		init_if := iam_api.AccessKey{
+			User: "sysadmin",
+			Bounds: []iam_api.AccessKeyBound{{
+				Name: "sys/zm/" + status.Host.Operate.ZoneId,
+			}},
+			Description: "ZoneMaster AccCharge",
+		}
+		if v, ok := status.Zone.OptionGet("iam/acc_charge/access_key"); ok {
+			init_if.AccessKey = v
+		}
+		if v, ok := status.Zone.OptionGet("iam/acc_charge/secret_key"); ok {
+			init_if.SecretKey = v
+		}
+		if init_if.AccessKey != "" {
+			iam_db.AccessKeyInitData(init_if)
 		}
 	}
 
@@ -240,6 +295,13 @@ func zone_tracker() {
 				cell_counter[o.Operate.CellId]++
 
 				status.ZoneHostList.Sync(o)
+				if gn := status.GlobalHostList.Item(o.Meta.Id); gn == nil {
+					if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysHost(o.Operate.ZoneId, o.Meta.Id)); rs.NotFound() {
+						data.GlobalMaster.PvPut(inapi.NsGlobalSysHost(o.Operate.ZoneId, o.Meta.Id), o, nil)
+					}
+				}
+				status.GlobalHostList.Sync(o)
+
 			} else {
 				// TODO
 				hlog.Printf("error", "refresh host list ### %s", v.Value)

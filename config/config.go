@@ -53,6 +53,7 @@ type ConfigCommon struct {
 	PprofHttpPort         uint16                   `json:"pprof_http_port,omitempty"`
 	InpackServiceUrl      string                   `json:"inpack_service_url,omitempty"`
 	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty"`
+	IamServiceUrlGlobal   string                   `json:"iam_service_url_global,omitempty"`
 }
 
 func (cfg *ConfigCommon) Sync() error {

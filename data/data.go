@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package data // import "github.com/sysinner/incore/data"
+package data
 
 import (
 	"github.com/lynkdb/iomix/skv"
@@ -22,4 +22,5 @@ var (
 	LocalDB      skv.Connector
 	ZoneMaster   skv.Connector
 	GlobalMaster skv.Connector
+	InpackData   skv.Connector
 )

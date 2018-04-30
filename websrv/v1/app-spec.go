@@ -29,7 +29,6 @@ import (
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/inpack/ipapi"
-	ips_data "github.com/sysinner/inpack/server/data"
 )
 
 type AppSpec struct {
@@ -449,7 +448,7 @@ func (c AppSpec) SetAction() {
 			return
 		}
 		id := ipapi.PackageMetaId(v.Name, version)
-		if rs := ips_data.Data.ProgGet(ipapi.DataPackKey(id)); !rs.OK() {
+		if rs := data.InpackData.ProgGet(ipapi.DataPackKey(id)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
 				ipapi.PackageFilename(v.Name, version)+") Not Found")
 			return

@@ -16,6 +16,7 @@ package ops
 
 import (
 	"github.com/lessos/lessgo/types"
+	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/config"
@@ -34,7 +35,7 @@ func (c Host) NodeListAction() {
 	)
 	defer c.RenderJson(&sets)
 
-	rss := data.ZoneMaster.PvScan(inapi.NsZoneSysHost(zoneid, ""), "", "", 1000).KvList()
+	rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysHost(zoneid, ""), "", "", 1000).KvList()
 
 	for _, v := range rss {
 
@@ -47,6 +48,7 @@ func (c Host) NodeListAction() {
 				continue
 			}
 
+			// TODO
 			if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); rs.OK() {
 
 				var status inapi.ResHostStatus
@@ -71,12 +73,17 @@ func (c Host) NodeEntryAction() {
 			inapi.GeneralObject
 			inapi.ResHost
 		}
+		rs skv.Result
 	)
 	defer c.RenderJson(&node)
 
-	if obj := data.ZoneMaster.PvGet(inapi.NsZoneSysHost(zoneid, nodeid)); obj.OK() {
-
-		if err := obj.Decode(&node.ResHost); err != nil {
+	if zoneid == status.ZoneId {
+		rs = data.ZoneMaster.PvGet(inapi.NsZoneSysHost(zoneid, nodeid))
+	} else {
+		rs = data.GlobalMaster.PvGet(inapi.NsGlobalSysHost(zoneid, nodeid))
+	}
+	if rs.OK() {
+		if err := rs.Decode(&node.ResHost); err != nil {
 			node.Error = &types.ErrorMeta{Code: "400", Message: err.Error()}
 			return
 		}
@@ -87,6 +94,7 @@ func (c Host) NodeEntryAction() {
 		return
 	}
 
+	// TODO
 	if re := data.ZoneMaster.PvGet(inapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); re.OK() {
 
 		var status inapi.ResHostStatus
@@ -187,6 +195,11 @@ func (c Host) NodeNewAction() {
 
 	status.ZoneHostList.Sync(*node)
 
+	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", "Server Error")
+		return
+	}
+
 	if rs := data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
@@ -233,7 +246,7 @@ func (c Host) NodeSetAction() {
 		return
 	}
 
-	prev := status.ZoneHostList.Item(set.Meta.Id)
+	prev := status.GlobalHostList.Item(set.Meta.Id)
 	if prev == nil {
 		set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
 		return
@@ -247,7 +260,15 @@ func (c Host) NodeSetAction() {
 		prev.Meta.Name = set.Meta.Name
 	}
 
-	data.ZoneMaster.PvPut(inapi.NsZoneSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev, nil)
+	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", "Server Error")
+		return
+	}
+
+	if rs := data.ZoneMaster.PvPut(inapi.NsZoneSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", "Server Error")
+		return
+	}
 
 	set.Kind = "HostNode"
 }
@@ -277,7 +298,7 @@ func (c Host) NodeSecretKeySetAction() {
 		return
 	}
 
-	prev := status.ZoneHostList.Item(set.NodeId)
+	prev := status.GlobalHostList.Item(set.NodeId)
 	if prev == nil || prev.Operate.ZoneId != set.ZoneId {
 		set.Error = &types.ErrorMeta{"400", "Node Not Found"}
 		return

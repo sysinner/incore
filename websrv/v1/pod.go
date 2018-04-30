@@ -209,7 +209,20 @@ func (c Pod) ListAction() {
 				if fields.Has("operate") {
 
 					if fields.Has("operate/action") {
-						podfs.Operate.Action = pod.Operate.Action | zm_status.ZonePodRepMergeOperateAction(pod.Meta.ID, pod.Operate.ReplicaCap)
+
+						// TODO
+						if pod.Spec.Zone != zm_status.ZoneId {
+							if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
+								var pst inapi.PodStatus
+								if err := rs.Decode(&pst); err == nil {
+									podfs.Operate.Action = pod.Operate.Action | pst.Action
+								}
+							}
+						}
+
+						if podfs.Operate.Action < 1 || pod.Spec.Zone == zm_status.ZoneId {
+							podfs.Operate.Action = pod.Operate.Action | zm_status.ZonePodRepMergeOperateAction(pod.Meta.ID, pod.Operate.ReplicaCap)
+						}
 					}
 
 					if fields.Has("operate/version") {
@@ -276,13 +289,16 @@ func (c Pod) EntryAction() {
 				}
 			}
 
-			set.Operate.Action = inapi.OpActionAppend(set.Operate.Action,
-				zm_status.ZonePodRepMergeOperateAction(set.Meta.ID, set.Operate.ReplicaCap))
+			// TODO
+			if set.Spec.Zone == zm_status.ZoneId {
+				set.Operate.Action = inapi.OpActionAppend(set.Operate.Action,
+					zm_status.ZonePodRepMergeOperateAction(set.Meta.ID, set.Operate.ReplicaCap))
+			}
 		}
 	}
 
 	for _, v := range set.Operate.Replicas {
-		if host := zm_status.ZoneHostList.Item(v.Node); host != nil {
+		if host := zm_status.GlobalHostList.Item(v.Node); host != nil {
 			for _, v2 := range v.Ports {
 				if i := strings.IndexByte(host.Spec.PeerLanAddr, ':'); i > 0 {
 					v2.LanAddr = host.Spec.PeerLanAddr[:i]
@@ -843,6 +859,16 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 	status.Kind = "PodStatus"
 
 	status.Refresh(pod.Operate.ReplicaCap)
+
+	// TODO
+	if pod.Spec.Zone != zm_status.ZoneId {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
+			var pst inapi.PodStatus
+			if err := rs.Decode(&pst); err == nil {
+				status.Action = pod.Operate.Action | pst.Action
+			}
+		}
+	}
 
 	return status
 }

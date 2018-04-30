@@ -37,7 +37,8 @@ var (
 	LocalZoneMasterList inapi.ResZoneMasterList
 
 	//
-	GlobalZones []inapi.ResZone
+	GlobalZones    []inapi.ResZone
+	GlobalHostList inapi.ResHostList
 
 	//
 	ZoneId               string
@@ -56,16 +57,15 @@ var (
 
 func ZonePodChargeAccessKey() iamapi.AccessKey {
 
-	if Zone == nil {
-		return pod_charge_iam_ak
-	}
+	if Zone != nil && len(pod_charge_iam_ak.AccessKey) < 8 {
 
-	if v, ok := Zone.OptionGet("iam/acc_charge/access_key"); ok {
-		pod_charge_iam_ak.AccessKey = v
-	}
+		if v, ok := Zone.OptionGet("iam/acc_charge/access_key"); ok {
+			pod_charge_iam_ak.AccessKey = v
+		}
 
-	if v, ok := Zone.OptionGet("iam/acc_charge/secret_key"); ok {
-		pod_charge_iam_ak.SecretKey = v
+		if v, ok := Zone.OptionGet("iam/acc_charge/secret_key"); ok {
+			pod_charge_iam_ak.SecretKey = v
+		}
 	}
 
 	return pod_charge_iam_ak
@@ -154,7 +154,7 @@ func ZonePodRepMergeOperateAction(pod_id string, rep_cap int) uint32 {
 			action = v.Action
 		}
 
-		if action != v.Action {
+		if action != 0 && action != v.Action {
 			return inapi.OpActionPending
 		}
 	}
