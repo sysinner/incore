@@ -27,6 +27,7 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
+	"github.com/sysinner/incore/status"
 )
 
 const (
@@ -47,7 +48,20 @@ var (
 		"cpu/us",
 		"fs/rn", "fs/rs", "fs/wn", "fs/ws",
 	}
+	lxcfs_vols = []*inapi.PbVolumeMount{}
 )
+
+func init() {
+	// TODO
+	for _, v := range []string{"cpuinfo", "diskstats", "meminfo", "stat", "swaps", "uptime"} {
+		lxcfs_vols = append(lxcfs_vols, &inapi.PbVolumeMount{
+			Name:      "lxcfs_" + v,
+			MountPath: "/proc/" + v,
+			HostDir:   "/var/lib/lxcfs/proc/" + v,
+			ReadOnly:  false,
+		})
+	}
+}
 
 func vol_podhome_dir(pod_id string, rep_id uint16) string {
 	return fmt.Sprintf(vol_podhome_fmt, config.Config.PodHomeDir,
@@ -109,24 +123,24 @@ func (inst *BoxInstance) SpecDesired() bool {
 
 	//
 	if inst.Status.Name == "" {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire int.Status.Name")
 		return true // wait init
 	}
 
 	if inst.Status.Action == 0 {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire inst.Status.Action")
 		return false
 	}
 
 	//
 	if inst.Spec.Resources.CpuLimit != inst.Status.ResCpuLimit ||
 		inst.Spec.Resources.MemLimit != inst.Status.ResMemLimit {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire inst.Spec.Resources.Cpu/Mem")
 		return false
 	}
 
 	if len(inst.Ports) != len(inst.Status.Ports) {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire inst.Ports")
 		return false
 	}
 
@@ -140,7 +154,7 @@ func (inst *BoxInstance) SpecDesired() bool {
 			}
 
 			if v.HostPort > 0 && uint32(v.HostPort) != vd.HostPort {
-				hlog.Printf("info", "SD")
+				hlog.Printf("debug", "box/spec miss-desire inst.Ports")
 				return false
 			}
 
@@ -156,24 +170,24 @@ func (inst *BoxInstance) SpecDesired() bool {
 	//
 	img2 := inapi.LabelSliceGet(inst.Status.ImageOptions, "docker/image/name")
 	if img2 == nil {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
 		return false
 	}
 	img1, _ := inst.Spec.Image.Options.Get("docker/image/name")
 	if img2.Value != img1.String() {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
 		return false
 	}
 
 	//
 	if !inapi.PbVolumeMountSliceEqual(inst.Spec.Mounts, inst.Status.Mounts) {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire inst.Spec.Mounts")
 		return false
 	}
 
 	if len(inst.Spec.Command) != len(inst.Status.Command) ||
 		strings.Join(inst.Spec.Command, " ") != strings.Join(inst.Status.Command, " ") {
-		hlog.Printf("info", "SD")
+		hlog.Printf("debug", "box/spec miss-desire inst.Spec.Command")
 		return false
 	}
 
@@ -208,6 +222,10 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 		},
 	}
 
+	if status.EnvLxcFsEnable {
+		ls = append(ls, lxcfs_vols...)
+	}
+
 	for _, app := range inst.Apps {
 
 		if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
@@ -232,19 +250,20 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 
 func (inst *BoxInstance) volume_mounts_export() []string {
 
-	bindVolumes := []string{}
+	bind_vols := []string{}
 
 	for _, v := range inst.Spec.Mounts {
 
-		bindVolume := v.HostDir + ":" + v.MountPath
+		bind_vol := v.HostDir + ":" + v.MountPath
 		if v.ReadOnly {
-			bindVolume += ":ro"
+			bind_vol += ":ro"
+		} else {
+			bind_vol += ":rw"
 		}
-
-		bindVolumes = append(bindVolumes, bindVolume)
+		bind_vols = append(bind_vols, bind_vol)
 	}
 
-	return bindVolumes
+	return bind_vols
 }
 
 var box_sets_mu sync.RWMutex

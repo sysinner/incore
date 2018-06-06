@@ -54,6 +54,7 @@ type ConfigCommon struct {
 	InpackServiceUrl      string                   `json:"inpack_service_url,omitempty"`
 	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty"`
 	IamServiceUrlGlobal   string                   `json:"iam_service_url_global,omitempty"`
+	LxcFsEnable           bool                     `json:"lxc_fs_enable,omitempty"`
 }
 
 func (cfg *ConfigCommon) Sync() error {

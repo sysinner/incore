@@ -53,6 +53,7 @@ var (
 	pod_charge_iam_ak    = iamapi.AccessKey{
 		User: "sysadmin",
 	}
+	EnvLxcFsEnable = false
 )
 
 func ZonePodChargeAccessKey() iamapi.AccessKey {

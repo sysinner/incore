@@ -192,8 +192,8 @@ func (c AppSpec) VersionListAction() {
 		return
 	}
 
-	rs := data.GlobalMaster.ProgRevScan(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "0"),
-		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "99999999"), 50)
+	rs := data.GlobalMaster.ProgRevScan(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
+		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "0"), 50)
 	rss := rs.KvList()
 
 	for _, v := range rss {
