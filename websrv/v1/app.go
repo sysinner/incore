@@ -383,7 +383,8 @@ func app_pod_conflict_check(pod *inapi.Pod, app *inapi.AppInstance) error {
 			continue
 		}
 
-		if v.Spec.Meta.ID == app.Spec.Meta.ID {
+		if v.Spec.Meta.ID == app.Spec.Meta.ID &&
+			!inapi.OpActionAllow(v.Operate.Action, inapi.OpActionDestroy) {
 			return fmt.Errorf(
 				"conflict of AppSpec. another app (%s) has been bound to pod (%s)",
 				v.Meta.ID, app.Operate.PodId)
