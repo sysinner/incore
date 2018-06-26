@@ -29,6 +29,15 @@ import (
 	in_sts "github.com/sysinner/incore/status"
 )
 
+// // BoxDriver is an interface that how to control containers on host.
+// type BoxDriver interface {
+// 	List() ([]*BoxInstance, error)
+// 	Status(inst_id string) *BoxInstance
+// 	Create(inst *BoxInstance) error
+// 	Start(inst *BoxInstance) error
+// 	Stop(inst *BoxInstance) error
+// }
+
 type BoxDriver interface {
 	Name() string
 	Run()

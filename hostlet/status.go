@@ -141,11 +141,40 @@ func status_tracker() {
 var (
 	sync_nsz_lasts       = map[string]uint64{}
 	sync_vols_last int64 = 0
+	sync_nszs            = []*inapi.NsPodServiceMap{}
+	sync_nsz_path        = "/dev/shm/sysinner/nsz"
 )
 
 func sync_nsz(ls []*inapi.NsPodServiceMap) {
 
-	os.MkdirAll("/dev/shm/sysinner/nsz", 0755)
+	if len(sync_nszs) == 0 {
+		os.MkdirAll(sync_nsz_path, 0755)
+
+		filepath.Walk(sync_nsz_path, func(path string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil
+			}
+			if !inapi.PodIdReg.MatchString(info.Name()) {
+				return nil
+			}
+			var nsz inapi.NsPodServiceMap
+			if err := json.DecodeFile(path, &nsz); err != nil {
+				os.Remove(path)
+			} else {
+				sync_nszs = append(sync_nszs, &nsz)
+			}
+			return nil
+		})
+	}
+
+	for _, v := range sync_nszs {
+		if p := inapi.NsPodServiceMapSliceGet(ls, v.Id); p == nil {
+			os.Remove(sync_nsz_path + "/" + v.Id)
+			if _, ok := sync_nsz_lasts[v.Id]; ok {
+				delete(sync_nsz_lasts, v.Id)
+			}
+		}
+	}
 
 	for _, v := range ls {
 
@@ -155,9 +184,13 @@ func sync_nsz(ls []*inapi.NsPodServiceMap) {
 
 		last, ok := sync_nsz_lasts[v.Id]
 		if !ok || v.Updated > last {
-			json.EncodeToFile(v, "/dev/shm/sysinner/nsz/"+v.Id, "")
+			json.EncodeToFile(v, sync_nsz_path+"/"+v.Id, "")
 			sync_nsz_lasts[v.Id] = v.Updated
 		}
+	}
+
+	if !inapi.NsPodServiceMapSliceEqual(sync_nszs, ls) {
+		sync_nszs = ls
 	}
 }
 

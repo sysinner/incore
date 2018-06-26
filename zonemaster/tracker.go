@@ -360,7 +360,7 @@ func zone_tracker() {
 								continue
 							}
 
-							hlog.Printf("warn", "refresh host:%s.operate.ports", host.Meta.Id)
+							hlog.Printf("warn", "zone-master/host:%s.operate.ports refreshed", host.Meta.Id)
 
 							data.ZoneMaster.PvPut(
 								inapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
@@ -380,17 +380,29 @@ func zone_tracker() {
 		// hlog.Printf("info", "zone-master/host-list %d refreshed", len(status.ZoneHostList.Items))
 	}
 
-	//
+	// TODO
 	if rs := data.ZoneMaster.PvScan(inapi.NsZonePodServiceMap(""), "", "", 10000); rs.OK() {
+
+		nszs := []*inapi.NsPodServiceMap{}
 
 		rs.KvEach(func(v *skv.ResultEntry) int {
 
 			var nsz inapi.NsPodServiceMap
 			if err := v.Decode(&nsz); err == nil {
-				nsz.Id = string(v.Key)
-				nsz_sync := false
 
 				if pod := status.ZonePodList.Get(inapi.NsZonePodOpRepKey(nsz.Id, 0)); pod != nil {
+
+					if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
+						return 0
+					}
+
+					if len(pod.Operate.Replicas) < 1 {
+						return 0
+					}
+
+					nsz_sync := false
+					nsz.Id = string(v.Key)
+
 					for _, rep := range pod.Operate.Replicas {
 
 						lan_addr := ""
@@ -416,24 +428,28 @@ func zone_tracker() {
 								continue
 							}
 
-							if psh.Ip == lan_addr {
-								continue
+							if psh.Ip != lan_addr {
+								psh.Ip = lan_addr
 							}
 
-							psh.Ip, nsz_sync = lan_addr, true
+							nsz_sync = true
 						}
 					}
-				}
 
-				status.ZonePodServiceMaps, _ = inapi.NsPodServiceMapSliceSync(status.ZonePodServiceMaps, &nsz)
-
-				if nsz_sync {
-					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(nsz.Id), nsz, nil)
+					if nsz_sync {
+						data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(nsz.Id), nsz, nil)
+						nszs, _ = inapi.NsPodServiceMapSliceSync(nszs, &nsz)
+					}
 				}
 			}
 
 			return 0
 		})
+
+		if !inapi.NsPodServiceMapSliceEqual(status.ZonePodServiceMaps, nszs) {
+			status.ZonePodServiceMaps = nszs
+			hlog.Printf("info", "zone-master/pod-service-maps refreshed %d", len(nszs))
+		}
 	}
 
 	//
