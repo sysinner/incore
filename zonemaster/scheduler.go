@@ -98,7 +98,7 @@ func scheduler_exec() error {
 			if uint32(time.Now().Unix())-pod.Operate.Operated > inapi.PodDestroyTTL {
 				if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstanceDestroy(status.ZoneId, pod.Meta.ID), pod, nil); rs.OK() {
 					data.ZoneMaster.PvDel(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), nil)
-					hlog.Printf("warn", "zone-master/pod/backup:%s", pod.Meta.ID)
+					hlog.Printf("warn", "zone-master/pod/remove %s", pod.Meta.ID)
 				}
 			}
 			continue
@@ -549,6 +549,10 @@ func scheduler_exec_pod_destroy(podq *inapi.Pod) error {
 			if rs := data.ZoneMaster.PvGet(bdk); rs.OK() {
 				var pod_bound inapi.Pod
 				if err := rs.Decode(&pod_bound); err == nil && pod_bound.Meta.ID == podq.Meta.ID {
+
+					// hlog.Printf("info", "destroy pod/%s-%d action:%s",
+					// 	podq.Meta.ID, oprep.Id, strings.Join(inapi.OpActionStrings(podq.Operate.Action), ","))
+
 					if !inapi.OpActionAllow(pod_bound.Operate.Action, inapi.OpActionDestroy) {
 
 						pod_bound.Operate.Action = inapi.OpActionDestroy

@@ -43,6 +43,8 @@ func podOpPull() {
 	// TOPO
 	for _, pod := range nstatus.PodQueue {
 
+		// fmt.Println("hostlet/pull/entry 01", pod.Meta.ID, inapi.OpActionStrings(pod.Operate.Action), pod.Operate.Version)
+
 		nstatus.PodQueue.Del(pod.IterKey())
 
 		if pod.Meta.ID == "" ||
@@ -67,11 +69,10 @@ func podOpPull() {
 
 func podOpPullEntry(pod *inapi.Pod) error {
 
-	// fmt.Println("hostlet", pod.Meta.ID, inapi.OpActionStrings(pod.Operate.Action), pod.Operate.Version)
-
 	prev := nstatus.PodRepActives.Get(pod.IterKey())
 
 	if prev != nil {
+
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) &&
 			inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			return nil

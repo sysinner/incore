@@ -78,6 +78,7 @@ type BoxDriver struct {
 	actives      types.ArrayString
 	statsSets    chan *napi.BoxInstanceStatsFeed
 	sets         types.ArrayString
+	createSets   types.KvPairs
 }
 
 func (tp *BoxDriver) Name() string {
@@ -173,8 +174,18 @@ func (tp *BoxDriver) statusRefresh() {
 	}
 
 	actives := types.ArrayString{}
+	creates := types.ArrayString{}
 
 	for _, vc := range rsc {
+
+		if len(vc.Names) < 1 || len(vc.Names[0]) < 8 {
+			continue
+		}
+
+		name := strings.Trim(vc.Names[0], "/")
+
+		tp.createSets.Set(name, vc.ID)
+		creates.Set(name)
 
 		if len(tp.statusSets) > activeNumMax {
 			hlog.Printf("warn", "statusSets out of capacity")
@@ -185,11 +196,9 @@ func (tp *BoxDriver) statusRefresh() {
 			tp.statusSets <- sts
 
 			if sts.Status.Action == inapi.OpActionRunning {
-
 				key := vc.ID + "," + sts.Name
-
-				actives.Set(key)
 				tp.actives.Set(key)
+				actives.Set(key)
 			}
 
 		} else {
@@ -200,6 +209,12 @@ func (tp *BoxDriver) statusRefresh() {
 	for _, v := range tp.actives {
 		if !actives.Has(v) {
 			tp.actives.Del(v)
+		}
+	}
+
+	for _, v := range tp.createSets {
+		if !creates.Has(v.Key) {
+			tp.createSets.Del(v.Key)
 		}
 	}
 
@@ -406,7 +421,7 @@ func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, er
 
 func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 
-	// hlog.Printf("debug", "hostlet/box run %s", inst.Name)
+	hlog.Printf("debug", "hostlet/box run %s", inst.Name)
 
 	tp.mu.Lock()
 	if tp.sets.Has(inst.Name) {
@@ -432,6 +447,51 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		return errors.New("Box Server Error")
 	}
 
+	hlog.Printf("debug", "hostlet/box %s action (%s)",
+		inst.Name, strings.Join(inapi.OpActionStrings(inst.Status.Action), ", "))
+
+	if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
+
+		if inst.Status.Action == inapi.OpActionDestroyed {
+			return nil
+		}
+
+		if tp.createSets.Get(inst.Name) == nil {
+			inst.Status.Action = inapi.OpActionDestroyed
+			inst.ID = ""
+			hlog.Printf("warn", "hostlet/box %s remove", inst.Name)
+			return nil
+		}
+
+		//
+		if inst.Status.Action == inapi.OpActionRunning {
+			if err = tp.client.StopContainer(inst.ID, 10); err != nil {
+				inst.Status.Action = inapi.OpActionWarning
+			} else {
+				inst.Status.Action = inapi.OpActionStopped
+				time.Sleep(500e6)
+			}
+			hlog.Printf("warn", "hostlet/box %s stopped", inst.Name)
+		}
+
+		if inst.Status.Action == inapi.OpActionStopped {
+
+			if err = tp.client.RemoveContainer(drclient.RemoveContainerOptions{
+				ID:    inst.ID,
+				Force: true,
+			}); err == nil {
+				inst.Status.Action = inapi.OpActionDestroyed
+			} else {
+				inst.Status.Action = inapi.OpActionWarning
+			}
+
+			inst.ID = ""
+			hlog.Printf("warn", "hostlet/box removed %s", inst.Name)
+		}
+
+		return nil
+	}
+
 	// TODO issue
 	if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) {
 		if err := ipm.Prepare(inst); err != nil {
@@ -455,44 +515,23 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		}
 
 		// Stop current BOX
-		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) ||
-			inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
+		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) {
 
 			if inst.Status.Action == inapi.OpActionRunning {
 
-				// start := time.Now()
 				if err = tp.client.StopContainer(inst.ID, 10); err != nil {
-					inst.Status.Action = inapi.OpActionWarning
+					// inst.Status.Action = inapi.OpActionWarning
+				} else {
+					inst.Status.Action = inapi.OpActionStopped
 				}
-				// fmt.Println("stop in", time.Since(start))
 
 				hlog.Printf("info", "hostlet/box stop %s", inst.Name)
 			}
 
-			if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
-
-				if err = tp.client.RemoveContainer(drclient.RemoveContainerOptions{
-					ID:    inst.ID,
-					Force: true,
-				}); err == nil {
-					inst.Status.Action = inapi.OpActionDestroyed
-				} else {
-					inst.Status.Action = inapi.OpActionWarning
-				}
-
-				hlog.Printf("info", "hostlet/box removed %s", inst.Name)
-
-				inst.ID = ""
-			}
-
-			return err
+			return nil
 		}
 
 		if !inst.SpecDesired() {
-
-			// js1, _ := json.Encode(inst, " ")
-
-			// hlog.Printf("info", "hostlet/box spec changed %s {{{%s}}}", inst.Name, string(js1))
 
 			if inst.Status.Action == inapi.OpActionRunning {
 
@@ -505,9 +544,6 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				inst.Status.Action = inapi.OpActionStopped
 			}
 
-			// if inst.Status.Action != inapi.OpActionRunning &&
-			// 	inst.Status.Action != inapi.OpActionStopped {
-
 			hlog.Printf("info", "hostlet/box Remove %s", inst.Name)
 
 			if err := tp.client.RemoveContainer(drclient.RemoveContainerOptions{
@@ -518,28 +554,15 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				return err
 			}
 
-			inst.ID, inst.Status.Action = "", inapi.OpActionDestroyed
-			// } else {
-			// 	return
-			// }
-
+			inst.ID = ""
 			time.Sleep(2e8)
 		}
 
 	} else {
 
 		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) {
-
 			// hlog.Printf("info", "hostlet/box Skip Stop+NotExist %s", inst.Name)
-
-			inst.Status.Action = inapi.OpActionStopped
-
-			return nil
-		}
-
-		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
-			hlog.Printf("info", "hostlet/box Skip Destroy+NotExist %s", inst.Name)
-			inst.Status.Action = inapi.OpActionDestroyed
+			// inst.Status.Action = inapi.OpActionStopped
 			return nil
 		}
 	}

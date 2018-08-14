@@ -98,7 +98,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		pod.Payment = &inapi.PodPayment{}
 	}
 
-	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 
 		if (pod.Payment.Payout > 0 && pod.Payment.TimeClose > pod.Payment.TimeStart) ||
 			(pod.Payment.Payout == 0 && pod.Payment.Prepay == 0) {
@@ -158,7 +158,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 	}
 
 	if cycle_amount == 0 || inst_num == 0 {
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 			pod.Payment.TimeClose = tn
 			data.ZoneMaster.PvPut(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
@@ -183,7 +183,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		pod.Payment.TimeStart = tn - 1
 	}
 
-	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 		pod.Payment.TimeClose = tn
 	} else if pod.Payment.TimeClose <= pod.Payment.TimeStart {
 		pod.Payment.TimeClose = iamapi.AccountChargeCycleTimeClose(

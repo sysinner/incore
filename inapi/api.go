@@ -18,8 +18,10 @@ package inapi
 //go:generate protobuf_slice "inapi/*.proto"
 
 import (
+	"fmt"
 	"sync"
 
+	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 )
 
@@ -297,4 +299,9 @@ func (ls *VolumeMounts) DiffSync(items VolumeMounts) {
 type EnvVar struct {
 	Name  string `json:"name"`
 	Value string `json:"value,omitempty"`
+}
+
+func ObjPrint(name string, v interface{}) {
+	js, _ := json.Encode(v, "  ")
+	fmt.Println("\n", name, string(js))
 }

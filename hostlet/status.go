@@ -116,6 +116,7 @@ func status_tracker() {
 		for _, v := range zms.ExpPods {
 			var pod inapi.Pod
 			if err := json.Decode([]byte(v), &pod); err == nil {
+				// inapi.ObjPrint("name", pod)
 				nstatus.PodQueue.Set(&pod)
 			}
 		}

@@ -255,8 +255,32 @@ func (s *ApiZoneMaster) HostStatusSync(
 		ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
 	}
 
-	for _, v := range status.ZonePodList {
-		js, _ := json.Encode(v, "")
+	// TODO
+	bk := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, "", 0)
+	rss := data.ZoneMaster.PvScan(bk, "", "", 1000).KvList()
+	hlog.Printf("debug", "zone-master/rpc-server, host (%s) bound pods %d",
+		opts.Meta.Id, len(rss))
+	for _, v := range rss {
+		var bpod inapi.Pod
+		if err := v.Decode(&bpod); err != nil {
+			continue
+		}
+
+		if bpod.Operate.Replica == nil {
+			continue
+		}
+
+		if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			if uint32(time.Now().Unix())-bpod.Operate.Operated > inapi.PodDestroyTTL {
+				bk2 := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, bpod.Meta.ID, bpod.Operate.Replica.Id)
+				data.ZoneMaster.PvDel(bk2, nil)
+				hlog.Printf("warn", "zone-master/pod/bound remove %s", bpod.Meta.ID)
+				continue
+			}
+		}
+
+		// inapi.ObjPrint("rpc/server/"+opts.Meta.Id, v)
+		js, _ := json.Encode(bpod, "")
 		bds.ExpPods = append(bds.ExpPods, string(js))
 	}
 
