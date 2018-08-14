@@ -38,7 +38,8 @@ import (
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
-	"github.com/sysinner/incore/hostlet/podrunner"
+	"github.com/sysinner/incore/hostlet/napi"
+	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
 	"github.com/sysinner/incore/rpcsrv"
@@ -115,7 +116,7 @@ func status_tracker() {
 		for _, v := range zms.ExpPods {
 			var pod inapi.Pod
 			if err := json.Decode([]byte(v), &pod); err == nil {
-				podrunner.PodQueue.Set(&pod)
+				nstatus.PodQueue.Set(&pod)
 			}
 		}
 	}
@@ -321,7 +322,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 	}
 
 	// Pod Rep Status
-	podrunner.PodRepActives.Each(func(pod *inapi.Pod) {
+	nstatus.PodRepActives.Each(func(pod *inapi.Pod) {
 
 		if pod.Operate.Replica == nil {
 			return
@@ -335,7 +336,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		pod_status := &inapi.PbPodRepStatus{
 			Id:    pod.Meta.ID,
 			Rep:   uint32(pod.Operate.Replica.Id),
-			OpLog: podrunner.PodRepOpLogs.Get(pod.OpRepKey()),
+			OpLog: nstatus.PodRepOpLogs.Get(pod.OpRepKey()),
 		}
 
 		if pod_status.OpLog == nil {
@@ -348,9 +349,9 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		//
 		for _, bspec := range pod.Spec.Boxes {
 
-			inst_name := podrunner.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, bspec.Name)
+			inst_name := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, bspec.Name)
 
-			box_inst := podrunner.BoxActives.Get(inst_name)
+			box_inst := nstatus.BoxActives.Get(inst_name)
 			if box_inst == nil {
 				action = inapi.OpActionPending
 				continue
@@ -370,12 +371,12 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 
 				//
 				var (
-					feed            = inapi.NewPbStatsSampleFeed(stats_log_cycle)
+					feed            = inapi.NewPbStatsSampleFeed(napi.BoxStatsLogCycle)
 					ec_time  uint32 = 0
 					ec_value int64  = 0
 				)
 				for _, name := range stats_podrep_names {
-					if ec_time, ec_value = box_inst.Stats.Extract(name, stats_log_cycle, ec_time); ec_value >= 0 {
+					if ec_time, ec_value = box_inst.Stats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
 						feed.SampleSync(name, ec_time, ec_value)
 					}
 				}
@@ -411,9 +412,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 }
 
 var (
-	stats_sample_cycle uint32 = 5
-	stats_log_cycle    uint32 = 20
-	host_stats                = inapi.NewPbStatsSampleFeed(stats_sample_cycle)
+	host_stats = inapi.NewPbStatsSampleFeed(napi.BoxStatsSampleCycle)
 )
 
 func host_stats_get() *inapi.PbStatsSampleFeed {
@@ -454,12 +453,12 @@ func host_stats_get() *inapi.PbStatsSampleFeed {
 
 	//
 	var (
-		feed            = inapi.NewPbStatsSampleFeed(stats_log_cycle)
+		feed            = inapi.NewPbStatsSampleFeed(napi.BoxStatsLogCycle)
 		ec_time  uint32 = 0
 		ec_value int64  = 0
 	)
 	for _, name := range stats_host_names {
-		if ec_time, ec_value = host_stats.Extract(name, stats_log_cycle, ec_time); ec_value >= 0 {
+		if ec_time, ec_value = host_stats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
 			feed.SampleSync(name, ec_time, ec_value)
 		}
 	}

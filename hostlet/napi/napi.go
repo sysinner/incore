@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package podrunner
+package napi
 
 import (
 	"encoding/binary"
@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/encoding/json"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
@@ -31,30 +32,33 @@ import (
 )
 
 const (
-	stats_tick         int64  = 5e9
-	stats_sample_cycle uint32 = 20
-	stats_log_cycle    uint32 = 60
-	oplog_podpull             = "hostlet/pod-updater"
-	oplog_ctncmd              = "hostlet/box-keeper"
+	stats_tick          int64  = 5e9
+	BoxStatsSampleCycle uint32 = 20
+	BoxStatsLogCycle    uint32 = 60
+)
+
+const (
+	OpLogNsPodPull = "hostlet/pod-updater"
+	OpLogNsCtnCmd  = "hostlet/box-keeper"
 )
 
 var (
-	vol_podhome_fmt      = "%s/%s.%s/home/action"
-	vol_agentsys_dir_fmt = "%s/%s.%s/home/action/.sysinner"
-	BoxInstanceNameReg   = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})-([a-z]{1}[a-z0-9]{0,19})$")
-	stats_feed_names     = []string{
+	VolPodHomeFmt      = "%s/%s.%s/home/action"
+	VolAgentSysDirFmt  = "%s/%s.%s/home/action/.sysinner"
+	BoxInstanceNameReg = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})-([a-z]{1}[a-z0-9]{0,19})$")
+	StatsFeedNames     = []string{
 		"ram/us", "ram/cc",
 		"net/rs", "net/ws",
 		"cpu/us",
 		"fs/rn", "fs/rs", "fs/wn", "fs/ws",
 	}
-	lxcfs_vols = []*inapi.PbVolumeMount{}
+	LxcFsVols = []*inapi.PbVolumeMount{}
 )
 
 func init() {
 	// TODO
 	for _, v := range []string{"cpuinfo", "diskstats", "meminfo", "stat", "swaps", "uptime"} {
-		lxcfs_vols = append(lxcfs_vols, &inapi.PbVolumeMount{
+		LxcFsVols = append(LxcFsVols, &inapi.PbVolumeMount{
 			Name:      "lxcfs_" + v,
 			MountPath: "/proc/" + v,
 			HostDir:   "/var/lib/lxcfs/proc/" + v,
@@ -63,14 +67,40 @@ func init() {
 	}
 }
 
-func vol_podhome_dir(pod_id string, rep_id uint16) string {
-	return fmt.Sprintf(vol_podhome_fmt, config.Config.PodHomeDir,
+func ObjPrint(name string, v interface{}) {
+	js, _ := json.Encode(v, "  ")
+	fmt.Println("\n", name, string(js))
+}
+
+func VolPodHomeDir(pod_id string, rep_id uint16) string {
+	return fmt.Sprintf(VolPodHomeFmt, config.Config.PodHomeDir,
 		pod_id, inutils.Uint16ToHexString(rep_id))
 }
 
-func vol_agentsys_dir(pod_id string, rep_id uint16) string {
-	return fmt.Sprintf(vol_agentsys_dir_fmt, config.Config.PodHomeDir,
-		pod_id, inutils.Uint16ToHexString(rep_id))
+func VolAgentSysDir(pod_id string, rep_id uint16) string {
+	return fmt.Sprintf(VolAgentSysDirFmt,
+		config.Config.PodHomeDir,
+		pod_id,
+		inutils.Uint16ToHexString(rep_id),
+	)
+}
+
+type BoxInstanceStatsEntry struct {
+	Name  string
+	Value int64
+}
+
+type BoxInstanceStatsFeed struct {
+	Name  string
+	Time  uint32
+	Items []*BoxInstanceStatsEntry
+}
+
+func (it *BoxInstanceStatsFeed) Set(name string, value int64) {
+	it.Items = append(it.Items, &BoxInstanceStatsEntry{
+		Name:  name,
+		Value: value,
+	})
 }
 
 type BoxInstance struct {
@@ -163,19 +193,36 @@ func (inst *BoxInstance) SpecDesired() bool {
 		}
 
 		if !mat {
+			hlog.Printf("debug", "box/spec miss-desire inst.Ports")
 			return false
 		}
 	}
 
-	//
-	img2 := inapi.LabelSliceGet(inst.Status.ImageOptions, "docker/image/name")
+	driver_name := ""
+	switch inst.Status.ImageDriver {
+	case inapi.PbPodSpecBoxImageDriver_Docker:
+		driver_name = "docker/image/name"
+
+	case inapi.PbPodSpecBoxImageDriver_Rkt:
+		driver_name = "rkt/image/name"
+
+	case inapi.PbPodSpecBoxImageDriver_Pouch:
+		driver_name = "pouch/image/name"
+
+	default:
+		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
+		return false
+	}
+
+	img2 := inapi.LabelSliceGet(inst.Status.ImageOptions, driver_name)
 	if img2 == nil {
 		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
 		return false
 	}
-	img1, _ := inst.Spec.Image.Options.Get("docker/image/name")
-	if img2.Value != img1.String() {
-		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
+	img1, _ := inst.Spec.Image.Options.Get(driver_name)
+	if img1.String() != "" && img2.Value != img1.String() {
+		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions (%s) (%s)",
+			img1.String(), img2.Value)
 		return false
 	}
 
@@ -205,13 +252,13 @@ func (inst *BoxInstance) OpActionDesired() bool {
 	return false
 }
 
-func (inst *BoxInstance) volume_mounts_refresh() {
+func (inst *BoxInstance) VolumeMountsRefresh() {
 
 	ls := []*inapi.PbVolumeMount{
 		{
 			Name:      "home",
 			MountPath: "/home/action",
-			HostDir:   vol_podhome_dir(inst.PodID, inst.RepId),
+			HostDir:   VolPodHomeDir(inst.PodID, inst.RepId),
 			ReadOnly:  false,
 		},
 		{
@@ -222,8 +269,9 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 		},
 	}
 
-	if status.EnvLxcFsEnable {
-		ls = append(ls, lxcfs_vols...)
+	if status.EnvLxcFsEnable &&
+		inst.Spec.Image.Driver == inapi.PodSpecBoxImageDocker {
+		ls = append(ls, LxcFsVols...)
 	}
 
 	for _, app := range inst.Apps {
@@ -236,8 +284,8 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 
 			ls, _ = inapi.PbVolumeMountSliceSync(ls, &inapi.PbVolumeMount{
 				Name:      "ipm-" + pkg.Name,
-				MountPath: ipm_mountpath(pkg.Name, pkg.Version),
-				HostDir:   ipm_hostdir(pkg.Name, pkg.Version, pkg.Release, pkg.Dist, pkg.Arch),
+				MountPath: InPackMountPath(pkg.Name, pkg.Version),
+				HostDir:   InPackHostDir(pkg.Name, pkg.Version, pkg.Release, pkg.Dist, pkg.Arch),
 				ReadOnly:  true,
 			})
 		}
@@ -248,7 +296,7 @@ func (inst *BoxInstance) volume_mounts_refresh() {
 	}
 }
 
-func (inst *BoxInstance) volume_mounts_export() []string {
+func (inst *BoxInstance) VolumeMountsExport() []string {
 
 	bind_vols := []string{}
 
@@ -271,6 +319,10 @@ var box_sets_mu sync.RWMutex
 type BoxInstanceSets []*BoxInstance
 
 func (ls *BoxInstanceSets) Get(name string) *BoxInstance {
+
+	if name == "" {
+		return nil
+	}
 
 	box_sets_mu.RLock()
 	defer box_sets_mu.RUnlock()

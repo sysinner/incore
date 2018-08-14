@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package podrunner
+package ipm
 
 import (
 	"errors"
@@ -29,6 +29,7 @@ import (
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
 	"github.com/sysinner/inpack/ipapi"
@@ -57,10 +58,6 @@ func init() {
 	}
 }
 
-func ipm_mountpath(name, version string) string {
-	return fmt.Sprintf("/usr/sysinner/%s/%s", name, version)
-}
-
 func ipm_filename(pkg ipapi.Package) string {
 	return ipapi.PackageFilename(pkg.Meta.Name, pkg.Version) + ".txz"
 }
@@ -70,11 +67,7 @@ func ipm_hostpath(pkg ipapi.Package) string {
 		pkg.Meta.Name, string(pkg.Version.Version), ipm_filename(pkg))
 }
 
-func ipm_hostdir(name, version, release, dist, arch string) string {
-	return fmt.Sprintf("/opt/sysinner/ipm/%s/%s/%s.%s.%s", name, version, release, dist, arch)
-}
-
-func ipm_prepare(inst *BoxInstance) error {
+func Prepare(inst *napi.BoxInstance) error {
 
 	for _, app := range inst.Apps {
 
@@ -112,8 +105,8 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 		ipm_mu.Unlock()
 	}(tag_name)
 
-	phostdir := ipm_hostdir(vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
-	if _, err := os.Stat(phostdir + "/.inpack/inpack.json"); err == nil {
+	pHostDir := napi.InPackHostDir(vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
+	if _, err := os.Stat(pHostDir + "/.inpack/inpack.json"); err == nil {
 		return nil
 	}
 
@@ -142,12 +135,12 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 		pfilepath = ipm_hostpath(pkg.Package)
 	)
 
-	inutils.FsMakeDir(phostdir, 2048, 2048, 0750)
+	inutils.FsMakeDir(pHostDir, 2048, 2048, 0750)
 
 	if _, err := os.Stat(pfilepath); err == nil {
 
 		if ipm_entry_sync_sumcheck(pfilepath) == pkg.SumCheck {
-			return ipm_entry_sync_extract(pfilepath, phostdir)
+			return ipm_entry_sync_extract(pfilepath, pHostDir)
 		}
 	}
 	inutils.FsMakeFileDir(pfilepath, 2048, 2048, 0750)
@@ -186,7 +179,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 	}
 	os.Chown(pfilepath, 2048, 2048)
 
-	if err := ipm_entry_sync_extract(pfilepath, phostdir); err != nil {
+	if err := ipm_entry_sync_extract(pfilepath, pHostDir); err != nil {
 		return err
 	}
 

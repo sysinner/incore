@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package podrunner
+package hostlet
 
 import (
 	"errors"
@@ -22,6 +22,8 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 
+	"github.com/sysinner/incore/hostlet/napi"
+	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
 	in_sts "github.com/sysinner/incore/status"
@@ -31,7 +33,7 @@ var (
 	max_pod_limit = 200
 )
 
-func pod_op_pull() {
+func podOpPull() {
 
 	//
 	if in_sts.ZoneId == "" {
@@ -39,9 +41,9 @@ func pod_op_pull() {
 	}
 
 	// TOPO
-	for _, pod := range PodQueue {
+	for _, pod := range nstatus.PodQueue {
 
-		PodQueue.Del(pod.IterKey())
+		nstatus.PodQueue.Del(pod.IterKey())
 
 		if pod.Meta.ID == "" ||
 			pod.Operate.Replica == nil ||
@@ -49,25 +51,25 @@ func pod_op_pull() {
 			continue
 		}
 
-		if err := pod_op_pull_entry(pod); err != nil {
-			PodRepOpLogs.LogSet(
+		if err := podOpPullEntry(pod); err != nil {
+			nstatus.PodRepOpLogs.LogSet(
 				pod.OpRepKey(), pod.Operate.Version,
-				oplog_podpull, inapi.PbOpLogError, fmt.Sprintf("pod/%s err:%s", pod.Meta.ID, err.Error()),
+				napi.OpLogNsPodPull, inapi.PbOpLogError, fmt.Sprintf("pod/%s err:%s", pod.Meta.ID, err.Error()),
 			)
 		} else {
-			PodRepOpLogs.LogSet(
+			nstatus.PodRepOpLogs.LogSet(
 				pod.OpRepKey(), pod.Operate.Version,
-				oplog_podpull, inapi.PbOpLogOK, fmt.Sprintf("pod/%s ok", pod.Meta.ID),
+				napi.OpLogNsPodPull, inapi.PbOpLogOK, fmt.Sprintf("pod/%s ok", pod.Meta.ID),
 			)
 		}
 	}
 }
 
-func pod_op_pull_entry(pod *inapi.Pod) error {
+func podOpPullEntry(pod *inapi.Pod) error {
 
 	// fmt.Println("hostlet", pod.Meta.ID, inapi.OpActionStrings(pod.Operate.Action), pod.Operate.Version)
 
-	prev := PodRepActives.Get(pod.IterKey())
+	prev := nstatus.PodRepActives.Get(pod.IterKey())
 
 	if prev != nil {
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) &&
@@ -76,11 +78,11 @@ func pod_op_pull_entry(pod *inapi.Pod) error {
 		}
 	}
 
-	sysdir := vol_agentsys_dir(pod.Meta.ID, pod.Operate.Replica.Id)
+	sysdir := napi.VolAgentSysDir(pod.Meta.ID, pod.Operate.Replica.Id)
 
 	if prev == nil {
 
-		if len(PodRepActives) > max_pod_limit {
+		if len(nstatus.PodRepActives) > max_pod_limit {
 			return errors.New("no available host resources in this moment")
 		}
 
@@ -93,7 +95,7 @@ func pod_op_pull_entry(pod *inapi.Pod) error {
 
 		prev = pod
 
-		PodRepActives.Set(prev)
+		nstatus.PodRepActives.Set(prev)
 
 	} else if pod.Operate.Version > prev.Operate.Version ||
 		(pod.Meta.Updated > 1 && pod.Meta.Updated != prev.Meta.Updated) {

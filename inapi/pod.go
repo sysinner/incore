@@ -34,6 +34,7 @@ var (
 const (
 	PodSpecBoxImageDocker = "docker"
 	PodSpecBoxImageRkt    = "rkt"
+	PodSpecBoxImagePouch  = "pouch"
 )
 
 const (
@@ -182,12 +183,13 @@ type PodList struct {
 
 // PodSpecBound is a description of a bound spec based on PodSpecPlan
 type PodSpecBound struct {
-	Ref     ObjectReference         `json:"ref,omitempty"`
-	Zone    string                  `json:"zone,omitempty"`
-	Cell    string                  `json:"cell,omitempty"`
-	Labels  types.Labels            `json:"labels,omitempty"`
-	Volumes []PodSpecResVolumeBound `json:"volumes,omitempty"`
-	Boxes   []PodSpecBoxBound       `json:"boxes,omitempty"`
+	Ref       ObjectReference         `json:"ref,omitempty"`
+	Zone      string                  `json:"zone,omitempty"`
+	Cell      string                  `json:"cell,omitempty"`
+	BoxDriver string                  `json:"box_driver,omitempty"`
+	Labels    types.Labels            `json:"labels,omitempty"`
+	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty"`
+	Boxes     []PodSpecBoxBound       `json:"boxes,omitempty"`
 }
 
 func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
@@ -202,7 +204,7 @@ func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
 	return nil
 }
 
-func (obj *PodSpecBound) DriverBound() (docker_on, rkt_on bool) {
+func (obj *PodSpecBound) DriverBound() (docker_on, rkt_on, pouch_on bool) {
 	if obj != nil && obj.Boxes != nil {
 		for _, v := range obj.Boxes {
 
@@ -210,10 +212,12 @@ func (obj *PodSpecBound) DriverBound() (docker_on, rkt_on bool) {
 				docker_on = true
 			} else if v.Image.Driver == PodSpecBoxImageRkt {
 				rkt_on = true
+			} else if v.Image.Driver == PodSpecBoxImagePouch {
+				pouch_on = true
 			}
 		}
 	}
-	return docker_on, rkt_on
+	return docker_on, rkt_on, pouch_on
 }
 
 func (obj *PodSpecBound) ResComputeBound() *PodSpecBoxResComputeBound {
@@ -296,7 +300,7 @@ type PodSpecBoxImage struct {
 	Status string `json:"status,omitempty"`
 
 	// Container type of the image.
-	//  ex: docker, rkt, ...
+	//  ex: docker, rkt, pouch.
 	Driver string `json:"driver,omitempty"`
 
 	// TODO

@@ -66,6 +66,7 @@ message ResHostSpec {
     string          peer_wan_addr = 7;
     string exp_docker_version = 10;
     string exp_rkt_version = 11;
+    string exp_pouch_version = 12;
 }
 
 message ResPlatform {

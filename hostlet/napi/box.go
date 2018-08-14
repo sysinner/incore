@@ -12,8 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package version
+package napi
 
-const (
-	Version = "0.6.2"
-)
+type BoxDriver interface {
+	Name() string
+	Start() error
+	Stop() error
+	StatusEntry() *BoxInstance
+	StatsEntry() *BoxInstanceStatsFeed
+	ActionCommandEntry(inst *BoxInstance) error
+}

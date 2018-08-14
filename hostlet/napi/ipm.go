@@ -12,8 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package version
+package napi
 
-const (
-	Version = "0.6.2"
+import (
+	"fmt"
 )
+
+func InPackMountPath(name, version string) string {
+	return fmt.Sprintf("/usr/sysinner/%s/%s", name, version)
+}
+
+func InPackHostDir(name, version, release, dist, arch string) string {
+	return fmt.Sprintf("/opt/sysinner/ipm/%s/%s/%s.%s.%s", name, version, release, dist, arch)
+}

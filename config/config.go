@@ -33,6 +33,11 @@ import (
 	"github.com/sysinner/incore/inapi"
 )
 
+/*
+sysctl net.ipv4.conf.all.forwarding=1
+iptables -P FORWARD ACCEPT
+*/
+
 type HostMember struct {
 	Id        string                `json:"id"`
 	ZoneId    string                `json:"zone_id,omitempty"`

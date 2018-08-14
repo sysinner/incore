@@ -38,13 +38,6 @@ import (
 // 	Stop(inst *BoxInstance) error
 // }
 
-type BoxDriver interface {
-	Name() string
-	Run()
-	ActionCommand(inst *BoxInstance) error
-	StatsCollect(inst *BoxInstance, timo uint32) error
-}
-
 var (
 	BoxDrivers []BoxDriver
 )
