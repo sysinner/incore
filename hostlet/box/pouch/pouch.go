@@ -254,6 +254,9 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 
 	//
 	for _, cm := range box_pouch.Mounts {
+		if strings.HasPrefix(cm.Destination, "/proc/") {
+			continue
+		}
 		inst.Status.Mounts = append(inst.Status.Mounts, &inapi.PbVolumeMount{
 			MountPath: cm.Destination,
 			HostDir:   cm.Source,
@@ -502,9 +505,6 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 
 		imgname, ok := inst.Spec.Image.Options.Get("pouch/image/name")
 		if !ok {
-			imgname = types.Bytex("sysinner:a1el7v1")
-		}
-		if false { // TODO
 			hlog.Printf("error", "hostlet/box BOX:%s, No Image Name Found", inst.Name)
 			inst.Status.Action = inapi.OpActionWarning
 			return err
@@ -519,7 +519,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			WorkingDir:   "/home/action",
 		}
 		bpHostConfig := &drclient_types.HostConfig{
-			EnableLxcfs:  true,
+			EnableLxcfs:  in_cf.Config.LxcFsEnable,
 			GroupAdd:     []string{"action"},
 			NetworkMode:  "bridge",
 			Binds:        inst.VolumeMountsExport(),
@@ -531,8 +531,8 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				Ulimits: []*drclient_types.Ulimit{
 					{
 						Name: "nofile",
-						Soft: 50000,
-						Hard: 50000,
+						Soft: 10000,
+						Hard: 10000,
 					},
 				},
 			},

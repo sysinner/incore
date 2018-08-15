@@ -28,7 +28,6 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
-	"github.com/sysinner/incore/status"
 )
 
 const (
@@ -54,18 +53,6 @@ var (
 	}
 	LxcFsVols = []*inapi.PbVolumeMount{}
 )
-
-func init() {
-	// TODO
-	for _, v := range []string{"cpuinfo", "diskstats", "meminfo", "stat", "swaps", "uptime"} {
-		LxcFsVols = append(LxcFsVols, &inapi.PbVolumeMount{
-			Name:      "lxcfs_" + v,
-			MountPath: "/proc/" + v,
-			HostDir:   "/var/lib/lxcfs/proc/" + v,
-			ReadOnly:  false,
-		})
-	}
-}
 
 func ObjPrint(name string, v interface{}) {
 	js, _ := json.Encode(v, "  ")
@@ -267,11 +254,6 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 			HostDir:   "/dev/shm/sysinner/nsz",
 			ReadOnly:  true,
 		},
-	}
-
-	if status.EnvLxcFsEnable &&
-		inst.Spec.Image.Driver == inapi.PodSpecBoxImageDocker {
-		ls = append(ls, LxcFsVols...)
 	}
 
 	for _, app := range inst.Apps {

@@ -18,11 +18,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -48,7 +46,6 @@ import (
 
 const (
 	inagent_box_status = "%s/%s/home/action/.sysinner/box_status.json"
-	inagent_lxcfs_bin  = "/usr/bin/lxcfs"
 )
 
 var (
@@ -67,14 +64,6 @@ var (
 )
 
 func status_tracker() {
-
-	if config.Config.LxcFsEnable && !status.EnvLxcFsEnable {
-		if out, err := exec.Command("pidof", inagent_lxcfs_bin).Output(); err == nil {
-			if pid, _ := strconv.Atoi(strings.TrimSpace(string(out))); pid > 0 {
-				status.EnvLxcFsEnable = true
-			}
-		}
-	}
 
 	//
 	if len(status.LocalZoneMasterList.Items) == 0 {

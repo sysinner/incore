@@ -48,6 +48,10 @@ var (
 	binInstall         = "/usr/bin/install"
 	clientUnixSockAddr = "unix:///var/run/docker.sock"
 	err                error
+	lxcfsBins          = [][]string{
+		{"/usr/bin/lxcfs", "/var/lib/lxcfs/proc/"},
+		{"/usr/bin/pouch-lxcfs", "/var/lib/pouch-lxcfs/proc/"},
+	}
 )
 
 func NewDriver() (napi.BoxDriver, error) {
@@ -56,11 +60,31 @@ func NewDriver() (napi.BoxDriver, error) {
 	defer mu.Unlock()
 
 	if driver == nil {
+
+		vols := []string{}
+
+		if in_cf.Config.LxcFsEnable {
+
+			for _, vp := range lxcfsBins {
+
+				if _, err := exec.Command("pidof", vp[0]).Output(); err != nil {
+					continue
+				}
+
+				for _, v := range []string{"cpuinfo", "diskstats", "meminfo", "stat", "swaps", "uptime"} {
+					vols = append(vols, fmt.Sprintf("%s:%s:ro", vp[1]+v, "/proc/"+v))
+				}
+
+				break
+			}
+		}
+
 		driver = &BoxDriver{
 			inited:     false,
 			mmu:        locker.NewHashPool(runtime.NumCPU()),
 			statusSets: make(chan *napi.BoxInstance, activeNumMax+10),
 			statsSets:  make(chan *napi.BoxInstanceStatsFeed, activeNumMax+10),
+			lxcfsVols:  vols,
 		}
 	}
 
@@ -79,6 +103,7 @@ type BoxDriver struct {
 	statsSets    chan *napi.BoxInstanceStatsFeed
 	sets         types.ArrayString
 	createSets   types.KvPairs
+	lxcfsVols    []string
 }
 
 func (tp *BoxDriver) Name() string {
@@ -261,6 +286,9 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 
 	//
 	for _, cm := range boxInspect.Mounts {
+		if strings.HasPrefix(cm.Destination, "/proc/") {
+			continue
+		}
 		inst.Status.Mounts = append(inst.Status.Mounts, &inapi.PbVolumeMount{
 			MountPath: cm.Destination,
 			HostDir:   cm.Source,
@@ -634,7 +662,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				User:         "action",
 			},
 			HostConfig: &drclient.HostConfig{
-				Binds:            inst.VolumeMountsExport(),
+				Binds:            append(inst.VolumeMountsExport(), tp.lxcfsVols...),
 				PortBindings:     bindPorts,
 				Memory:           inst.Spec.Resources.MemLimit,
 				MemorySwap:       inst.Spec.Resources.MemLimit,
@@ -643,8 +671,8 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				Ulimits: []drclient.ULimit{
 					{
 						Name: "nofile",
-						Soft: 50000,
-						Hard: 50000,
+						Soft: 10000,
+						Hard: 10000,
 					},
 				},
 			},
