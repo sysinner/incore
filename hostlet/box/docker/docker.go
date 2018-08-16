@@ -271,7 +271,7 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 			Name:        box_name,
 			Started:     uint32(boxInspect.State.StartedAt.Unix()),
 			Updated:     tn,
-			ResCpuLimit: boxInspect.HostConfig.CPUShares,
+			ResCpuLimit: boxInspect.HostConfig.CPUQuota / 1e3,
 			ResMemLimit: boxInspect.HostConfig.Memory,
 			ImageDriver: inapi.PbPodSpecBoxImageDriver_Docker,
 			ImageOptions: []*inapi.Label{
@@ -659,10 +659,9 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		boxInspect, err := tp.client.CreateContainer(drclient.CreateContainerOptions{
 			Name: inst.Name,
 			Config: &drclient.Config{
-				Hostname:     inst.Name,
-				Memory:       inst.Spec.Resources.MemLimit,
-				MemorySwap:   inst.Spec.Resources.MemLimit,
-				CPUShares:    inst.Spec.Resources.CpuLimit,
+				Hostname: inst.Name,
+				// Memory:       inst.Spec.Resources.MemLimit,
+				// MemorySwap:   inst.Spec.Resources.MemLimit,
 				Cmd:          inst.Spec.Command,
 				Image:        imageName,
 				ExposedPorts: expPorts,
@@ -675,7 +674,8 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				Memory:           inst.Spec.Resources.MemLimit,
 				MemorySwap:       inst.Spec.Resources.MemLimit,
 				MemorySwappiness: 0,
-				CPUShares:        inst.Spec.Resources.CpuLimit,
+				CPUPeriod:        1000000,
+				CPUQuota:         inst.Spec.Resources.CpuLimit * 1e3,
 				Ulimits: []drclient.ULimit{
 					{
 						Name: "nofile",

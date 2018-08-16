@@ -239,7 +239,7 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 			Name:        box_name,
 			Started:     uint32(timeParsePouch(box_pouch.State.StartedAt).Unix()),
 			Updated:     tn,
-			ResCpuLimit: box_pouch.HostConfig.CPUShares,
+			ResCpuLimit: box_pouch.HostConfig.CPUQuota / 1e3,
 			ResMemLimit: box_pouch.HostConfig.Memory,
 			ImageDriver: inapi.PbPodSpecBoxImageDriver_Pouch,
 			ImageOptions: []*inapi.Label{
@@ -535,7 +535,8 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			Resources: drclient_types.Resources{
 				Memory:     inst.Spec.Resources.MemLimit,
 				MemorySwap: inst.Spec.Resources.MemLimit,
-				CPUShares:  inst.Spec.Resources.CpuLimit,
+				CPUPeriod:  1000000,
+				CPUQuota:   inst.Spec.Resources.CpuLimit * 1e3,
 				Ulimits: []*drclient_types.Ulimit{
 					{
 						Name: "nofile",
