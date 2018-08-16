@@ -16,7 +16,9 @@ package v1
 
 import (
 	"sort"
+	"strings"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
@@ -84,7 +86,27 @@ func (c PodSpec) PlanListAction() {
 				continue
 			}
 			item.ChargeFix()
+
+			upgrade := false
+			for _, v2 := range item.Images {
+				if strings.IndexByte(v2.RefId, ':') < 1 {
+					v2.RefId = inapi.BoxImageRepoDefault + ":" + v2.RefId
+					upgrade = true
+				}
+			}
+
+			if item.ImageDefault != "" && strings.IndexByte(item.ImageDefault, ':') < 1 {
+				item.ImageDefault = inapi.BoxImageRepoDefault + ":" + item.ImageDefault
+				upgrade = true
+			}
+
+			if upgrade {
+				data.GlobalMaster.PvPut(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item, nil)
+				hlog.Printf("warn", "v1 pod/spec/image upgrade %s", item.Meta.ID)
+			}
+
 			sort.Sort(item.ResComputes)
+
 			ls.Items = append(ls.Items, &item)
 		}
 	}
