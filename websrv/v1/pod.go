@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
@@ -426,6 +427,11 @@ func (c Pod) NewAction() {
 	//
 	for _, v := range set.Boxes {
 
+		if strings.IndexByte(v.Image, ':') < 0 { // UPGRADE
+			v.Image = inapi.BoxImageRepoDefault + ":" + v.Image
+			hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", id, v.Image)
+		}
+
 		img := spec_plan.Image(v.Image)
 		if img == nil {
 			set.Error = types.NewErrorMeta("400", "No Image Found")
@@ -446,10 +452,10 @@ func (c Pod) NewAction() {
 					Id:   img.RefId,
 					Name: img.RefId,
 				},
-				Driver:  img.Driver,
-				OsDist:  img.OsDist,
-				Arch:    img.Arch,
-				Options: img.Options,
+				Driver: img.Driver,
+				OsDist: img.OsDist,
+				Arch:   img.Arch,
+				// Options: img.Options,
 			},
 			Resources: &inapi.PodSpecBoxResComputeBound{
 				Ref: &inapi.ObjectReference{
@@ -634,8 +640,18 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
+	force_sync := false
+	for _, v := range prev.Spec.Boxes {
+		if strings.IndexByte(v.Image.Ref.Id, ':') < 0 {
+			v.Image.Ref.Id = inapi.BoxImageRepoDefault + ":" + v.Image.Ref.Id
+			hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, v.Image.Ref.Id)
+			force_sync = true
+		}
+	}
+
 	//
-	if prev.Meta.Name == set.Meta.Name &&
+	if !force_sync &&
+		prev.Meta.Name == set.Meta.Name &&
 		prev.Operate.Action == set.Operate.Action {
 		set.Kind = "PodInstance"
 		return
@@ -1067,6 +1083,11 @@ func (c Pod) SpecSetAction() {
 	prev.Spec.Boxes = []inapi.PodSpecBoxBound{}
 	for _, v := range set.Boxes {
 
+		if strings.IndexByte(v.Image, ':') < 0 { // UPGRADE
+			v.Image = inapi.BoxImageRepoDefault + ":" + v.Image
+			hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, v.Image)
+		}
+
 		img := spec_plan.Image(v.Image)
 		if img == nil {
 			set.Error = types.NewErrorMeta("400", "No Image Found")
@@ -1087,10 +1108,10 @@ func (c Pod) SpecSetAction() {
 					Id:   img.RefId,
 					Name: img.RefId,
 				},
-				Driver:  img.Driver,
-				OsDist:  img.OsDist,
-				Arch:    img.Arch,
-				Options: img.Options,
+				Driver: img.Driver,
+				OsDist: img.OsDist,
+				Arch:   img.Arch,
+				// Options: img.Options,
 			},
 			Resources: &inapi.PodSpecBoxResComputeBound{
 				Ref: &inapi.ObjectReference{

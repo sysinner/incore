@@ -318,7 +318,7 @@ func (c PodSpec) PlanSetAction() {
 	//
 	prev.ImageDefault = ""
 	prev.Images = []*inapi.PodSpecPlanBoxImageBound{}
-	rss = data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("box/image", ""), "", "", 100).KvList()
+	rss = data.GlobalMaster.PvScan(inapi.NsGlobalBoxImage("sysinner", ""), "", "", 100).KvList()
 	for _, v := range rss {
 
 		var item inapi.PodSpecBoxImage
@@ -334,11 +334,11 @@ func (c PodSpec) PlanSetAction() {
 				prev.ImageDefault = item.Meta.ID
 			}
 			prev.Images = append(prev.Images, &inapi.PodSpecPlanBoxImageBound{
-				RefId:   item.Meta.ID,
-				Driver:  item.Driver,
-				Options: item.Options,
-				OsDist:  item.OsDist,
-				Arch:    item.Arch,
+				RefId:  item.Meta.ID,
+				Driver: item.Driver,
+				OsDist: item.OsDist,
+				Arch:   item.Arch,
+				// Options: item.Options,
 			})
 			break
 		}
@@ -442,8 +442,15 @@ func (c PodSpec) BoxImageListAction() {
 		return
 	}
 
+	var (
+		repo = c.Params.Get("repo")
+	)
+	if repo == "" {
+		repo = inapi.BoxImageRepoDefault
+	}
+
 	// TODO
-	rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("box/image", ""), "", "", 100)
+	rs := data.GlobalMaster.PvScan(inapi.NsGlobalBoxImage(repo, ""), "", "", 100)
 	rss := rs.KvList()
 	for _, v := range rss {
 

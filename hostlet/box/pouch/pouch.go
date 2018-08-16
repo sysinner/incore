@@ -244,7 +244,7 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 			ImageDriver: inapi.PbPodSpecBoxImageDriver_Pouch,
 			ImageOptions: []*inapi.Label{
 				{
-					Name:  "pouch/image/name",
+					Name:  "image/id",
 					Value: box_pouch.Config.Image,
 				},
 			},
@@ -503,8 +503,12 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 
 		// hlog.Printf("info", "hostlet/box Create %s, homefs:%s", inst.Name, dirPodHome)
 
-		imgname, ok := inst.Spec.Image.Options.Get("pouch/image/name")
-		if !ok {
+		imageName := inst.Spec.Image.Ref.Id
+		if imageName != "" && strings.IndexByte(imageName, ':') < 0 {
+			imageName = inapi.BoxImageRepoDefault + ":" + inst.Spec.Image.Ref.Id
+		}
+
+		if imageName == "" {
 			hlog.Printf("error", "hostlet/box BOX:%s, No Image Name Found", inst.Name)
 			inst.Status.Action = inapi.OpActionWarning
 			return err
@@ -512,7 +516,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 
 		bpConfig := drclient_types.ContainerConfig{
 			Cmd:          inst.Spec.Command,
-			Image:        imgname.String(),
+			Image:        imageName,
 			ExposedPorts: expPorts,
 			Env:          []string{"POD_ID=" + inst.PodID},
 			User:         "action",

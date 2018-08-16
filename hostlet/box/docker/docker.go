@@ -276,7 +276,7 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 			ImageDriver: inapi.PbPodSpecBoxImageDriver_Docker,
 			ImageOptions: []*inapi.Label{
 				{
-					Name:  "docker/image/name",
+					Name:  "image/id",
 					Value: boxInspect.Config.Image,
 				},
 			},
@@ -641,8 +641,12 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 
 		// hlog.Printf("info", "hostlet/box Create %s, homefs:%s", inst.Name, dirPodHome)
 
-		imgname, ok := inst.Spec.Image.Options.Get("docker/image/name")
-		if !ok {
+		imageName := inst.Spec.Image.Ref.Id
+		if imageName != "" && strings.IndexByte(imageName, ':') < 0 {
+			imageName = inapi.BoxImageRepoDefault + ":" + inst.Spec.Image.Ref.Id
+		}
+
+		if imageName == "" {
 			hlog.Printf("error", "hostlet/box BOX:%s, No Image Name Found", inst.Name)
 			inst.Status.Action = inapi.OpActionWarning
 			return err
@@ -656,7 +660,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				MemorySwap:   inst.Spec.Resources.MemLimit,
 				CPUShares:    inst.Spec.Resources.CpuLimit,
 				Cmd:          inst.Spec.Command,
-				Image:        imgname.String(),
+				Image:        imageName,
 				ExposedPorts: expPorts,
 				Env:          []string{"POD_ID=" + inst.PodID},
 				User:         "action",

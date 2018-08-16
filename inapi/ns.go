@@ -31,6 +31,10 @@ const (
 	ByteEB       = 1024 * BytePB
 )
 
+const (
+	BoxImageRepoDefault = "sysinner"
+)
+
 //
 func NsGlobalSysZone(name string) string {
 	return fmt.Sprintf("/ing/sys/zone/%s", name)
@@ -46,6 +50,10 @@ func NsGlobalSysHost(zone_id, host_id string) string {
 
 func NsGlobalPodSpec(stype, id string) string {
 	return fmt.Sprintf("/ing/ps/%s/%s", stype, id)
+}
+
+func NsGlobalBoxImage(name, tag string) string {
+	return fmt.Sprintf("/ing/bi/%s/%s", name, tag)
 }
 
 func NsGlobalPodInstance(pod_id string) string {

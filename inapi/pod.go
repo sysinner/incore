@@ -270,10 +270,11 @@ type PodSpecBoxBound struct {
 }
 
 type PodSpecBoxImageBound struct {
-	Ref    *ObjectReference `json:"ref,omitempty"`
-	Driver string           `json:"driver,omitempty"`
+	Ref *ObjectReference `json:"ref,omitempty"`
 
-	Options types.Labels `json:"options,omitempty"`
+	Driver string `json:"driver,omitempty"`
+
+	// Options types.Labels `json:"options,omitempty"`
 
 	// Distribution short name of the operating system.
 	//  ex: el6, el7, deb7, ubu1404, ...
@@ -460,11 +461,11 @@ type PodSpecPlanResourceCharge struct {
 }
 
 type PodSpecPlanBoxImageBound struct {
-	RefId   string       `json:"ref_id"`
-	Driver  string       `json:"driver,omitempty"`
-	Options types.Labels `json:"options,omitempty"`
-	OsDist  string       `json:"os_dist,omitempty"`
-	Arch    string       `json:"arch,omitempty"`
+	RefId  string `json:"ref_id"`
+	Driver string `json:"driver,omitempty"`
+	OsDist string `json:"os_dist,omitempty"`
+	Arch   string `json:"arch,omitempty"`
+	// Options types.Labels `json:"options,omitempty"`
 }
 
 type PodSpecPlanResComputeBound struct {

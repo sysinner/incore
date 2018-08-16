@@ -185,31 +185,30 @@ func (inst *BoxInstance) SpecDesired() bool {
 		}
 	}
 
-	driver_name := ""
 	switch inst.Status.ImageDriver {
 	case inapi.PbPodSpecBoxImageDriver_Docker:
-		driver_name = "docker/image/name"
-
-	case inapi.PbPodSpecBoxImageDriver_Rkt:
-		driver_name = "rkt/image/name"
-
 	case inapi.PbPodSpecBoxImageDriver_Pouch:
-		driver_name = "pouch/image/name"
-
+		//
 	default:
 		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
 		return false
 	}
 
-	img2 := inapi.LabelSliceGet(inst.Status.ImageOptions, driver_name)
+	img2 := inapi.LabelSliceGet(inst.Status.ImageOptions, "image/id")
 	if img2 == nil {
 		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
 		return false
 	}
-	img1, _ := inst.Spec.Image.Options.Get(driver_name)
-	if img1.String() != "" && img2.Value != img1.String() {
+	img1 := ""
+	if inst.Spec.Image.Ref != nil {
+		img1 = inst.Spec.Image.Ref.Id
+		if strings.IndexByte(img1, ':') < 0 {
+			img1 = inapi.BoxImageRepoDefault + ":" + img1
+		}
+	}
+	if img1 != img2.Value {
 		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions (%s) (%s)",
-			img1.String(), img2.Value)
+			img1, img2.Value)
 		return false
 	}
 
