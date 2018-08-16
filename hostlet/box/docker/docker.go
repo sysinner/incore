@@ -286,9 +286,13 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 
 	//
 	for _, cm := range boxInspect.Mounts {
-		if strings.HasPrefix(cm.Destination, "/proc/") {
+
+		if !strings.HasPrefix(cm.Destination, "/home/action") &&
+			!strings.HasPrefix(cm.Destination, "/usr/sysinner/") &&
+			!strings.HasPrefix(cm.Destination, "/dev/shm/sysinner/nsz") {
 			continue
 		}
+
 		inst.Status.Mounts = append(inst.Status.Mounts, &inapi.PbVolumeMount{
 			MountPath: cm.Destination,
 			HostDir:   cm.Source,
