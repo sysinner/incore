@@ -63,12 +63,6 @@ func Start() error {
 
 		for {
 
-			status_tracker()
-
-			podOpPull()
-
-			actions := boxActionRefresh()
-
 			for _, dv := range boxDrivers {
 				for {
 					sts := dv.StatusEntry()
@@ -85,6 +79,12 @@ func Start() error {
 					boxStatsSync(sts)
 				}
 			}
+
+			status_tracker()
+
+			podOpPull()
+
+			actions := boxActionRefresh()
 
 			for _, action_inst := range actions {
 

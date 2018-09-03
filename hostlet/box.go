@@ -154,13 +154,16 @@ func boxStatusSync(item *napi.BoxInstance) {
 		hlog.Printf("debug", "boxStatusSync %s, action %d", item.Name, item.Status.Action)
 
 	} else {
-		// nstatus.BoxActives.Set(item)
+		nstatus.BoxActives.Set(item)
 	}
 }
 
 func boxStatsSync(v *napi.BoxInstanceStatsFeed) {
 
-	if inst := nstatus.BoxActives.Get(v.Name); inst != nil && inst.Stats != nil {
+	if inst := nstatus.BoxActives.Get(v.Name); inst != nil {
+		if inst.Stats == nil {
+			inst.Stats = inapi.NewPbStatsSampleFeed(napi.BoxStatsSampleCycle)
+		}
 		for _, v2 := range v.Items {
 			inst.Stats.SampleSync(v2.Name, v.Time, v2.Value)
 		}
