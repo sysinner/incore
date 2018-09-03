@@ -77,16 +77,17 @@ func NewDriver() (napi.BoxDriver, error) {
 }
 
 type BoxDriver struct {
-	mu         sync.Mutex
-	mmu        *locker.HashPool
-	inited     bool
-	running    bool
-	client     drclient.CommonAPIClient
-	statusSets chan *napi.BoxInstance
-	actives    types.ArrayString
-	statsSets  chan *napi.BoxInstanceStatsFeed
-	sets       types.ArrayString
-	createSets types.KvPairs
+	mu           sync.Mutex
+	mmu          *locker.HashPool
+	inited       bool
+	running      bool
+	client       drclient.CommonAPIClient
+	statusSets   chan *napi.BoxInstance
+	actives      types.ArrayString
+	statsPending bool
+	statsSets    chan *napi.BoxInstanceStatsFeed
+	sets         types.ArrayString
+	createSets   types.KvPairs
 }
 
 func (tp *BoxDriver) Name() string {
@@ -107,6 +108,8 @@ func (tp *BoxDriver) Start() error {
 			for {
 
 				tp.statusRefresh()
+
+				go tp.statsRefresh()
 
 				time.Sleep(2e9)
 			}
@@ -303,6 +306,110 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 	}
 
 	return inst, nil
+}
+
+func (tp *BoxDriver) statsRefresh() {
+
+	if !tp.inited {
+		return
+	}
+
+	tp.mu.Lock()
+
+	if tp.statsPending {
+		tp.mu.Unlock()
+		return
+	}
+
+	tp.statsPending = true
+	tp.mu.Unlock()
+
+	for _, key := range tp.actives {
+
+		if len(tp.statsSets) > activeNumMax {
+			hlog.Printf("warn", "statsSets out of capacity")
+			break
+		}
+
+		n := strings.IndexByte(key, ',')
+		id, name := key[:n], key[n+1:]
+
+		if sts, err := tp.statsEntry(id, name); err == nil {
+			tp.statsSets <- sts
+		} else {
+			hlog.Printf("error", "box.Stats %s error %s", id, err.Error())
+		}
+	}
+
+	tp.statsPending = false
+}
+
+func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, error) {
+
+	stats, err := tp.client.ContainerStats(context.Background(), name)
+	if err != nil {
+		return nil, err
+	}
+
+	if stats == nil {
+		return nil, errors.New("timeout")
+	}
+
+	boxStats := &napi.BoxInstanceStatsFeed{
+		Name: name,
+		Time: uint32(time.Now().Unix()),
+	}
+
+	// RAM
+	boxStats.Set("ram/us",
+		int64(stats.MemoryStats.Usage))
+	if v, ok := stats.MemoryStats.Stats["cache"]; ok {
+		boxStats.Set("ram/cc", int64(v))
+	}
+
+	// Networks
+	net_io_rs := int64(0)
+	net_io_ws := int64(0)
+	for _, v := range stats.Networks {
+		net_io_rs += int64(v.RxBytes)
+		net_io_ws += int64(v.TxBytes)
+	}
+	boxStats.Set("net/rs", net_io_rs)
+	boxStats.Set("net/ws", net_io_ws)
+
+	// CPU
+	boxStats.Set("cpu/us",
+		int64(stats.CPUStats.CPUUsage.TotalUsage))
+
+	// Storage IO
+	fs_rn := int64(0)
+	fs_rs := int64(0)
+	fs_wn := int64(0)
+	fs_ws := int64(0)
+	for _, v := range stats.BlkioStats.IoServiceBytesRecursive {
+		switch v.Op {
+		case "Read":
+			fs_rs += int64(v.Value)
+
+		case "Write":
+			fs_ws += int64(v.Value)
+		}
+	}
+	for _, v := range stats.BlkioStats.IoServicedRecursive {
+		switch v.Op {
+		case "Read":
+			fs_rn += int64(v.Value)
+
+		case "Write":
+			fs_wn += int64(v.Value)
+		}
+	}
+	boxStats.Set("fs/rn", fs_rn)
+	boxStats.Set("fs/rs", fs_rs)
+	boxStats.Set("fs/wn", fs_wn)
+	boxStats.Set("fs/ws", fs_ws)
+
+	return boxStats, nil
 }
 
 func (tp *BoxDriver) StatusEntry() *napi.BoxInstance {
@@ -528,7 +635,6 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		}
 		bpHostConfig := &drclient_types.HostConfig{
 			EnableLxcfs:  in_cf.Config.LxcFsEnable,
-			GroupAdd:     []string{"action"},
 			NetworkMode:  "bridge",
 			Binds:        inst.VolumeMountsExport(),
 			PortBindings: bindPorts,

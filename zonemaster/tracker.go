@@ -91,22 +91,37 @@ func zone_tracker() {
 		return
 	}
 
+	// refresh host keys
+	if len(status.ZoneHostSecretKeys) == 0 {
+		if rs := data.ZoneMaster.PvScan(
+			inapi.NsZoneSysHostSecretKey(status.Host.Operate.ZoneId, ""), "", "", 1000); rs.OK() {
+
+			rs.KvEach(func(v *skv.ResultEntry) int {
+				status.ZoneHostSecretKeys.Set(string(v.Key), v.Bytex().String())
+				return 0
+			})
+
+		} else {
+			hlog.Printf("warn", "refresh host key list failed")
+		}
+	}
+
 	// is zone-master leader
 	if !status.IsZoneMasterLeader() {
 		return
 	}
 
 	// refresh zone-master leader ttl
-	pv := skv.NewValueObject(status.Host.Meta.Id)
+	// pv := skv.NewValueObject(status.Host.Meta.Id)
 	if rs := data.ZoneMaster.PvPut(
 		leader_path,
 		status.Host.Meta.Id,
 		&skv.ProgWriteOptions{
-			PrevSum: pv.Crc32(),
+			// PrevSum: pv.Crc32(), // TODO BUG
 			Expired: uint64(time.Now().Add(12e9).UnixNano()),
 		},
 	); !rs.OK() {
-		hlog.Printf("warn", "refresh zone-master leader ttl failed")
+		hlog.Printf("warn", "refresh zone-master leader ttl failed "+rs.String())
 		return
 	}
 
@@ -302,10 +317,14 @@ func zone_tracker() {
 				}
 				status.GlobalHostList.Sync(o)
 
+				// hlog.Printf("info", "refresh host refresh %s", o.Meta.Id)
+
 			} else {
 				// TODO
 				hlog.Printf("error", "refresh host list ### %s", v.Value)
 			}
+
+			// hlog.Printf("info", "refresh host refresh %d", len(rss))
 		}
 
 		if !status.ZoneHostListImported {

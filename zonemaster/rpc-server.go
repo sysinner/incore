@@ -59,7 +59,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 	//
 	host := status.ZoneHostList.Item(opts.Meta.Id)
 	if host == nil || host.Meta == nil {
-		return nil, errors.New("BadArgs No Host Found")
+		return nil, errors.New("BadArgs No Host Found " + opts.Meta.Id)
 	}
 
 	//

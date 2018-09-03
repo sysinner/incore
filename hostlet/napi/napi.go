@@ -72,6 +72,15 @@ func VolAgentSysDir(pod_id string, rep_id uint16) string {
 	)
 }
 
+type BoxDriver interface {
+	Name() string
+	Start() error
+	Stop() error
+	StatusEntry() *BoxInstance
+	StatsEntry() *BoxInstanceStatsFeed
+	ActionCommandEntry(inst *BoxInstance) error
+}
+
 type BoxInstanceStatsEntry struct {
 	Name  string
 	Value int64

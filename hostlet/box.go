@@ -15,6 +15,8 @@
 package hostlet
 
 import (
+	"github.com/hooto/hlog4g/hlog"
+
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
@@ -149,8 +151,10 @@ func boxStatusSync(item *napi.BoxInstance) {
 			inst.ID = item.ID
 		}
 
+		hlog.Printf("debug", "boxStatusSync %s, action %d", item.Name, item.Status.Action)
+
 	} else {
-		nstatus.BoxActives.Set(item)
+		// nstatus.BoxActives.Set(item)
 	}
 }
 

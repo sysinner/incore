@@ -96,8 +96,6 @@ func Start() error {
 
 					go func(dv napi.BoxDriver, inst *napi.BoxInstance) {
 
-						// napi.ObjPrint("action command", inst)
-
 						if err := dv.ActionCommandEntry(inst); err != nil {
 							nstatus.PodRepOpLogs.LogSet(
 								inst.OpRepKey(), inst.PodOpVersion,

@@ -68,35 +68,40 @@ func (c Zonebound) IndexAction() {
 		c.Response.Out.WriteHeader(404)
 		return
 	}
-
-	urls := strings.Replace(c.Request.URL.String(), "/in/v1/zonebound/"+zone_id+"/", "/in/v1/", -1)
-	if strings.IndexByte(urls, '?') < 0 {
-		urls += "?"
-	} else {
-		urls += "&"
-	}
-	urls += iamapi.AccessTokenKey + "=" + c.us.FullToken()
-
-	urlr, err := url.Parse(zone_api + strings.Replace(c.Request.URL.String(), "/in/v1/zonebound/"+zone_id+"/", "/in/v1/", -1))
+	zone_url, err := url.Parse(zone_api)
 	if err != nil {
 		c.Response.Out.WriteHeader(404)
 		return
 	}
 
-	c.proxyHttpHandler(urlr)
+	url_path := strings.Replace(c.Request.URL.String(), "/in/v1/zonebound/"+zone_id+"/", "/in/v1/", -1)
+	if strings.IndexByte(url_path, '?') < 0 {
+		url_path += "?"
+	} else {
+		url_path += "&"
+	}
+	url_path += iamapi.AccessTokenKey + "=" + c.us.FullToken()
+
+	proxy_url, err := url.Parse(url_path)
+	if err != nil {
+		c.Response.Out.WriteHeader(404)
+		return
+	}
+
+	c.proxyHttpHandler(zone_url, proxy_url)
 }
 
-func (c Zonebound) proxyHttpHandler(u *url.URL) {
+func (c Zonebound) proxyHttpHandler(proxy_endpoint *url.URL, proxy_url *url.URL) {
 
-	req, err := http.NewRequest(c.Request.Method, u.String(),
+	req, err := http.NewRequest(c.Request.Method, proxy_url.String(),
 		ioutil.NopCloser(bytes.NewReader(c.Request.RawBody)))
 	if err != nil {
 		return
 	}
-	req.Header = c.Request.Header
-	req.Host = u.Host
+	// req.Header = c.Request.Header
+	// req.Host = proxy_url.Host
 
-	proxy := httputil.NewSingleHostReverseProxy(u)
+	proxy := httputil.NewSingleHostReverseProxy(proxy_endpoint)
 	proxy.FlushInterval = 200 * time.Millisecond
 
 	proxy.ServeHTTP(c.Response.Out, req)
