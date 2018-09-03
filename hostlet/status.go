@@ -347,8 +347,6 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 				continue
 			}
 
-			// inapi.ObjPrint("a", box_inst)
-
 			if action == 0 {
 				action = box_inst.Status.Action
 			}

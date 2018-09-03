@@ -126,7 +126,7 @@ func (c PodStats) FeedAction() {
 			pod.Meta.ID,
 			0,
 			"sys",
-			fq.TimeStart,
+			fq.TimeStart-600,
 		),
 		inapi.NsZonePodRepStats(pod.Spec.Zone,
 			pod.Meta.ID,
@@ -174,6 +174,14 @@ func (c PodStats) FeedAction() {
 			continue
 		}
 
+		for i2, v2 := range v.Items {
+			if v2.Value <= 0 {
+				if i2 > 0 && v.Items[i2-1].Value > v2.Value {
+					v.Items[i2].Value = v.Items[i2-1].Value
+				}
+			}
+		}
+
 		if fqi.Delta {
 			last_value := int64(0)
 			for i := len(v.Items) - 1; i > 0; i-- {
@@ -194,7 +202,12 @@ func (c PodStats) FeedAction() {
 			}
 		}
 
-		v.Items = v.Items[1:]
+		for i2, v2 := range v.Items {
+			if v2.Time == fq.TimeStart {
+				v.Items = v.Items[i2:]
+				break
+			}
+		}
 	}
 
 	feed.Kind = "TimeStatsFeed"

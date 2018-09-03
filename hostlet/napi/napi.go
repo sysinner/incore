@@ -34,9 +34,7 @@ const (
 	stats_tick          int64  = 5e9
 	BoxStatsSampleCycle uint32 = 20
 	BoxStatsLogCycle    uint32 = 60
-)
 
-const (
 	OpLogNsPodPull = "hostlet/pod-updater"
 	OpLogNsCtnCmd  = "hostlet/box-keeper"
 )
