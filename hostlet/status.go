@@ -424,8 +424,8 @@ func host_stats_get() *inapi.PbStatsSampleFeed {
 	// CPU
 	cio, _ := ps_cpu.Times(false)
 	if len(cio) > 0 {
-		host_stats.SampleSync("cpu/sys", timo, int64(cio[0].User*float64(1e7)))
-		host_stats.SampleSync("cpu/user", timo, int64(cio[0].System*float64(1e7)))
+		host_stats.SampleSync("cpu/sys", timo, int64(cio[0].User*float64(1e9)))
+		host_stats.SampleSync("cpu/user", timo, int64(cio[0].System*float64(1e9)))
 	}
 
 	// Storage IO
