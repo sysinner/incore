@@ -78,7 +78,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 			pk := inapi.NsZoneSysHostStats(status.ZoneId, opts.Meta.Id, v.Time)
 
 			var stats_index inapi.PbStatsIndexFeed
-			if rs := data.ZoneMaster.ProgGet(pk); rs.OK() {
+			if rs := data.ZoneMaster.KvProgGet(pk); rs.OK() {
 				rs.Decode(&stats_index)
 				if stats_index.Time < 1 {
 					continue
@@ -93,10 +93,10 @@ func (s *ApiZoneMaster) HostStatusSync(
 			}
 
 			if len(stats_index.Items) > 0 {
-				data.ZoneMaster.ProgPut(
+				data.ZoneMaster.KvProgPut(
 					pk,
-					skv.NewValueObject(stats_index),
-					&skv.ProgWriteOptions{
+					skv.NewKvEntry(stats_index),
+					&skv.KvProgWriteOptions{
 						Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
 					},
 				)
@@ -161,7 +161,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 				pk := inapi.NsZonePodRepStats(status.ZoneId, v.Id, uint16(v.Rep), "sys", iv.Time)
 
 				var stats_index inapi.PbStatsIndexFeed
-				if rs := data.ZoneMaster.ProgGet(pk); rs.OK() {
+				if rs := data.ZoneMaster.KvProgGet(pk); rs.OK() {
 					rs.Decode(&stats_index)
 					if stats_index.Time < 1 {
 						continue
@@ -176,10 +176,10 @@ func (s *ApiZoneMaster) HostStatusSync(
 				}
 
 				if len(stats_index.Items) > 0 {
-					data.ZoneMaster.ProgPut(
+					data.ZoneMaster.KvProgPut(
 						pk,
-						skv.NewValueObject(stats_index),
-						&skv.ProgWriteOptions{
+						skv.NewKvEntry(stats_index),
+						&skv.KvProgWriteOptions{
 							Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
 						},
 					)

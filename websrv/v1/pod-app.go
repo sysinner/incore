@@ -96,7 +96,7 @@ func (c Pod) AppSyncAction() {
 	for _, dv := range app.Spec.Depends {
 
 		var dep_spec inapi.AppSpec
-		if rs := in_db.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(dv.Id, dv.Version)); rs.OK() {
+		if rs := in_db.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(dv.Id, dv.Version)); rs.OK() {
 			rs.Decode(&dep_spec)
 		} else if rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(dv.Id)); rs.OK() { // TODO
 			rs.Decode(&dep_spec)

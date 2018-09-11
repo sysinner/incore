@@ -72,12 +72,12 @@ func NsGlobalAppSpec(spec_id string) string {
 	return fmt.Sprintf("/ing/as/%s", spec_id)
 }
 
-func NsGlobalAppSpecVersion(spec_id, version string) skv.ProgKey {
+func NsGlobalAppSpecVersion(spec_id, version string) skv.KvProgKey {
 	u32, _ := strconv.Atoi(version)
 	if u32 > 65535 {
 		u32 = 65535 // TODO
 	}
-	return skv.NewProgKey("ing", "asv", spec_id, uint32(u32))
+	return skv.NewKvProgKey("ing", "asv", spec_id, uint32(u32))
 }
 
 func NsGlobalAppInstance(instance_id string) string {
@@ -117,8 +117,8 @@ func NsZoneSysHostStatus(zone_id, host_id string) string {
 	return fmt.Sprintf("/inz/%s/host/%s/status", zone_id, host_id)
 }
 
-func NsZoneSysHostStats(zone_id, host_id string, timo uint32) skv.ProgKey {
-	return skv.NewProgKey("inz", zone_id, "hs", host_id, timo)
+func NsZoneSysHostStats(zone_id, host_id string, timo uint32) skv.KvProgKey {
+	return skv.NewKvProgKey("inz", zone_id, "hs", host_id, timo)
 }
 
 func NsZoneSysMasterLeader(zone_id string) string {
@@ -141,8 +141,8 @@ func NsZonePodInstanceDestroy(zone_id, pod_id string) string {
 	return fmt.Sprintf("/inz/%s/pid/%s", zone_id, pod_id)
 }
 
-func NsZonePodRepStats(zone_id, pod_id string, rep_id uint16, name string, timo uint32) skv.ProgKey {
-	return skv.NewProgKey(
+func NsZonePodRepStats(zone_id, pod_id string, rep_id uint16, name string, timo uint32) skv.KvProgKey {
+	return skv.NewKvProgKey(
 		"inz", zone_id, "ps",
 		NsZonePodOpRepKey(pod_id, rep_id),
 		name, timo,

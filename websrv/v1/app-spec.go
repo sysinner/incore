@@ -72,9 +72,9 @@ func (c AppSpec) ListAction() {
 		}
 
 		//
-		if rs := data.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
-			data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version),
-				skv.NewValueObject(spec),
+		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
+			data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version),
+				skv.NewKvEntry(spec),
 				nil)
 		}
 
@@ -192,7 +192,7 @@ func (c AppSpec) VersionListAction() {
 		return
 	}
 
-	rs := data.GlobalMaster.ProgRevScan(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
+	rs := data.GlobalMaster.KvProgRevScan(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
 		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "0"), 50)
 	rss := rs.KvList()
 
@@ -229,7 +229,7 @@ func (c AppSpec) EntryAction() {
 
 	version := c.Params.Get("version")
 	if version != "" {
-		if rs := data.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
+		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
 			rs.Decode(&set)
 		}
 	} else if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
@@ -430,7 +430,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	for _, v := range prev.Depends {
-		if rs := data.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
+		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecDepend ("+v.Id+") Not Found")
 			return
 		}
@@ -448,7 +448,7 @@ func (c AppSpec) SetAction() {
 			return
 		}
 		id := ipapi.PackageMetaId(v.Name, version)
-		if rs := data.InpackData.ProgGet(ipapi.DataPackKey(id)); !rs.OK() {
+		if rs := data.InpackData.KvProgGet(ipapi.DataPackKey(id)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
 				ipapi.PackageFilename(v.Name, version)+") Not Found")
 			return
@@ -473,8 +473,8 @@ func (c AppSpec) SetAction() {
 		return
 	}
 
-	rs = data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewValueObject(prev),
+	rs = data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+		skv.NewKvEntry(prev),
 		nil)
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
@@ -579,8 +579,8 @@ func (c AppSpec) CfgSetAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewValueObject(prev),
+	if rs := data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+		skv.NewKvEntry(prev),
 		nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
@@ -661,8 +661,8 @@ func (c AppSpec) CfgFieldDelAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.ProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewValueObject(prev),
+	if rs := data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
+		skv.NewKvEntry(prev),
 		nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return

@@ -67,7 +67,7 @@ func zone_tracker() {
 		if rs2 := data.ZoneMaster.PvNew(
 			leader_path,
 			status.Host.Meta.Id,
-			&skv.ProgWriteOptions{
+			&skv.KvProgWriteOptions{
 				Expired: uint64(time.Now().Add(12e9).UnixNano()),
 			},
 		); rs2.OK() {
@@ -112,11 +112,11 @@ func zone_tracker() {
 	}
 
 	// refresh zone-master leader ttl
-	// pv := skv.NewValueObject(status.Host.Meta.Id)
+	// pv := skv.NewKvEntry(status.Host.Meta.Id)
 	if rs := data.ZoneMaster.PvPut(
 		leader_path,
 		status.Host.Meta.Id,
-		&skv.ProgWriteOptions{
+		&skv.KvProgWriteOptions{
 			// PrevSum: pv.Crc32(), // TODO BUG
 			Expired: uint64(time.Now().Add(12e9).UnixNano()),
 		},

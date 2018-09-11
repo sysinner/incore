@@ -588,7 +588,7 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
@@ -703,7 +703,7 @@ func (c Pod) SetInfoAction() {
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
@@ -801,7 +801,7 @@ func (c Pod) DeleteAction() {
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)

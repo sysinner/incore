@@ -181,7 +181,7 @@ func (c Resource) OperatePodSetAction() {
 		prev.Operate.AppId = set.Operate.AppId // check
 
 		//
-		data.GlobalMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.ProgWriteOptions{
+		data.GlobalMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, &skv.KvProgWriteOptions{
 			Force: true,
 		})
 

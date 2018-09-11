@@ -121,7 +121,7 @@ func (c Host) CellSetAction() {
 	}
 
 	data.GlobalMaster.PvPut(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
-		cell, &skv.ProgWriteOptions{
+		cell, &skv.KvProgWriteOptions{
 			// PrevVersion: prevVersion,
 		})
 

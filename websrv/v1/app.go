@@ -99,7 +99,7 @@ func (c App) ListAction() {
 		if inapi.OpActionAllow(inst.Operate.Action, inapi.OpActionDestroy) {
 			if m := v.Meta(); m == nil || m.Expired == 0 {
 				if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(inst.Meta.ID), inst, nil); rs.OK() {
-					in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(inst.Meta.ID), inst, &skv.ProgWriteOptions{
+					in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(inst.Meta.ID), inst, &skv.KvProgWriteOptions{
 						Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 					})
 				}
@@ -271,7 +271,7 @@ func (c App) SetAction() {
 
 	var rs skv.Result
 	if prev.Spec.Meta.Version != "" {
-		rs = in_db.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
+		rs = in_db.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
 	} else {
 		rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
 	}
@@ -339,7 +339,7 @@ func (c App) SetAction() {
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(prev.Meta.ID), prev, nil); rs.OK() {
-			rs = in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.ProgWriteOptions{
+			rs = in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
 				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 			})
 		}
@@ -552,7 +552,7 @@ func (c App) OpActionSetAction() {
 
 	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
 		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstanceDestroyed(app.Meta.ID), app, nil); rs.OK() {
-			in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.ProgWriteOptions{
+			in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.KvProgWriteOptions{
 				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 			})
 		}
@@ -741,7 +741,7 @@ func (c App) ConfigAction() {
 			}
 
 			var app_spec inapi.AppSpec
-			if rs := in_db.GlobalMaster.ProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); rs.OK() {
+			if rs := in_db.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); rs.OK() {
 				rs.Decode(&app_spec)
 			}
 			if app_spec.Meta.ID != v.Id { // TODO

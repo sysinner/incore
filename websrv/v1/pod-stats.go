@@ -121,7 +121,7 @@ func (c PodStats) FeedAction() {
 	// feed.Debugs.Set("time_cut", fmt.Sprintf("%d", fq.TimeCutset))
 	// feed.Debugs.Set("time_cuts", time.Unix(int64(fq.TimeCutset), 0))
 
-	if rs := data.ZoneMaster.ProgScan(
+	if rs := data.ZoneMaster.KvProgScan(
 		inapi.NsZonePodRepStats(pod.Spec.Zone,
 			pod.Meta.ID,
 			0,
