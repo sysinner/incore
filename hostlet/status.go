@@ -129,7 +129,7 @@ func status_tracker() {
 	}
 
 	if err := podVolQuotaRefresh(); err != nil {
-		hlog.Printf("error", "Failed to Enable Disk Quota: %s", err.Error())
+		hlog.Printf("error", "failed to refresh quota projects: %s", err.Error())
 	}
 }
 
