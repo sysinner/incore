@@ -750,8 +750,13 @@ func (c Pod) DeleteAction() {
 
 		var app inapi.AppInstance
 
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(v.Meta.ID)); !rs.OK() {
-			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(v.Meta.ID))
+		if rs.NotFound() {
+			continue
+		}
+
+		if !rs.OK() {
+			set.Error = types.NewErrorMeta("500", "server error "+rs.Bytex().String())
 			return
 		} else {
 			rs.Decode(&app)

@@ -51,6 +51,7 @@ const (
 const (
 	GeneralPhaseActive  = "Active"
 	GeneralPhaseSuspend = "Suspend"
+	GeneralPhaseOffline = "Offline"
 )
 
 // Protocol defines network protocols supported for things like conatiner ports.

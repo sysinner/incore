@@ -114,7 +114,7 @@ func status_tracker() {
 	// fmt.Println(zms)
 	if zms.Masters != nil {
 		if status.LocalZoneMasterList.SyncList(*zms.Masters) {
-			hlog.Printf("warn", "CHANGED LZML")
+			// hlog.Printf("warn", "CHANGED LZML")
 			// TODO
 		}
 	}
@@ -126,6 +126,10 @@ func status_tracker() {
 	if len(zms.ZoneInpackServiceUrl) > 10 && zms.ZoneInpackServiceUrl != config.Config.InpackServiceUrl {
 		config.Config.InpackServiceUrl = zms.ZoneInpackServiceUrl
 		config.Config.Sync()
+	}
+
+	if err := podVolQuotaRefresh(); err != nil {
+		hlog.Printf("error", "Failed to Enable Disk Quota: %s", err.Error())
 	}
 }
 
@@ -383,6 +387,15 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		// js, _ := json.Encode(pod_status, "  ")
 		// fmt.Println(string(js))
 
+		if proj := quotaConfig.Fetch(pod.OpRepKey()); proj != nil {
+			pod_status.Volumes = []*inapi.PbVolumeStatus{
+				{
+					MountPath: "/home/action",
+					Used:      proj.Used,
+				},
+			}
+		}
+
 		status.Host.Prs = append(status.Host.Prs, pod_status)
 
 		var box_oplog inapi.PbOpLogSets
@@ -394,6 +407,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 				}
 			}
 		}
+
 	})
 
 	return inapi.NewApiZoneMasterClient(conn).HostStatusSync(

@@ -32,10 +32,16 @@ func (c Host) NodeListAction() {
 		zoneid = c.Params.Get("zoneid")
 		cellid = c.Params.Get("cellid")
 		sets   inapi.GeneralObjectList
+		rs     skv.Result
 	)
 	defer c.RenderJson(&sets)
 
-	rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysHost(zoneid, ""), "", "", 1000).KvList()
+	if zoneid == status.ZoneId {
+		rs = data.ZoneMaster.PvScan(inapi.NsZoneSysHost(zoneid, ""), "", "", 1000)
+	} else {
+		rs = data.GlobalMaster.PvScan(inapi.NsGlobalSysHost(zoneid, ""), "", "", 1000)
+	}
+	rss := rs.KvList()
 
 	for _, v := range rss {
 
@@ -46,15 +52,6 @@ func (c Host) NodeListAction() {
 			// TOPO
 			if cellid != "" && (node.Operate == nil || node.Operate.CellId != cellid) {
 				continue
-			}
-
-			// TODO
-			if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); rs.OK() {
-
-				var status inapi.ResHostStatus
-				if err = rs.Decode(&status); err == nil {
-					node.Status = &status
-				}
 			}
 
 			sets.Items = append(sets.Items, node)
@@ -92,15 +89,6 @@ func (c Host) NodeEntryAction() {
 	if node.Meta == nil || node.Meta.Id == "" {
 		node.Error = &types.ErrorMeta{"404", "HostNode Not Found"}
 		return
-	}
-
-	// TODO
-	if re := data.ZoneMaster.PvGet(inapi.NsZoneSysHostStatus(zoneid, node.Meta.Id)); re.OK() {
-
-		var status inapi.ResHostStatus
-		if err := re.Decode(&status); err == nil {
-			node.Status = &status
-		}
 	}
 
 	node.Kind = "HostNode"

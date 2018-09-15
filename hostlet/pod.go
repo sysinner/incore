@@ -130,6 +130,7 @@ func podOpPullEntry(pod *inapi.Pod) error {
 			return err
 		}
 	}
+
 	if err := json.EncodeToFile(prev, sysdir+"/pod_instance.json", "  "); err != nil {
 		hlog.Printf("error", "hostlet/pod-pull %s %s", prev.Meta.ID, err.Error())
 		return err

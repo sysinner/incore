@@ -91,6 +91,7 @@ message ResHostStatus {
     uint32                 uptime  = 2;
     repeated ResHostVolume volumes = 3;
     PbStatsSampleFeed      stats   = 4;
+	uint32                 updated = 5;
 }
 
 message ResHostBound {

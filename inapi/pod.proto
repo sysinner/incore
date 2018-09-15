@@ -29,6 +29,7 @@ message PbPodRepStatus {
     PbOpLogSets             op_log  = 6;
     PbStatsSampleFeed       stats   = 7;
     uint32                  updated = 8; // unix time in seconds
+    repeated PbVolumeStatus volumes = 9;
 }
 
 enum PbPodSpecBoxImageDriver {
@@ -43,6 +44,11 @@ message PbVolumeMount {
     bool   read_only  = 2;
     string mount_path = 3; // struct:object_slice_key
     string host_dir   = 4;
+}
+
+message PbVolumeStatus {
+    string mount_path = 1; // struct:object_slice_key
+    int64  used       = 2;
 }
 
 message PbServicePort {

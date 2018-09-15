@@ -40,8 +40,8 @@ const (
 )
 
 var (
-	VolPodHomeFmt      = "%s/%s.%s/home/action"
-	VolAgentSysDirFmt  = "%s/%s.%s/home/action/.sysinner"
+	VolPodHomeFmt      = "%s/%s/home/action"
+	VolAgentSysDirFmt  = "%s/%s/home/action/.sysinner"
 	BoxInstanceNameReg = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})-([a-z]{1}[a-z0-9]{0,19})$")
 	StatsFeedNames     = []string{
 		"ram/us", "ram/cc",
@@ -59,14 +59,13 @@ func ObjPrint(name string, v interface{}) {
 
 func VolPodHomeDir(pod_id string, rep_id uint16) string {
 	return fmt.Sprintf(VolPodHomeFmt, config.Config.PodHomeDir,
-		pod_id, inutils.Uint16ToHexString(rep_id))
+		inapi.NsZonePodOpRepKey(pod_id, rep_id))
 }
 
 func VolAgentSysDir(pod_id string, rep_id uint16) string {
 	return fmt.Sprintf(VolAgentSysDirFmt,
 		config.Config.PodHomeDir,
-		pod_id,
-		inutils.Uint16ToHexString(rep_id),
+		inapi.NsZonePodOpRepKey(pod_id, rep_id),
 	)
 }
 

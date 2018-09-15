@@ -15,7 +15,8 @@ func (it *PbPodRepStatus) Equal(it2 *PbPodRepStatus) bool {
 		it.Action != it2.Action ||
 		it.Node != it2.Node ||
 		!PbPodBoxStatusSliceEqual(it.Boxes, it2.Boxes) ||
-		it.Updated != it2.Updated {
+		it.Updated != it2.Updated ||
+		!PbVolumeStatusSliceEqual(it.Volumes, it2.Volumes) {
 		return false
 	}
 	return true
@@ -43,6 +44,9 @@ func (it *PbPodRepStatus) Sync(it2 *PbPodRepStatus) bool {
 	}
 	if it.Updated != it2.Updated {
 		it.Updated, changed = it2.Updated, true
+	}
+	if rs, ok := PbVolumeStatusSliceSyncSlice(it.Volumes, it2.Volumes); ok {
+		it.Volumes, changed = rs, true
 	}
 	return changed
 }
@@ -85,6 +89,9 @@ func PbPodRepStatusSliceEqual(ls, ls2 []*PbPodRepStatus) bool {
 			if v.Updated != v2.Updated {
 				return false
 			}
+			if !PbVolumeStatusSliceEqual(v.Volumes, v2.Volumes) {
+				return false
+			}
 			hit = true
 			break
 		}
@@ -119,6 +126,9 @@ func PbPodRepStatusSliceSync(ls []*PbPodRepStatus, it2 *PbPodRepStatus) ([]*PbPo
 		}
 		if v.Updated != it2.Updated {
 			v.Updated, changed = it2.Updated, true
+		}
+		if rs, ok := PbVolumeStatusSliceSyncSlice(v.Volumes, it2.Volumes); ok {
+			v.Volumes, changed = rs, true
 		}
 		hit = true
 		break
@@ -156,6 +166,9 @@ func PbPodRepStatusSliceSyncSlice(ls, ls2 []*PbPodRepStatus) ([]*PbPodRepStatus,
 			}
 			if v.Updated != v2.Updated {
 				v.Updated, changed = v2.Updated, true
+			}
+			if rs, ok := PbVolumeStatusSliceSyncSlice(v.Volumes, v2.Volumes); ok {
+				v.Volumes, changed = rs, true
 			}
 			hit = true
 			break
@@ -298,6 +311,125 @@ func PbVolumeMountSliceSyncSlice(ls, ls2 []*PbVolumeMount) ([]*PbVolumeMount, bo
 			}
 			if v.HostDir != v2.HostDir {
 				v.HostDir, changed = v2.HostDir, true
+			}
+			hit = true
+			break
+		}
+		if !hit {
+			ls = append(ls, v2)
+			changed = true
+		}
+	}
+	return ls, changed
+}
+
+var object_slice_mu_PbVolumeStatus sync.RWMutex
+
+func (it *PbVolumeStatus) Equal(it2 *PbVolumeStatus) bool {
+	if it2 == nil ||
+		it.MountPath != it2.MountPath ||
+		it.Used != it2.Used {
+		return false
+	}
+	return true
+}
+
+func (it *PbVolumeStatus) Sync(it2 *PbVolumeStatus) bool {
+	if it2 == nil {
+		return false
+	}
+	changed := false
+	if it.MountPath != it2.MountPath {
+		it.MountPath, changed = it2.MountPath, true
+	}
+	if it.Used != it2.Used {
+		it.Used, changed = it2.Used, true
+	}
+	return changed
+}
+
+func PbVolumeStatusSliceGet(ls []*PbVolumeStatus, arg_mountpath string) *PbVolumeStatus {
+	object_slice_mu_PbVolumeStatus.RLock()
+	defer object_slice_mu_PbVolumeStatus.RUnlock()
+
+	for _, v := range ls {
+		if v.MountPath == arg_mountpath {
+			return v
+		}
+	}
+	return nil
+}
+
+func PbVolumeStatusSliceEqual(ls, ls2 []*PbVolumeStatus) bool {
+	object_slice_mu_PbVolumeStatus.RLock()
+	defer object_slice_mu_PbVolumeStatus.RUnlock()
+
+	if len(ls) != len(ls2) {
+		return false
+	}
+	hit := false
+	for _, v := range ls {
+		hit = false
+		for _, v2 := range ls2 {
+			if v.MountPath != v2.MountPath {
+				continue
+			}
+			if v.Used != v2.Used {
+				return false
+			}
+			hit = true
+			break
+		}
+		if !hit {
+			return false
+		}
+	}
+	return true
+}
+
+func PbVolumeStatusSliceSync(ls []*PbVolumeStatus, it2 *PbVolumeStatus) ([]*PbVolumeStatus, bool) {
+	if it2 == nil {
+		return ls, false
+	}
+	object_slice_mu_PbVolumeStatus.Lock()
+	defer object_slice_mu_PbVolumeStatus.Unlock()
+
+	hit := false
+	changed := false
+	for _, v := range ls {
+		if v.MountPath != it2.MountPath {
+			continue
+		}
+		if v.Used != it2.Used {
+			v.Used, changed = it2.Used, true
+		}
+		hit = true
+		break
+	}
+	if !hit {
+		ls = append(ls, it2)
+		changed = true
+	}
+	return ls, changed
+}
+
+func PbVolumeStatusSliceSyncSlice(ls, ls2 []*PbVolumeStatus) ([]*PbVolumeStatus, bool) {
+	if len(ls2) == 0 {
+		return ls, false
+	}
+	object_slice_mu_PbVolumeStatus.Lock()
+	defer object_slice_mu_PbVolumeStatus.Unlock()
+
+	hit := false
+	changed := false
+	for _, v2 := range ls2 {
+		hit = false
+		for _, v := range ls {
+			if v.MountPath != v2.MountPath {
+				continue
+			}
+			if v.Used != v2.Used {
+				v.Used, changed = v2.Used, true
 			}
 			hit = true
 			break

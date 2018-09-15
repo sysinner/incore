@@ -17,6 +17,7 @@ package inapi
 import (
 	"encoding/binary"
 	"fmt"
+	"regexp"
 	"strconv"
 
 	"github.com/lynkdb/iomix/skv"
@@ -113,10 +114,6 @@ func NsZoneSysHostSecretKey(zone_id, host_id string) string {
 	return fmt.Sprintf("/inz/%s/sys/hostkey/%s", zone_id, host_id)
 }
 
-func NsZoneSysHostStatus(zone_id, host_id string) string {
-	return fmt.Sprintf("/inz/%s/host/%s/status", zone_id, host_id)
-}
-
 func NsZoneSysHostStats(zone_id, host_id string, timo uint32) skv.KvProgKey {
 	return skv.NewKvProgKey("inz", zone_id, "hs", host_id, timo)
 }
@@ -153,6 +150,12 @@ func NsZonePodOpRepKey(pod_id string, rep_id uint16) string {
 	bs := make([]byte, 2)
 	binary.BigEndian.PutUint16(bs, rep_id)
 	return fmt.Sprintf("%s.%x", pod_id, bs)
+}
+
+var nsZonePodOpRepKeyReg = regexp.MustCompile("^[a-f0-9]{16,20}.[0-9]{4}$")
+
+func NsZonePodOpRepKeyValid(key string) bool {
+	return nsZonePodOpRepKeyReg.MatchString(key)
 }
 
 func NsZoneHostBoundPod(zone_id, host_id, pod_id string, rep_id uint16) string {
