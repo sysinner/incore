@@ -1024,9 +1024,41 @@ func (c Pod) SpecSetAction() {
 		return
 	}
 
+	if len(set.Boxes) != 1 {
+		set.Error = types.NewErrorMeta("400", "invalid box/spec set")
+		return
+	}
+
 	if prev.Spec.Zone != set.Zone || prev.Spec.Cell != set.Cell {
 		set.Error = types.NewErrorMeta("400", "invalid zone or cell set")
 		return
+	}
+
+	if set.Boxes[0].Image != "" {
+		if strings.Index(set.Boxes[0].Image, ":") < 1 {
+			set.Boxes[0].Image = "sysinner:" + set.Boxes[0].Image
+		}
+	}
+
+	// TODO
+	if len(prev.Spec.Boxes) > 0 {
+		if prev.Spec.Boxes[0].Image.Ref != nil {
+			if strings.Index(prev.Spec.Boxes[0].Image.Ref.Id, ":") < 1 {
+				prev.Spec.Boxes[0].Image.Ref.Id = "sysinner:" + prev.Spec.Boxes[0].Image.Ref.Id
+			}
+			if strings.Index(prev.Spec.Boxes[0].Image.Ref.Name, ":") < 1 {
+				prev.Spec.Boxes[0].Image.Ref.Name = "sysinner:" + prev.Spec.Boxes[0].Image.Ref.Name
+			}
+
+			if set.Boxes[0].Image == "" {
+				set.Boxes[0].Image = prev.Spec.Boxes[0].Image.Ref.Name
+			}
+
+			if set.Boxes[0].Image != prev.Spec.Boxes[0].Image.Ref.Name {
+				set.Error = types.NewErrorMeta("400", "invalid image name")
+				return
+			}
+		}
 	}
 
 	//
