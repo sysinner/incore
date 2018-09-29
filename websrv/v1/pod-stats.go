@@ -126,7 +126,7 @@ func (c PodStats) FeedAction() {
 			pod.Meta.ID,
 			0,
 			"sys",
-			fq.TimeStart-600,
+			fq.TimeStart-fq.TimeCycle-600,
 		),
 		inapi.NsZonePodRepStats(pod.Spec.Zone,
 			pod.Meta.ID,
