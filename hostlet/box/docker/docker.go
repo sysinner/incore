@@ -171,7 +171,9 @@ func (tp *BoxDriver) statusRefresh() {
 			}
 
 			time.Sleep(2e9)
-			hlog.Printf("warn", "Can not connect to Docker Server, Error: %s", err)
+			if len(tp.sets) > 0 {
+				hlog.Printf("warn", "Can not connect to Docker Server, Error: %s", err)
+			}
 		}
 
 		if tp.client == nil {
@@ -183,7 +185,9 @@ func (tp *BoxDriver) statusRefresh() {
 	if err != nil {
 		in_sts.Host.Spec.ExpDockerVersion = ""
 		tp.client = nil
-		hlog.Printf("warn", "Error on connect to Docker Server, %s", err)
+		if len(tp.sets) > 0 {
+			hlog.Printf("warn", "Error on connect to Docker Server, %s", err)
+		}
 		return
 	}
 	in_sts.Host.Spec.ExpDockerVersion = info.ServerVersion

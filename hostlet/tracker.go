@@ -44,10 +44,6 @@ import (
 	"github.com/sysinner/incore/status"
 )
 
-const (
-	inagent_box_status = "%s/%s/home/action/.sysinner/box_status.json"
-)
-
 var (
 	stats_podrep_names = []string{
 		"ram/us", "ram/cc",
@@ -399,7 +395,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		status.Host.Prs = append(status.Host.Prs, pod_status)
 
 		var box_oplog inapi.PbOpLogSets
-		fpath := fmt.Sprintf(inagent_box_status, config.Config.PodHomeDir, pod.OpRepKey())
+		fpath := fmt.Sprintf(napi.AgentBoxStatus, config.Config.PodHomeDir, pod.OpRepKey())
 		if err := json.DecodeFile(fpath, &box_oplog); err == nil {
 			if box_oplog.Version >= pod_status.OpLog.Version {
 				for _, vlog := range box_oplog.Items {

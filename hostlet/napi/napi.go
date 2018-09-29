@@ -35,6 +35,8 @@ const (
 	BoxStatsSampleCycle uint32 = 20
 	BoxStatsLogCycle    uint32 = 60
 
+	AgentBoxStatus = "%s/%s/home/action/.sysinner/box_status.json"
+
 	OpLogNsPodPull = "hostlet/pod-updater"
 	OpLogNsCtnCmd  = "hostlet/box-keeper"
 )
