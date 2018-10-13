@@ -40,8 +40,8 @@ func ActionConfig() error {
 		return err
 	}
 
-	if v, ok := hflag.Value("in"); ok {
-		if v2, ok2 := hflag.Value("out"); ok2 {
+	if v, ok := hflag.ValueOK("in"); ok {
+		if v2, ok2 := hflag.ValueOK("out"); ok2 {
 			if err := cfg_render(v.String(), v2.String()); err != nil {
 				return err
 			} else {
