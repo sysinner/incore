@@ -127,7 +127,7 @@ func (tp *BoxDriver) Start() error {
 
 			go tp.statsRefresh()
 
-			time.Sleep(2e9)
+			time.Sleep(3e9)
 		}
 	}()
 
@@ -366,7 +366,6 @@ func (tp *BoxDriver) statsRefresh() {
 
 		n := strings.IndexByte(key, ',')
 		id, name := key[:n], key[n+1:]
-
 		if sts, err := tp.statsEntry(id, name); err == nil {
 			tp.statsSets <- sts
 		} else {
@@ -380,7 +379,7 @@ func (tp *BoxDriver) statsRefresh() {
 func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, error) {
 
 	var (
-		timeout  = 3 * time.Second
+		timeout  = 10 * time.Second
 		statsBuf = make(chan *drclient.Stats, 2)
 	)
 

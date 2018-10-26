@@ -24,6 +24,10 @@ import (
 	"github.com/sysinner/incore/inapi"
 )
 
+var (
+	podBoxIdRe = regexp.MustCompile("^[a-f0-9]{12,20}.[a-f0-9]{4}$")
+)
+
 type QuotaConfig struct {
 	mu            sync.Mutex
 	path          string
@@ -40,6 +44,17 @@ type QuotaProject struct {
 	Soft int64  `json:"soft"`
 	Hard int64  `json:"hard"`
 	Used int64  `json:"used"`
+}
+
+func podBoxFoldMatch(basedir, boxdir string) (string, bool) {
+
+	name := strings.TrimLeft(boxdir, basedir+"/")
+
+	if podBoxIdRe.MatchString(name) {
+		return name, true
+	}
+
+	return "", false
 }
 
 func (it *QuotaConfig) Fetch(name string) *QuotaProject {
@@ -254,9 +269,64 @@ func podVolQuotaRefresh() error {
 		return nil
 	}
 
+	// args := []string{
+	// 	"-xc",
+	// 	"report",
+	// 	quotaMountpoint,
+	// }
+	// out, err := exec.Command(quotaCmd, args...).Output()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// var (
+	// 	lines       = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
+	// 	path_gots = types.ArrayUint32{}
+	// 	device_ok   = false
+	// )
+	// for _, v := range lines {
+
+	// 	vs := strings.Split(strings.TrimSpace(v), " ")
+	// 	if len(vs) < 5 || len(vs[0]) < 2 {
+	// 		continue
+	// 	}
+
+	// 	if vs[0][0] != '#' {
+	// 		continue
+	// 	}
+
+	// 	if vs[0] == "#0" {
+	// 		device_ok = true
+	// 	}
+
+	// 	id, err := strconv.ParseInt(vs[0][1:], 10, 32)
+	// 	if err != nil || id < 100 {
+	// 		continue
+	// 	}
+
+	// 	path_gots.Set(uint32(id))
+
+	// 	proj := quotaConfig.FetchById(int(id))
+	// 	if proj == nil {
+	// 		continue
+	// 	}
+
+	// 	if i64, err := strconv.ParseInt(vs[1], 10, 64); err == nil {
+	// 		proj.Used = i64 * 1024
+	// 	}
+
+	// 	if i64, err := strconv.ParseInt(vs[2], 10, 64); err == nil {
+	// 		proj.Soft = i64 * 1024
+	// 	}
+
+	// 	if i64, err := strconv.ParseInt(vs[3], 10, 64); err == nil {
+	// 		proj.Hard = i64 * 1024
+	// 	}
+	// }
+
 	args := []string{
 		"-xc",
-		"report",
+		"path",
 		quotaMountpoint,
 	}
 	out, err := exec.Command(quotaCmd, args...).Output()
@@ -265,56 +335,99 @@ func podVolQuotaRefresh() error {
 	}
 
 	var (
-		lines       = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
-		report_gots = types.ArrayUint32{}
-		device_ok   = false
+		lines      = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
+		path_gots  = map[string]int{}
+		quota_gots = types.ArrayUint32{}
+		device_ok  = false
 	)
 	for _, v := range lines {
 
 		vs := strings.Split(strings.TrimSpace(v), " ")
-		if len(vs) < 5 || len(vs[0]) < 2 {
+		if len(vs) < 4 || len(vs[0]) < 2 {
 			continue
 		}
 
-		if vs[0][0] != '#' {
-			continue
-		}
-
-		if vs[0] == "#0" {
+		if vs[0] == "[000]" {
 			device_ok = true
+			continue
 		}
 
-		id, err := strconv.ParseInt(vs[0][1:], 10, 32)
+		if len(vs) != 5 || vs[3] != "(project" || len(vs[4]) < 2 {
+			continue
+		}
+
+		id, err := strconv.ParseInt(vs[4][:len(vs[4])-1], 10, 32)
 		if err != nil || id < 100 {
 			continue
 		}
 
-		report_gots.Set(uint32(id))
+		if name, ok := podBoxFoldMatch(config.Config.PodHomeDir, vs[1]); ok {
+			path_gots[name] = int(id)
+		}
+	}
+
+	args = []string{
+		"-xc",
+		"df",
+		quotaMountpoint,
+	}
+	out, _ = exec.Command(quotaCmd, args...).Output()
+
+	lines = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
+	for _, v := range lines {
+
+		vs := strings.Split(strings.TrimSpace(v), " ")
+		if len(vs) != 6 {
+			continue
+		}
+
+		name, ok := podBoxFoldMatch(config.Config.PodHomeDir, vs[5])
+		if !ok {
+			continue
+		}
+
+		id, ok := path_gots[name]
+		if !ok || id < 100 {
+			continue
+		}
 
 		proj := quotaConfig.FetchById(int(id))
 		if proj == nil {
 			continue
 		}
 
-		if i64, err := strconv.ParseInt(vs[1], 10, 64); err == nil {
+		if i64, err := strconv.ParseInt(vs[2], 10, 64); err == nil {
 			proj.Used = i64 * 1024
 		}
 
-		if i64, err := strconv.ParseInt(vs[2], 10, 64); err == nil {
+		if i64, err := strconv.ParseInt(vs[1], 10, 64); err == nil {
 			proj.Soft = i64 * 1024
 		}
 
-		if i64, err := strconv.ParseInt(vs[3], 10, 64); err == nil {
-			proj.Hard = i64 * 1024
+		proj.Hard = proj.Soft
+
+		quota_gots.Set(uint32(id))
+	}
+
+	for p, id := range path_gots {
+		if !quota_gots.Has(uint32(id)) {
+			args := []string{
+				"-xc",
+				fmt.Sprintf("project -s %d", id),
+				quotaMountpoint,
+			}
+			exec.Command(quotaCmd, args...).Output()
+			hlog.Printf("info", "project init %d:%s", id, p)
 		}
 	}
 
-	// hlog.Printf("info", "get info %d  %d", len(quotaConfig.Items), len(report_gots))
+	// hlog.Printf("info", "get info %d  %d", len(quotaConfig.Items), len(path_gots))
 
 	if device_ok {
 		dels := []string{}
 		for _, v := range quotaConfig.Items {
-			if !report_gots.Has(uint32(v.Id)) {
+
+			if _, ok := path_gots[v.Name]; !ok {
 				dels = append(dels, v.Name)
 			}
 		}
@@ -381,7 +494,7 @@ func podVolQuotaRefresh() error {
 		args := []string{
 			"-x",
 			"-c",
-			fmt.Sprintf("\"project -s %d\"", proj.Id),
+			fmt.Sprintf("project -s %d", proj.Id),
 			quotaMountpoint,
 		}
 
@@ -399,12 +512,11 @@ func podVolQuotaRefresh() error {
 				spec_vol.SizeLimit, spec_vol.SizeLimit, proj.Id),
 			quotaMountpoint,
 		}
-
 		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {
 			hlog.Printf("warn", "quota limit %s, {{{%s}}}", err.Error(), string(out))
-			fmt.Println(strings.Join(args, " "))
 			return
 		}
+
 	})
 
 	if err := quotaConfig.Sync(); err != nil {

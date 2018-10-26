@@ -698,7 +698,8 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 
 			hlog.Printf("error", "hostlet/box Start %s, Error %v", inst.Name, err)
 
-			if strings.Contains(err.Error(), "failed to create container") {
+			if strings.Contains(err.Error(), "failed to create container") ||
+				strings.Contains(err.Error(), "not found") {
 
 				if err := tp.client.ContainerRemove(context.Background(), inst.ID, &drclient_types.ContainerRemoveOptions{
 					Force: true,
