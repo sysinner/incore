@@ -425,47 +425,44 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	for _, v := range set.Boxes {
+	if strings.IndexByte(set.Box.Image, ':') < 0 { // UPGRADE
+		set.Box.Image = inapi.BoxImageRepoDefault + ":" + set.Box.Image
+		hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", id, set.Box.Image)
+	}
 
-		if strings.IndexByte(v.Image, ':') < 0 { // UPGRADE
-			v.Image = inapi.BoxImageRepoDefault + ":" + v.Image
-			hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", id, v.Image)
-		}
+	img := spec_plan.Image(set.Box.Image)
+	if img == nil {
+		set.Error = types.NewErrorMeta("400", "No Image Found")
+		return
+	}
 
-		img := spec_plan.Image(v.Image)
-		if img == nil {
-			set.Error = types.NewErrorMeta("400", "No Image Found")
-			return
-		}
+	res := spec_plan.ResCompute(set.Box.ResCompute)
+	if res == nil {
+		set.Error = types.NewErrorMeta("400", "No ResCompute Found")
+		return
+	}
 
-		res := spec_plan.ResCompute(v.ResCompute)
-		if res == nil {
-			set.Error = types.NewErrorMeta("400", "No ResCompute Found")
-			return
-		}
-
-		pod.Spec.Boxes = append(pod.Spec.Boxes, inapi.PodSpecBoxBound{
-			Name:    v.Name,
-			Updated: types.MetaTimeNow(),
-			Image: inapi.PodSpecBoxImageBound{
-				Ref: &inapi.ObjectReference{
-					Id:   img.RefId,
-					Name: img.RefId,
-				},
-				Driver: img.Driver,
-				OsDist: img.OsDist,
-				Arch:   img.Arch,
-				// Options: img.Options,
+	pod.Spec.Box = inapi.PodSpecBoxBound{
+		Name:    set.Box.Name,
+		Updated: types.MetaTimeNow(),
+		Image: inapi.PodSpecBoxImageBound{
+			Ref: &inapi.ObjectReference{
+				Id:   img.RefId,
+				Name: img.RefId,
 			},
-			Resources: &inapi.PodSpecBoxResComputeBound{
-				Ref: &inapi.ObjectReference{
-					Id:   res.RefId,
-					Name: res.RefId,
-				},
-				CpuLimit: res.CpuLimit,
-				MemLimit: res.MemLimit,
+			Driver: img.Driver,
+			OsDist: img.OsDist,
+			Arch:   img.Arch,
+			// Options: img.Options,
+		},
+		Resources: &inapi.PodSpecBoxResComputeBound{
+			Ref: &inapi.ObjectReference{
+				Id:   res.RefId,
+				Name: res.RefId,
 			},
-		})
+			CpuLimit: res.CpuLimit,
+			MemLimit: res.MemLimit,
+		},
 	}
 
 	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
@@ -641,13 +638,13 @@ func (c Pod) SetInfoAction() {
 	}
 
 	force_sync := false
-	for _, v := range prev.Spec.Boxes {
-		if strings.IndexByte(v.Image.Ref.Id, ':') < 0 {
-			v.Image.Ref.Id = inapi.BoxImageRepoDefault + ":" + v.Image.Ref.Id
-			hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, v.Image.Ref.Id)
-			force_sync = true
-		}
+	// for _, v := range prev.Spec.Boxes {
+	if strings.IndexByte(prev.Spec.Box.Image.Ref.Id, ':') < 0 {
+		prev.Spec.Box.Image.Ref.Id = inapi.BoxImageRepoDefault + ":" + prev.Spec.Box.Image.Ref.Id
+		hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, prev.Spec.Box.Image.Ref.Id)
+		force_sync = true
 	}
+	// }
 
 	//
 	if !force_sync &&
@@ -1024,42 +1021,37 @@ func (c Pod) SpecSetAction() {
 		return
 	}
 
-	if len(set.Boxes) != 1 {
-		set.Error = types.NewErrorMeta("400", "invalid box/spec set")
-		return
-	}
-
 	if prev.Spec.Zone != set.Zone || prev.Spec.Cell != set.Cell {
 		set.Error = types.NewErrorMeta("400", "invalid zone or cell set")
 		return
 	}
 
-	if set.Boxes[0].Image != "" {
-		if strings.Index(set.Boxes[0].Image, ":") < 1 {
-			set.Boxes[0].Image = "sysinner:" + set.Boxes[0].Image
+	if set.Box.Image != "" {
+		if strings.Index(set.Box.Image, ":") < 1 {
+			set.Box.Image = "sysinner:" + set.Box.Image
 		}
 	}
 
 	// TODO
-	if len(prev.Spec.Boxes) > 0 {
-		if prev.Spec.Boxes[0].Image.Ref != nil {
-			if strings.Index(prev.Spec.Boxes[0].Image.Ref.Id, ":") < 1 {
-				prev.Spec.Boxes[0].Image.Ref.Id = "sysinner:" + prev.Spec.Boxes[0].Image.Ref.Id
-			}
-			if strings.Index(prev.Spec.Boxes[0].Image.Ref.Name, ":") < 1 {
-				prev.Spec.Boxes[0].Image.Ref.Name = "sysinner:" + prev.Spec.Boxes[0].Image.Ref.Name
-			}
+	// if len(prev.Spec.Boxes) > 0 {
+	if prev.Spec.Box.Image.Ref != nil {
+		if strings.Index(prev.Spec.Box.Image.Ref.Id, ":") < 1 {
+			prev.Spec.Box.Image.Ref.Id = "sysinner:" + prev.Spec.Box.Image.Ref.Id
+		}
+		if strings.Index(prev.Spec.Box.Image.Ref.Name, ":") < 1 {
+			prev.Spec.Box.Image.Ref.Name = "sysinner:" + prev.Spec.Box.Image.Ref.Name
+		}
 
-			if set.Boxes[0].Image == "" {
-				set.Boxes[0].Image = prev.Spec.Boxes[0].Image.Ref.Name
-			}
+		if set.Box.Image == "" {
+			set.Box.Image = prev.Spec.Box.Image.Ref.Name
+		}
 
-			if set.Boxes[0].Image != prev.Spec.Boxes[0].Image.Ref.Name {
-				set.Error = types.NewErrorMeta("400", "invalid image name")
-				return
-			}
+		if set.Box.Image != prev.Spec.Box.Image.Ref.Name {
+			set.Error = types.NewErrorMeta("400", "invalid image name")
+			return
 		}
 	}
+	// }
 
 	//
 	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
@@ -1117,48 +1109,45 @@ func (c Pod) SpecSetAction() {
 	prev.Spec.Labels = spec_plan.Labels
 
 	//
-	prev.Spec.Boxes = []inapi.PodSpecBoxBound{}
-	for _, v := range set.Boxes {
+	// prev.Spec.Boxes = []inapi.PodSpecBoxBound{}
+	if strings.IndexByte(set.Box.Image, ':') < 0 { // UPGRADE
+		set.Box.Image = inapi.BoxImageRepoDefault + ":" + set.Box.Image
+		hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, set.Box.Image)
+	}
 
-		if strings.IndexByte(v.Image, ':') < 0 { // UPGRADE
-			v.Image = inapi.BoxImageRepoDefault + ":" + v.Image
-			hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, v.Image)
-		}
+	img := spec_plan.Image(set.Box.Image)
+	if img == nil {
+		set.Error = types.NewErrorMeta("400", "No Image Found")
+		return
+	}
 
-		img := spec_plan.Image(v.Image)
-		if img == nil {
-			set.Error = types.NewErrorMeta("400", "No Image Found")
-			return
-		}
+	res := spec_plan.ResCompute(set.Box.ResCompute)
+	if res == nil {
+		set.Error = types.NewErrorMeta("400", "No ResCompute Found")
+		return
+	}
 
-		res := spec_plan.ResCompute(v.ResCompute)
-		if res == nil {
-			set.Error = types.NewErrorMeta("400", "No ResCompute Found")
-			return
-		}
-
-		prev.Spec.Boxes = append(prev.Spec.Boxes, inapi.PodSpecBoxBound{
-			Name:    v.Name,
-			Updated: types.MetaTimeNow(),
-			Image: inapi.PodSpecBoxImageBound{
-				Ref: &inapi.ObjectReference{
-					Id:   img.RefId,
-					Name: img.RefId,
-				},
-				Driver: img.Driver,
-				OsDist: img.OsDist,
-				Arch:   img.Arch,
-				// Options: img.Options,
+	prev.Spec.Box = inapi.PodSpecBoxBound{
+		Name:    set.Box.Name,
+		Updated: types.MetaTimeNow(),
+		Image: inapi.PodSpecBoxImageBound{
+			Ref: &inapi.ObjectReference{
+				Id:   img.RefId,
+				Name: img.RefId,
 			},
-			Resources: &inapi.PodSpecBoxResComputeBound{
-				Ref: &inapi.ObjectReference{
-					Id:   res.RefId,
-					Name: res.RefId,
-				},
-				CpuLimit: res.CpuLimit,
-				MemLimit: res.MemLimit,
+			Driver: img.Driver,
+			OsDist: img.OsDist,
+			Arch:   img.Arch,
+			// Options: img.Options,
+		},
+		Resources: &inapi.PodSpecBoxResComputeBound{
+			Ref: &inapi.ObjectReference{
+				Id:   res.RefId,
+				Name: res.RefId,
 			},
-		})
+			CpuLimit: res.CpuLimit,
+			MemLimit: res.MemLimit,
+		},
 	}
 
 	for _, app := range prev.Apps {
@@ -1216,18 +1205,18 @@ func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *typ
 			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
 	}
 
-	for _, v := range pod.Spec.Boxes {
+	// for _, v := range pod.Spec.Boxes {
 
-		if v.Resources != nil {
-			// CPU
-			charge_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+	if pod.Spec.Box.Resources != nil {
+		// CPU
+		charge_amount += iamapi.AccountFloat64Round(
+			spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/1000), 4)
 
-			// RAM
-			charge_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
-		}
+		// RAM
+		charge_amount += iamapi.AccountFloat64Round(
+			spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit/inapi.ByteMB), 4)
 	}
+	// }
 
 	charge_amount = charge_amount * float64(pod.Operate.ReplicaCap)
 

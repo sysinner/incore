@@ -148,32 +148,30 @@ func (c Charge) PodEstimateAction() {
 	}
 
 	//
-	for _, v := range set.Boxes {
 
-		img := spec_plan.Image(v.Image)
-		if img == nil {
-			rsp.Error = types.NewErrorMeta("400", "No Image Found")
-			return
-		}
+	img := spec_plan.Image(set.Box.Image)
+	if img == nil {
+		rsp.Error = types.NewErrorMeta("400", "No Image Found")
+		return
+	}
 
-		res := spec_plan.ResCompute(v.ResCompute)
-		if res == nil {
-			rsp.Error = types.NewErrorMeta("400", "No ResCompute Found")
-			return
-		}
+	res := spec_plan.ResCompute(set.Box.ResCompute)
+	if res == nil {
+		rsp.Error = types.NewErrorMeta("400", "No ResCompute Found")
+		return
+	}
 
-		pod.Spec.Boxes = append(pod.Spec.Boxes, inapi.PodSpecBoxBound{
-			Name: v.Name,
-			Resources: &inapi.PodSpecBoxResComputeBound{
-				Ref: &inapi.ObjectReference{
-					Id:   res.RefId,
-					Name: res.RefId,
-					// Version: res.Meta.Version,
-				},
-				CpuLimit: res.CpuLimit,
-				MemLimit: res.MemLimit,
+	pod.Spec.Box = inapi.PodSpecBoxBound{
+		Name: set.Box.Name,
+		Resources: &inapi.PodSpecBoxResComputeBound{
+			Ref: &inapi.ObjectReference{
+				Id:   res.RefId,
+				Name: res.RefId,
+				// Version: res.Meta.Version,
 			},
-		})
+			CpuLimit: res.CpuLimit,
+			MemLimit: res.MemLimit,
+		},
 	}
 
 	var (
@@ -188,17 +186,14 @@ func (c Charge) PodEstimateAction() {
 			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
 	}
 
-	for _, v := range pod.Spec.Boxes {
+	if pod.Spec.Box.Resources != nil {
+		// CPU
+		amount_cpu += iamapi.AccountFloat64Round(
+			spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/1000), 4)
 
-		if v.Resources != nil {
-			// CPU
-			amount_cpu += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
-
-			// RAM
-			amount_mem += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
-		}
+		// RAM
+		amount_mem += iamapi.AccountFloat64Round(
+			spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit/inapi.ByteMB), 4)
 	}
 
 	for _, ct := range cycles {

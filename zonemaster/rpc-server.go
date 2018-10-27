@@ -144,11 +144,15 @@ func (s *ApiZoneMaster) HostStatusSync(
 		v.OpLog = prev.OpLog
 		v.Updated = tn
 
-		for _, v2 := range prev.Boxes {
-			if v2.Name == "" {
-				prev.Boxes = []*inapi.PbPodBoxStatus{}
-				break
-			}
+		// for _, v2 := range prev.Boxes {
+		// 	if v2.Name == "" {
+		// 		prev.Boxes = []*inapi.PbPodBoxStatus{}
+		// 		break
+		// 	}
+		// }
+
+		if v.Box != nil {
+			prev.Box = v.Box
 		}
 
 		if v.Stats != nil {

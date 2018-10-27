@@ -124,12 +124,10 @@ func Benchmark_Schedule(b *testing.B) {
 
 		pod := inapi.Pod{
 			Spec: &inapi.PodSpecBound{
-				Boxes: []inapi.PodSpecBoxBound{
-					{
-						Resources: &inapi.PodSpecBoxResComputeBound{
-							CpuLimit: rand.Int63n(16000),
-							MemLimit: rand.Int63n(32 * int64(inapi.ByteGB)),
-						},
+				Box: inapi.PodSpecBoxBound{
+					Resources: &inapi.PodSpecBoxResComputeBound{
+						CpuLimit: rand.Int63n(16000),
+						MemLimit: rand.Int63n(32 * int64(inapi.ByteGB)),
 					},
 				},
 			},

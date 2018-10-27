@@ -143,18 +143,18 @@ func pod_charge_entry(pod inapi.Pod) bool {
 	// Res Computes
 	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) &&
 		!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) {
-		for _, v := range pod.Spec.Boxes {
-			if v.Resources == nil {
-				continue
-			}
+		// for _, v := range pod.Spec.Boxes {
+		if pod.Spec.Box.Resources != nil {
+
 			// CPU v.Resources.CpuLimit = 1000
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+				spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/1000), 4)
 
 			// MEM v.Resources.MemLimit = 1 * inapi.ByteGB
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
+				spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit/inapi.ByteMB), 4)
 		}
+		// }
 	}
 
 	if cycle_amount == 0 || inst_num == 0 {

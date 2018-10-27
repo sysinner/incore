@@ -272,6 +272,9 @@ func (c App) SetAction() {
 	var rs skv.Result
 	if prev.Spec.Meta.Version != "" {
 		rs = in_db.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
+		if !rs.OK() {
+			rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
+		}
 	} else {
 		rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
 	}

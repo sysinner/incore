@@ -25,7 +25,8 @@ message PbPodRepStatus {
     uint32                  rep     = 2; // struct:object_slice_key
     uint32                  action  = 3;
 	string                  node    = 4;
-    repeated PbPodBoxStatus boxes   = 5;
+    // repeated PbPodBoxStatus boxes   = 5; // DEPRECATED
+    PbPodBoxStatus          box     = 10;
     PbOpLogSets             op_log  = 6;
     PbStatsSampleFeed       stats   = 7;
     uint32                  updated = 8; // unix time in seconds

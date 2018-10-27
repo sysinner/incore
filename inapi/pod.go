@@ -15,6 +15,7 @@
 package inapi
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"sync"
@@ -189,7 +190,35 @@ type PodSpecBound struct {
 	BoxDriver string                  `json:"box_driver,omitempty"`
 	Labels    types.Labels            `json:"labels,omitempty"`
 	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty"`
-	Boxes     []PodSpecBoxBound       `json:"boxes,omitempty"`
+	Box       PodSpecBoxBound         `json:"box,omitempty"`
+	Boxes     []PodSpecBoxBound       `json:"boxes,omitempty"` // DEPRECATED
+}
+
+type podSpecBoundJs PodSpecBound
+
+func (it *PodSpecBound) UnmarshalJSON(b []byte) error {
+
+	var obj podSpecBoundJs
+	if err := json.Unmarshal(b, &obj); err != nil {
+		return err
+	}
+
+	if obj.Box.Name == "" && len(obj.Boxes) > 0 {
+		obj.Box = obj.Boxes[0]
+	}
+
+	*it = PodSpecBound(obj)
+
+	return nil
+}
+
+func (it PodSpecBound) MarshalJSON() ([]byte, error) {
+
+	if it.Box.Name == "" && len(it.Boxes) > 0 {
+		it.Box = it.Boxes[0]
+	}
+
+	return json.Marshal(podSpecBoundJs(it))
 }
 
 func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
@@ -205,16 +234,26 @@ func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
 }
 
 func (obj *PodSpecBound) DriverBound() (docker_on, rkt_on, pouch_on bool) {
-	if obj != nil && obj.Boxes != nil {
-		for _, v := range obj.Boxes {
+	// if obj != nil && obj.Boxes != nil {
+	// 	for _, v := range obj.Boxes {
 
-			if v.Image.Driver == PodSpecBoxImageDocker {
-				docker_on = true
-			} else if v.Image.Driver == PodSpecBoxImageRkt {
-				rkt_on = true
-			} else if v.Image.Driver == PodSpecBoxImagePouch {
-				pouch_on = true
-			}
+	// 		if v.Image.Driver == PodSpecBoxImageDocker {
+	// 			docker_on = true
+	// 		} else if v.Image.Driver == PodSpecBoxImageRkt {
+	// 			rkt_on = true
+	// 		} else if v.Image.Driver == PodSpecBoxImagePouch {
+	// 			pouch_on = true
+	// 		}
+	// 	}
+	// }
+	if obj != nil {
+
+		if obj.Box.Image.Driver == PodSpecBoxImageDocker {
+			docker_on = true
+		} else if obj.Box.Image.Driver == PodSpecBoxImageRkt {
+			rkt_on = true
+		} else if obj.Box.Image.Driver == PodSpecBoxImagePouch {
+			pouch_on = true
 		}
 	}
 	return docker_on, rkt_on, pouch_on
@@ -224,17 +263,24 @@ func (obj *PodSpecBound) ResComputeBound() *PodSpecBoxResComputeBound {
 
 	rs := &PodSpecBoxResComputeBound{}
 
-	if obj != nil && obj.Boxes != nil {
-		for _, v := range obj.Boxes {
+	if obj != nil {
 
-			if v.Resources == nil {
-				continue
-			}
-
-			rs.CpuLimit += v.Resources.CpuLimit
-			rs.MemLimit += v.Resources.MemLimit
+		if obj.Box.Resources != nil {
+			rs.CpuLimit = obj.Box.Resources.CpuLimit
+			rs.MemLimit = obj.Box.Resources.MemLimit
 		}
 	}
+	// if obj != nil && obj.Boxes != nil {
+	// 	for _, v := range obj.Boxes {
+
+	// 		if v.Resources == nil {
+	// 			continue
+	// 		}
+
+	// 		rs.CpuLimit += v.Resources.CpuLimit
+	// 		rs.MemLimit += v.Resources.MemLimit
+	// 	}
+	// }
 
 	return rs
 }
@@ -260,7 +306,7 @@ type PodSpecResVolumeBound struct {
 }
 
 type PodSpecBoxBound struct {
-	Name      string                     `json:"name"`
+	Name      string                     `json:"name,omitempty"`
 	Image     PodSpecBoxImageBound       `json:"image,omitempty"`
 	Resources *PodSpecBoxResComputeBound `json:"resources,omitempty"`
 	Mounts    []*PbVolumeMount           `json:"mounts,omitempty"`
@@ -577,14 +623,15 @@ type PodSpecPlanZoneBound struct {
 
 type PodCreate struct {
 	types.TypeMeta `json:",inline"`
-	Pod            string         `json:"pod,omitempty"`
-	Name           string         `json:"name"`
-	Plan           string         `json:"plan"`
-	Zone           string         `json:"zone"`
-	Cell           string         `json:"cell"`
-	ResVolume      string         `json:"res_volume"`
-	ResVolumeSize  int64          `json:"res_volume_size"`
-	Boxes          []PodCreateBox `json:"boxes"`
+	Pod            string       `json:"pod,omitempty"`
+	Name           string       `json:"name"`
+	Plan           string       `json:"plan"`
+	Zone           string       `json:"zone"`
+	Cell           string       `json:"cell"`
+	ResVolume      string       `json:"res_volume"`
+	ResVolumeSize  int64        `json:"res_volume_size"`
+	Box            PodCreateBox `json:"box"`
+	// Boxes          []PodCreateBox `json:"boxes,omitempty"` // DEPRECATED
 }
 
 type PodCreateBox struct {
@@ -658,26 +705,38 @@ func (s *PodCreate) Valid(plan PodSpecPlan) error {
 		return errors.New("No ResVolume Found")
 	}
 
-	for i, box := range s.Boxes {
+	// for i, box := range s.Boxes {
 
-		hit = false
+	// 	hit = false
 
-		for _, rv := range plan.ResComputes {
+	// 	for _, rv := range plan.ResComputes {
 
-			if rv.RefId != box.ResCompute {
-				continue
-			}
+	// 		if rv.RefId != box.ResCompute {
+	// 			continue
+	// 		}
 
-			s.Boxes[i].ResComputeCpuLimit = rv.CpuLimit
-			s.Boxes[i].ResComputeMemLimit = rv.MemLimit
+	// 		s.Boxes[i].ResComputeCpuLimit = rv.CpuLimit
+	// 		s.Boxes[i].ResComputeMemLimit = rv.MemLimit
 
-			hit = true
-			break
-		}
+	// 		hit = true
+	// 		break
+	// 	}
 
-		if !hit {
-			return errors.New("Invalid ResCompute")
-		}
+	// 	if !hit {
+	// 		return errors.New("Invalid ResCompute")
+	// 	}
+	// }
+
+	rv := plan.ResCompute(s.Box.ResCompute)
+	if rv == nil {
+		return errors.New("ResCompute Not Found")
+	}
+
+	s.Box.ResComputeCpuLimit = rv.CpuLimit
+	s.Box.ResComputeMemLimit = rv.MemLimit
+
+	if s.Box.ResComputeCpuLimit < 100 {
+		return errors.New("Invalid ResCompute Plan")
 	}
 
 	return nil
@@ -784,6 +843,33 @@ type PodStatus struct {
 	Updated        uint32            `json:"updated,omitempty"`
 	OpLog          []*PbOpLogEntry   `json:"op_log,omitempty"`
 }
+
+// type jsPbPodRepStatus PbPodRepStatus
+
+// func (it *PbPodRepStatus) UnmarshalJSON(b []byte) error {
+
+// 	var obj jsPbPodRepStatus
+// 	if err := json.Unmarshal(b, &obj); err != nil {
+// 		return err
+// 	}
+
+// 	if obj.Box.Name == "" && len(obj.Boxes) > 0 {
+// 		obj.Box = obj.Boxes[0]
+// 	}
+
+// 	*it = PbPodRepStatus(obj)
+
+// 	return nil
+// }
+
+// func (it PbPodRepStatus) MarshalJSON() ([]byte, error) {
+
+// 	if it.Box.Name == "" && len(it.Boxes) > 0 {
+// 		it.Box = it.Boxes[0]
+// 	}
+
+// 	return json.Marshal(jsPbPodRepStatus(it))
+// }
 
 func (it *Pod) StatusRefresh() {
 	it.Status.Refresh(it.Operate.ReplicaCap)

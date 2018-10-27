@@ -14,7 +14,6 @@ func (it *PbPodRepStatus) Equal(it2 *PbPodRepStatus) bool {
 		it.Rep != it2.Rep ||
 		it.Action != it2.Action ||
 		it.Node != it2.Node ||
-		!PbPodBoxStatusSliceEqual(it.Boxes, it2.Boxes) ||
 		it.Updated != it2.Updated ||
 		!PbVolumeStatusSliceEqual(it.Volumes, it2.Volumes) {
 		return false
@@ -38,9 +37,6 @@ func (it *PbPodRepStatus) Sync(it2 *PbPodRepStatus) bool {
 	}
 	if it.Node != it2.Node {
 		it.Node, changed = it2.Node, true
-	}
-	if rs, ok := PbPodBoxStatusSliceSyncSlice(it.Boxes, it2.Boxes); ok {
-		it.Boxes, changed = rs, true
 	}
 	if it.Updated != it2.Updated {
 		it.Updated, changed = it2.Updated, true
@@ -83,9 +79,6 @@ func PbPodRepStatusSliceEqual(ls, ls2 []*PbPodRepStatus) bool {
 			if v.Node != v2.Node {
 				return false
 			}
-			if !PbPodBoxStatusSliceEqual(v.Boxes, v2.Boxes) {
-				return false
-			}
 			if v.Updated != v2.Updated {
 				return false
 			}
@@ -120,9 +113,6 @@ func PbPodRepStatusSliceSync(ls []*PbPodRepStatus, it2 *PbPodRepStatus) ([]*PbPo
 		}
 		if v.Node != it2.Node {
 			v.Node, changed = it2.Node, true
-		}
-		if rs, ok := PbPodBoxStatusSliceSyncSlice(v.Boxes, it2.Boxes); ok {
-			v.Boxes, changed = rs, true
 		}
 		if v.Updated != it2.Updated {
 			v.Updated, changed = it2.Updated, true
@@ -160,9 +150,6 @@ func PbPodRepStatusSliceSyncSlice(ls, ls2 []*PbPodRepStatus) ([]*PbPodRepStatus,
 			}
 			if v.Node != v2.Node {
 				v.Node, changed = v2.Node, true
-			}
-			if rs, ok := PbPodBoxStatusSliceSyncSlice(v.Boxes, v2.Boxes); ok {
-				v.Boxes, changed = rs, true
 			}
 			if v.Updated != v2.Updated {
 				v.Updated, changed = v2.Updated, true

@@ -29,18 +29,18 @@ func boxActionRefresh() []*napi.BoxInstance {
 
 	nstatus.PodRepActives.Each(func(pod *inapi.Pod) {
 
-		for _, box := range pod.Spec.Boxes {
+		// for _, box := range pod.Spec.Boxes {
 
-			inst_name := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, box.Name)
+		inst_name := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, pod.Spec.Box.Name)
 
-			if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
-				nstatus.BoxActives.Del(inst_name)
-				continue
-			}
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			nstatus.BoxActives.Del(inst_name)
+		} else {
 
-			inst := boxActionRefreshEntry(inst_name, pod, box)
+			inst := boxActionRefreshEntry(inst_name, pod, pod.Spec.Box)
 			actions = append(actions, inst)
 		}
+		// }
 
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			dels = append(dels, pod.Meta.ID)

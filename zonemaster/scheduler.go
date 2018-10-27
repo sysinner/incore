@@ -362,18 +362,18 @@ func scheduler_exec_pod(podq *inapi.Pod) error {
 					spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
 			}
 
-			for _, v := range podq.Spec.Boxes {
+			// for _, v := range podq.Spec.Boxes {
 
-				if v.Resources != nil {
-					// CPU
-					charge_amount += iamapi.AccountFloat64Round(
-						spec_plan.ResComputeCharge.Cpu*(float64(v.Resources.CpuLimit)/1000), 4)
+			if podq.Spec.Box.Resources != nil {
+				// CPU
+				charge_amount += iamapi.AccountFloat64Round(
+					spec_plan.ResComputeCharge.Cpu*(float64(podq.Spec.Box.Resources.CpuLimit)/1000), 4)
 
-					// RAM
-					charge_amount += iamapi.AccountFloat64Round(
-						spec_plan.ResComputeCharge.Mem*float64(v.Resources.MemLimit/inapi.ByteMB), 4)
-				}
+				// RAM
+				charge_amount += iamapi.AccountFloat64Round(
+					spec_plan.ResComputeCharge.Mem*float64(podq.Spec.Box.Resources.MemLimit/inapi.ByteMB), 4)
 			}
+			// }
 
 			charge_amount = charge_amount * float64(podq.Operate.ReplicaCap)
 

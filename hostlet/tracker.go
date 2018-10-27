@@ -337,15 +337,14 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		action := uint32(0)
 
 		//
-		for _, bspec := range pod.Spec.Boxes {
+		// for _, bspec := range pod.Spec.Boxes {
 
-			inst_name := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, bspec.Name)
+		inst_name := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, pod.Spec.Box.Name)
 
-			box_inst := nstatus.BoxActives.Get(inst_name)
-			if box_inst == nil {
-				action = inapi.OpActionPending
-				continue
-			}
+		box_inst := nstatus.BoxActives.Get(inst_name)
+		if box_inst == nil {
+			action = inapi.OpActionPending
+		} else {
 
 			if action == 0 {
 				action = box_inst.Status.Action
@@ -355,9 +354,10 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 				action = inapi.OpActionPending
 			}
 
-			pod_status.Boxes = append(pod_status.Boxes, &box_inst.Status)
+			// pod_status.Boxes = append(pod_status.Boxes, &box_inst.Status)
+			pod_status.Box = &box_inst.Status
 
-			if bspec.Name == "main" && box_inst.Stats != nil {
+			if pod.Spec.Box.Name == "main" && box_inst.Stats != nil {
 
 				//
 				var (
@@ -376,6 +376,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 				}
 			}
 		}
+		// }
 
 		pod_status.Action = action
 		// hlog.Printf("debug", "PodRep %s Phase %s", pod.OpRepKey(), pod_status.Phase)

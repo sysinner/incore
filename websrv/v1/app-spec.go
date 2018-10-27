@@ -232,8 +232,12 @@ func (c AppSpec) EntryAction() {
 		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
 			rs.Decode(&set)
 		}
-	} else if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
-		rs.Decode(&set)
+	}
+
+	if set.Meta.ID != c.Params.Get("id") {
+		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+			rs.Decode(&set)
+		}
 	}
 
 	if set.Meta.ID != c.Params.Get("id") {

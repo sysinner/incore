@@ -146,8 +146,7 @@ func pod_init() error {
 	}
 
 	if pod.Spec == nil ||
-		len(pod.Spec.Boxes) == 0 ||
-		pod.Spec.Boxes[0].Resources == nil {
+		pod.Spec.Box.Resources == nil {
 		return errors.New("Not Pod Instance Setup")
 	}
 
