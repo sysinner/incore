@@ -192,7 +192,7 @@ func init_iox() error {
 
 		opts = &connect.ConnOptions{
 			Name:      io_name,
-			Connector: "iomix/skv/Connector",
+			Connector: "iomix/skv/connector",
 			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
 		}
 	}

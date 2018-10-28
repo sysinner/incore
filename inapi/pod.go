@@ -844,33 +844,6 @@ type PodStatus struct {
 	OpLog          []*PbOpLogEntry   `json:"op_log,omitempty"`
 }
 
-// type jsPbPodRepStatus PbPodRepStatus
-
-// func (it *PbPodRepStatus) UnmarshalJSON(b []byte) error {
-
-// 	var obj jsPbPodRepStatus
-// 	if err := json.Unmarshal(b, &obj); err != nil {
-// 		return err
-// 	}
-
-// 	if obj.Box.Name == "" && len(obj.Boxes) > 0 {
-// 		obj.Box = obj.Boxes[0]
-// 	}
-
-// 	*it = PbPodRepStatus(obj)
-
-// 	return nil
-// }
-
-// func (it PbPodRepStatus) MarshalJSON() ([]byte, error) {
-
-// 	if it.Box.Name == "" && len(it.Boxes) > 0 {
-// 		it.Box = it.Boxes[0]
-// 	}
-
-// 	return json.Marshal(jsPbPodRepStatus(it))
-// }
-
 func (it *Pod) StatusRefresh() {
 	it.Status.Refresh(it.Operate.ReplicaCap)
 }
