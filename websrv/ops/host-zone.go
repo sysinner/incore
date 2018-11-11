@@ -18,10 +18,15 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/iam/iamapi"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 
+	iam_db "github.com/hooto/iam/store"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 func (c Host) ZoneListAction() {
@@ -230,4 +235,64 @@ func (c Host) ZoneSetAction() {
 	data.GlobalMaster.PvPut(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone, nil)
 
 	set.Kind = "HostZone"
+}
+
+func (c Host) ZoneAccChargeKeyRefreshAction() {
+
+	var set inapi.GeneralObject
+	defer c.RenderJson(&set)
+
+	var (
+		zone_id = c.Params.Get("zone_id")
+		zone    inapi.ResZone
+	)
+
+	if zone_id != status.Zone.Meta.Id {
+		set.Error = types.NewErrorMeta("400", "Zone Not Found")
+		return
+	}
+
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(zone_id)); rs.OK() {
+		rs.Decode(&zone)
+	}
+
+	if zone.Meta.Id != zone_id {
+		set.Error = types.NewErrorMeta("400", "Zone Not Found")
+		return
+	}
+
+	init_akacc := iamapi.AccessKey{
+		User: "sysadmin",
+		AccessKey: "00" + idhash.HashToHexString(
+			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", zone_id)), 14),
+		SecretKey: idhash.RandBase64String(40),
+		Bounds: []iamapi.AccessKeyBound{{
+			Name: "sys/zm/" + zone_id,
+		}},
+		Description: "ZoneMaster AccCharge",
+	}
+	if err := iam_db.AccessKeyReset(init_akacc); err != nil {
+		set.Error = types.NewErrorMeta("500", "database/iam error "+err.Error())
+		return
+	}
+
+	zone.OptionSet("iam/acc_charge/access_key", init_akacc.AccessKey)
+	zone.OptionSet("iam/acc_charge/secret_key", init_akacc.SecretKey)
+
+	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysZone(zone_id), zone, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", "database/global error "+rs.Bytex().String())
+		return
+	}
+
+	if rs := data.ZoneMaster.PvPut(inapi.NsZoneSysInfo(zone_id), zone, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", "database/zone error "+rs.Bytex().String())
+		return
+	}
+
+	hlog.Printf("warn", "ops/zone/acc-charge/key/reset %s, %s...",
+		init_akacc.AccessKey, init_akacc.SecretKey[:20])
+
+	status.Zone = &zone
+
+	set.Kind = "Zone"
 }
