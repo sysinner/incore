@@ -409,17 +409,17 @@ func podVolQuotaRefresh() error {
 		quota_gots.Set(uint32(id))
 	}
 
-	for p, id := range path_gots {
-		if !quota_gots.Has(uint32(id)) {
-			args := []string{
-				"-xc",
-				fmt.Sprintf("project -s %d", id),
-				quotaMountpoint,
-			}
-			exec.Command(quotaCmd, args...).Output()
-			hlog.Printf("info", "project init %d:%s", id, p)
-		}
-	}
+	// for p, id := range path_gots {
+	// 	if !quota_gots.Has(uint32(id)) {
+	// 		args := []string{
+	// 			"-xc",
+	// 			fmt.Sprintf("project -s %d", id),
+	// 			quotaMountpoint,
+	// 		}
+	// 		exec.Command(quotaCmd, args...).Output()
+	// 		hlog.Printf("info", "project init %d:%s", id, p)
+	// 	}
+	// }
 
 	// hlog.Printf("info", "get info %d  %d", len(quotaConfig.Items), len(path_gots))
 
@@ -427,7 +427,7 @@ func podVolQuotaRefresh() error {
 		dels := []string{}
 		for _, v := range quotaConfig.Items {
 
-			if _, ok := path_gots[v.Name]; !ok {
+			if !quota_gots.Has(uint32(v.Id)) {
 				dels = append(dels, v.Name)
 			}
 		}
@@ -481,7 +481,7 @@ func podVolQuotaRefresh() error {
 			return
 		}
 
-		if proj.Soft == spec_vol.SizeLimit {
+		if quota_gots.Has(uint32(proj.Id)) && proj.Soft == spec_vol.SizeLimit {
 			return
 		}
 
@@ -542,6 +542,18 @@ func podVolQuotaRefresh() error {
 			quotaMountpoint,
 		}
 
+		_, err = exec.Command(quotaCmd, args...).Output()
+		if err != nil {
+			hlog.Printf("warn", "quota clean project %s, err %s", v.Name, err.Error())
+			return err
+		}
+
+		//
+		args = []string{
+			"-xc",
+			fmt.Sprintf("project -C %d", v.Id),
+			quotaMountpoint,
+		}
 		_, err = exec.Command(quotaCmd, args...).Output()
 		if err != nil {
 			hlog.Printf("warn", "quota clean project %s, err %s", v.Name, err.Error())
