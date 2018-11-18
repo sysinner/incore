@@ -827,6 +827,7 @@ func (ls *PodOperateReplicas) Get(rep_id uint16) *PodOperateReplica {
 type PodOperateAccess struct {
 	SshOn  bool   `json:"ssh_on"`
 	SshKey string `json:"ssh_key,omitempty"`
+	SshPwd string `json:"ssh_pwd,omitempty"`
 }
 
 type PodExecutorStatus struct {

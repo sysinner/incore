@@ -44,7 +44,7 @@ const (
 var (
 	VolPodHomeFmt      = "%s/%s/home/action"
 	VolAgentSysDirFmt  = "%s/%s/home/action/.sysinner"
-	BoxInstanceNameReg = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})-([a-z]{1}[a-z0-9]{0,19})$")
+	BoxInstanceNameReg = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})$")
 	StatsFeedNames     = []string{
 		"ram/us", "ram/cc",
 		"net/rs", "net/ws",
@@ -122,19 +122,19 @@ func BoxInstanceName(pod_id string, rep *inapi.PodOperateReplica, box_name strin
 	}
 
 	return fmt.Sprintf(
-		"%s-%s-%s",
-		pod_id, inutils.Uint16ToHexString(rep_id), box_name,
+		"%s-%s",
+		pod_id, inutils.Uint16ToHexString(rep_id),
 	)
 }
 
-func BoxInstanceNameParse(hostname string) (pod_id string, rep_id uint16, box_name string) {
+func BoxInstanceNameParse(hostname string) (pod_id string, rep_id uint16, name string) {
 
-	if ns := BoxInstanceNameReg.FindStringSubmatch(hostname); len(ns) == 4 {
+	if ns := BoxInstanceNameReg.FindStringSubmatch(hostname); len(ns) == 3 {
 
 		rb, _ := hex.DecodeString(ns[2])
 		rep_id = binary.BigEndian.Uint16(rb)
 
-		return ns[1], rep_id, ns[3]
+		return ns[1], rep_id, "main"
 	}
 
 	return "", 0, ""

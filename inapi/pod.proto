@@ -65,6 +65,7 @@ message PbPodBoxStatusExecutor {
     string error_message = 5;
 }
 
+
 // PodBoxStatus represents the current information about a box
 message PbPodBoxStatus {
     string                          name          = 1; // struct:object_slice_key

@@ -28,6 +28,8 @@ var (
 	app_spec_cfg_name_re2 = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
 	AppIdRe2              = regexp.MustCompile("^[a-f0-9]{16,24}$")
 	AppSpecIdReg          = regexp.MustCompile("^[a-z]{1}[a-z0-9_-]{2,39}$")
+	AppSpecVcsGitUrlReg   = regexp.MustCompile(`^(https?:\/\/)([\w\-_\.\/]+)(\.git)$`)
+	AppSpecVcsDirReg      = regexp.MustCompile(`^[a-zA-Z0-9\.\/\-_]{1,50}$`)
 )
 
 type AppPhase string
@@ -112,6 +114,7 @@ type AppSpec struct {
 	Vendor         string                 `json:"vendor,omitempty"`
 	Description    string                 `json:"description,omitempty"`
 	Packages       AppPackages            `json:"packages,omitempty"`
+	VcsRepos       VcsRepoItems           `json:"vcs_repos,omitempty"`
 	Executors      Executors              `json:"executors,omitempty"`
 	VolumeMounts   AppVolumeMounts        `json:"volume_mounts,omitempty"`
 	ServicePorts   ServicePorts           `json:"service_ports,omitempty"`

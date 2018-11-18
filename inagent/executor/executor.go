@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/inagent/status"
@@ -36,79 +35,125 @@ func oplog_name(name string) string {
 	return "box/exec/" + name
 }
 
-func Runner(home_dir string) {
+func execStatusName(id string, name types.NameIdentifier) types.NameIdentifier {
+	return types.NameIdentifier(fmt.Sprintf("%s/%s", id, name))
+}
 
-	for {
+func execAction(pod *inapi.Pod, home_dir, appspec_id, exec_name string, action uint32) error {
 
-		time.Sleep(1e9)
+	if pod.Apps == nil || len(pod.Apps) < 1 {
+		return nil
+	}
 
-		var pod inapi.Pod
-		if err := json.DecodeFile(home_dir+"/.sysinner/pod_instance.json", &pod); err != nil {
-			hlog.Printf("error", err.Error())
-			continue
+	data_maps := map[string]string{}
+	for _, app := range pod.Apps {
+		for _, p := range app.Spec.Packages {
+			data_maps[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
+		}
+	}
+
+	for i := 1; i < 10; i++ {
+
+		n := 0
+
+		for _, app := range pod.Apps {
+			if appspec_id != "" && appspec_id != app.Spec.Meta.ID {
+				continue
+			}
+			for _, ve := range app.Spec.Executors {
+				if exec_name != "" && exec_name != ve.Name.String() {
+					continue
+				}
+				n += 1
+				esName := execStatusName(app.Spec.Meta.ID, ve.Name)
+				if sts, _ := executor_action(esName, ve, data_maps, inapi.OpActionStop); sts == inapi.PbOpLogOK {
+					n -= 1
+				}
+			}
 		}
 
-		if err := executor_init_ssh(&pod); err != nil {
-			hlog.Printf("error", err.Error())
-			continue
+		if n == 0 {
+			return nil
 		}
 
-		if pod.Apps != nil && len(pod.Apps) > 0 {
+		time.Sleep(time.Duration(i) * time.Second)
+	}
 
-			data_maps := map[string]string{}
+	return errors.New("timeout in execAction")
+}
+
+func Restart(pod *inapi.Pod, home_dir, appspec_id, exec_name string) error {
+	if err := execAction(pod, home_dir, appspec_id, exec_name, inapi.OpActionStop); err != nil {
+		return err
+	}
+	return execAction(pod, home_dir, appspec_id, exec_name, inapi.OpActionStart)
+}
+
+func StopAll(pod *inapi.Pod, home_dir string) error {
+	return execAction(pod, home_dir, "", "", inapi.OpActionStop)
+}
+
+func Runner(pod *inapi.Pod, home_dir string) error {
+
+	if err := executor_init_ssh(pod); err != nil {
+		return err
+	}
+
+	if pod.Apps != nil && len(pod.Apps) > 0 {
+
+		data_maps := map[string]string{}
+
+		for _, app := range pod.Apps {
+
+			for _, p := range app.Spec.Packages {
+				data_maps[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
+			}
+		}
+
+		for priority := uint8(0); priority <= inapi.SpecExecutorPriorityMax; {
+
+			pdone := 0
 
 			for _, app := range pod.Apps {
 
-				for _, p := range app.Spec.Packages {
-					data_maps[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
+				if !inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStart) &&
+					!inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStop) {
+					continue
 				}
-			}
 
-			for priority := uint8(0); priority <= inapi.SpecExecutorPriorityMax; {
+				for _, ve := range app.Spec.Executors {
 
-				pdone := 0
-
-				for _, app := range pod.Apps {
-
-					if !inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStart) &&
-						!inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStop) {
+					if priority != ve.Priority {
 						continue
 					}
 
-					for _, ve := range app.Spec.Executors {
+					pdone++
 
-						if priority != ve.Priority {
-							continue
-						}
+					esName := execStatusName(app.Spec.Meta.ID, ve.Name)
 
-						pdone++
-
-						ve.Name = types.NameIdentifier(fmt.Sprintf("%s/%s", app.Spec.Meta.ID, ve.Name))
-
-						if es := status.Statuses.Get(ve.Name); es != nil {
-							if es.Action.Allow(inapi.ExecutorActionStarted) ||
-								es.Action.Allow(inapi.ExecutorActionStopped) {
-								pdone--
-							}
-						}
-
-						status.Executors.Sync(ve)
-						if sts, msg := executor_action(ve, data_maps, app.Operate.Action); sts != "" {
-							status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(ve.Name)), sts, msg)
+					if es := status.Statuses.Get(esName); es != nil {
+						if es.Action.Allow(inapi.ExecutorActionStarted) ||
+							es.Action.Allow(inapi.ExecutorActionStopped) {
+							pdone--
 						}
 					}
-				}
 
-				if pdone == 0 {
-					priority++
-				} else {
-					time.Sleep(1e9)
+					status.Executors.Sync(ve)
+					if sts, msg := executor_action(esName, ve, data_maps, app.Operate.Action); sts != "" {
+						status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(esName)), sts, msg)
+					}
 				}
 			}
 
-			json.EncodeToFile(status.OpLog, home_dir+"/.sysinner/box_status.json", "  ")
+			if pdone == 0 {
+				priority++
+			} else {
+				time.Sleep(1e9)
+			}
 		}
 	}
+
+	return nil
 }
 
 var (
@@ -185,16 +230,16 @@ func executor_init_ssh_keygen(name string) error {
 	return err
 }
 
-func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32) (string, string) {
+func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[string]string, op_action uint32) (string, string) {
 
-	es := status.Statuses.Get(etr.Name)
+	es := status.Statuses.Get(esName)
 	op_status, op_msg := "", ""
 
 	//
 	if es == nil {
 
 		es = &inapi.ExecutorStatus{
-			Name:    etr.Name,
+			Name:    esName,
 			Created: types.MetaTimeNow(),
 			Vendor:  etr.Vendor,
 		}
@@ -235,7 +280,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 			}
 
 			hlog.Printf("info", "executor:%s done status: %s",
-				etr.Name, es.Action.String())
+				esName, es.Action.String())
 
 			if es.Cmd.Process != nil {
 				es.Cmd.Process.Kill()
@@ -257,8 +302,8 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 	//
 	// hlog.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
 	if es.Action.Allow(inapi.ExecutorActionPending) {
-		hlog.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", etr.Name)
-		return inapi.PbOpLogWarn, "pending"
+		hlog.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", esName)
+		return inapi.PbOpLogInfo, "pending"
 	}
 
 	/*
@@ -282,7 +327,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 
 			es.Action.Append(inapi.ExecutorActionStart)
 
-			hlog.Printf("warn", "executor:%s Plan.OnBoot Exec", etr.Name)
+			hlog.Printf("warn", "executor:%s Plan.OnBoot Exec", esName)
 		}
 
 		//
@@ -304,7 +349,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 				es.Action.Append(inapi.ExecutorActionStart)
 				es.Action.Remove(inapi.ExecutorActionStarted)
 
-				hlog.Printf("info", "executor:%s Plan.OnTick", etr.Name)
+				hlog.Printf("info", "executor:%s Plan.OnTick", esName)
 			}
 		}
 
@@ -329,7 +374,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 				es.Plan.OnFailedRetryNum++
 
 				hlog.Printf("warn", "executor:%s Plan.OnFailed Retry %d",
-					etr.Name, es.Plan.OnFailedRetryNum)
+					esName, es.Plan.OnFailedRetryNum)
 			}
 		}
 
@@ -367,7 +412,7 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 	tpl, err := template.New("s").Parse(script)
 	if err != nil {
 		hlog.Printf("error", "executor:%s template.Parse E:%s",
-			etr.Name, err.Error())
+			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()
 	}
 
@@ -375,23 +420,23 @@ func executor_action(etr inapi.Executor, dms map[string]string, op_action uint32
 	var tplout bytes.Buffer
 	if err := tpl.Execute(&tplout, dms); err != nil {
 		hlog.Printf("error", "executor:%s template.Execute E:%s",
-			etr.Name, err.Error())
+			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()
 	}
 
 	//
-	if err := executor_cmd(es.Name.String(), es.Cmd, tplout.String()); err != nil {
+	if err := executor_cmd(esName, es.Cmd, tplout.String()); err != nil {
 		hlog.Printf("error", "executor:%s CMD E:%s",
-			etr.Name, err.Error())
+			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()
 	} else {
-		hlog.Printf("info", "executor:%s pending", etr.Name)
+		hlog.Printf("info", "executor:%s pending", esName)
 	}
 
-	return inapi.PbOpLogWarn, "pending"
+	return inapi.PbOpLogInfo, "pending"
 }
 
-func executor_cmd(name string, cmd *exec.Cmd, script string) error {
+func executor_cmd(name types.NameIdentifier, cmd *exec.Cmd, script string) error {
 
 	if cmd == nil {
 		return errors.New("No Command INIT")

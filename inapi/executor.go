@@ -124,6 +124,7 @@ const (
 	ExecutorActionStarted ExecutorAction = 1 << 2
 	ExecutorActionStop    ExecutorAction = 1 << 3
 	ExecutorActionStopped ExecutorAction = 1 << 4
+	ExecutorActionRestart ExecutorAction = 1 << 5
 	ExecutorActionPending ExecutorAction = 1 << 10
 	ExecutorActionFailed  ExecutorAction = 1 << 11
 )

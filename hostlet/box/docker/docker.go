@@ -637,7 +637,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 	//
 	if inst.ID == "" {
 
-		hlog.Printf("info", "hostlet/box Create %s", inst.Name)
+		// hlog.Printf("info", "hostlet/box Create %s", inst.Name)
 
 		//
 		if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", 2048, 2048, 0750); err != nil {
@@ -662,9 +662,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		boxInspect, err := tp.client.CreateContainer(drclient.CreateContainerOptions{
 			Name: inst.Name,
 			Config: &drclient.Config{
-				Hostname: inst.Name,
-				// Memory:       inst.Spec.Resources.MemLimit,
-				// MemorySwap:   inst.Spec.Resources.MemLimit,
+				Hostname:     inst.Name,
 				Cmd:          inst.Spec.Command,
 				Image:        imageName,
 				ExposedPorts: expPorts,
@@ -695,7 +693,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			return errors.New("BoxCreate Error " + err.Error())
 		}
 
-		hlog.Printf("info", "hostlet/box Create %s, DONE", inst.Name)
+		hlog.Printf("info", "hostlet/box Create %s OK", inst.Name)
 
 		// TODO
 		inst.ID, inst.Status.Action = boxInspect.ID, 0
@@ -705,7 +703,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) &&
 		inst.Status.Action != inapi.OpActionRunning {
 
-		hlog.Printf("info", "hostlet/box Start %s", inst.Name)
+		// hlog.Printf("info", "hostlet/box Start %s", inst.Name)
 
 		//
 		exec.Command(binInstall, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
@@ -721,7 +719,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			return err
 		}
 
-		hlog.Printf("info", "hostlet/box Start %s, DONE", inst.Name)
+		hlog.Printf("info", "hostlet/box Start %s OK", inst.Name)
 
 		inst.Status.Action = inapi.OpActionRunning
 

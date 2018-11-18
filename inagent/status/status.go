@@ -15,11 +15,14 @@
 package status
 
 import (
+	"github.com/sysinner/incore/inagent/agtapi"
 	"github.com/sysinner/incore/inapi"
 )
 
 var (
-	Executors = inapi.Executors{}
-	Statuses  = inapi.ExecutorStatuses{}
-	OpLog     inapi.PbOpLogSets
+	Executors   = inapi.Executors{}
+	Statuses    = inapi.ExecutorStatuses{}
+	OpLog       inapi.PbOpLogSets
+	VcsRepos    inapi.VcsRepoItems
+	VcsStatuses agtapi.VcsStatusItems
 )

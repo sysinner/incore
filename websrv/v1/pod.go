@@ -910,14 +910,30 @@ func (c Pod) AccessSetAction() {
 		return
 	}
 
-	if len(set.Operate.Access.SshKey) > 512 { // TODO
-		set.Error = types.NewErrorMeta("400", "Invalid SSH Key")
-		return
-	}
+	set.Operate.Access.SshKey = strings.TrimSpace(set.Operate.Access.SshKey)
+	set.Operate.Access.SshPwd = strings.TrimSpace(set.Operate.Access.SshPwd)
 
-	if set.Operate.Access.SshOn && len(set.Operate.Access.SshKey) < 128 {
-		set.Error = types.NewErrorMeta("400", "Invalid SSH Key")
-		return
+	if set.Operate.Access.SshOn {
+
+		if set.Operate.Access.SshKey != "" {
+			if len(set.Operate.Access.SshKey) > 512 ||
+				len(set.Operate.Access.SshKey) < 128 {
+				set.Error = types.NewErrorMeta("400", "Invalid SSH Public Key")
+				return
+			}
+		}
+
+		if set.Operate.Access.SshPwd != "" &&
+			set.Operate.Access.SshPwd != "********" {
+			if len(set.Operate.Access.SshPwd) < 8 {
+				set.Error = types.NewErrorMeta("400", "Password must be more than 8 characters long")
+				return
+			}
+			if len(set.Operate.Access.SshPwd) > 50 {
+				set.Error = types.NewErrorMeta("400", "Password must be less than 50 characters long")
+				return
+			}
+		}
 	}
 
 	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
@@ -946,17 +962,30 @@ func (c Pod) AccessSetAction() {
 		prev.Operate.Access = &inapi.PodOperateAccess{}
 	}
 
-	if set.Operate.Access.SshOn != prev.Operate.Access.SshOn {
+	if prev.Operate.Access.SshOn != set.Operate.Access.SshOn {
 		prev.Operate.Access.SshOn = set.Operate.Access.SshOn
 	}
 
 	if prev.Operate.Access.SshOn {
-		set.Operate.Access.SshKey = strings.TrimSpace(set.Operate.Access.SshKey)
-		if set.Operate.Access.SshKey != prev.Operate.Access.SshKey {
+		if len(set.Operate.Access.SshKey) > 0 &&
+			prev.Operate.Access.SshKey != set.Operate.Access.SshKey {
 			prev.Operate.Access.SshKey = set.Operate.Access.SshKey
+		}
+
+		if set.Operate.Access.SshPwd == "********" {
+			set.Operate.Access.SshPwd = ""
+		}
+		if len(set.Operate.Access.SshPwd) > 0 &&
+			prev.Operate.Access.SshPwd != set.Operate.Access.SshPwd {
+			prev.Operate.Access.SshPwd = set.Operate.Access.SshPwd
+		}
+		if prev.Operate.Access.SshKey == "" && prev.Operate.Access.SshPwd == "" {
+			set.Error = types.NewErrorMeta("400", "SSH Public Key or Password Not Found")
+			return
 		}
 	} else {
 		prev.Operate.Access.SshKey = ""
+		prev.Operate.Access.SshPwd = ""
 	}
 
 	tn := uint32(time.Now().Unix())

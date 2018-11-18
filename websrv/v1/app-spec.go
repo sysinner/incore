@@ -133,6 +133,15 @@ func (c AppSpec) ListAction() {
 				}
 			}
 
+			if fields.Has("vcs_repos") {
+				for _, vr := range spec.VcsRepos {
+					if vr.AuthPass != "" {
+						vr.AuthPass = "********"
+					}
+					specf.VcsRepos = append(specf.VcsRepos, vr)
+				}
+			}
+
 			if fields.Has("executors") {
 				for _, ev := range spec.Executors {
 					evf := inapi.Executor{}
@@ -339,6 +348,7 @@ func (c AppSpec) SetAction() {
 		// TODO
 		prev.Meta.Name = req.Meta.Name
 		prev.Packages = req.Packages
+		prev.VcsRepos = req.VcsRepos
 		prev.ExpRes = req.ExpRes
 
 		prev.Depends = []inapi.AppSpecDepend{}
@@ -457,6 +467,18 @@ func (c AppSpec) SetAction() {
 				ipapi.PackageFilename(v.Name, version)+") Not Found")
 			return
 		}
+	}
+
+	if len(prev.VcsRepos) > 0 {
+		var vcsRepos inapi.VcsRepoItems
+		for _, v := range prev.VcsRepos {
+			if err := v.Valid(); err != nil {
+				set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, err.Error())
+				return
+			}
+			vcsRepos.Set(v)
+		}
+		prev.VcsRepos = vcsRepos
 	}
 
 	for i, v := range prev.Executors {

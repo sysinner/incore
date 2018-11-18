@@ -119,6 +119,16 @@ func (c Pod) AppSyncAction() {
 		}
 
 		//
+		for _, vr := range dep_spec.VcsRepos {
+			if app.Spec.VcsRepos.Get(vr.Dir) != nil {
+				set.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("Name Conflict (dependent AppSpec/VcsRepo %s)", vr.Dir))
+				return
+			}
+			app.Spec.VcsRepos.Set(vr)
+		}
+
+		//
 		for _, ev := range dep_spec.Executors {
 			if types.IterObjectGet(app.Spec.Executors, string(ev.Name)) != nil {
 				set.Error = types.NewErrorMeta("400",

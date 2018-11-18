@@ -108,6 +108,14 @@ func (c AppSpec) ListAction() {
 				}
 			}
 
+			if fields.Has("vcs_repos") {
+				for _, vr := range spec.VcsRepos {
+					vr.AuthUser = ""
+					vr.AuthPass = ""
+					specf.VcsRepos = append(specf.VcsRepos, vr)
+				}
+			}
+
 			if fields.Has("executors") {
 				for _, ev := range spec.Executors {
 					evf := inapi.Executor{}

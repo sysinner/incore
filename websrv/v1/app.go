@@ -403,6 +403,16 @@ func app_pod_conflict_check(pod *inapi.Pod, app *inapi.AppInstance) error {
 			}
 		}
 
+		for _, vr := range app.Spec.VcsRepos {
+			for _, vr2 := range v.Spec.VcsRepos {
+				if vr.Dir == vr2.Dir {
+					return fmt.Errorf(
+						"conflict of AppSpec/VcsRepo. another app (%s) had bound the vcs repo (%s) to pod (%s)",
+						v.Meta.ID, vr.Dir, app.Operate.PodId)
+				}
+			}
+		}
+
 		for _, e := range app.Spec.Executors {
 			for _, e2 := range v.Spec.Executors {
 				if e.Name == e2.Name {
