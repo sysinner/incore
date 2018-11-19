@@ -15,6 +15,7 @@
 package ops
 
 import (
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
@@ -155,6 +156,7 @@ func (c Host) NodeNewAction() {
 		set.Error = types.NewErrorMeta("400", "Invalid Peer Address %s"+set.PeerLanAddr)
 		return
 	}
+	hlog.Printf("info", "res/host/new addr %s", set.PeerLanAddr)
 
 	node, err := inapi.NewApiHostMemberClient(conn).HostJoin(
 		context.Background(), &set.ResHostNew,

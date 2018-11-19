@@ -47,11 +47,17 @@ type HostMember struct {
 	SecretKey string                `json:"secret_key,omitempty"`
 }
 
+type ZoneMaster struct {
+	MultiCellEnable bool `json:"multi_cell_enable,omitempty"`
+	MultiHostEnable bool `json:"multi_host_enable,omitempty"`
+}
+
 type ConfigCommon struct {
-	filepath              string
+	filepath              string                   `json:"-"`
 	InstanceId            string                   `json:"instance_id"`
 	Host                  HostMember               `json:"host"`
 	Masters               []inapi.HostNodeAddress  `json:"masters"`
+	ZoneMaster            *ZoneMaster              `json:"zone_master,omitempty"`
 	IoConnectors          connect.MultiConnOptions `json:"io_connects"`
 	PodHomeDir            string                   `json:"pod_home_dir"`
 	Options               types.Labels             `json:"items,omitempty"`
@@ -132,7 +138,7 @@ func init_host() error {
 		Config.Sync()
 	}
 
-	// Private IP
+	// Private IPv4
 	// 10.0.0.0 ~ 10.255.255.255
 	// 172.16.0.0 ~ 172.31.255.255
 	// 192.168.0.0 ~ 192.168.255.255

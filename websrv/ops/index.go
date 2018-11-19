@@ -38,6 +38,7 @@ func (c Index) IndexAction() {
   <title>inPanel Ops</title>
   <script src="/in/ops/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/ops/~/ops/js/main.js?v=` + inpanel.VersionHash + `"></script>
+  <link rel="stylesheet" href="/in/ops/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
   <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/favicon.png">
   <script type="text/javascript">
     inOps.version = "` + inpanel.VersionHash + `";

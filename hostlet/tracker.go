@@ -35,7 +35,7 @@ import (
 	ps_net "github.com/shirou/gopsutil/net"
 
 	"github.com/sysinner/incore/config"
-	"github.com/sysinner/incore/data"
+	// "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
@@ -62,28 +62,28 @@ var (
 func status_tracker() {
 
 	//
-	if len(status.LocalZoneMasterList.Items) == 0 {
+	// if len(status.LocalZoneMasterList.Items) == 0 {
 
-		var zms inapi.ResZoneMasterList
-		if rs := data.LocalDB.PvGet(inapi.NsLocalZoneMasterList()); rs.OK() {
+	// 	var zms inapi.ResZoneMasterList
+	// 	if rs := data.LocalDB.PvGet(inapi.NsLocalZoneMasterList()); rs.OK() {
 
-			if err := rs.Decode(&zms); err == nil {
+	// 		if err := rs.Decode(&zms); err == nil {
 
-				if synced := status.LocalZoneMasterList.SyncList(zms); synced {
+	// 			if synced := status.LocalZoneMasterList.SyncList(zms); synced {
 
-					cms := []inapi.HostNodeAddress{}
-					for _, v := range status.LocalZoneMasterList.Items {
-						cms = append(cms, inapi.HostNodeAddress(v.Addr))
-					}
+	// 				cms := []inapi.HostNodeAddress{}
+	// 				for _, v := range status.LocalZoneMasterList.Items {
+	// 					cms = append(cms, inapi.HostNodeAddress(v.Addr))
+	// 				}
 
-					if len(cms) > 0 {
-						config.Config.Masters = cms
-						config.Config.Sync()
-					}
-				}
-			}
-		}
-	}
+	// 				if len(cms) > 0 {
+	// 					config.Config.Masters = cms
+	// 					config.Config.Sync()
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// }
 
 	//
 	if len(status.LocalZoneMasterList.Items) == 0 && len(config.Config.Masters) == 0 {
@@ -109,9 +109,16 @@ func status_tracker() {
 
 	// fmt.Println(zms)
 	if zms.Masters != nil {
-		if status.LocalZoneMasterList.SyncList(*zms.Masters) {
-			// hlog.Printf("warn", "CHANGED LZML")
-			// TODO
+		if chg := status.LocalZoneMasterList.SyncList(*zms.Masters); chg {
+			cms := []inapi.HostNodeAddress{}
+			for _, v := range status.LocalZoneMasterList.Items {
+				cms = append(cms, inapi.HostNodeAddress(v.Addr))
+			}
+			if len(cms) > 0 {
+				config.Config.Masters = cms
+				config.Config.Sync()
+				hlog.Printf("warn", "zone-master/list refreshed")
+			}
 		}
 	}
 

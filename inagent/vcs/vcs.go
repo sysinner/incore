@@ -204,7 +204,7 @@ func vcsAction(vit *inapi.VcsRepoItem) {
 		vcsStatus.Action = inapi.VcsActionOK
 		vcsStatus.Version = ver
 		vcsStatus.Updated = tn
-		vcsStatus.Msg = "Git Commits " + ver[:12]
+		vcsStatus.Msg = "Git Commit " + ver[:12]
 	} else {
 		vcsStatus.Action = inapi.VcsActionER
 		vcsStatus.Msg = "error to checkout branch " + vit.Branch

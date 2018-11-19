@@ -43,7 +43,7 @@ var (
 	mu                 sync.Mutex
 	driver             napi.BoxDriver
 	timeout            = time.Second * 10
-	clientTimeout      = time.Second * 3
+	clientTimeout      = time.Second * 10
 	activeNumMax       = 100
 	binInstall         = "/usr/bin/install"
 	clientUnixSockAddr = "unix:///var/run/docker.sock"
@@ -379,16 +379,16 @@ func (tp *BoxDriver) statsRefresh() {
 func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, error) {
 
 	var (
-		timeout  = 10 * time.Second
-		statsBuf = make(chan *drclient.Stats, 2)
+		statsTimeout = 3 * time.Second
+		statsBuf     = make(chan *drclient.Stats, 2)
 	)
 
 	if err := tp.client.Stats(drclient.StatsOptions{
 		ID:                id,
 		Stats:             statsBuf,
 		Stream:            false,
-		Timeout:           timeout,
-		InactivityTimeout: timeout,
+		Timeout:           statsTimeout,
+		InactivityTimeout: statsTimeout,
 	}); err != nil {
 		return nil, err
 	}
