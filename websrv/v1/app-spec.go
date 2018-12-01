@@ -350,6 +350,7 @@ func (c AppSpec) SetAction() {
 		prev.Packages = req.Packages
 		prev.VcsRepos = req.VcsRepos
 		prev.ExpRes = req.ExpRes
+		prev.ExpDeploy = req.ExpDeploy
 
 		prev.Depends = []inapi.AppSpecDepend{}
 		for _, v := range req.Depends {
@@ -418,29 +419,40 @@ func (c AppSpec) SetAction() {
 	prev.Meta.Version = strconv.Itoa(reqVersion)
 
 	//
-	if prev.ExpRes.CpuMin < 100 {
-		prev.ExpRes.CpuMin = 100
-	}
-	if fix := prev.ExpRes.CpuMin % 100; fix > 0 {
-		prev.ExpRes.CpuMin += fix
+	if prev.ExpRes.CpuMin < 1 {
+		prev.ExpRes.CpuMin = 1
 	}
 
 	//
-	mem_min_min := 8 * inapi.ByteMB
-	if prev.ExpRes.MemMin < mem_min_min {
-		prev.ExpRes.MemMin = mem_min_min
+	memMinMin := int32(32) // in MB
+	if prev.ExpRes.MemMin < memMinMin {
+		prev.ExpRes.MemMin = memMinMin
 	}
-	if fix := prev.ExpRes.MemMin % mem_min_min; fix > 0 {
-		prev.ExpRes.MemMin += (mem_min_min - fix)
+	if fix := prev.ExpRes.MemMin % memMinMin; fix > 0 {
+		prev.ExpRes.MemMin += (memMinMin - fix)
 	}
 
 	//
-	vol_min_min := 100 * inapi.ByteMB
-	if prev.ExpRes.VolMin > (900 * inapi.ByteMB) {
-		vol_min_min = inapi.ByteGB
+	if prev.ExpDeploy.RepMin < inapi.AppSpecExpDeployRepNumMin {
+		prev.ExpDeploy.RepMin = inapi.AppSpecExpDeployRepNumMin
 	}
-	if fix := prev.ExpRes.VolMin % vol_min_min; fix > 0 {
-		prev.ExpRes.VolMin += (vol_min_min - fix)
+	if prev.ExpDeploy.RepMax > inapi.AppSpecExpDeployRepNumMax {
+		prev.ExpDeploy.RepMax = inapi.AppSpecExpDeployRepNumMax
+	}
+	if prev.ExpDeploy.RepMin > prev.ExpDeploy.RepMax {
+		prev.ExpDeploy.RepMin = prev.ExpDeploy.RepMax
+	}
+
+	//
+	if prev.ExpDeploy.SysState != inapi.AppSpecExpDeploySysStateless {
+		prev.ExpDeploy.SysState = inapi.AppSpecExpDeploySysStateful
+	}
+
+	// in GB
+	if prev.ExpRes.VolMin < 1 {
+		prev.ExpRes.VolMin = 1
+	} else if prev.ExpRes.VolMin > 200 {
+		prev.ExpRes.VolMin = 200
 	}
 
 	for _, v := range prev.Depends {

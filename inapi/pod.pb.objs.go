@@ -10,12 +10,14 @@ var object_slice_mu_PbPodRepStatus sync.RWMutex
 
 func (it *PbPodRepStatus) Equal(it2 *PbPodRepStatus) bool {
 	if it2 == nil ||
-		it.Id != it2.Id ||
-		it.Rep != it2.Rep ||
+		it.PodId != it2.PodId ||
+		it.RepId != it2.RepId ||
 		it.Action != it2.Action ||
 		it.Node != it2.Node ||
 		it.Updated != it2.Updated ||
-		!PbVolumeStatusSliceEqual(it.Volumes, it2.Volumes) {
+		!PbVolumeStatusSliceEqual(it.Volumes, it2.Volumes) ||
+		it.Started != it2.Started ||
+		!PbServicePortSliceEqual(it.Ports, it2.Ports) {
 		return false
 	}
 	return true
@@ -26,11 +28,11 @@ func (it *PbPodRepStatus) Sync(it2 *PbPodRepStatus) bool {
 		return false
 	}
 	changed := false
-	if it.Id != it2.Id {
-		it.Id, changed = it2.Id, true
+	if it.PodId != it2.PodId {
+		it.PodId, changed = it2.PodId, true
 	}
-	if it.Rep != it2.Rep {
-		it.Rep, changed = it2.Rep, true
+	if it.RepId != it2.RepId {
+		it.RepId, changed = it2.RepId, true
 	}
 	if it.Action != it2.Action {
 		it.Action, changed = it2.Action, true
@@ -44,15 +46,21 @@ func (it *PbPodRepStatus) Sync(it2 *PbPodRepStatus) bool {
 	if rs, ok := PbVolumeStatusSliceSyncSlice(it.Volumes, it2.Volumes); ok {
 		it.Volumes, changed = rs, true
 	}
+	if it.Started != it2.Started {
+		it.Started, changed = it2.Started, true
+	}
+	if rs, ok := PbServicePortSliceSyncSlice(it.Ports, it2.Ports); ok {
+		it.Ports, changed = rs, true
+	}
 	return changed
 }
 
-func PbPodRepStatusSliceGet(ls []*PbPodRepStatus, arg_id string, arg_rep uint32) *PbPodRepStatus {
+func PbPodRepStatusSliceGet(ls []*PbPodRepStatus, arg_podid string, arg_repid uint32) *PbPodRepStatus {
 	object_slice_mu_PbPodRepStatus.RLock()
 	defer object_slice_mu_PbPodRepStatus.RUnlock()
 
 	for _, v := range ls {
-		if v.Id == arg_id && v.Rep == arg_rep {
+		if v.PodId == arg_podid && v.RepId == arg_repid {
 			return v
 		}
 	}
@@ -70,7 +78,7 @@ func PbPodRepStatusSliceEqual(ls, ls2 []*PbPodRepStatus) bool {
 	for _, v := range ls {
 		hit = false
 		for _, v2 := range ls2 {
-			if v.Id != v2.Id || v.Rep != v2.Rep {
+			if v.PodId != v2.PodId || v.RepId != v2.RepId {
 				continue
 			}
 			if v.Action != v2.Action {
@@ -83,6 +91,12 @@ func PbPodRepStatusSliceEqual(ls, ls2 []*PbPodRepStatus) bool {
 				return false
 			}
 			if !PbVolumeStatusSliceEqual(v.Volumes, v2.Volumes) {
+				return false
+			}
+			if v.Started != v2.Started {
+				return false
+			}
+			if !PbServicePortSliceEqual(v.Ports, v2.Ports) {
 				return false
 			}
 			hit = true
@@ -105,7 +119,7 @@ func PbPodRepStatusSliceSync(ls []*PbPodRepStatus, it2 *PbPodRepStatus) ([]*PbPo
 	hit := false
 	changed := false
 	for _, v := range ls {
-		if v.Id != it2.Id || v.Rep != it2.Rep {
+		if v.PodId != it2.PodId || v.RepId != it2.RepId {
 			continue
 		}
 		if v.Action != it2.Action {
@@ -119,6 +133,12 @@ func PbPodRepStatusSliceSync(ls []*PbPodRepStatus, it2 *PbPodRepStatus) ([]*PbPo
 		}
 		if rs, ok := PbVolumeStatusSliceSyncSlice(v.Volumes, it2.Volumes); ok {
 			v.Volumes, changed = rs, true
+		}
+		if v.Started != it2.Started {
+			v.Started, changed = it2.Started, true
+		}
+		if rs, ok := PbServicePortSliceSyncSlice(v.Ports, it2.Ports); ok {
+			v.Ports, changed = rs, true
 		}
 		hit = true
 		break
@@ -142,7 +162,7 @@ func PbPodRepStatusSliceSyncSlice(ls, ls2 []*PbPodRepStatus) ([]*PbPodRepStatus,
 	for _, v2 := range ls2 {
 		hit = false
 		for _, v := range ls {
-			if v.Id != v2.Id || v.Rep != v2.Rep {
+			if v.PodId != v2.PodId || v.RepId != v2.RepId {
 				continue
 			}
 			if v.Action != v2.Action {
@@ -156,6 +176,12 @@ func PbPodRepStatusSliceSyncSlice(ls, ls2 []*PbPodRepStatus) ([]*PbPodRepStatus,
 			}
 			if rs, ok := PbVolumeStatusSliceSyncSlice(v.Volumes, v2.Volumes); ok {
 				v.Volumes, changed = rs, true
+			}
+			if v.Started != v2.Started {
+				v.Started, changed = v2.Started, true
+			}
+			if rs, ok := PbServicePortSliceSyncSlice(v.Ports, v2.Ports); ok {
+				v.Ports, changed = rs, true
 			}
 			hit = true
 			break

@@ -15,6 +15,7 @@
 package v1
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -82,6 +83,7 @@ func (c PodSpec) PlanListAction() {
 	for _, v := range rss {
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
+
 			if item.Status != inapi.SpecStatusActive {
 				continue
 			}
@@ -108,6 +110,8 @@ func (c PodSpec) PlanListAction() {
 			sort.Sort(item.ResComputes)
 
 			ls.Items = append(ls.Items, &item)
+		} else {
+			fmt.Println(err)
 		}
 	}
 

@@ -95,24 +95,20 @@ func (c PodSpec) ResComputeNewAction() {
 		return
 	}
 
-	if n := set.CpuLimit % 100; n > 0 {
-		set.CpuLimit -= n
-	}
-	if set.CpuLimit < 100 {
-		set.CpuLimit = 100
-	} else if set.CpuLimit > 256000 {
-		set.CpuLimit = 256000
+	if set.CpuLimit < 1 {
+		set.CpuLimit = 1 // limit min to .1 cores
+	} else if set.CpuLimit > 160 {
+		set.CpuLimit = 160 // limit max to 16 cores
 	}
 
 	if n := set.MemLimit % 128; n > 0 {
 		set.MemLimit -= n
 	}
 	if set.MemLimit < 128 {
-		set.MemLimit = 128
-	} else if set.MemLimit > 256*inapi.ByteMB {
-		set.MemLimit = 256 * inapi.ByteMB
+		set.MemLimit = 128 // limit min to 128 MB
+	} else if set.MemLimit > 32*1024 {
+		set.MemLimit = 32 * 1024 // limit max to 32 GB
 	}
-	set.MemLimit = set.MemLimit * inapi.ByteMB
 
 	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")

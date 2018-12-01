@@ -230,7 +230,7 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 		return nil, fmt.Errorf("Invalid Box ID %s", id)
 	}
 
-	pod_id, rep_id, box_name := napi.BoxInstanceNameParse(box_pouch.Name)
+	pod_id, rep_id := napi.BoxInstanceNameParse(box_pouch.Name)
 	if pod_id == "" {
 		return nil, fmt.Errorf("Invalid Box Name %s", box_pouch.Name)
 	}
@@ -243,11 +243,10 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 		PodID: pod_id,
 		RepId: rep_id,
 		Status: inapi.PbPodBoxStatus{
-			Name:        box_name,
 			Started:     uint32(timeParsePouch(box_pouch.State.StartedAt).Unix()),
 			Updated:     tn,
-			ResCpuLimit: box_pouch.HostConfig.CPUQuota / 1e3,
-			ResMemLimit: box_pouch.HostConfig.Memory,
+			ResCpuLimit: int32(box_pouch.HostConfig.CPUQuota / 1e5),
+			ResMemLimit: int32(box_pouch.HostConfig.Memory / inapi.ByteMB),
 			ImageDriver: inapi.PbPodSpecBoxImageDriver_Pouch,
 			ImageOptions: []*inapi.Label{
 				{
@@ -643,15 +642,15 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			Binds:        inst.VolumeMountsExport(),
 			PortBindings: bindPorts,
 			Resources: drclient_types.Resources{
-				Memory:     inst.Spec.Resources.MemLimit,
-				MemorySwap: inst.Spec.Resources.MemLimit,
+				Memory:     int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
+				MemorySwap: int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
 				CPUPeriod:  1000000,
-				CPUQuota:   inst.Spec.Resources.CpuLimit * 1e3,
+				CPUQuota:   int64(inst.Spec.Resources.CpuLimit) * 1e5,
 				Ulimits: []*drclient_types.Ulimit{
 					{
 						Name: "nofile",
-						Soft: 10000,
-						Hard: 10000,
+						Soft: 30000,
+						Hard: 30000,
 					},
 				},
 			},

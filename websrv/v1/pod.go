@@ -31,7 +31,7 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	zm_status "github.com/sysinner/incore/status"
+	"github.com/sysinner/incore/status"
 )
 
 var (
@@ -211,19 +211,29 @@ func (c Pod) ListAction() {
 
 					if fields.Has("operate/action") {
 
+						podfs.Operate.Action = pod.Operate.Action
+
 						// TODO
-						if pod.Spec.Zone != zm_status.ZoneId {
+						/**
+						if pod.Spec.Zone != status.ZoneId {
 							if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
 								var pst inapi.PodStatus
 								if err := rs.Decode(&pst); err == nil {
+									var pst inapi.PodStatus
 									podfs.Operate.Action = pod.Operate.Action | pst.Action
 								}
 							}
-						}
+						} else {
+							podfs.Operate.Action = pod.Operate.Action | pst.Action
 
-						if podfs.Operate.Action < 1 || pod.Spec.Zone == zm_status.ZoneId {
-							podfs.Operate.Action = pod.Operate.Action | zm_status.ZonePodRepMergeOperateAction(pod.Meta.ID, pod.Operate.ReplicaCap)
 						}
+						*/
+
+						/**
+						if podfs.Operate.Action < 1 || pod.Spec.Zone == status.ZoneId {
+							podfs.Operate.Action = pod.Operate.Action | status.ZonePodRepMergeOperateAction(pod.Meta.ID, pod.Operate.ReplicaCap)
+						}
+						*/
 					}
 
 					if fields.Has("operate/version") {
@@ -291,15 +301,17 @@ func (c Pod) EntryAction() {
 			}
 
 			// TODO
-			if set.Spec.Zone == zm_status.ZoneId {
+			/**
+			if set.Spec.Zone == status.ZoneId {
 				set.Operate.Action = inapi.OpActionAppend(set.Operate.Action,
-					zm_status.ZonePodRepMergeOperateAction(set.Meta.ID, set.Operate.ReplicaCap))
+					status.ZonePodRepMergeOperateAction(set.Meta.ID, set.Operate.ReplicaCap))
 			}
+			*/
 		}
 	}
 
 	for _, v := range set.Operate.Replicas {
-		if host := zm_status.GlobalHostList.Item(v.Node); host != nil {
+		if host := status.GlobalHostList.Item(v.Node); host != nil {
 			for _, v2 := range v.Ports {
 				if i := strings.IndexByte(host.Spec.PeerLanAddr, ':'); i > 0 {
 					v2.LanAddr = host.Spec.PeerLanAddr[:i]
@@ -638,18 +650,30 @@ func (c Pod) SetInfoAction() {
 	}
 
 	force_sync := false
-	// for _, v := range prev.Spec.Boxes {
 	if strings.IndexByte(prev.Spec.Box.Image.Ref.Id, ':') < 0 {
 		prev.Spec.Box.Image.Ref.Id = inapi.BoxImageRepoDefault + ":" + prev.Spec.Box.Image.Ref.Id
 		hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, prev.Spec.Box.Image.Ref.Id)
 		force_sync = true
 	}
-	// }
+
+	//
+	if err := prev.OpSysStateValid(set.Operate.ExpSysState); err != nil {
+		set.Error = types.NewErrorMeta("400", "SysState Valid Error : "+err.Error())
+		return
+	}
+
+	//
+	if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
+		set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
+		return
+	}
 
 	//
 	if !force_sync &&
 		prev.Meta.Name == set.Meta.Name &&
-		prev.Operate.Action == set.Operate.Action {
+		prev.Operate.Action == set.Operate.Action &&
+		prev.Operate.ReplicaCap == set.Operate.ReplicaCap &&
+		prev.Operate.ExpSysState == set.Operate.ExpSysState {
 		set.Kind = "PodInstance"
 		return
 	}
@@ -680,6 +704,10 @@ func (c Pod) SetInfoAction() {
 		prev.Operate.Action = inapi.OpActionControlFilter(set.Operate.Action)
 		prev.Operate.Version++
 	}
+
+	//
+	prev.Operate.ExpSysState = set.Operate.ExpSysState
+	prev.Operate.ReplicaCap = set.Operate.ReplicaCap
 
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
@@ -821,7 +849,9 @@ func (c Pod) StatusAction() {
 
 func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 
-	var status inapi.PodStatus
+	var podStatus inapi.PodStatus
+
+	// podStatus := status.ZonePodStatusList.Get(
 
 	if pod.Meta.ID == "" {
 
@@ -830,33 +860,20 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 			rs.Decode(&pod)
 		}
 
-		if pod.Meta.ID == "" {
-			status.Error = types.NewErrorMeta("404.01", "Pod Not Found")
-			return status
-		}
-
-		//
-		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(pod.Spec.Zone, pod_id)); rs.OK() {
-			rs.Decode(&pod)
-		}
-
 		if pod.Meta.ID == "" || !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
-			status.Error = types.NewErrorMeta("404.02", "Pod Not Found or Access Denied")
-			return status
+			podStatus.Error = types.NewErrorMeta("404.02", "Pod Not Found or Access Denied")
+			return podStatus
 		}
 	}
 
-	if len(pod.Operate.OpLog) > 0 {
-		status.OpLog = pod.Operate.OpLog
-	}
-
+	/**
 	for _, rep := range pod.Operate.Replicas {
 
 		if rep.Node == "" {
 			continue
 		}
 
-		rep_status := inapi.PbPodRepStatusSliceGet(zm_status.ZonePodRepStatusSets, pod.Meta.ID, uint32(rep.Id))
+		rep_status := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets, pod.Meta.ID, uint32(rep.Id))
 		if rep_status == nil {
 			continue
 		}
@@ -873,22 +890,23 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 			status.Replicas = append(status.Replicas, rep_status)
 		}
 	}
+	*/
 
-	status.Kind = "PodStatus"
-
-	status.Refresh(pod.Operate.ReplicaCap)
-
-	// TODO
-	if pod.Spec.Zone != zm_status.ZoneId {
+	if pod.Spec.Zone == status.ZoneId {
+		if v := status.ZonePodStatusList.Get(pod.Meta.ID); v != nil {
+			podStatus = *v
+		}
+	} else {
 		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
-			var pst inapi.PodStatus
-			if err := rs.Decode(&pst); err == nil {
-				status.Action = pod.Operate.Action | pst.Action
-			}
+			rs.Decode(&podStatus)
 		}
 	}
 
-	return status
+	if podStatus.PodId == pod.Meta.ID {
+		podStatus.Kind = "PodStatus"
+	}
+
+	return podStatus
 }
 
 func (c Pod) AccessSetAction() {
@@ -1231,7 +1249,7 @@ func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *typ
 	// Volumes
 	for _, v := range pod.Spec.Volumes {
 		charge_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
 	}
 
 	// for _, v := range pod.Spec.Boxes {
@@ -1239,11 +1257,11 @@ func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *typ
 	if pod.Spec.Box.Resources != nil {
 		// CPU
 		charge_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/1000), 4)
+			spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/10), 4)
 
 		// RAM
 		charge_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit/inapi.ByteMB), 4)
+			spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
 	}
 	// }
 
@@ -1262,7 +1280,7 @@ func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *typ
 		Prepay:    charge_amount,
 		TimeStart: tn,
 		TimeClose: tn + uint32(charge_cycle_min),
-	}, zm_status.ZonePodChargeAccessKey()); rsp.Error != nil {
+	}, status.ZonePodChargeAccessKey()); rsp.Error != nil {
 		return rsp.Error
 	} else if rsp.Kind != "AccountCharge" {
 		return types.NewErrorMeta("400", "Network Error")

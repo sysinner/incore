@@ -50,7 +50,7 @@ var (
 	err                error
 	lxcfsBins          = [][]string{
 		{"/usr/bin/lxcfs", "/var/lib/lxcfs/proc/"},
-		{"/usr/bin/pouch-lxcfs", "/var/lib/pouch-lxcfs/proc/"},
+		{"/usr/local/bin/pouch-lxcfs", "/var/lib/pouch-lxcfs/proc/"},
 	}
 )
 
@@ -259,7 +259,7 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 		return nil, fmt.Errorf("Invalid Box ID %s", id)
 	}
 
-	pod_id, rep_id, box_name := napi.BoxInstanceNameParse(boxInspect.Config.Hostname)
+	pod_id, rep_id := napi.BoxInstanceNameParse(boxInspect.Config.Hostname)
 	if pod_id == "" {
 		return nil, fmt.Errorf("Invalid Box Name %s", boxInspect.Config.Hostname)
 	}
@@ -272,11 +272,10 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 		PodID: pod_id,
 		RepId: rep_id,
 		Status: inapi.PbPodBoxStatus{
-			Name:        box_name,
 			Started:     uint32(boxInspect.State.StartedAt.Unix()),
 			Updated:     tn,
-			ResCpuLimit: boxInspect.HostConfig.CPUQuota / 1e3,
-			ResMemLimit: boxInspect.HostConfig.Memory,
+			ResCpuLimit: int32(boxInspect.HostConfig.CPUQuota / 1e5),
+			ResMemLimit: int32(boxInspect.HostConfig.Memory / inapi.ByteMB),
 			ImageDriver: inapi.PbPodSpecBoxImageDriver_Docker,
 			ImageOptions: []*inapi.Label{
 				{
@@ -672,16 +671,16 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			HostConfig: &drclient.HostConfig{
 				Binds:            append(inst.VolumeMountsExport(), tp.lxcfsVols...),
 				PortBindings:     bindPorts,
-				Memory:           inst.Spec.Resources.MemLimit,
-				MemorySwap:       inst.Spec.Resources.MemLimit,
+				Memory:           int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
+				MemorySwap:       int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
 				MemorySwappiness: 0,
 				CPUPeriod:        1000000,
-				CPUQuota:         inst.Spec.Resources.CpuLimit * 1e3,
+				CPUQuota:         int64(inst.Spec.Resources.CpuLimit) * 1e5,
 				Ulimits: []drclient.ULimit{
 					{
 						Name: "nofile",
-						Soft: 10000,
-						Hard: 10000,
+						Soft: 30000,
+						Hard: 30000,
 					},
 				},
 			},

@@ -40,6 +40,7 @@ func NewModule() httpsrv.Module {
 		},
 	})
 
+	module.ControllerRegister(new(Sys))
 	module.ControllerRegister(new(PodSpec))
 	module.ControllerRegister(new(Pod))
 	module.ControllerRegister(new(AppSpec))

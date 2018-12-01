@@ -26,9 +26,10 @@ import (
 )
 
 var (
-	Prefix string
 	inited bool = false
-	Host        = inapi.ResHost{
+
+	// local host
+	Host = inapi.ResHost{
 		Meta:    &inapi.ObjectMeta{},
 		Operate: &inapi.ResHostOperate{},
 		Spec:    &inapi.ResHostSpec{},
@@ -36,39 +37,39 @@ var (
 	}
 	LocalZoneMasterList inapi.ResZoneMasterList
 
-	//
-	GlobalZones    []inapi.ResZone
-	GlobalHostList inapi.ResHostList
-
-	//
-	ZoneId               string
-	Zone                 *inapi.ResZone
-	ZoneMasterList       inapi.ResZoneMasterList
-	ZoneHostList         inapi.ResHostList
-	ZoneHostListImported = false
-	ZoneHostSecretKeys   types.KvPairs
-	ZonePodRepStatusSets = []*inapi.PbPodRepStatus{}
-	ZonePodList          inapi.PodSets
-	ZonePodServiceMaps   = []*inapi.NsPodServiceMap{}
-	pod_charge_iam_ak    = iamapi.AccessKey{
+	// local zone
+	ZoneId                    string
+	Zone                      *inapi.ResZone
+	ZoneMasterList            inapi.ResZoneMasterList
+	ZoneHostList              inapi.ResHostList
+	ZoneHostListImported      = false
+	ZoneHostSecretKeys        types.KvPairs
+	ZonePodStatusList         = inapi.PodStatusList{}
+	ZonePodList               inapi.PodSets
+	ZonePodServiceMaps        = []*inapi.NsPodServiceMap{}
+	zonePodChargeIamAccessKey = iamapi.AccessKey{
 		User: "sysadmin",
 	}
+
+	// global cluster
+	GlobalZones    []inapi.ResZone
+	GlobalHostList inapi.ResHostList
 )
 
 func ZonePodChargeAccessKey() iamapi.AccessKey {
 
-	if Zone != nil && len(pod_charge_iam_ak.AccessKey) < 8 {
+	if Zone != nil && len(zonePodChargeIamAccessKey.AccessKey) < 8 {
 
 		if v, ok := Zone.OptionGet("iam/acc_charge/access_key"); ok {
-			pod_charge_iam_ak.AccessKey = v
+			zonePodChargeIamAccessKey.AccessKey = v
 		}
 
 		if v, ok := Zone.OptionGet("iam/acc_charge/secret_key"); ok {
-			pod_charge_iam_ak.SecretKey = v
+			zonePodChargeIamAccessKey.SecretKey = v
 		}
 	}
 
-	return pod_charge_iam_ak
+	return zonePodChargeIamAccessKey
 }
 
 func IsZoneMaster() bool {
@@ -110,8 +111,6 @@ func Init() error {
 		return errors.New("No Config Found")
 	}
 
-	Prefix = config.Prefix
-
 	Host = inapi.ResHost{
 		Meta: &inapi.ObjectMeta{
 			Id: config.Config.Host.Id,
@@ -140,6 +139,7 @@ func HostletReady() bool {
 	return inited
 }
 
+/*
 func ZonePodRepMergeOperateAction(pod_id string, rep_cap int) uint32 {
 
 	action := uint32(0)
@@ -161,3 +161,4 @@ func ZonePodRepMergeOperateAction(pod_id string, rep_cap int) uint32 {
 
 	return action
 }
+*/

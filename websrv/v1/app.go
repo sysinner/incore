@@ -366,13 +366,13 @@ func app_pod_res_check(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirement
 
 	res := pod.Spec.ResComputeBound()
 	if app_spec_res.CpuMin > res.CpuLimit {
-		return fmt.Errorf("AppSpec requires at least %d m CPU resource",
+		return fmt.Errorf("AppSpec requires at least %d CPU resource",
 			app_spec_res.CpuMin)
 	}
 
 	if app_spec_res.MemMin > res.MemLimit {
 		return fmt.Errorf("AppSpec requires at least %d MB Memory space",
-			app_spec_res.MemMin/inapi.ByteMB)
+			app_spec_res.MemMin)
 	}
 
 	return nil

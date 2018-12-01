@@ -49,12 +49,13 @@ func (c *Charge) Init() int {
 func (c Charge) PodEstimateAction() {
 
 	var (
-		rsp       inapi.PodEstimateList
-		set       inapi.PodCreate
-		spec_plan inapi.PodSpecPlan
-		fields    = types.ArrayString(strings.Split(c.Params.Get("fields"), ","))
-		cycles_s  = types.ArrayString(strings.Split(c.Params.Get("cycles"), ","))
-		cycles    = types.ArrayUint64{}
+		rsp         inapi.PodEstimateList
+		set         inapi.PodCreate
+		spec_plan   inapi.PodSpecPlan
+		fields      = types.ArrayString(strings.Split(c.Params.Get("fields"), ","))
+		cycles_s    = types.ArrayString(strings.Split(c.Params.Get("cycles"), ","))
+		replica_cap = int(c.Params.Int64("replica_cap"))
+		cycles      = types.ArrayUint64{}
 	)
 
 	defer c.RenderJson(&rsp)
@@ -65,6 +66,11 @@ func (c Charge) PodEstimateAction() {
 		!fields.Has("pod/vol") {
 		rsp.Error = types.NewErrorMeta("400", "Invalid fields")
 		return
+	}
+	if replica_cap < 1 {
+		replica_cap = 1
+	} else if replica_cap > inapi.AppSpecExpDeployRepNumMax {
+		replica_cap = inapi.AppSpecExpDeployRepNumMax
 	}
 	for _, v := range cycles_s {
 		u64, _ := strconv.ParseUint(v, 10, 64)
@@ -143,12 +149,11 @@ func (c Charge) PodEstimateAction() {
 			},
 		},
 		Operate: inapi.PodOperate{
-			ReplicaCap: 1,
+			ReplicaCap: replica_cap,
 		},
 	}
 
 	//
-
 	img := spec_plan.Image(set.Box.Image)
 	if img == nil {
 		rsp.Error = types.NewErrorMeta("400", "No Image Found")
@@ -178,23 +183,28 @@ func (c Charge) PodEstimateAction() {
 		amount_cpu = float64(0)
 		amount_mem = float64(0)
 		amount_vol = float64(0)
+		replicas   = float64(pod.Operate.ReplicaCap)
 	)
 
 	// Volumes
 	for _, v := range pod.Spec.Volumes {
 		amount_vol += iamapi.AccountFloat64Round(
-			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
 	}
 
 	if pod.Spec.Box.Resources != nil {
 		// CPU
 		amount_cpu += iamapi.AccountFloat64Round(
-			spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/1000), 4)
+			spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/10), 4)
 
 		// RAM
 		amount_mem += iamapi.AccountFloat64Round(
-			spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit/inapi.ByteMB), 4)
+			spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
 	}
+
+	amount_cpu = amount_cpu * replicas
+	amount_mem = amount_mem * replicas
+	amount_vol = amount_vol * replicas
 
 	for _, ct := range cycles {
 

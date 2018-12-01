@@ -138,17 +138,20 @@ func NsZonePodInstanceDestroy(zone_id, pod_id string) string {
 	return fmt.Sprintf("/inz/%s/pid/%s", zone_id, pod_id)
 }
 
-func NsZonePodRepStats(zone_id, pod_id string, rep_id uint16, name string, timo uint32) skv.KvProgKey {
+func NsZonePodRepStats(zone_id, pod_id string, repId uint32, name string, timo uint32) skv.KvProgKey {
 	return skv.NewKvProgKey(
 		"inz", zone_id, "ps",
-		NsZonePodOpRepKey(pod_id, rep_id),
+		NsZonePodOpRepKey(pod_id, repId),
 		name, timo,
 	)
 }
 
-func NsZonePodOpRepKey(pod_id string, rep_id uint16) string {
+func NsZonePodOpRepKey(pod_id string, repId uint32) string {
+	if repId > 65535 {
+		repId = 65535
+	}
 	bs := make([]byte, 2)
-	binary.BigEndian.PutUint16(bs, rep_id)
+	binary.BigEndian.PutUint16(bs, uint16(repId))
 	return fmt.Sprintf("%s.%x", pod_id, bs)
 }
 
@@ -158,11 +161,11 @@ func NsZonePodOpRepKeyValid(key string) bool {
 	return nsZonePodOpRepKeyReg.MatchString(key)
 }
 
-func NsZoneHostBoundPod(zone_id, host_id, pod_id string, rep_id uint16) string {
+func NsZoneHostBoundPodRep(zone_id, host_id, pod_id string, repId uint32) string {
 	if len(pod_id) < 8 {
 		return fmt.Sprintf("/inz/%s/bp/%s/pod", zone_id, host_id)
 	}
-	return fmt.Sprintf("/inz/%s/bp/%s/pod/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, rep_id))
+	return fmt.Sprintf("/inz/%s/bp/%s/pod/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, repId))
 }
 
 func NsZonePodStatus(zone_id, pod_id string) string {
@@ -170,13 +173,6 @@ func NsZonePodStatus(zone_id, pod_id string) string {
 		return fmt.Sprintf("/inz/%s/pst", zone_id)
 	}
 	return fmt.Sprintf("/inz/%s/pst/%s", zone_id, pod_id)
-}
-
-func NsZonePodReplicaStatus(zone_id, pod_id string, rep_id uint16) string {
-	if len(pod_id) < 8 {
-		return fmt.Sprintf("/inz/%s/prs", zone_id)
-	}
-	return fmt.Sprintf("/inz/%s/prs/%s", zone_id, NsZonePodOpRepKey(pod_id, rep_id))
 }
 
 func NsZonePodServiceMap(pod_id string) string {
@@ -188,9 +184,9 @@ func NsLocalZoneMasterList() string {
 	return "/inl/zm/list"
 }
 
-func NsLocalCacheBoundPod(pod_id string, rep_id uint16) string {
+func NsLocalCacheBoundPod(pod_id string, repId uint32) string {
 	if len(pod_id) < 8 {
 		return fmt.Sprintf("/inl/c/bp")
 	}
-	return fmt.Sprintf("/inl/c/bp/%s", NsZonePodOpRepKey(pod_id, rep_id))
+	return fmt.Sprintf("/inl/c/bp/%s", NsZonePodOpRepKey(pod_id, repId))
 }

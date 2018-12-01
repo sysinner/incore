@@ -80,7 +80,7 @@ func Start() error {
 				}
 			}
 
-			status_tracker()
+			statusTracker()
 
 			podOpPull()
 

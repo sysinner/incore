@@ -30,14 +30,15 @@ import (
 )
 
 var (
-	zm_leader_refreshed int64 = 0
-	zm_pod_statuses           = map[string]uint32{}
+	zmLeaderLastRefreshed   int64  = 0
+	zmPodOperateHangTimeout uint32 = 86400 * 10
 )
 
-func zone_tracker() {
+func zoneTracker() {
 
 	var (
-		force_refresh = false
+		forceRefresh = false
+		tn           = uint32(time.Now().Unix())
 	)
 
 	if status.Host.Operate == nil {
@@ -57,22 +58,22 @@ func zone_tracker() {
 	}
 
 	// if leader active
-	leader_path := inapi.NsZoneSysMasterLeader(status.Host.Operate.ZoneId)
-	if rs := data.ZoneMaster.PvGet(leader_path); rs.NotFound() {
+	zmLeaderKey := inapi.NsZoneSysMasterLeader(status.Host.Operate.ZoneId)
+	if rs := data.ZoneMaster.PvGet(zmLeaderKey); rs.NotFound() {
 
 		if !inapi.ResSysHostIdReg.MatchString(status.Host.Meta.Id) {
 			return
 		}
 
 		if rs2 := data.ZoneMaster.PvNew(
-			leader_path,
+			zmLeaderKey,
 			status.Host.Meta.Id,
 			&skv.KvProgWriteOptions{
 				Expired: uint64(time.Now().Add(12e9).UnixNano()),
 			},
 		); rs2.OK() {
 			status.ZoneMasterList.Leader = status.Host.Meta.Id
-			force_refresh = true
+			forceRefresh = true
 			hlog.Printf("warn", "new zone-master/leader %s", status.Host.Meta.Id)
 		} else {
 			hlog.Printf("info", "status.Host.Operate")
@@ -80,11 +81,11 @@ func zone_tracker() {
 		}
 
 	} else if rs.OK() {
-		node_id := rs.String()
-		if inapi.ResSysHostIdReg.MatchString(node_id) &&
-			status.ZoneMasterList.Leader != node_id {
-			status.ZoneMasterList.Leader = node_id
-			force_refresh = true
+		hostId := rs.String()
+		if inapi.ResSysHostIdReg.MatchString(hostId) &&
+			status.ZoneMasterList.Leader != hostId {
+			status.ZoneMasterList.Leader = hostId
+			forceRefresh = true
 		}
 	} else {
 		hlog.Printf("warn", "refresh zone-master leader active failed")
@@ -114,7 +115,7 @@ func zone_tracker() {
 	// refresh zone-master leader ttl
 	// pv := skv.NewKvEntry(status.Host.Meta.Id)
 	if rs := data.ZoneMaster.PvPut(
-		leader_path,
+		zmLeaderKey,
 		status.Host.Meta.Id,
 		&skv.KvProgWriteOptions{
 			// PrevSum: pv.Crc32(), // TODO BUG
@@ -136,35 +137,119 @@ func zone_tracker() {
 			continue
 		}
 
-		action := status.ZonePodRepMergeOperateAction(v.Meta.ID, v.Operate.ReplicaCap)
-		if action < 1 {
+		if !inapi.OpActionAllow(v.Operate.Action, inapi.OpActionStart) &&
+			inapi.OpActionAllow(v.Operate.Action, inapi.OpActionHang) {
 			continue
 		}
 
-		if v2, ok := zm_pod_statuses[v.Meta.ID]; ok && v2 == action {
+		var (
+			podSync       = false
+			podStatusKey  = inapi.NsZonePodStatus(status.Host.Operate.ZoneId, v.Meta.ID)
+			podStatusKeyG = inapi.NsGlobalPodStatus(status.Host.Operate.ZoneId, v.Meta.ID)
+			podStatus     = status.ZonePodStatusList.Get(v.Meta.ID)
+		)
+
+		if podStatus == nil {
+			if rs := data.ZoneMaster.PvGet(podStatusKey); rs.OK() {
+				var item inapi.PodStatus
+				if err := rs.Decode(&item); err == nil {
+					podStatus = &item
+				}
+			} else if rs.NotFound() {
+				podStatus = &inapi.PodStatus{
+					PodId: v.Meta.ID,
+				}
+			}
+			if podStatus == nil {
+				continue
+			}
+		}
+
+		if podStatus.PodId == "" {
+			podStatus.PodId = v.Meta.ID
+		}
+
+		if !inapi.OpActionAllow(v.Operate.Action, inapi.OpActionHang) {
+			for j := 0; j < len(inapi.OpActionDesires); j += 2 {
+
+				// fmt.Println(inapi.OpActionStrings(v.Operate.Action))
+
+				if inapi.OpActionAllow(v.Operate.Action, inapi.OpActionDesires[j]) &&
+					podStatus.RepActionAllow(v.Operate.ReplicaCap, inapi.OpActionDesires[j+1]) {
+					v.Operate.Action = v.Operate.Action | inapi.OpActionHang
+					podSync = true
+				}
+			}
+		}
+
+		if !inapi.OpActionAllow(v.Operate.Action, inapi.OpActionStart) &&
+			!inapi.OpActionAllow(v.Operate.Action, inapi.OpActionHang) &&
+			tn-v.Operate.Operated > zmPodOperateHangTimeout {
+			//
+			// inapi.ObjPrint(v.Meta.ID, v)
+			v.Operate.Action = v.Operate.Action | inapi.OpActionHang
+			podSync = true
+			hlog.Printf("warn", "pod %s, force hang in timeout %d sec",
+				v.Meta.ID, zmPodOperateHangTimeout)
+		}
+
+		// inapi.ObjPrint(v.Meta.ID, v)
+
+		podStatus.Updated = uint32(time.Now().Unix())
+		podStatus.ActionRunning = 0
+
+		repStatusOuts := []uint32{}
+
+		for _, repStatus := range podStatus.Replicas {
+			if repStatus.RepId >= uint32(v.Operate.ReplicaCap) {
+				if ctrlRep := v.Operate.Replicas.Get(repStatus.RepId); ctrlRep == nil {
+					repStatusOuts = append(repStatusOuts, repStatus.RepId)
+				}
+			} else {
+				if inapi.OpActionAllow(repStatus.Action, inapi.OpActionRunning) {
+					podStatus.ActionRunning += 1
+				}
+			}
+		}
+
+		for _, repId := range repStatusOuts {
+			podStatus.RepDel(repId)
+			hlog.Printf("info", "podStatus %s, rep %d, clean", v.Meta.ID, repId)
+		}
+
+		if inapi.OpActionAllow(v.Operate.Action, inapi.OpActionStart) &&
+			inapi.OpActionAllow(v.Operate.Action, inapi.OpActionHang) &&
+			!podStatus.RepActionAllow(v.Operate.ReplicaCap, inapi.OpActionRunning) {
+			//
+			v.Operate.Action = inapi.OpActionRemove(v.Operate.Action, inapi.OpActionHang)
+			podSync = true
+
+			hlog.Printf("info", "pod %s action unhang", v.Meta.ID)
+		}
+
+		if rs := data.ZoneMaster.PvPut(podStatusKey, podStatus, nil); !rs.OK() {
 			continue
 		}
 
-		pst := inapi.PodStatus{
-			Action: action,
-		}
-		rs := data.ZoneMaster.PvPut(inapi.NsZonePodStatus(status.Host.Operate.ZoneId, v.Meta.ID), pst, nil)
-		if !rs.OK() {
+		if rs := data.GlobalMaster.PvPut(podStatusKeyG, podStatus, nil); !rs.OK() {
 			continue
 		}
-		rs = data.GlobalMaster.PvPut(inapi.NsGlobalPodStatus(status.Host.Operate.ZoneId, v.Meta.ID), pst, nil)
-		if !rs.OK() {
-			continue
+
+		if podSync {
+			data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, v.Meta.ID), v, nil)
+			hlog.Printf("info", "pod %s operate/reset", v.Meta.ID)
 		}
-		zm_pod_statuses[v.Meta.ID] = action
+
+		// inapi.ObjPrint(v.Meta.ID, podStatus)
+		// inapi.ObjPrint(v.Meta.ID, v)
 	}
 
-	if !force_refresh &&
-		time.Now().UTC().Unix()-zm_leader_refreshed < 60 {
+	if !forceRefresh &&
+		time.Now().Unix()-zmLeaderLastRefreshed < 60 {
 		hlog.Printf("debug", "zone-master/refresh SKIP")
 		return
 	}
-	zm_leader_refreshed = time.Now().UTC().Unix()
+	zmLeaderLastRefreshed = time.Now().Unix()
 
 	//
 	if status.Zone == nil {
@@ -379,7 +464,7 @@ func zone_tracker() {
 								continue
 							}
 
-							hlog.Printf("warn", "zone-master/host:%s.operate.ports refreshed", host.Meta.Id)
+							hlog.Printf("info", "zone-master/host:%s.operate.ports refreshed", host.Meta.Id)
 
 							data.ZoneMaster.PvPut(
 								inapi.NsZoneSysHost(status.Host.Operate.ZoneId, host.Meta.Id),
@@ -442,7 +527,7 @@ func zone_tracker() {
 							if pse == nil {
 								continue
 							}
-							psh := inapi.NsPodServiceHostSliceGet(pse.Items, uint32(rep.Id))
+							psh := inapi.NsPodServiceHostSliceGet(pse.Items, rep.RepId)
 							if psh == nil {
 								continue
 							}
@@ -471,12 +556,12 @@ func zone_tracker() {
 		}
 	}
 
-	//
-	if force_refresh {
+	/**
+	if forceRefresh {
 
-		prs_key := inapi.NsZonePodReplicaStatus(status.Zone.Meta.Id, "", 0)
+		repStatusKey := inapi.NsZonePodRepStatus(status.Zone.Meta.Id, "", 0)
 
-		rs := data.ZoneMaster.PvScan(prs_key, "", "", 100000)
+		rs := data.ZoneMaster.PvScan(repStatusKey, "", "", 100000)
 		if !rs.OK() {
 			hlog.Printf("warn", "refresh pod-replica-status list failed")
 			return
@@ -496,6 +581,7 @@ func zone_tracker() {
 
 		hlog.Printf("info", "zone-master/pod-replica-status refreshed %d", len(status.ZonePodRepStatusSets))
 	}
+	*/
 
 	// hlog.Printf("debug", "zone-master/status refreshed")
 }

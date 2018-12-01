@@ -50,6 +50,7 @@ type HostMember struct {
 type ZoneMaster struct {
 	MultiCellEnable bool `json:"multi_cell_enable,omitempty"`
 	MultiHostEnable bool `json:"multi_host_enable,omitempty"`
+	ReplicaEnable   bool `json:"replica_enable,omitempty"`
 }
 
 type ConfigCommon struct {

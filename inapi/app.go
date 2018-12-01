@@ -15,6 +15,7 @@
 package inapi
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"sync"
@@ -87,6 +88,15 @@ func (ls *AppInstances) ExecutorSync(executor Executor, app_id string) {
 	}
 }
 
+func (ls *AppInstances) SpecExpDeployIsStateful() bool {
+	for _, v := range *ls {
+		if v.Spec.ExpDeploy.SysState == AppSpecExpDeploySysStateful {
+			return true
+		}
+	}
+	return false
+}
+
 type AppSpecDepend struct {
 	Id       string `json:"id,omitempty"`
 	Name     string `json:"name,omitempty"`
@@ -108,25 +118,74 @@ func (it *AppSpecDepend) IterKey() string {
 //
 type AppSpec struct {
 	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta  `json:"meta"`
-	LastVersion    string                 `json:"last_version,omitempty"`
-	Roles          types.ArrayUint32      `json:"roles,omitempty"`
-	Vendor         string                 `json:"vendor,omitempty"`
-	Description    string                 `json:"description,omitempty"`
-	Packages       AppPackages            `json:"packages,omitempty"`
-	VcsRepos       VcsRepoItems           `json:"vcs_repos,omitempty"`
-	Executors      Executors              `json:"executors,omitempty"`
-	VolumeMounts   AppVolumeMounts        `json:"volume_mounts,omitempty"`
-	ServicePorts   ServicePorts           `json:"service_ports,omitempty"`
-	Configurator   *AppConfigurator       `json:"configurator,omitempty"`
-	Depends        []AppSpecDepend        `json:"depends,omitempty"`
-	ExpRes         AppSpecResRequirements `json:"exp_res,omitempty"`
+	Meta           types.InnerObjectMeta        `json:"meta"`
+	LastVersion    string                       `json:"last_version,omitempty"`
+	Roles          types.ArrayUint32            `json:"roles,omitempty"`
+	Vendor         string                       `json:"vendor,omitempty"`
+	Description    string                       `json:"description,omitempty"`
+	Packages       AppPackages                  `json:"packages,omitempty"`
+	VcsRepos       VcsRepoItems                 `json:"vcs_repos,omitempty"`
+	Executors      Executors                    `json:"executors,omitempty"`
+	VolumeMounts   AppVolumeMounts              `json:"volume_mounts,omitempty"`
+	ServicePorts   ServicePorts                 `json:"service_ports,omitempty"`
+	Configurator   *AppConfigurator             `json:"configurator,omitempty"`
+	Depends        []AppSpecDepend              `json:"depends,omitempty"`
+	ExpRes         AppSpecResRequirements       `json:"exp_res,omitempty"`
+	ExpDeploy      AppSpecExpDeployRequirements `json:"exp_deploy,omitempty"`
 }
 
 type AppSpecResRequirements struct {
-	CpuMin int64 `json:"cpu_min,omitempty"`
-	MemMin int64 `json:"mem_min,omitempty"`
-	VolMin int64 `json:"vol_min,omitempty"`
+	CpuMin int32 `json:"cpu_min,omitempty"`
+	MemMin int32 `json:"mem_min,omitempty"`
+	VolMin int32 `json:"vol_min,omitempty"`
+}
+
+type appSpecResRequirementsUpgrade AppSpecResRequirements
+
+func (it *AppSpecResRequirements) UnmarshalJSON(b []byte) error {
+
+	var it2 appSpecResRequirementsUpgrade
+	if err := json.Unmarshal(b, &it2); err != nil {
+		return err
+	}
+
+	if it2.CpuMin >= 100 {
+		it2.CpuMin = it2.CpuMin / 100
+	}
+	if it2.CpuMin < 1 {
+		it2.CpuMin = 1
+	}
+
+	if it2.MemMin > int32(ByteMB) {
+		it2.MemMin = it2.MemMin / int32(ByteMB)
+	}
+	if it2.MemMin < 32 {
+		it2.MemMin = 32
+	}
+
+	if it2.VolMin > int32(ByteMB) {
+		it2.VolMin = it2.VolMin / int32(ByteGB)
+	}
+	if it2.VolMin < 1 {
+		it2.VolMin = 1
+	}
+
+	*it = AppSpecResRequirements(it2)
+
+	return nil
+}
+
+const (
+	AppSpecExpDeployRepNumMin    = 1
+	AppSpecExpDeployRepNumMax    = 32
+	AppSpecExpDeploySysStateful  = 1
+	AppSpecExpDeploySysStateless = 2
+)
+
+type AppSpecExpDeployRequirements struct {
+	RepMin   int `json:"rep_min,omitempty"`
+	RepMax   int `json:"rep_max,omitempty"`
+	SysState int `json:"sys_state,omitempty"`
 }
 
 type AppSpecList struct {

@@ -57,6 +57,7 @@ func (*genericScheduler) Schedule(pod inapi.Pod, hostls inapi.ResHostList) (host
 	return priority_list[0].id, nil
 }
 
+/**
 func (*genericScheduler) ScheduleSets(pod inapi.Pod, hostls inapi.ResHostList) (host_ids []string, err error) {
 
 	//
@@ -116,6 +117,7 @@ func (*genericScheduler) ScheduleSets(pod inapi.Pod, hostls inapi.ResHostList) (
 
 	return host_ids, nil
 }
+*/
 
 func find_hosts_that_fit(
 	pod inapi.Pod,
@@ -136,6 +138,8 @@ func find_hosts_that_fit(
 	if src == nil {
 		return hosts, errBadArgument
 	}
+	specCpu := int64(src.CpuLimit) * 200
+	specMem := int64(src.MemLimit) * inapi.ByteMB
 
 	for _, v := range hostls.Items {
 
@@ -160,33 +164,33 @@ func find_hosts_that_fit(
 			continue
 		}
 
-		cap_cpu := int64(float64(v.Spec.Capacity.Cpu) * cpu_over_rate)
-		cap_mem := int64(float64(v.Spec.Capacity.Mem) * mem_over_rate)
+		cpu_cap := int64(float64(v.Spec.Capacity.Cpu) * cpu_over_rate)
+		mem_cap := int64(float64(v.Spec.Capacity.Mem) * mem_over_rate)
 
-		if (src.CpuLimit+v.Operate.CpuUsed) > cap_cpu ||
-			(src.MemLimit+v.Operate.MemUsed) > cap_mem {
+		if (specCpu+v.Operate.CpuUsed) > cpu_cap ||
+			(specMem+v.Operate.MemUsed) > mem_cap {
 			continue // TODO
 		}
 
 		hosts = append(hosts, &host_fit{
 			id:        v.Meta.Id,
 			cpu_used:  v.Operate.CpuUsed,
-			cpu_total: cap_cpu,
+			cpu_total: cpu_cap,
 			mem_used:  v.Operate.MemUsed,
-			mem_total: cap_mem,
+			mem_total: mem_cap,
 		})
 	}
 
 	return hosts, nil
 }
 
-func (*genericScheduler) ScheduleHostValid(entry inapi.ScheduleEntry, host *inapi.ResHost) error {
+func (*genericScheduler) ScheduleHostValid(host *inapi.ResHost, entry inapi.ScheduleEntry) error {
 
-	cap_cpu := int64(float64(host.Spec.Capacity.Cpu) * cpu_over_rate)
-	cap_mem := int64(float64(host.Spec.Capacity.Mem) * mem_over_rate)
+	cpu_cap := int64(float64(host.Spec.Capacity.Cpu) * cpu_over_rate)
+	mem_cap := int64(float64(host.Spec.Capacity.Mem) * mem_over_rate)
 
-	if (entry.Cpu+host.Operate.CpuUsed) > cap_cpu ||
-		(entry.Mem+host.Operate.MemUsed) > cap_mem {
+	if (entry.Cpu+host.Operate.CpuUsed) > cpu_cap ||
+		(entry.Mem+host.Operate.MemUsed) > mem_cap {
 		return errors.New("No Res Fit")
 	}
 

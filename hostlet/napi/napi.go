@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
@@ -42,6 +43,8 @@ const (
 )
 
 var (
+	PodVolSysFmt       = "%s/%s"
+	PodVolSysArchFmt   = "%s/%s.%s"
 	VolPodHomeFmt      = "%s/%s/home/action"
 	VolAgentSysDirFmt  = "%s/%s/home/action/.sysinner"
 	BoxInstanceNameReg = regexp.MustCompile("^([0-9a-f]{16,24})-([0-9a-f]{4})$")
@@ -59,15 +62,30 @@ func ObjPrint(name string, v interface{}) {
 	fmt.Println("\n", name, string(js))
 }
 
-func VolPodHomeDir(pod_id string, rep_id uint16) string {
+func VolPodHomeDir(podId string, repId uint32) string {
 	return fmt.Sprintf(VolPodHomeFmt, config.Config.PodHomeDir,
-		inapi.NsZonePodOpRepKey(pod_id, rep_id))
+		inapi.NsZonePodOpRepKey(podId, repId))
 }
 
-func VolAgentSysDir(pod_id string, rep_id uint16) string {
+func PodVolSysDir(podId string, repId uint32) string {
+	return fmt.Sprintf(PodVolSysFmt,
+		config.Config.PodHomeDir,
+		inapi.NsZonePodOpRepKey(podId, repId),
+	)
+}
+
+func PodVolSysDirArch(podId string, repId uint32) string {
+	return fmt.Sprintf(PodVolSysArchFmt,
+		config.Config.PodHomeDir,
+		time.Now().UTC().Format("20060102.150405"),
+		inapi.NsZonePodOpRepKey(podId, repId),
+	)
+}
+
+func VolAgentSysDir(podId string, repId uint32) string {
 	return fmt.Sprintf(VolAgentSysDirFmt,
 		config.Config.PodHomeDir,
-		inapi.NsZonePodOpRepKey(pod_id, rep_id),
+		inapi.NsZonePodOpRepKey(podId, repId),
 	)
 }
 
@@ -103,7 +121,7 @@ type BoxInstance struct {
 	ID            string
 	Name          string
 	PodID         string
-	RepId         uint16
+	RepId         uint32
 	PodOpAction   uint32
 	PodOpVersion  uint32
 	Spec          inapi.PodSpecBoxBound
@@ -115,29 +133,32 @@ type BoxInstance struct {
 	Stats         *inapi.PbStatsSampleFeed
 }
 
-func BoxInstanceName(pod_id string, rep *inapi.PodOperateReplica, box_name string) string {
-	rep_id := uint16(0)
+func BoxInstanceName(podId string, rep *inapi.PodOperateReplica) string {
+	repId := uint32(0)
 	if rep != nil {
-		rep_id = rep.Id
+		repId = rep.RepId
+	}
+	if repId > 65535 {
+		repId = 65535
 	}
 
 	return fmt.Sprintf(
 		"%s-%s",
-		pod_id, inutils.Uint16ToHexString(rep_id),
+		podId, inutils.Uint16ToHexString(uint16(repId)),
 	)
 }
 
-func BoxInstanceNameParse(hostname string) (pod_id string, rep_id uint16, name string) {
+func BoxInstanceNameParse(hostname string) (podId string, repId uint32) {
 
-	if ns := BoxInstanceNameReg.FindStringSubmatch(hostname); len(ns) == 3 {
+	if ns := BoxInstanceNameReg.FindStringSubmatch(hostname); len(ns) >= 2 {
 
 		rb, _ := hex.DecodeString(ns[2])
-		rep_id = binary.BigEndian.Uint16(rb)
+		repId = uint32(binary.BigEndian.Uint16(rb))
 
-		return ns[1], rep_id, "main"
+		return ns[1], repId
 	}
 
-	return "", 0, ""
+	return "", 0
 }
 
 func (inst *BoxInstance) OpRepKey() string {
@@ -145,12 +166,6 @@ func (inst *BoxInstance) OpRepKey() string {
 }
 
 func (inst *BoxInstance) SpecDesired() bool {
-
-	//
-	if inst.Status.Name == "" {
-		hlog.Printf("debug", "box/spec miss-desire int.Status.Name")
-		return true // wait init
-	}
 
 	if inst.Status.Action == 0 {
 		hlog.Printf("debug", "box/spec miss-desire inst.Status.Action")

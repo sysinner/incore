@@ -45,13 +45,13 @@ import (
 )
 
 var (
-	stats_podrep_names = []string{
+	statsPodRepNames = []string{
 		"ram/us", "ram/cc",
 		"net/rs", "net/ws",
 		"cpu/us",
 		"fs/rn", "fs/rs", "fs/wn", "fs/ws",
 	}
-	stats_host_names = []string{
+	statsHostNames = []string{
 		"ram/us", "ram/cc",
 		"net/rs", "net/ws",
 		"cpu/sys", "cpu/user",
@@ -59,7 +59,7 @@ var (
 	}
 )
 
-func status_tracker() {
+func statusTracker() {
 
 	//
 	// if len(status.LocalZoneMasterList.Items) == 0 {
@@ -137,10 +137,10 @@ func status_tracker() {
 }
 
 var (
-	sync_nsz_lasts       = map[string]uint64{}
-	sync_vols_last int64 = 0
-	sync_nszs            = []*inapi.NsPodServiceMap{}
-	sync_nsz_path        = "/dev/shm/sysinner/nsz"
+	sync_nsz_lasts          = map[string]uint64{}
+	hostSyncVolLasted int64 = 0
+	sync_nszs               = []*inapi.NsPodServiceMap{}
+	sync_nsz_path           = "/dev/shm/sysinner/nsz"
 )
 
 func sync_nsz(ls []*inapi.NsPodServiceMap) {
@@ -229,8 +229,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		}
 	}
 
-	// status.Host.Spec.SecretKey = config.Config.Host.SecretKey
-
+	//
 	if status.Host.Spec.Platform == nil {
 
 		os, arch, _ := inutils.ResSysHostEnvDistArch()
@@ -242,6 +241,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		}
 	}
 
+	//
 	if status.Host.Spec.Capacity == nil {
 
 		vm, _ := ps_mem.VirtualMemory()
@@ -252,10 +252,10 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		}
 	}
 
-	tn := time.Now()
+	tn := time.Now().Unix()
 
 	if len(status.Host.Status.Volumes) == 0 ||
-		tn.Unix()-sync_vols_last > 600 {
+		tn-hostSyncVolLasted > 600 {
 
 		var (
 			devs, _ = ps_disk.Partitions(false)
@@ -304,67 +304,58 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 			status.Host.Status.Volumes = vols
 		}
 
-		sync_vols_last = tn.Unix()
+		hostSyncVolLasted = tn
 	}
-
-	status.Host.Prs = []*inapi.PbPodRepStatus{}
 
 	// fmt.Println("pod", len(podrunner.PodRepActives))
 	// fmt.Println("box", len(podrunner.BoxActives))
 
-	if stats := host_stats_get(); stats != nil {
+	if stats := hostStatsFeed(); stats != nil {
 		status.Host.Status.Stats = stats
 		// js, _ := json.Encode(stats, "  ")
 		// fmt.Println("send", string(js))
 	}
 
 	// Pod Rep Status
+	status.Host.Prs = []*inapi.PbPodRepStatus{}
 	nstatus.PodRepActives.Each(func(pod *inapi.Pod) {
 
 		if pod.Operate.Replica == nil {
 			return
 		}
 
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop|inapi.OpActionStopped) ||
-			inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionStop|inapi.OpActionStopped) ||
+			inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			return
 		}
 
-		pod_status := &inapi.PbPodRepStatus{
-			Id:    pod.Meta.ID,
-			Rep:   uint32(pod.Operate.Replica.Id),
-			OpLog: nstatus.PodRepOpLogs.Get(pod.OpRepKey()),
+		repStatus := &inapi.PbPodRepStatus{
+			PodId:  pod.Meta.ID,
+			RepId:  pod.Operate.Replica.RepId,
+			OpLog:  nstatus.PodRepOpLogs.Get(pod.OpRepKey()),
+			Action: 0,
 		}
 
-		if pod_status.OpLog == nil {
+		if repStatus.OpLog == nil {
 			hlog.Printf("warn", "No OpLog Found %s", pod.OpRepKey())
 			return
 		}
 
-		action := uint32(0)
-
 		//
-		// for _, bspec := range pod.Spec.Boxes {
 
-		inst_name := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, pod.Spec.Box.Name)
+		instName := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica)
 
-		box_inst := nstatus.BoxActives.Get(inst_name)
-		if box_inst == nil {
-			action = inapi.OpActionPending
+		boxInst := nstatus.BoxActives.Get(instName)
+		if boxInst == nil {
+			repStatus.Action = inapi.OpActionPending
 		} else {
 
-			if action == 0 {
-				action = box_inst.Status.Action
-			}
+			repStatus.Action = boxInst.Status.Action
+			repStatus.Started = boxInst.Status.Started
+			repStatus.Updated = boxInst.Status.Updated
+			repStatus.Ports = boxInst.Status.Ports
 
-			if action != box_inst.Status.Action {
-				action = inapi.OpActionPending
-			}
-
-			// pod_status.Boxes = append(pod_status.Boxes, &box_inst.Status)
-			pod_status.Box = &box_inst.Status
-
-			if pod.Spec.Box.Name == "main" && box_inst.Stats != nil {
+			if boxInst.Stats != nil {
 
 				//
 				var (
@@ -372,27 +363,40 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 					ec_time  uint32 = 0
 					ec_value int64  = 0
 				)
-				for _, name := range stats_podrep_names {
-					if ec_time, ec_value = box_inst.Stats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
+				for _, name := range statsPodRepNames {
+					if ec_time, ec_value = boxInst.Stats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
 						feed.SampleSync(name, ec_time, ec_value)
 					}
 				}
 
 				if len(feed.Items) > 0 {
-					pod_status.Stats = feed
+					repStatus.Stats = feed
 				}
 			}
 		}
-		// }
 
-		pod_status.Action = action
-		// hlog.Printf("debug", "PodRep %s Phase %s", pod.OpRepKey(), pod_status.Phase)
+		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy) &&
+			inapi.OpActionAllow(repStatus.Action, inapi.OpActionDestroyed) {
 
-		// js, _ := json.Encode(pod_status, "  ")
+			dir := napi.PodVolSysDir(pod.Meta.ID, pod.Operate.Replica.RepId)
+			if _, err := os.Stat(dir); err == nil {
+				dir2 := napi.PodVolSysDirArch(pod.Meta.ID, pod.Operate.Replica.RepId)
+				if err = os.Rename(dir, dir2); err != nil {
+					hlog.Printf("error", "pod %s, rep %d, archive vol-sys err %s",
+						pod.Meta.ID, pod.Operate.Replica.RepId, err.Error())
+					return
+				}
+			}
+
+		}
+
+		// hlog.Printf("debug", "PodRep %s Phase %s", pod.OpRepKey(), repStatus.Phase)
+
+		// js, _ := json.Encode(repStatus, "  ")
 		// fmt.Println(string(js))
 
 		if proj := quotaConfig.Fetch(pod.OpRepKey()); proj != nil {
-			pod_status.Volumes = []*inapi.PbVolumeStatus{
+			repStatus.Volumes = []*inapi.PbVolumeStatus{
 				{
 					MountPath: "/home/action",
 					Used:      proj.Used,
@@ -400,14 +404,14 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 			}
 		}
 
-		status.Host.Prs = append(status.Host.Prs, pod_status)
+		status.Host.Prs = append(status.Host.Prs, repStatus)
 
 		var box_oplog inapi.PbOpLogSets
 		fpath := fmt.Sprintf(napi.AgentBoxStatus, config.Config.PodHomeDir, pod.OpRepKey())
 		if err := json.DecodeFile(fpath, &box_oplog); err == nil {
-			if box_oplog.Version >= pod_status.OpLog.Version {
+			if box_oplog.Version >= repStatus.OpLog.Version {
 				for _, vlog := range box_oplog.Items {
-					pod_status.OpLog.LogSetEntry(vlog)
+					repStatus.OpLog.LogSetEntry(vlog)
 				}
 			}
 		}
@@ -420,41 +424,41 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 }
 
 var (
-	host_stats = inapi.NewPbStatsSampleFeed(napi.BoxStatsSampleCycle)
+	hostStats = inapi.NewPbStatsSampleFeed(napi.BoxStatsSampleCycle)
 )
 
-func host_stats_get() *inapi.PbStatsSampleFeed {
+func hostStatsFeed() *inapi.PbStatsSampleFeed {
 
 	timo := uint32(time.Now().Unix())
 
 	// RAM
 	vm, _ := ps_mem.VirtualMemory()
-	host_stats.SampleSync("ram/us", timo, int64(vm.Used))
-	host_stats.SampleSync("ram/cc", timo, int64(vm.Cached))
+	hostStats.SampleSync("ram/us", timo, int64(vm.Used))
+	hostStats.SampleSync("ram/cc", timo, int64(vm.Cached))
 
 	// Networks
 	nio, _ := ps_net.IOCounters(false)
 	if len(nio) > 0 {
-		host_stats.SampleSync("net/rs", timo, int64(nio[0].BytesRecv))
-		host_stats.SampleSync("net/ws", timo, int64(nio[0].BytesSent))
+		hostStats.SampleSync("net/rs", timo, int64(nio[0].BytesRecv))
+		hostStats.SampleSync("net/ws", timo, int64(nio[0].BytesSent))
 	}
 
 	// CPU
 	cio, _ := ps_cpu.Times(false)
 	if len(cio) > 0 {
-		host_stats.SampleSync("cpu/sys", timo, int64(cio[0].User*float64(1e9)))
-		host_stats.SampleSync("cpu/user", timo, int64(cio[0].System*float64(1e9)))
+		hostStats.SampleSync("cpu/sys", timo, int64(cio[0].User*float64(1e9)))
+		hostStats.SampleSync("cpu/user", timo, int64(cio[0].System*float64(1e9)))
 	}
 
 	// Storage IO
 	devs, _ := ps_disk.Partitions(false)
-	if dev_name := disk_dev_name(devs, config.Config.PodHomeDir); dev_name != "" {
+	if dev_name := diskDevName(devs, config.Config.PodHomeDir); dev_name != "" {
 		if diom, err := ps_disk.IOCounters(dev_name); err == nil {
 			if dio, ok := diom[dev_name]; ok {
-				host_stats.SampleSync("fs/sp/rn", timo, int64(dio.ReadCount))
-				host_stats.SampleSync("fs/sp/rs", timo, int64(dio.ReadBytes))
-				host_stats.SampleSync("fs/sp/wn", timo, int64(dio.WriteCount))
-				host_stats.SampleSync("fs/sp/ws", timo, int64(dio.WriteBytes))
+				hostStats.SampleSync("fs/sp/rn", timo, int64(dio.ReadCount))
+				hostStats.SampleSync("fs/sp/rs", timo, int64(dio.ReadBytes))
+				hostStats.SampleSync("fs/sp/wn", timo, int64(dio.WriteCount))
+				hostStats.SampleSync("fs/sp/ws", timo, int64(dio.WriteBytes))
 			}
 		}
 	}
@@ -465,8 +469,8 @@ func host_stats_get() *inapi.PbStatsSampleFeed {
 		ec_time  uint32 = 0
 		ec_value int64  = 0
 	)
-	for _, name := range stats_host_names {
-		if ec_time, ec_value = host_stats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
+	for _, name := range statsHostNames {
+		if ec_time, ec_value = hostStats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
 			feed.SampleSync(name, ec_time, ec_value)
 		}
 	}
@@ -478,7 +482,7 @@ func host_stats_get() *inapi.PbStatsSampleFeed {
 	return nil
 }
 
-func disk_dev_name(pls []ps_disk.PartitionStat, path string) string {
+func diskDevName(pls []ps_disk.PartitionStat, path string) string {
 
 	path = filepath.Clean(path)
 

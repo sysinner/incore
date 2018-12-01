@@ -459,12 +459,7 @@ func podVolQuotaRefresh() error {
 			return
 		}
 
-		spec_vol := pod.Spec.Volume("system")
-		if spec_vol == nil {
-			return
-		}
-
-		name := inapi.NsZonePodOpRepKey(pod.Meta.ID, pod.Operate.Replica.Id)
+		name := inapi.NsZonePodOpRepKey(pod.Meta.ID, pod.Operate.Replica.RepId)
 
 		//
 		path := filepath.Clean(config.Config.PodHomeDir + "/" + name)
@@ -481,7 +476,8 @@ func podVolQuotaRefresh() error {
 			return
 		}
 
-		if quota_gots.Has(uint32(proj.Id)) && proj.Soft == spec_vol.SizeLimit {
+		volSys := int64(pod.Operate.Replica.VolSys) * inapi.ByteGB
+		if quota_gots.Has(uint32(proj.Id)) && proj.Soft == volSys {
 			return
 		}
 
@@ -509,7 +505,7 @@ func podVolQuotaRefresh() error {
 			"-x",
 			"-c",
 			fmt.Sprintf("limit -p bsoft=%d bhard=%d %d",
-				spec_vol.SizeLimit, spec_vol.SizeLimit, proj.Id),
+				volSys, volSys, proj.Id),
 			quotaMountpoint,
 		}
 		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {

@@ -73,13 +73,14 @@ func podOpPullEntry(pod *inapi.Pod) error {
 
 	if prev != nil {
 
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) &&
-			inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+		// TODO
+		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) &&
+			inapi.OpActionAllow(prev.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			return nil
 		}
 	}
 
-	sysdir := napi.VolAgentSysDir(pod.Meta.ID, pod.Operate.Replica.Id)
+	sysdir := napi.VolAgentSysDir(pod.Meta.ID, pod.Operate.Replica.RepId)
 
 	if prev == nil {
 

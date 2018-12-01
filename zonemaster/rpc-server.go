@@ -21,7 +21,6 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
-	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
 
@@ -33,7 +32,7 @@ import (
 )
 
 var (
-	zm_mu sync.Mutex
+	zmMu sync.Mutex
 )
 
 type ApiZoneMaster struct{}
@@ -112,61 +111,28 @@ func (s *ApiZoneMaster) HostStatusSync(
 		// hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
 	}
 
-	tn := uint32(time.Now().Unix())
+	// tn := uint32(time.Now().Unix())
 
-	for _, v := range opts.Prs {
+	// PodReplica Status
+	for _, repStatus := range opts.Prs {
 
-		path := inapi.NsZonePodReplicaStatus(
-			status.ZoneId,
-			v.Id,
-			uint16(v.Rep),
-		)
+		if repStatus.Stats != nil {
 
-		prev := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets, v.Id, v.Rep)
-
-		if prev == nil {
-			if rs := data.ZoneMaster.PvGet(path); rs.OK() {
-				rs.Decode(prev)
-			}
-		}
-		if prev == nil || prev.Id != v.Id {
-			continue
-		}
-		if prev.OpLog == nil {
-			prev.OpLog = inapi.NewPbOpLogSets(inapi.NsZonePodOpRepKey(v.Id, uint16(v.Rep)), 0)
-		}
-
-		if v.OpLog != nil && v.OpLog.Version >= prev.OpLog.Version {
-			for _, vlog := range v.OpLog.Items {
-				prev.OpLog.LogSetEntry(vlog)
-			}
-		}
-		v.OpLog = prev.OpLog
-		v.Updated = tn
-
-		// for _, v2 := range prev.Boxes {
-		// 	if v2.Name == "" {
-		// 		prev.Boxes = []*inapi.PbPodBoxStatus{}
-		// 		break
-		// 	}
-		// }
-
-		if v.Box != nil {
-			prev.Box = v.Box
-		}
-
-		if v.Stats != nil {
 			arrs := inapi.NewPbStatsIndexList(600, 60)
-			for _, entry := range v.Stats.Items {
+
+			for _, entry := range repStatus.Stats.Items {
 				for _, v2 := range entry.Items {
 					arrs.Sync(entry.Name, v2.Time, v2.Value)
 				}
 			}
+
 			for _, iv := range arrs.Items {
-				pk := inapi.NsZonePodRepStats(status.ZoneId, v.Id, uint16(v.Rep), "sys", iv.Time)
+
+				repStatsKey := inapi.NsZonePodRepStats(
+					status.ZoneId, repStatus.PodId, repStatus.RepId, "sys", iv.Time)
 
 				var stats_index inapi.PbStatsIndexFeed
-				if rs := data.ZoneMaster.KvProgGet(pk); rs.OK() {
+				if rs := data.ZoneMaster.KvProgGet(repStatsKey); rs.OK() {
 					rs.Decode(&stats_index)
 					if stats_index.Time < 1 {
 						continue
@@ -182,7 +148,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 				if len(stats_index.Items) > 0 {
 					data.ZoneMaster.KvProgPut(
-						pk,
+						repStatsKey,
 						skv.NewKvEntry(stats_index),
 						&skv.KvProgWriteOptions{
 							Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
@@ -191,77 +157,67 @@ func (s *ApiZoneMaster) HostStatusSync(
 				}
 			}
 
-			v.Stats = nil
+			repStatus.Stats = nil
 		}
 
-		changed := false
-		status.ZonePodRepStatusSets, changed = inapi.PbPodRepStatusSliceSync(
-			status.ZonePodRepStatusSets, v,
-		)
-
-		if changed {
-			if rs := data.ZoneMaster.PvPut(path, prev, nil); !rs.OK() {
-				hlog.Printf("error", "zone-master/pod StatusSync %s/%d SET Failed %s",
-					v.Id, v.Rep, rs.Bytex().String())
-				return nil, errors.New("Server Error")
+		podStatus := status.ZonePodStatusList.Get(repStatus.PodId)
+		if podStatus == nil {
+			podStatusKey := inapi.NsZonePodStatus(status.ZoneId, repStatus.PodId)
+			if rs := data.ZoneMaster.PvGet(podStatusKey); rs.OK() {
+				var item inapi.PodStatus
+				if err := rs.Decode(&item); err == nil {
+					podStatus = &item
+				}
+			} else if rs.NotFound() {
+				podStatus = &inapi.PodStatus{
+					PodId: repStatus.PodId,
+				}
 			}
+			if podStatus == nil {
+				continue
+			}
+			status.ZonePodStatusList.Set(podStatus)
 		}
 
-		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)
-		if inapi.OpActionAllow(v.Action, inapi.OpActionRunning) ||
-			inapi.OpActionAllow(v.Action, inapi.OpActionStopped) ||
-			inapi.OpActionAllow(v.Action, inapi.OpActionDestroyed) {
+		if repStatus.OpLog == nil {
+			repStatus.OpLog = inapi.NewPbOpLogSets(inapi.NsZonePodOpRepKey(repStatus.PodId, repStatus.RepId), 0)
+		}
 
-			bp_key := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, v.Id, uint16(v.Rep))
+		if prevRepStatus := podStatus.RepGet(repStatus.RepId); prevRepStatus != nil && prevRepStatus.OpLog != nil {
 
-			if rs := data.ZoneMaster.PvGet(bp_key); rs.OK() {
-				var bpod inapi.Pod
-				err := rs.Decode(&bpod)
+			if repStatus.OpLog.Version <= prevRepStatus.OpLog.Version {
 
-				if err == nil && bpod.Meta.ID == v.Id {
-					synced := false
-
-					if inapi.OpActionAllow(v.Action, inapi.OpActionRunning) {
-						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStart) &&
-							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionRunning) {
-							bpod.Operate.Action = bpod.Operate.Action | inapi.OpActionRunning
-							synced = true
-						}
-					} else if inapi.OpActionAllow(v.Action, inapi.OpActionStopped) {
-						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStop) &&
-							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionStopped) {
-							bpod.Operate.Action = bpod.Operate.Action | inapi.OpActionStopped
-							synced = true
-						}
-					} else if inapi.OpActionAllow(v.Action, inapi.OpActionDestroyed) {
-						if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroy) &&
-							!inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroyed) {
-							bpod.Operate.Action = bpod.Operate.Action | inapi.OpActionDestroyed
-							synced = true
-						}
-					}
-
-					if synced {
-						bpod.Meta.Updated = types.MetaTimeNow()
-						data.ZoneMaster.PvPut(bp_key, bpod, nil)
-						hlog.Printf("info", "zone-master/rpc-server sync pod:%s action:%s",
-							bpod.Meta.ID, inapi.OpActionStrings(bpod.Operate.Action))
-					}
+				for _, vlog := range prevRepStatus.OpLog.Items {
+					repStatus.OpLog.LogSetEntry(vlog)
 				}
 			}
 		}
+
+		// inapi.ObjPrint(repStatus.PodId, repStatus)
+		// fmt.Println(repStatus.PodId, inapi.OpActionStrings(repStatus.Action))
+		podStatus.RepSync(repStatus)
+
+		/**
+		if rs := data.ZoneMaster.PvPut(podStatusKey, podStatus, nil); !rs.OK() {
+			hlog.Printf("error", "zone-master/pod StatusSync %s Failed",
+				podStatus.Id)
+			return nil, errors.New("Server Error")
+		}
+		*/
+
+		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)
 	}
 
 	// hlog.Printf("info", "zone-master/rpc-server hostlet synced pods:%d", len(opts.Prs))
 
-	bds := &inapi.ResHostBound{
+	hostBound := &inapi.ResHostBound{
 		Masters:              &status.ZoneMasterList,
 		ExpPsmaps:            status.ZonePodServiceMaps,
 		ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
 	}
 
 	// TODO
-	bk := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, "", 0)
+	bk := inapi.NsZoneHostBoundPodRep(status.ZoneId, opts.Meta.Id, "", 0)
 	rss := data.ZoneMaster.PvScan(bk, "", "", 1000).KvList()
 	hlog.Printf("debug", "zone-master/rpc-server, host (%s) bound pods %d",
 		opts.Meta.Id, len(rss))
@@ -277,7 +233,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			if uint32(time.Now().Unix())-bpod.Operate.Operated > inapi.PodDestroyTTL {
-				bk2 := inapi.NsZoneHostBoundPod(status.ZoneId, opts.Meta.Id, bpod.Meta.ID, bpod.Operate.Replica.Id)
+				bk2 := inapi.NsZoneHostBoundPodRep(status.ZoneId, opts.Meta.Id, bpod.Meta.ID, bpod.Operate.Replica.RepId)
 				data.ZoneMaster.PvDel(bk2, nil)
 				hlog.Printf("warn", "zone-master/pod/bound remove %s", bpod.Meta.ID)
 				continue
@@ -286,16 +242,16 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		// inapi.ObjPrint("rpc/server/"+opts.Meta.Id, v)
 		js, _ := json.Encode(bpod, "")
-		bds.ExpPods = append(bds.ExpPods, string(js))
+		hostBound.ExpPods = append(hostBound.ExpPods, string(js))
 	}
 
-	return bds, nil
+	return hostBound, nil
 }
 
 func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
-	zm_mu.Lock()
-	defer zm_mu.Unlock()
+	zmMu.Lock()
+	defer zmMu.Unlock()
 
 	if status.ZoneId == "" {
 		return

@@ -85,7 +85,7 @@ func (c Podbound) IndexAction() {
 		c.Response.Out.WriteHeader(400)
 		return
 	}
-	var rep_id = uint16(c.Params.Uint64("rep_id"))
+	var rep_id = uint32(c.Params.Uint64("rep_id"))
 
 	var pod inapi.Pod
 
@@ -94,7 +94,7 @@ func (c Podbound) IndexAction() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
 
-		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(rep_id)), &pod)
+		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
 			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvProgWriteOptions{
@@ -158,7 +158,7 @@ func PodBoundTerminalWsHandlerFunc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pod := pbPodInstanceSpec(pod_id, uint16(rep_id))
+	pod := pbPodInstanceSpec(pod_id, uint32(rep_id))
 	if pod == nil {
 		w.WriteHeader(400)
 		return
@@ -180,7 +180,7 @@ func PodBoundTerminalWsHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	p.ServeHTTP(w, r)
 }
 
-func pbPodInstanceSpec(pod_id string, rep_id uint16) *inapi.Pod {
+func pbPodInstanceSpec(pod_id string, rep_id uint32) *inapi.Pod {
 
 	var pod inapi.Pod
 
@@ -189,7 +189,7 @@ func pbPodInstanceSpec(pod_id string, rep_id uint16) *inapi.Pod {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
 
-		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(rep_id)), &pod)
+		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
 			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvProgWriteOptions{
@@ -211,10 +211,10 @@ type podProxyUnixClients struct {
 	mu      sync.Mutex
 }
 
-func fakeDial(pod_id string, rep_id uint16) func(proto, addr string) (conn net.Conn, err error) {
+func fakeDial(pod_id string, rep_id uint32) func(proto, addr string) (conn net.Conn, err error) {
 	return func(proto, addr string) (conn net.Conn, err error) {
 		return net.DialTimeout("unix", fmt.Sprintf(inagent_sock,
-			config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(rep_id)), inagent_dial_tto)
+			config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), inagent_dial_tto)
 	}
 }
 
@@ -224,7 +224,7 @@ var (
 	}
 )
 
-func (fn *podProxyUnixClients) call(pod_id string, rep_id uint16, req *http.Request, rsp http.ResponseWriter) error {
+func (fn *podProxyUnixClients) call(pod_id string, rep_id uint32, req *http.Request, rsp http.ResponseWriter) error {
 
 	fn.mu.Lock()
 	defer fn.mu.Unlock()

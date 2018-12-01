@@ -21,15 +21,17 @@ import "inapi/operator.proto";
 import "inapi/stats.proto";
 
 message PbPodRepStatus {
-    string                  id      = 1; // struct:object_slice_key
-    uint32                  rep     = 2; // struct:object_slice_key
+    string                  pod_id  = 1; // struct:object_slice_key
+    uint32                  rep_id  = 2; // struct:object_slice_key
     uint32                  action  = 3;
     string                  node    = 4;
-    PbPodBoxStatus          box     = 10;
+    // PbPodBoxStatus          box     = 10;
     PbOpLogSets             op_log  = 6;
     PbStatsSampleFeed       stats   = 7;
     uint32                  updated = 8; // unix time in seconds
     repeated PbVolumeStatus volumes = 9;
+    uint32                  started = 11; // unix time in seconds
+    repeated PbServicePort  ports   = 12;
 }
 
 enum PbPodSpecBoxImageDriver {
@@ -71,8 +73,8 @@ message PbPodBoxStatus {
     string                          name          = 1; // struct:object_slice_key
     PbPodSpecBoxImageDriver         image_driver  = 2;
     repeated Label                  image_options = 3;
-    int64                           res_cpu_limit = 4;
-    int64                           res_mem_limit = 5;
+    int32                           res_cpu_limit = 4; // in 1 = .1 cores
+    int32                           res_mem_limit = 5; // in MiB
     repeated PbVolumeMount          mounts        = 6;
     repeated PbServicePort          ports         = 7;
     repeated string                 command       = 8;

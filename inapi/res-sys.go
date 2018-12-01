@@ -17,6 +17,7 @@ package inapi
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"regexp"
 	"sort"
@@ -326,8 +327,8 @@ func (obj *ResHost) SyncOpMem(ram int64) {
 
 const (
 	res_host_port_offset uint32 = 45000
-	res_host_port_cutset uint32 = 46999
-	res_host_port_limit  int    = 1000
+	res_host_port_cutset uint32 = 49999
+	res_host_port_limit  int    = 5000
 )
 
 func (obj *ResHost) OpPortHas(port uint16) bool {
@@ -361,13 +362,23 @@ func (obj *ResHost) OpPortAlloc(port uint16) uint16 {
 		return port
 	}
 
-	offset := res_host_port_offset
+	if len(obj.Operate.PortUsed) > res_host_port_limit {
+		return 0
+	}
 
-	if n := len(obj.Operate.PortUsed); n > 0 {
-
-		if n > res_host_port_limit {
-			return 0
+	// random
+	rn := res_host_port_cutset - res_host_port_offset
+	for i := 0; i < 10; i++ {
+		p := res_host_port_offset + (rand.Uint32() % rn)
+		if !array_uint32_has(obj.Operate.PortUsed, p) {
+			obj.Operate.PortUsed = append(obj.Operate.PortUsed, p)
+			return uint16(p)
 		}
+	}
+
+	//
+	offset := res_host_port_offset
+	if n := len(obj.Operate.PortUsed); n > 0 {
 
 		offset = obj.Operate.PortUsed[len(obj.Operate.PortUsed)-1] + 1
 		if port == 0 && offset < res_host_port_offset {
@@ -383,14 +394,11 @@ func (obj *ResHost) OpPortAlloc(port uint16) uint16 {
 		}
 	}
 
-	if port == 0 {
+	for p := res_host_port_offset; p < offset; p++ { // TODO
 
-		for p := res_host_port_offset; p < offset; p++ { // TODO
-
-			if !array_uint32_has(obj.Operate.PortUsed, p) {
-				port = uint16(p)
-				break
-			}
+		if !array_uint32_has(obj.Operate.PortUsed, p) {
+			port = uint16(p)
+			break
 		}
 	}
 

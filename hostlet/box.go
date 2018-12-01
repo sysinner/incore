@@ -29,20 +29,17 @@ func boxActionRefresh() []*napi.BoxInstance {
 
 	nstatus.PodRepActives.Each(func(pod *inapi.Pod) {
 
-		// for _, box := range pod.Spec.Boxes {
+		instName := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica)
 
-		inst_name := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica, pod.Spec.Box.Name)
-
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
-			nstatus.BoxActives.Del(inst_name)
+		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			nstatus.BoxActives.Del(instName)
 		} else {
 
-			inst := boxActionRefreshEntry(inst_name, pod, pod.Spec.Box)
+			inst := boxActionRefreshEntry(instName, pod, pod.Spec.Box)
 			actions = append(actions, inst)
 		}
-		// }
 
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			dels = append(dels, pod.Meta.ID)
 		}
 	})
@@ -55,7 +52,7 @@ func boxActionRefresh() []*napi.BoxInstance {
 }
 
 func boxActionRefreshEntry(
-	inst_name string,
+	instName string,
 	pod *inapi.Pod,
 	box_spec inapi.PodSpecBoxBound,
 ) *napi.BoxInstance {
@@ -64,16 +61,16 @@ func boxActionRefreshEntry(
 		box_spec.Command = []string{"/home/action/.sysinner/ininit"}
 	}
 
-	inst := nstatus.BoxActives.Get(inst_name)
+	inst := nstatus.BoxActives.Get(instName)
 	if inst == nil {
 
 		inst = &napi.BoxInstance{
 			ID:           "",
-			Name:         inst_name,
-			PodOpAction:  pod.Operate.Action,
+			Name:         instName,
+			PodOpAction:  pod.Operate.Replica.Action,
 			PodOpVersion: pod.Operate.Version,
 			PodID:        pod.Meta.ID,
-			RepId:        pod.Operate.Replica.Id,
+			RepId:        pod.Operate.Replica.RepId,
 			Spec:         box_spec,
 			Apps:         pod.Apps,
 			Ports:        pod.Operate.Replica.Ports, // TODO
@@ -84,8 +81,8 @@ func boxActionRefreshEntry(
 
 	} else {
 
-		if pod.Operate.Action != inst.PodOpAction && pod.Operate.Action > 0 {
-			inst.PodOpAction = pod.Operate.Action
+		if pod.Operate.Replica.Action != inst.PodOpAction && pod.Operate.Replica.Action > 0 {
+			inst.PodOpAction = pod.Operate.Replica.Action
 		}
 
 		if pod.Operate.Version > inst.PodOpVersion {

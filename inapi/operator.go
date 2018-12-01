@@ -15,6 +15,7 @@
 package inapi
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -29,8 +30,15 @@ var (
 	OpActionPending   uint32 = 1 << 11
 	OpActionWarning   uint32 = 1 << 12
 	OpActionResFree   uint32 = 1 << 24
-	oplog_list_mu     sync.RWMutex
-	oplog_sets_mu     sync.RWMutex
+	OpActionHang      uint32 = 1 << 25
+	oplogListMu       sync.RWMutex
+	oplogSetsMu       sync.RWMutex
+
+	OpActionDesires = []uint32{
+		OpActionStart, OpActionRunning,
+		OpActionStop, OpActionStopped,
+		OpActionDestroy, OpActionDestroyed,
+	}
 )
 
 func OpActionValid(op uint32) bool {
@@ -107,6 +115,10 @@ func OpActionStrings(action uint32) []string {
 		s = append(s, "resfree")
 	}
 
+	if OpActionAllow(action, OpActionHang) {
+		s = append(s, "hang")
+	}
+
 	return s
 }
 
@@ -119,18 +131,32 @@ const (
 	PbOpLogFatal = "fatal"
 )
 
+const (
+	OpLogNsZoneMasterPodScheduleCharge = "zm/ps/charge"
+	OpLogNsZoneMasterPodScheduleAlloc  = "zm/ps/alloc"
+)
+
+var (
+	OpLogNsZoneMasterPodScheduleRep = func(repId uint32) string {
+		if repId > 65535 {
+			repId = 65535
+		}
+		return fmt.Sprintf("zm/ps/rep/%d", repId)
+	}
+)
+
 type OpLogList []*PbOpLogSets
 
 func (ls *OpLogList) Get(sets_name string) *PbOpLogSets {
-	oplog_list_mu.RLock()
-	defer oplog_list_mu.RUnlock()
+	oplogListMu.RLock()
+	defer oplogListMu.RUnlock()
 	return PbOpLogSetsSliceGet(*ls, sets_name)
 }
 
 func (ls *OpLogList) LogSet(sets_name string, version uint32, name, status, msg string) {
 
-	oplog_list_mu.Lock()
-	defer oplog_list_mu.Unlock()
+	oplogListMu.Lock()
+	defer oplogListMu.Unlock()
 
 	sets := PbOpLogSetsSliceGet(*ls, sets_name)
 	if sets == nil {
@@ -158,8 +184,8 @@ func NewPbOpLogSets(sets_name string, version uint32) *PbOpLogSets {
 
 func (rs *PbOpLogSets) LogSet(version uint32, name, status, message string) {
 
-	oplog_sets_mu.Lock()
-	defer oplog_sets_mu.Unlock()
+	oplogSetsMu.Lock()
+	defer oplogSetsMu.Unlock()
 
 	if version > 0 && version > rs.Version {
 		rs.Version = version

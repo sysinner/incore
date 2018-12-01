@@ -45,10 +45,10 @@ func Start() error {
 
 			time.Sleep(3e9)
 
-			zone_tracker()
+			zoneTracker()
 
 			if status.IsZoneMasterLeader() {
-				if err := scheduler_exec(); err != nil {
+				if err := schedAction(); err != nil {
 					hlog.Printf("warn", "zm/scheduler err:%s", err.Error())
 				}
 				if err := pod_charge(); err != nil {

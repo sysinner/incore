@@ -137,7 +137,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 	for _, v := range pod.Spec.Volumes {
 		// v.SizeLimit = 20 * inapi.ByteGB
 		cycle_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit/inapi.ByteMB), 4)
+			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
 	}
 
 	// Res Computes
@@ -148,11 +148,11 @@ func pod_charge_entry(pod inapi.Pod) bool {
 
 			// CPU v.Resources.CpuLimit = 1000
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/1000), 4)
+				spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/10), 4)
 
 			// MEM v.Resources.MemLimit = 1 * inapi.ByteGB
 			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit/inapi.ByteMB), 4)
+				spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
 		}
 		// }
 	}
@@ -241,7 +241,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 					pod_entry_chargeout(pod.Meta.ID)
 					//
 					pod.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(pod.Operate.OpLog,
-						inapi.NewPbOpLogEntry(oplog_zms_charge, inapi.PbOpLogWarn, rsp.Error.Message))
+						inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleCharge, inapi.PbOpLogWarn, rsp.Error.Message))
 
 					data.ZoneMaster.PvPut(
 						inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
