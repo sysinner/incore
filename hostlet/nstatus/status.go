@@ -1,13 +1,16 @@
 package nstatus
 
 import (
+	"github.com/lessos/lessgo/types"
+
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
 )
 
 var (
-	PodRepActives inapi.PodSets
+	PodRepActives inapi.PodRepItems
 	PodRepOpLogs  inapi.OpLogList
 	BoxActives    napi.BoxInstanceSets
-	PodQueue      inapi.PodSets // TODO
+	PodRepRemoves types.ArrayString
+	PodRepStops   types.ArrayString
 )

@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2018 Eryx <evorui аt gmail dοt com>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,30 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package hostlet
+package inapi
 
-import (
-	"fmt"
-
-	"github.com/hooto/hlog4g/hlog"
-
-	"github.com/sysinner/incore/data"
-)
-
-func InitData(items map[string]interface{}) error {
-
-	if data.LocalDB == nil {
-		return fmt.Errorf("data.LocalDB Not Init")
-	}
-
-	for k, v := range items {
-
-		if rs := data.LocalDB.PvPut(k, v, nil); !rs.OK() {
-			return fmt.Errorf("hostlet.initdata error on put key : %s", k)
-		}
-
-		hlog.Printf("info", "hostlet.init.data set %s", k)
-	}
-
-	return nil
-}
+import ()

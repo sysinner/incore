@@ -59,71 +59,106 @@ var (
 	}
 )
 
-func statusTracker() {
+func zoneMasterSync() error {
 
 	//
-	// if len(status.LocalZoneMasterList.Items) == 0 {
-
-	// 	var zms inapi.ResZoneMasterList
-	// 	if rs := data.LocalDB.PvGet(inapi.NsLocalZoneMasterList()); rs.OK() {
-
-	// 		if err := rs.Decode(&zms); err == nil {
-
-	// 			if synced := status.LocalZoneMasterList.SyncList(zms); synced {
-
-	// 				cms := []inapi.HostNodeAddress{}
-	// 				for _, v := range status.LocalZoneMasterList.Items {
-	// 					cms = append(cms, inapi.HostNodeAddress(v.Addr))
-	// 				}
-
-	// 				if len(cms) > 0 {
-	// 					config.Config.Masters = cms
-	// 					config.Config.Sync()
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	//
-	if len(status.LocalZoneMasterList.Items) == 0 && len(config.Config.Masters) == 0 {
-		hlog.Printf("warn", "No MasterList.Items Found")
-		return
+	if len(config.Config.Masters) == 0 {
+		return errors.New("No MasterList.Items Found")
 	}
 
 	zms, err := msgZoneMasterHostStatusSync()
 	if err != nil {
-		hlog.Printf("warn", "ZoneMaster HostStatusSync: %s", err.Error())
-		return
+		return err
 	}
 
 	if zms.ExpPods != nil {
+
 		for _, v := range zms.ExpPods {
-			var pod inapi.Pod
-			if err := json.Decode([]byte(v), &pod); err == nil {
-				// inapi.ObjPrint("name", pod)
-				nstatus.PodQueue.Set(&pod)
+
+			var pod inapi.PodRep
+
+			if err := json.Decode([]byte(v), &pod); err != nil {
+				hlog.Printf("warn", "hostlet/zm/sync %s", err.Error())
+				continue
+			}
+
+			if pod.Meta.ID == "" ||
+				pod.Replica.Node != status.Host.Meta.Id {
+				continue
+			}
+
+			if err := podRepCtrlSet(&pod); err != nil {
+				nstatus.PodRepOpLogs.LogSet(
+					pod.RepKey(), pod.Operate.Version,
+					napi.NsOpLogHostletRepSync, inapi.PbOpLogError,
+					fmt.Sprintf("pod %s, err %s", pod.Meta.ID, err.Error()),
+				)
+			} else {
+				nstatus.PodRepOpLogs.LogSet(
+					pod.RepKey(), pod.Operate.Version,
+					napi.NsOpLogHostletRepSync, inapi.PbOpLogOK,
+					fmt.Sprintf("pod %s, OK", pod.Meta.ID),
+				)
 			}
 		}
 	}
 
 	// fmt.Println(zms)
 	if zms.Masters != nil {
-		if chg := status.LocalZoneMasterList.SyncList(*zms.Masters); chg {
-			cms := []inapi.HostNodeAddress{}
-			for _, v := range status.LocalZoneMasterList.Items {
-				cms = append(cms, inapi.HostNodeAddress(v.Addr))
+		if chg := status.LocalZoneMasterList.SyncList(zms.Masters); chg {
+			ms := inapi.HostNodeAddresses{}
+			for _, v := range zms.Masters.Items {
+				addr := inapi.HostNodeAddress(v.Addr)
+				if addr.Valid() {
+					ms = append(ms, inapi.HostNodeAddress(addr))
+				}
 			}
-			if len(cms) > 0 {
-				config.Config.Masters = cms
+			if len(ms) > 0 && !config.Config.Masters.Equal(ms) {
+				config.Config.Masters = ms
 				config.Config.Sync()
-				hlog.Printf("warn", "zone-master/list refreshed")
+				hlog.Printf("info", "hostlet/config/masters refreshed")
 			}
 		}
 	}
 
 	if zms.ExpPsmaps != nil {
-		sync_nsz(zms.ExpPsmaps)
+		podServiceMapRefresh(zms.ExpPsmaps)
+	}
+
+	if zms.ExpBoxRemoves != nil {
+		sets := types.ArrayString(zms.ExpBoxRemoves)
+		for _, v := range sets {
+			nstatus.PodRepRemoves.Set(v)
+		}
+		dels := []string{}
+		for _, v := range nstatus.PodRepRemoves {
+			if !sets.Has(v) {
+				dels = append(dels, v)
+			}
+		}
+		for _, v := range dels {
+			nstatus.PodRepRemoves.Del(v)
+		}
+	} else if len(nstatus.PodRepRemoves) > 0 {
+		nstatus.PodRepRemoves.Clean()
+	}
+
+	if zms.ExpBoxStops != nil {
+		sets := types.ArrayString(zms.ExpBoxStops)
+		for _, v := range sets {
+			nstatus.PodRepStops.Set(v)
+		}
+		dels := []string{}
+		for _, v := range nstatus.PodRepStops {
+			if !sets.Has(v) {
+				dels = append(dels, v)
+			}
+		}
+		for _, v := range dels {
+			nstatus.PodRepStops.Del(v)
+		}
+	} else if len(nstatus.PodRepStops) > 0 {
+		nstatus.PodRepStops.Clean()
 	}
 
 	if len(zms.ZoneInpackServiceUrl) > 10 && zms.ZoneInpackServiceUrl != config.Config.InpackServiceUrl {
@@ -134,16 +169,18 @@ func statusTracker() {
 	if err := podVolQuotaRefresh(); err != nil {
 		hlog.Printf("error", "failed to refresh quota projects: %s", err.Error())
 	}
+
+	return nil
 }
 
 var (
-	sync_nsz_lasts          = map[string]uint64{}
 	hostSyncVolLasted int64 = 0
+	sync_nsz_lasts          = map[string]uint64{}
 	sync_nszs               = []*inapi.NsPodServiceMap{}
 	sync_nsz_path           = "/dev/shm/sysinner/nsz"
 )
 
-func sync_nsz(ls []*inapi.NsPodServiceMap) {
+func podServiceMapRefresh(ls []*inapi.NsPodServiceMap) {
 
 	if len(sync_nszs) == 0 {
 		os.MkdirAll(sync_nsz_path, 0755)
@@ -255,7 +292,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 	tn := time.Now().Unix()
 
 	if len(status.Host.Status.Volumes) == 0 ||
-		tn-hostSyncVolLasted > 600 {
+		(hostSyncVolLasted+600) < tn {
 
 		var (
 			devs, _ = ps_disk.Partitions(false)
@@ -307,43 +344,41 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		hostSyncVolLasted = tn
 	}
 
-	// fmt.Println("pod", len(podrunner.PodRepActives))
-	// fmt.Println("box", len(podrunner.BoxActives))
-
 	if stats := hostStatsFeed(); stats != nil {
 		status.Host.Status.Stats = stats
-		// js, _ := json.Encode(stats, "  ")
-		// fmt.Println("send", string(js))
 	}
 
 	// Pod Rep Status
 	status.Host.Prs = []*inapi.PbPodRepStatus{}
-	nstatus.PodRepActives.Each(func(pod *inapi.Pod) {
+	ctrDels := []string{}
+	nstatus.PodRepActives.Each(func(podRep *inapi.PodRep) {
 
-		if pod.Operate.Replica == nil {
+		instName := napi.BoxInstanceName(podRep.Meta.ID, podRep.Replica.RepId)
+
+		if inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionDestroy) &&
+			nstatus.PodRepRemoves.Has(instName) {
 			return
 		}
 
-		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionStop|inapi.OpActionStopped) ||
-			inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+		if inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionStop) &&
+			nstatus.PodRepStops.Has(instName) {
 			return
 		}
 
 		repStatus := &inapi.PbPodRepStatus{
-			PodId:  pod.Meta.ID,
-			RepId:  pod.Operate.Replica.RepId,
-			OpLog:  nstatus.PodRepOpLogs.Get(pod.OpRepKey()),
+			PodId:  podRep.Meta.ID,
+			RepId:  podRep.Replica.RepId,
+			OpLog:  nstatus.PodRepOpLogs.Get(podRep.RepKey()),
 			Action: 0,
 		}
 
+		// TODO
 		if repStatus.OpLog == nil {
-			hlog.Printf("warn", "No OpLog Found %s", pod.OpRepKey())
+			hlog.Printf("warn", "No OpLog Found %s", podRep.RepKey())
 			return
 		}
 
 		//
-
-		instName := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica)
 
 		boxInst := nstatus.BoxActives.Get(instName)
 		if boxInst == nil {
@@ -355,6 +390,8 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 			repStatus.Updated = boxInst.Status.Updated
 			repStatus.Ports = boxInst.Status.Ports
 
+			// fmt.Println("repStatus", strings.Join(inapi.OpActionStrings(repStatus.Action), "|"))
+
 			if boxInst.Stats != nil {
 
 				//
@@ -365,7 +402,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 				)
 				for _, name := range statsPodRepNames {
 					if ec_time, ec_value = boxInst.Stats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
-						feed.SampleSync(name, ec_time, ec_value)
+						feed.SampleSync(name, ec_time, ec_value, false)
 					}
 				}
 
@@ -375,27 +412,29 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 			}
 		}
 
-		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy) &&
+		if inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionDestroy) &&
 			inapi.OpActionAllow(repStatus.Action, inapi.OpActionDestroyed) {
 
-			dir := napi.PodVolSysDir(pod.Meta.ID, pod.Operate.Replica.RepId)
+			ctrDels = append(ctrDels, podRep.RepKey())
+
+			dir := napi.PodVolSysDir(podRep.Meta.ID, podRep.Replica.RepId)
 			if _, err := os.Stat(dir); err == nil {
-				dir2 := napi.PodVolSysDirArch(pod.Meta.ID, pod.Operate.Replica.RepId)
+				dir2 := napi.PodVolSysDirArch(podRep.Meta.ID, podRep.Replica.RepId)
 				if err = os.Rename(dir, dir2); err != nil {
 					hlog.Printf("error", "pod %s, rep %d, archive vol-sys err %s",
-						pod.Meta.ID, pod.Operate.Replica.RepId, err.Error())
+						podRep.Meta.ID, podRep.Replica.RepId, err.Error())
 					return
 				}
 			}
 
 		}
 
-		// hlog.Printf("debug", "PodRep %s Phase %s", pod.OpRepKey(), repStatus.Phase)
+		// hlog.Printf("debug", "PodRep %s Phase %s", podRep.RepKey(), repStatus.Phase)
 
 		// js, _ := json.Encode(repStatus, "  ")
 		// fmt.Println(string(js))
 
-		if proj := quotaConfig.Fetch(pod.OpRepKey()); proj != nil {
+		if proj := quotaConfig.Fetch(podRep.RepKey()); proj != nil {
 			repStatus.Volumes = []*inapi.PbVolumeStatus{
 				{
 					MountPath: "/home/action",
@@ -404,23 +443,35 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 			}
 		}
 
+		if inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			repStatus.Action = repStatus.Action | inapi.OpActionUnbound
+		}
+
 		status.Host.Prs = append(status.Host.Prs, repStatus)
 
-		var box_oplog inapi.PbOpLogSets
-		fpath := fmt.Sprintf(napi.AgentBoxStatus, config.Config.PodHomeDir, pod.OpRepKey())
-		if err := json.DecodeFile(fpath, &box_oplog); err == nil {
-			if box_oplog.Version >= repStatus.OpLog.Version {
-				for _, vlog := range box_oplog.Items {
+		var boxOpLog inapi.PbOpLogSets
+		fpath := fmt.Sprintf(napi.AgentBoxStatus, config.Config.PodHomeDir, podRep.RepKey())
+		if err := json.DecodeFile(fpath, &boxOpLog); err == nil {
+			if boxOpLog.Version >= repStatus.OpLog.Version {
+				for _, vlog := range boxOpLog.Items {
 					repStatus.OpLog.LogSetEntry(vlog)
 				}
 			}
 		}
-
 	})
 
-	return inapi.NewApiZoneMasterClient(conn).HostStatusSync(
+	for _, v := range ctrDels {
+		nstatus.PodRepActives.Del(v)
+	}
+
+	zms, err := inapi.NewApiZoneMasterClient(conn).HostStatusSync(
 		context.Background(), &status.Host,
 	)
+	if err == nil {
+		//
+	}
+
+	return zms, err
 }
 
 var (
@@ -433,21 +484,21 @@ func hostStatsFeed() *inapi.PbStatsSampleFeed {
 
 	// RAM
 	vm, _ := ps_mem.VirtualMemory()
-	hostStats.SampleSync("ram/us", timo, int64(vm.Used))
-	hostStats.SampleSync("ram/cc", timo, int64(vm.Cached))
+	hostStats.SampleSync("ram/us", timo, int64(vm.Used), false)
+	hostStats.SampleSync("ram/cc", timo, int64(vm.Cached), false)
 
 	// Networks
 	nio, _ := ps_net.IOCounters(false)
 	if len(nio) > 0 {
-		hostStats.SampleSync("net/rs", timo, int64(nio[0].BytesRecv))
-		hostStats.SampleSync("net/ws", timo, int64(nio[0].BytesSent))
+		hostStats.SampleSync("net/rs", timo, int64(nio[0].BytesRecv), false)
+		hostStats.SampleSync("net/ws", timo, int64(nio[0].BytesSent), false)
 	}
 
 	// CPU
 	cio, _ := ps_cpu.Times(false)
 	if len(cio) > 0 {
-		hostStats.SampleSync("cpu/sys", timo, int64(cio[0].User*float64(1e9)))
-		hostStats.SampleSync("cpu/user", timo, int64(cio[0].System*float64(1e9)))
+		hostStats.SampleSync("cpu/sys", timo, int64(cio[0].User*float64(1e9)), false)
+		hostStats.SampleSync("cpu/user", timo, int64(cio[0].System*float64(1e9)), false)
 	}
 
 	// Storage IO
@@ -455,10 +506,10 @@ func hostStatsFeed() *inapi.PbStatsSampleFeed {
 	if dev_name := diskDevName(devs, config.Config.PodHomeDir); dev_name != "" {
 		if diom, err := ps_disk.IOCounters(dev_name); err == nil {
 			if dio, ok := diom[dev_name]; ok {
-				hostStats.SampleSync("fs/sp/rn", timo, int64(dio.ReadCount))
-				hostStats.SampleSync("fs/sp/rs", timo, int64(dio.ReadBytes))
-				hostStats.SampleSync("fs/sp/wn", timo, int64(dio.WriteCount))
-				hostStats.SampleSync("fs/sp/ws", timo, int64(dio.WriteBytes))
+				hostStats.SampleSync("fs/sp/rn", timo, int64(dio.ReadCount), false)
+				hostStats.SampleSync("fs/sp/rs", timo, int64(dio.ReadBytes), false)
+				hostStats.SampleSync("fs/sp/wn", timo, int64(dio.WriteCount), false)
+				hostStats.SampleSync("fs/sp/ws", timo, int64(dio.WriteBytes), false)
 			}
 		}
 	}
@@ -471,7 +522,7 @@ func hostStatsFeed() *inapi.PbStatsSampleFeed {
 	)
 	for _, name := range statsHostNames {
 		if ec_time, ec_value = hostStats.Extract(name, napi.BoxStatsLogCycle, ec_time); ec_value >= 0 {
-			feed.SampleSync(name, ec_time, ec_value)
+			feed.SampleSync(name, ec_time, ec_value, false)
 		}
 	}
 

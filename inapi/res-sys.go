@@ -194,7 +194,7 @@ func (obj *ResZoneMasterList) Sync(item ResZoneMasterNode) (changed bool) {
 	return changed
 }
 
-func (obj *ResZoneMasterList) SyncList(ls ResZoneMasterList) (changed bool) {
+func (obj *ResZoneMasterList) SyncList(ls *ResZoneMasterList) (changed bool) {
 
 	if (obj.Version >= ls.Version && len(obj.Items) > 0) || len(ls.Items) < 1 {
 		return false
@@ -326,8 +326,8 @@ func (obj *ResHost) SyncOpMem(ram int64) {
 }
 
 const (
-	res_host_port_offset uint32 = 45000
-	res_host_port_cutset uint32 = 49999
+	res_host_port_offset uint32 = 15000
+	res_host_port_cutset uint32 = 19999
 	res_host_port_limit  int    = 5000
 )
 

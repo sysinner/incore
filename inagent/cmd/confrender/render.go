@@ -26,12 +26,14 @@ import (
 
 	"github.com/hooto/hflag4g/hflag"
 	"github.com/lessos/lessgo/encoding/json"
+
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils/filerender"
 )
 
 var (
 	pod_inst_json = "/home/action/.sysinner/pod_instance.json"
-	pod           inapi.Pod
+	pod           inapi.PodRep
 )
 
 func ActionConfig() error {
@@ -42,7 +44,7 @@ func ActionConfig() error {
 
 	if v, ok := hflag.ValueOK("in"); ok {
 		if v2, ok2 := hflag.ValueOK("out"); ok2 {
-			if err := cfg_render(v.String(), v2.String()); err != nil {
+			if err := cfgRender(v.String(), v2.String()); err != nil {
 				return err
 			} else {
 				return nil
@@ -65,18 +67,7 @@ func nsz_entry(id string) *inapi.NsPodServiceMap {
 	return &nsz
 }
 
-func cfg_render(src, dst string) error {
-
-	fpsrc, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer fpsrc.Close()
-
-	str, err := ioutil.ReadAll(fpsrc)
-	if err != nil {
-		return err
-	}
+func cfgRender(src, dst string) error {
 
 	sets := map[string]string{}
 
@@ -99,44 +90,17 @@ func cfg_render(src, dst string) error {
 		}
 	}
 
-	if pod.Operate.Replica != nil {
-		if nsz := nsz_entry(pod.Meta.ID); nsz != nil {
-			for _, p := range pod.Operate.Replica.Ports {
-				key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
-					p.Name,
-				))
-				sets[key+"host_port"] = fmt.Sprintf("%d", p.HostPort)
-				sets[key+"lan_addr"] = nsz.GetIp(p.BoxPort)
-			}
+	if nsz := nsz_entry(pod.Meta.ID); nsz != nil {
+		for _, p := range pod.Replica.Ports {
+			key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
+				p.Name,
+			))
+			sets[key+"host_port"] = fmt.Sprintf("%d", p.HostPort)
+			sets[key+"lan_addr"] = nsz.GetIp(p.BoxPort)
 		}
 	}
 
-	//
-	tpl, err := template.New("s").Parse(string(str))
-	if err != nil {
-		return err
-	}
-
-	var bsdst bytes.Buffer
-	if err := tpl.Execute(&bsdst, sets); err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(dst); err != nil {
-		os.MkdirAll(filepath.Dir(dst), 0755)
-	}
-	fpdst, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	defer fpdst.Close()
-
-	fpdst.Seek(0, 0)
-	fpdst.Truncate(0)
-
-	_, err = fpdst.Write(bsdst.Bytes())
-
-	return err
+	return filerender.Render(src, dst, 0644, sets)
 }
 
 func pod_init() error {

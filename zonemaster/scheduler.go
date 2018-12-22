@@ -23,6 +23,7 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/data"
@@ -137,36 +138,56 @@ func schedPodListRefresh() error {
 	rss := rs.KvList()
 	for _, v := range rss {
 
-		var pod inapi.Pod
-		if err := v.Decode(&pod); err != nil {
-			return err
+		var srcPod inapi.Pod
+		if err := v.Decode(&srcPod); err != nil {
+			hlog.Printf("warn", "zm/pod data/struct err %s", err.Error())
+			continue
 		}
 
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionHang) {
+		pod := status.ZonePodList.Items.Get(srcPod.Meta.ID)
+		if pod == nil ||
+			srcPod.Operate.Version > pod.Operate.Version {
+			//
+			hlog.Printf("info", "zm/pod set %s", srcPod.Meta.ID)
+			status.ZonePodList.Items.Set(&srcPod)
+			pod = &srcPod
+		}
+
+		// destroy
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 
 			//
-			if uint32(time.Now().Unix())-pod.Operate.Operated > inapi.PodDestroyTTL {
+			if (pod.Operate.Operated + inapi.PodDestroyTTL) < tn {
+
 				if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstanceDestroy(status.ZoneId, pod.Meta.ID), pod, nil); rs.OK() {
 					rs = data.ZoneMaster.PvDel(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), nil)
-					hlog.Printf("warn", "zone-master/pod/remove %s %v", pod.Meta.ID, rs.OK())
+					//
+					status.ZonePodList.Items.Del(pod.Meta.ID)
+					hlog.Printf("warn", "zm/scheduler pod %s, remove", pod.Meta.ID)
 				}
 			}
 			continue
 		}
 
-		status.ZonePodList.Set(&pod)
-
 		// TODO
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop|inapi.OpActionStopped) &&
+		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop) &&
+			len(pod.Operate.RepMigrates) < 1 &&
 			!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) &&
-			tn-pod.Operate.Operated > podResFreeTimeMin {
+			(pod.Operate.Operated+podResFreeTimeMin) < tn {
 
 			pod.Operate.Action = pod.Operate.Action | inapi.OpActionResFree
 			//
 			if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil); !rs.OK() {
-				return errors.New("db error " + rs.Bytex().String())
+				hlog.Printf("info", "zm/scheduler pod %s, db err %s", pod.Meta.ID, rs.Bytex().String())
+				continue
 			}
-			hlog.Printf("warn", "zone-master/pod/stopped %s, SKIP ResMerge", pod.Meta.ID)
+
+			pod.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(
+				pod.Operate.OpLog,
+				inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleResFree, inapi.PbOpLogOK, "free CPU/RAM resources on host"),
+			)
+
+			hlog.Printf("warn", "zm/scheduler pod %s, stop and res-free", pod.Meta.ID)
 		}
 
 		specRes := pod.Spec.ResComputeBound()
@@ -176,7 +197,8 @@ func schedPodListRefresh() error {
 				continue
 			}
 
-			if inapi.OpActionAllow(rp.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+			if inapi.OpActionAllow(rp.Action, inapi.OpActionDestroy) &&
+				!inapi.OpActionAllow(rp.Action, inapi.OpActionMigrate) {
 				continue
 			}
 
@@ -241,7 +263,7 @@ func schedHostListRefresh() error {
 			if rs := data.ZoneMaster.PvPut(
 				inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
 			); !rs.OK() {
-				return fmt.Errorf("host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
+				return fmt.Errorf("host %s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
 			}
 		}
 	}
@@ -258,6 +280,12 @@ func schedPodListQueue(cellId string) {
 		return
 	}
 
+	/**
+	if len(rss) > 0 {
+		hlog.Printf("info", "zone/pod/queue %d", len(rss))
+	}
+	*/
+
 	for _, v := range rss {
 
 		var podq inapi.Pod
@@ -272,33 +300,98 @@ func schedPodListQueue(cellId string) {
 			continue
 		}
 
-		err := schedPodItem(&podq, true)
-		if err != nil {
-			hlog.Print("error", "Scheduler Pod %s, ER %s", podq.Meta.ID, err.Error())
+		var (
+			pod = status.ZonePodList.Items.Get(podq.Meta.ID)
+		)
+
+		if rs := data.ZoneMaster.PvGet(
+			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID),
+		); rs.OK() {
+
+			var prev inapi.Pod
+			if err := rs.Decode(&prev); err != nil {
+				hlog.Printf("error", "bad prev podq %s instance", podq.Meta.ID)
+				continue
+			}
+
+			if pod == nil || pod.Operate.Version < prev.Operate.Version {
+
+				hlog.Printf("info", "zm/pod set %s", prev.Meta.ID)
+				status.ZonePodList.Items.Set(&prev)
+				pod = &prev
+			}
+
+		} else if !rs.NotFound() {
+			hlog.Printf("warn", "zm/scheduler db err")
+			continue
 		}
 
-		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
-			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
+		if pod == nil {
+			hlog.Printf("info", "zm/pod set %s", podq.Meta.ID)
+			status.ZonePodList.Items.Set(&podq)
+			pod = &podq
+		}
+
+		if podq.Operate.Version > pod.Operate.Version {
+
+			pod.Meta = podq.Meta
+			pod.Spec = podq.Spec
+			pod.Apps = podq.Apps
+
+			pod.Operate.Action = podq.Operate.Action
+			pod.Operate.Version = podq.Operate.Version
+			pod.Operate.Priority = podq.Operate.Priority
+			pod.Operate.ReplicaCap = podq.Operate.ReplicaCap
+			pod.Operate.Operated = podq.Operate.Operated
+			pod.Operate.Access = podq.Operate.Access
+			pod.Operate.OpLog = podq.Operate.OpLog
+			pod.Operate.ExpSysState = podq.Operate.ExpSysState
+
+			if len(podq.Operate.RepMigrates) > 0 {
+				migrates := types.ArrayUint32{}
+				for _, v := range pod.Operate.RepMigrates {
+					migrates.Set(v)
+				}
+				for _, v := range podq.Operate.RepMigrates {
+					migrates.Set(v)
+				}
+				pod.Operate.RepMigrates = migrates
+			}
+		}
+
+		err := schedPodItem(pod)
+		if err != nil {
+			hlog.Print("error", "Scheduler Pod %s, ER %s", pod.Meta.ID, err.Error())
+		}
+
+		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", pod.Meta.ID, rs.Bytex().String())
 			continue
 		}
 
 		if err == nil {
-			data.GlobalMaster.PvDel(inapi.NsGlobalSetQueuePod(status.ZoneId, podq.Spec.Cell, podq.Meta.ID), nil)
-			hlog.Printf("info", "zone/podq queue/clean %s", podq.Meta.ID)
-			podInQueue.Set(podq.Meta.ID)
+			data.GlobalMaster.PvDel(inapi.NsGlobalSetQueuePod(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), nil)
+			hlog.Printf("info", "zone/podq queue/clean %s", pod.Meta.ID)
+			podInQueue.Set(pod.Meta.ID)
 		}
 	}
 }
 
 func schedPodListBound() {
 
-	for _, podq := range status.ZonePodList {
+	if len(status.ZonePodList.Items) > 0 {
+		hlog.Printf("debug", "zone/pod/list %d", len(status.ZonePodList.Items))
+	}
 
-		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionHang) {
+	for _, podq := range status.ZonePodList.Items {
+
+		if podInQueue.Has(podq.Meta.ID) {
 			continue
 		}
 
-		if podInQueue.Has(podq.Meta.ID) {
+		// hlog.Printf("info", "Scheduler Pod/Migrate N %d", len(podq.Operate.RepMigrates))
+
+		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionHang) {
 			continue
 		}
 
@@ -307,9 +400,21 @@ func schedPodListBound() {
 			continue
 		}
 
-		err := schedPodItem(podq, false)
+		err := schedPodItem(podq)
 		if err != nil {
 			hlog.Print("error", "Scheduler Pod %s, ER %s", podq.Meta.ID, err.Error())
+		}
+
+		if len(podq.Operate.OpLog) > 0 {
+			//
+		}
+
+		if err == nil {
+
+			err = schedPodMigrate(podq)
+			if err != nil {
+				hlog.Print("error", "Scheduler Pod/Migrate %s, ER %s", podq.Meta.ID, err.Error())
+			}
 		}
 
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
@@ -319,9 +424,9 @@ func schedPodListBound() {
 	}
 }
 
-func schedPodItem(podq *inapi.Pod, ctrl bool) error {
+func schedPodItem(podq *inapi.Pod) error {
 
-	// hlog.Printf("error", "exec podq #%s instance", podq.Meta.ID)
+	// hlog.Printf("error", "exec podq %s instance", podq.Meta.ID)
 
 	if podq.Spec == nil {
 		return errors.New("No PodSpec Found")
@@ -333,53 +438,21 @@ func schedPodItem(podq *inapi.Pod, ctrl bool) error {
 		return errors.New("No Spec/Volume(system) Found")
 	}
 
-	var (
-		tnStart = time.Now()
-	)
-
-	if rs := data.ZoneMaster.PvGet(
-		inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID),
-	); rs.OK() {
-
-		var prev inapi.Pod
-		if err := rs.Decode(&prev); err != nil {
-			hlog.Printf("error", "bad prev podq #%s instance", podq.Meta.ID)
-			// TODO error log
-			return fmt.Errorf("bad prev podq #%s instance", podq.Meta.ID)
-		}
-
-		// TODO
-		if len(prev.Operate.Replicas) > 0 {
-			podq.Operate.Replicas = prev.Operate.Replicas
-		}
-
-		if podq.Operate.Version == prev.Operate.Version {
-			for _, v := range prev.Operate.OpLog {
-				podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog, v)
-			}
-		}
-
-		if prev.Payment != nil {
-			podq.Payment = prev.Payment
-		}
-
-		if !ctrl && inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionHang) {
-			podq.Operate.Action = podq.Operate.Action | inapi.OpActionHang
-		}
-
-	} else if !rs.NotFound() {
-		return errors.New("zm/db error")
-	}
-
 	if podq.OpResScheduleFit() {
 		return nil
 	}
 
+	/**
 	for _, v := range podq.Operate.Replicas {
-		fmt.Println(podq.Meta.ID, v.RepId, inapi.OpActionStrings(podq.Operate.Action), inapi.OpActionStrings(v.Action), ctrl)
+		hlog.Printf("info", "pod %s, rep %d, action %s to %s",
+			podq.Meta.ID, v.RepId,
+			strings.Join(inapi.OpActionStrings(podq.Operate.Action), "|"),
+			strings.Join(inapi.OpActionStrings(v.Action), "|"))
 	}
+	*/
 
 	var (
+		tnStart   = time.Now()
 		destRes   *destResReplica
 		scaleup   = 0
 		scaledown = 0
@@ -402,6 +475,10 @@ func schedPodItem(podq *inapi.Pod, ctrl bool) error {
 	} else {
 
 		destRes = &destResReplica{}
+
+		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStop) {
+			destRes.VolSys = specVol.SizeLimit
+		}
 	}
 
 	if len(podq.Operate.Replicas) > 0 {
@@ -410,7 +487,7 @@ func schedPodItem(podq *inapi.Pod, ctrl bool) error {
 
 	for repid := uint32(0); repid < uint32(podq.Operate.ReplicaCap); repid++ {
 
-		oplog := schedPodRep(podq, 0, repid, destRes)
+		oplog := schedPodRepItem(podq, 0, repid, destRes)
 		if oplog.Status == inapi.PbOpLogOK {
 			scaleup += 1
 		}
@@ -428,17 +505,12 @@ func schedPodItem(podq *inapi.Pod, ctrl bool) error {
 			continue
 		}
 
-		hlog.Printf("info", "%d", rep.RepId)
-
 		scaledown += 1
 
 		if podStatus != nil {
-			hlog.Printf("info", "%d", rep.RepId)
 			if repStatus := podStatus.RepGet(rep.RepId); repStatus != nil {
-				hlog.Printf("info", "%d", rep.RepId)
 				if inapi.OpActionAllow(rep.Action, inapi.OpActionDestroy) &&
 					inapi.OpActionAllow(repStatus.Action, inapi.OpActionDestroyed) {
-					hlog.Printf("info down ok", "%d", rep.RepId)
 					scaledown -= 1
 					repOuts = append(repOuts, rep)
 				}
@@ -446,24 +518,16 @@ func schedPodItem(podq *inapi.Pod, ctrl bool) error {
 		}
 
 		if !inapi.OpActionAllow(rep.Action, inapi.OpActionDestroy) {
-			hlog.Printf("info", "destroy %d", rep.RepId)
+			hlog.Printf("info", "zm/rep %s:%d destroy", podq.Meta.ID, rep.RepId)
 			rep.Action = inapi.OpActionDestroy
-			schedPodRep(podq, inapi.OpActionDestroy, rep.RepId, &destResReplica{})
+			schedPodRepItem(podq, inapi.OpActionDestroy, rep.RepId, &destResReplica{})
 		}
 	}
 
 	for _, rep := range repOuts {
 
-		hlog.Printf("warn", "zm/pod %s, scaling down rep %d, clean out operate/replica",
+		hlog.Printf("info", "zm/pod %s, scaling down rep %d, clean out operate/replica",
 			podq.Meta.ID, rep.RepId)
-
-		if rep.Node != "" {
-			boundRepKey := inapi.NsZoneHostBoundPodRep(status.ZoneId, rep.Node, podq.Meta.ID, rep.RepId)
-
-			if rs := data.ZoneMaster.PvDel(boundRepKey, nil); !rs.OK() {
-				continue
-			}
-		}
 
 		podq.Operate.Replicas.Del(rep.RepId)
 	}
@@ -484,25 +548,22 @@ func schedPodItem(podq *inapi.Pod, ctrl bool) error {
 		inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleAlloc, opType, opMsg),
 	)
 
-	// TODO
-	if false {
-		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionResFree) &&
-			!inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStop) {
-			podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionResFree)
-		}
+	if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionResFree) &&
+		!inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStop) {
+		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionResFree)
 	}
 
 	return nil
 }
 
-func schedPodRep(podq *inapi.Pod, opAction uint32,
+func schedPodRepItem(podq *inapi.Pod, opAction uint32,
 	repId uint32, destRes *destResReplica) *inapi.PbOpLogEntry {
 
 	var (
 		host        *inapi.ResHost
 		hostChanged = false
 		opRep       = podq.Operate.Replicas.Get(repId)
-		oplogKey    = inapi.OpLogNsZoneMasterPodScheduleRep(repId)
+		opLogKey    = inapi.OpLogNsZoneMasterPodScheduleRep(repId)
 	)
 
 	if opAction == 0 {
@@ -512,30 +573,30 @@ func schedPodRep(podq *inapi.Pod, opAction uint32,
 	//
 	if opRep == nil {
 
-		hostId, err := Scheduler.Schedule(*podq, status.ZoneHostList)
+		opRep = &inapi.PodOperateReplica{
+			RepId:  repId,
+			ResCpu: destRes.ResCpu,
+			ResMem: destRes.ResMem,
+			VolSys: destRes.VolSys,
+		}
+
+		hostId, err := Scheduler.Schedule(podq.Spec, opRep, status.ZoneHostList, nil)
 
 		if err != nil || hostId == "" {
 			// TODO error log
-			return inapi.NewPbOpLogEntry(oplogKey,
+			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
 				"no available resources, waiting for allocation")
 		}
 
 		host = status.ZoneHostList.Item(hostId)
 		if host == nil {
-			return inapi.NewPbOpLogEntry(oplogKey,
+			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
 				"no available resources, waiting for allocation")
 		}
 
-		opRep = &inapi.PodOperateReplica{
-			RepId:  repId,
-			Node:   hostId,
-			Action: opAction,
-			ResCpu: destRes.ResCpu,
-			ResMem: destRes.ResMem,
-			VolSys: destRes.VolSys,
-		}
+		opRep.Node = hostId
 
 		podq.Operate.Replicas.Set(*opRep)
 		podq.Operate.Replicas.Sort()
@@ -551,15 +612,36 @@ func schedPodRep(podq *inapi.Pod, opAction uint32,
 			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "Data IO error")
 		}
 
-		hlog.Printf("info", "schedule pod #%s to host #%s (new)", podq.Meta.ID, hostId)
+		hlog.Printf("info", "schedule rep %s:%d to host %s (new)",
+			podq.Meta.ID, opRep.RepId, hostId)
 
 	} else {
 
+		if inapi.OpActionAllow(opRep.Action, inapi.OpActionMigrate) {
+			return inapi.NewPbOpLogEntry(opLogKey,
+				inapi.PbOpLogWarn,
+				"action in migrating")
+		}
+
 		host = status.ZoneHostList.Item(opRep.Node)
 		if host == nil {
-			return inapi.NewPbOpLogEntry(oplogKey,
+			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
 				fmt.Sprintf("host %s not found", opRep.Node))
+		}
+	}
+
+	if !inapi.OpActionAllow(opRep.Action, opAction) {
+
+		if inapi.OpActionAllow(opAction, inapi.OpActionDestroy) {
+			opRep.Action = inapi.OpActionDestroy
+		} else if inapi.OpActionAllow(opRep.Action, inapi.OpActionDestroy) ||
+			inapi.OpActionAllow(opRep.Action, inapi.OpActionMigrate) {
+			//
+		} else if inapi.OpActionAllow(opAction, inapi.OpActionStart) {
+			opRep.Action = inapi.OpActionRemove(opRep.Action, inapi.OpActionStop) | inapi.OpActionStart
+		} else if inapi.OpActionAllow(opAction, inapi.OpActionStop) {
+			opRep.Action = inapi.OpActionRemove(opRep.Action, inapi.OpActionStart) | inapi.OpActionStop
 		}
 	}
 
@@ -584,7 +666,7 @@ func schedPodRep(podq *inapi.Pod, opAction uint32,
 				hlog.Printf("warn", "rep %s-%d, err %s",
 					podq.Meta.ID, opRep.RepId, err.Error())
 				//
-				oplog := inapi.NewPbOpLogEntry(oplogKey,
+				oplog := inapi.NewPbOpLogEntry(opLogKey,
 					inapi.PbOpLogWarn,
 					"no available resources (spec update), waiting for allocation")
 				podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(
@@ -621,9 +703,9 @@ func schedPodRep(podq *inapi.Pod, opAction uint32,
 		if rs := data.ZoneMaster.PvPut(
 			inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
 		); !rs.OK() {
-			hlog.Printf("error", "host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
+			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
 			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn,
-				fmt.Sprintf("host #%s sync changes failed %s", host.Meta.Id, rs.Bytex().String()))
+				fmt.Sprintf("host %s sync changes failed %s", host.Meta.Id, rs.Bytex().String()))
 		}
 
 		// TODO
@@ -631,17 +713,251 @@ func schedPodRep(podq *inapi.Pod, opAction uint32,
 
 	// inapi.ObjPrint(podq.Meta.ID, podq)
 
-	podq.Operate.Replica = opRep
+	return inapi.NewPbOpLogEntry("", inapi.PbOpLogOK, "sync to host/"+opRep.Node)
+}
 
-	boundRepKey := inapi.NsZoneHostBoundPodRep(status.ZoneId, opRep.Node, podq.Meta.ID, opRep.RepId)
+func schedPodMigrate(podq *inapi.Pod) error {
 
-	if rs := data.ZoneMaster.PvPut(boundRepKey, podq, nil); !rs.OK() {
-		hlog.Printf("error", "zone/podq saved %s, err (%s)", boundRepKey, rs.Bytex().String())
-		return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn,
-			fmt.Sprintf("zone/podq saved %s, err (%s)", boundRepKey, rs.Bytex().String()))
+	if len(podq.Operate.RepMigrates) < 1 ||
+		inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionDestroy) {
+		return nil
 	}
 
-	return inapi.NewPbOpLogEntry("", inapi.PbOpLogOK, "sync to host/"+opRep.Node)
+	podStatus := status.ZonePodStatusList.Get(podq.Meta.ID)
+	if podStatus == nil {
+		return nil
+	}
+
+	var (
+		tn  = uint32(time.Now().Unix())
+		mgs = types.ArrayUint32(podq.Operate.RepMigrates)
+	)
+
+	for _, repId := range podq.Operate.RepMigrates {
+
+		if repId >= uint32(podq.Operate.ReplicaCap) {
+			mgs.Del(repId)
+			continue
+		}
+
+		hlog.Printf("debug", "sche rep %s:%d",
+			podq.Meta.ID, repId,
+		)
+
+		ctrRep := podq.Operate.Replicas.Get(repId)
+		if ctrRep == nil {
+			continue
+		}
+		if !inapi.OpActionAllow(ctrRep.Action, inapi.OpActionMigrate) {
+			continue
+		}
+
+		repStatus := podStatus.RepGet(repId)
+		if repStatus == nil {
+			continue
+		}
+
+		if repStatus.OpLog == nil {
+			repStatus.OpLog = inapi.NewPbOpLogSets(
+				inapi.NsZonePodOpRepKey(repStatus.PodId, repStatus.RepId), 0)
+		}
+
+		hlog.Printf("debug", "rep %s:%d, op Action %s, repStatus Action %s",
+			podq.Meta.ID, repId,
+			strings.Join(inapi.OpActionStrings(ctrRep.Action), "|"),
+			strings.Join(inapi.OpActionStrings(repStatus.Action), "|"),
+		)
+
+		/**
+		if inapi.OpActionAllow(rep.Action, inapi.OpActionMigrate) &&
+			inapi.OpActionAllow(repStatus.Action, inapi.OpActionStopped) == 0 {
+			continue
+		}
+		*/
+
+		/**
+		if !inapi.OpActionAllow(ctrRep.Action, inapi.OpActionMigrate) {
+			ctrRep.Action = inapi.OpActionStop | inapi.OpActionMigrate
+			ctrRep.Updated = tn
+
+			hlog.Printf("warn", "scheduler rep %s:%d, set OpAction to %s",
+				podq.Meta.ID, repId,
+				strings.Join(inapi.OpActionStrings(ctrRep.Action), "|"),
+			)
+		}
+		*/
+
+		if ctrRep.Next != nil &&
+			inapi.OpActionAllow(ctrRep.Next.Action, inapi.OpActionMigrated) {
+
+			if inapi.OpActionAllow(ctrRep.Action, inapi.OpActionDestroy) {
+
+				if inapi.OpActionAllow(ctrRep.Action, inapi.OpActionDestroyed) {
+
+					ctrRep.PrevNode = ctrRep.Node
+					ctrRep.Node = ctrRep.Next.Node
+					ctrRep.Action = inapi.OpActionStart
+					ctrRep.Next = nil
+					ctrRep.Options = nil
+					mgs.Del(repId)
+
+					repStatus.Action = 0
+
+					// TODO
+					data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil)
+
+					hlog.Printf("warn", "scheduler rep %s:%d, host %s, set opAction to %s, Migrate DONE",
+						podq.Meta.ID, repId, ctrRep.Node,
+						strings.Join(inapi.OpActionStrings(ctrRep.Action), "|"),
+					)
+
+					repStatus.OpLog.LogSet(
+						podq.Operate.Version,
+						inapi.NsOpLogZoneRepMigratePrevDestory, inapi.PbOpLogOK,
+						fmt.Sprintf("prev box on host %s cleaned up", ctrRep.Node),
+					)
+
+					repStatus.OpLog.LogSet(
+						podq.Operate.Version,
+						inapi.NsOpLogZoneRepMigrateDone, inapi.PbOpLogOK,
+						"migrate well done",
+					)
+				}
+
+			} else {
+
+				ctrRep.Action = inapi.OpActionMigrate | inapi.OpActionDestroy
+
+				repStatus.OpLog.LogSet(
+					podq.Operate.Version,
+					inapi.NsOpLogZoneRepMigratePrevDestory, inapi.PbOpLogInfo,
+					fmt.Sprintf("cleaning the prev box on host %s", ctrRep.Node),
+				)
+
+				hlog.Printf("warn", "scheduler rep %s:%d, host %s, set opAction to %s",
+					podq.Meta.ID, repId, ctrRep.Node,
+					strings.Join(inapi.OpActionStrings(ctrRep.Action), "|"),
+				)
+			}
+		}
+	}
+
+	podq.Operate.RepMigrates = mgs
+	// podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionHang)
+
+	// schedule new host
+	for _, repId := range podq.Operate.RepMigrates {
+
+		if repId >= uint32(podq.Operate.ReplicaCap) {
+			continue
+		}
+
+		rep := podq.Operate.Replicas.Get(repId)
+		if rep == nil {
+			continue
+		}
+
+		repStatus := podStatus.RepGet(repId)
+		if repStatus == nil {
+			continue
+		}
+
+		if repStatus.OpLog == nil {
+			repStatus.OpLog = inapi.NewPbOpLogSets(
+				inapi.NsZonePodOpRepKey(repStatus.PodId, repStatus.RepId), 0)
+		}
+
+		/**
+		if !inapi.OpActionAllow(rep.Action, inapi.OpActionMigrate) {
+			continue
+		}
+		*/
+
+		// hlog.Printf("info", "pod %s", podq.Meta.ID)
+
+		if rep.Next != nil {
+			continue
+		}
+		// hlog.Printf("info", "pod %s", podq.Meta.ID)
+
+		prevHostId := rep.Node
+		prevHost := status.ZoneHostList.Item(rep.Node)
+		if prevHost == nil {
+			continue
+		}
+		// hlog.Printf("info", "pod %s", podq.Meta.ID)
+
+		// prevHostPeerLan := inapi.HostNodeAddress(prevHost.Spec.PeerLanAddr)
+
+		repNext := &inapi.PodOperateReplica{
+			RepId:  rep.RepId,
+			Action: inapi.OpActionMigrate,
+			ResCpu: rep.ResCpu,
+			ResMem: rep.ResMem,
+			VolSys: rep.VolSys,
+		}
+
+		hostId, err := Scheduler.Schedule(podq.Spec, repNext, status.ZoneHostList, &inapi.ScheduleOptions{
+			HostExcludes: []string{rep.Node},
+		})
+		if err != nil || hostId == "" {
+			repStatus.OpLog.LogSet(
+				podq.Operate.Version,
+				inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogWarn,
+				fmt.Sprintf("migrate rep %s:%d, waiting for available resources",
+					podq.Meta.ID, repId),
+			)
+			continue
+		}
+
+		host := status.ZoneHostList.Item(hostId)
+		if host == nil {
+			continue
+		}
+		repNext.Node = hostId
+
+		if ports, chg := schedPodRepNetPortAlloc(podq, repNext, host); chg {
+			repNext.Ports = ports
+			host.OpPortSort()
+		}
+
+		hostPeerLan := inapi.HostNodeAddress(prevHost.Spec.PeerLanAddr)
+
+		rep.Options.Set("rsync/host", fmt.Sprintf("%s:%d", hostPeerLan.IP(), hostPeerLan.Port()+5))
+		rep.Options.Set("rsync/auth", idhash.RandHexString(30))
+
+		rep.PrevNode = ""
+		rep.Next = repNext
+		rep.Action = inapi.OpActionStop | inapi.OpActionMigrate
+		rep.Updated = tn
+
+		host.SyncOpCpu(int64(repNext.ResCpu) * 100)
+		host.SyncOpMem(int64(repNext.ResMem) * inapi.ByteMB)
+
+		// hlog.Printf("info", "host %s sync changes", host.Meta.Id)
+
+		if rs := data.ZoneMaster.PvPut(
+			inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
+		); !rs.OK() {
+			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
+			continue
+		}
+
+		hlog.Printf("warn", "scheduler rep %s:%d, migrate from host %s to %s",
+			podq.Meta.ID, rep.RepId, prevHostId, hostId)
+
+		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
+		}
+
+		repStatus.OpLog.LogSet(
+			podq.Operate.Version,
+			inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogOK,
+			fmt.Sprintf("migrate rep from host %s to %s", prevHostId, hostId),
+		)
+	}
+
+	return nil
 }
 
 func schedPodRepNetPortAlloc(
@@ -722,11 +1038,11 @@ func schedPodRepNetPortAlloc(
 
 			portsAlloc = append(portsAlloc, portAlloc)
 
-			hlog.Printf("info", "new port alloc to %s:%d",
-				host.Spec.PeerLanAddr, portAlloc)
+			hlog.Printf("info", "zm new port alloc to rep %s:%d, host %s, port %d",
+				podq.Meta.ID, opRep.RepId, host.Meta.Id, portAlloc)
 
 		} else {
-			hlog.Printf("warn", "host #%s res-port out range", host.Meta.Id)
+			hlog.Printf("warn", "zm host %s res-port out range", host.Meta.Id)
 		}
 	}
 
@@ -783,64 +1099,11 @@ func schedPodRepNetPortAlloc(
 	return ports, hostChanged
 }
 
-func schedPodFree(podq *inapi.Pod) error {
-
-	var (
-		tnStart = time.Now()
-		delNum  = 0
-	)
-
-	hlog.Printf("info", "destroy pod/%s, version %d, rep %d",
-		podq.Meta.ID, podq.Operate.Version, len(podq.Operate.Replicas))
-
-	for _, opRep := range podq.Operate.Replicas {
-
-		if opRep.Node != "" {
-			bdk := inapi.NsZoneHostBoundPodRep(status.ZoneId, opRep.Node, podq.Meta.ID, opRep.RepId)
-			if rs := data.ZoneMaster.PvGet(bdk); rs.OK() {
-				var podBound inapi.Pod
-				if err := rs.Decode(&podBound); err == nil && podBound.Meta.ID == podq.Meta.ID {
-
-					// hlog.Printf("info", "destroy pod/%s-%d action:%s",
-					// 	podq.Meta.ID, opRep.RepId, strings.Join(inapi.OpActionStrings(podq.Operate.Action), ","))
-
-					if !inapi.OpActionAllow(podBound.Operate.Action, inapi.OpActionDestroy) {
-
-						podBound.Operate.Action = inapi.OpActionDestroy
-						podBound.Operate.Version = podq.Operate.Version
-
-						delNum += 1
-
-						data.ZoneMaster.PvPut(bdk, podBound, nil)
-						hlog.Printf("info", "destroy pod/%s-%d action:%s",
-							podq.Meta.ID, opRep.RepId, strings.Join(inapi.OpActionStrings(podq.Operate.Action), ","))
-					}
-				}
-			}
-		} else {
-			delNum += 1
-		}
-	}
-
-	msg := fmt.Sprintf("scheduling %d replica sets in %v", len(podq.Operate.Replicas), time.Since(tnStart))
-
-	podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(
-		podq.Operate.OpLog,
-		inapi.NewPbOpLogEntry(oplogZmsFree, inapi.PbOpLogInfo, msg),
-	)
-
-	if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionResFree) {
-		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionResFree)
-	}
-
-	return nil
-}
-
 func schedPodPreChargeValid(podq *inapi.Pod) error {
 
 	specPlan := zonePodSpecPlans.Get(podq.Spec.Ref.Id)
 	if specPlan == nil {
-		return fmt.Errorf("bad pod.Spec #%s", podq.Meta.ID)
+		return fmt.Errorf("bad pod.Spec %s", podq.Meta.ID)
 	}
 
 	chargeAmount := float64(0)

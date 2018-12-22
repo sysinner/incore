@@ -29,14 +29,14 @@ import (
 	"github.com/lessos/lessgo/net/portutil"
 	"github.com/lessos/lessgo/types"
 
-	drclient "github.com/fsouza/go-dockerclient"
+	drvClient "github.com/fsouza/go-dockerclient"
 
-	in_cf "github.com/sysinner/incore/config"
+	inCfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/ipm"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
-	in_sts "github.com/sysinner/incore/status"
+	inSts "github.com/sysinner/incore/status"
 )
 
 var (
@@ -47,11 +47,19 @@ var (
 	activeNumMax       = 100
 	binInstall         = "/usr/bin/install"
 	clientUnixSockAddr = "unix:///var/run/docker.sock"
-	err                error
 	lxcfsBins          = [][]string{
 		{"/usr/bin/lxcfs", "/var/lib/lxcfs/proc/"},
 		{"/usr/local/bin/pouch-lxcfs", "/var/lib/pouch-lxcfs/proc/"},
 	}
+	lxcfsMounts = []string{
+		"cpuinfo",
+		"diskstats",
+		"meminfo",
+		"stat",
+		"swaps",
+		"uptime",
+	}
+	err error
 )
 
 func NewDriver() (napi.BoxDriver, error) {
@@ -63,7 +71,7 @@ func NewDriver() (napi.BoxDriver, error) {
 
 		vols := []string{}
 
-		if in_cf.Config.LxcFsEnable {
+		if inCfg.Config.LxcFsEnable {
 
 			for _, vp := range lxcfsBins {
 
@@ -71,7 +79,7 @@ func NewDriver() (napi.BoxDriver, error) {
 					continue
 				}
 
-				for _, v := range []string{"cpuinfo", "diskstats", "meminfo", "stat", "swaps", "uptime"} {
+				for _, v := range lxcfsMounts {
 					vols = append(vols, fmt.Sprintf("%s:%s:ro", vp[1]+v, "/proc/"+v))
 				}
 
@@ -96,7 +104,7 @@ type BoxDriver struct {
 	mmu          *locker.HashPool
 	inited       bool
 	running      bool
-	client       *drclient.Client
+	client       *drvClient.Client
 	statusSets   chan *napi.BoxInstance
 	statsPending bool
 	actives      types.ArrayString
@@ -136,6 +144,10 @@ func (tp *BoxDriver) Start() error {
 	return nil
 }
 
+func (tp *BoxDriver) Stop() error {
+	return nil
+}
+
 func (tp *BoxDriver) StatusEntry() *napi.BoxInstance {
 	if len(tp.statusSets) < 1 {
 		return nil
@@ -150,13 +162,9 @@ func (tp *BoxDriver) StatsEntry() *napi.BoxInstanceStatsFeed {
 	return <-tp.statsSets
 }
 
-func (tp *BoxDriver) Stop() error {
-	return nil
-}
-
 func (tp *BoxDriver) statusRefresh() {
 
-	if in_sts.Host.Meta.Id == "" {
+	if inSts.Host.Meta.Id == "" {
 		return
 	}
 
@@ -164,7 +172,7 @@ func (tp *BoxDriver) statusRefresh() {
 
 		for i := 0; i < 3; i++ {
 
-			tp.client, err = drclient.NewClient(clientUnixSockAddr)
+			tp.client, err = drvClient.NewClient(clientUnixSockAddr)
 			if err == nil {
 				tp.client.SetTimeout(clientTimeout)
 				break
@@ -172,7 +180,7 @@ func (tp *BoxDriver) statusRefresh() {
 
 			time.Sleep(2e9)
 			if len(tp.sets) > 0 {
-				hlog.Printf("warn", "Can not connect to Docker Server, Error: %s", err)
+				hlog.Printf("warn", "hostlet/status/refresh, Can not connect to Docker Server %s", err)
 			}
 		}
 
@@ -183,21 +191,21 @@ func (tp *BoxDriver) statusRefresh() {
 
 	info, err := tp.client.Info()
 	if err != nil {
-		in_sts.Host.Spec.ExpDockerVersion = ""
+		inSts.Host.Spec.ExpDockerVersion = ""
 		tp.client = nil
 		if len(tp.sets) > 0 {
-			hlog.Printf("warn", "Error on connect to Docker Server, %s", err)
+			hlog.Printf("warn", "hostlet/status/refresh, failed on connect to Docker %s", err)
 		}
 		return
 	}
-	in_sts.Host.Spec.ExpDockerVersion = info.ServerVersion
+	inSts.Host.Spec.ExpDockerVersion = info.ServerVersion
 
 	// refresh current statuses
-	rsc, err := tp.client.ListContainers(drclient.ListContainersOptions{
+	rsc, err := tp.client.ListContainers(drvClient.ListContainersOptions{
 		All: true,
 	})
 	if err != nil {
-		hlog.Printf("error", "client.BoxList Error %v", err)
+		hlog.Printf("warn", "hostlet/status/refresh, container/list err %v", err)
 		tp.inited = false
 		return
 	}
@@ -217,7 +225,7 @@ func (tp *BoxDriver) statusRefresh() {
 		creates.Set(name)
 
 		if len(tp.statusSets) > activeNumMax {
-			hlog.Printf("warn", "statusSets out of capacity")
+			hlog.Printf("warn", "hostlet/status/refresh, container/list/status, out of capacity %d", activeNumMax)
 			break
 		}
 
@@ -259,8 +267,8 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 		return nil, fmt.Errorf("Invalid Box ID %s", id)
 	}
 
-	pod_id, rep_id := napi.BoxInstanceNameParse(boxInspect.Config.Hostname)
-	if pod_id == "" {
+	podId, repId := napi.BoxInstanceNameParse(boxInspect.Config.Hostname)
+	if podId == "" {
 		return nil, fmt.Errorf("Invalid Box Name %s", boxInspect.Config.Hostname)
 	}
 
@@ -269,8 +277,10 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 	inst := &napi.BoxInstance{
 		ID:    id,
 		Name:  boxInspect.Config.Hostname,
-		PodID: pod_id,
-		RepId: rep_id,
+		PodID: podId,
+		Replica: inapi.PodOperateReplica{
+			RepId: repId,
+		},
 		Status: inapi.PbPodBoxStatus{
 			Started:     uint32(boxInspect.State.StartedAt.Unix()),
 			Updated:     tn,
@@ -291,6 +301,7 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 	for _, cm := range boxInspect.Mounts {
 
 		if !strings.HasPrefix(cm.Destination, "/home/action") &&
+			!strings.HasPrefix(cm.Destination, "/etc/hosts") &&
 			!strings.HasPrefix(cm.Destination, "/usr/sysinner/") &&
 			!strings.HasPrefix(cm.Destination, "/dev/shm/sysinner/nsz") {
 			continue
@@ -332,9 +343,9 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 	}
 
 	if boxInspect.State.Running {
-		inst.Status.Action = inapi.OpActionRunning
+		inst.StatusActionSet(inapi.OpActionRunning)
 	} else {
-		inst.Status.Action = inapi.OpActionStopped
+		inst.StatusActionSet(inapi.OpActionStopped)
 	}
 
 	return inst, nil
@@ -359,7 +370,7 @@ func (tp *BoxDriver) statsRefresh() {
 	for _, key := range tp.actives {
 
 		if len(tp.statsSets) > activeNumMax {
-			hlog.Printf("warn", "statsSets out of capacity")
+			hlog.Printf("warn", "hostlet/status/refresh, container/list/status, out of capacity %d", activeNumMax)
 			break
 		}
 
@@ -379,10 +390,10 @@ func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, er
 
 	var (
 		statsTimeout = 3 * time.Second
-		statsBuf     = make(chan *drclient.Stats, 2)
+		statsBuf     = make(chan *drvClient.Stats, 2)
 	)
 
-	if err := tp.client.Stats(drclient.StatsOptions{
+	if err := tp.client.Stats(drvClient.StatsOptions{
 		ID:                id,
 		Stats:             statsBuf,
 		Stream:            false,
@@ -453,94 +464,38 @@ func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, er
 	return boxStats, nil
 }
 
-func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
+func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
-	hlog.Printf("debug", "hostlet/box run %s", inst.Name)
-
-	tp.mu.Lock()
-	if tp.sets.Has(inst.Name) {
-		tp.mu.Unlock()
+	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
 		return nil
 	}
-	tp.sets.Set(inst.Name)
-	tp.mu.Unlock()
-
-	defer func(inst_name string) {
-
-		tp.mu.Lock()
-		tp.sets.Del(inst_name)
-		tp.mu.Unlock()
-
-		if r := recover(); r != nil {
-			hlog.Printf("error", "hostlet/box Panic %s %v", inst_name, r)
-		}
-
-	}(inst.Name)
 
 	if !tp.inited {
-		return errors.New("Box Server Error")
+		return errors.New("Box Server Init Error")
 	}
 
-	hlog.Printf("debug", "hostlet/box %s action (%s)",
-		inst.Name, strings.Join(inapi.OpActionStrings(inst.Status.Action), ", "))
-
-	if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) {
-
-		if inst.Status.Action == inapi.OpActionDestroyed {
-			return nil
-		}
-
-		if tp.createSets.Get(inst.Name) == nil {
-			inst.Status.Action = inapi.OpActionDestroyed
-			inst.ID = ""
-			hlog.Printf("warn", "hostlet/box %s remove", inst.Name)
-			return nil
-		}
-
-		//
-		if inst.Status.Action == inapi.OpActionRunning {
-			if err = tp.client.StopContainer(inst.ID, 10); err != nil {
-				inst.Status.Action = inapi.OpActionWarning
-			} else {
-				inst.Status.Action = inapi.OpActionStopped
-				time.Sleep(500e6)
-			}
-			hlog.Printf("warn", "hostlet/box %s stopped", inst.Name)
-		}
-
-		if inst.Status.Action == inapi.OpActionStopped {
-
-			if err = tp.client.RemoveContainer(drclient.RemoveContainerOptions{
-				ID:    inst.ID,
-				Force: true,
-			}); err == nil {
-				inst.Status.Action = inapi.OpActionDestroyed
-			} else {
-				inst.Status.Action = inapi.OpActionWarning
-			}
-
-			inst.ID = ""
-			hlog.Printf("warn", "hostlet/box removed %s", inst.Name)
-		}
-
+	if !inst.OpLock() {
 		return nil
 	}
+	defer inst.OpUnlock()
 
-	// TODO issue
-	if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) {
-		if err := ipm.Prepare(inst); err != nil {
-			hlog.Printf("warn", "hostlet/box ipm_prepare %s", err.Error())
-			return err
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
 		}
-	}
+	}()
 
-	if inst.PodOpAction == 0 || inst.Spec.Name == "" {
+	if inst.Spec.Name == "" {
 		hlog.Printf("warn", "hostlet/box Error: No Spec Found BOX:%d:%s",
-			inst.PodOpAction, inst.Name)
+			inst.Replica.Action, inst.Name)
+		// inapi.ObjPrint(inst.Name, inst.Spec)
 		return errors.New("No Spec Found")
 	}
 
-	var err error
+	if err := ipm.Prepare(inst); err != nil {
+		hlog.Printf("warn", "hostlet/box ipm_prepare %s", err.Error())
+		return err
+	}
 
 	if inst.ID != "" {
 
@@ -548,88 +503,68 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			return nil
 		}
 
-		// Stop current BOX
-		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) {
-
-			if inst.Status.Action == inapi.OpActionRunning {
-
-				if err = tp.client.StopContainer(inst.ID, 10); err != nil {
-					// inst.Status.Action = inapi.OpActionWarning
-				} else {
-					inst.Status.Action = inapi.OpActionStopped
-				}
-
-				hlog.Printf("info", "hostlet/box stop %s", inst.Name)
-			}
-
-			return nil
-		}
-
 		if !inst.SpecDesired() {
 
-			if inst.Status.Action == inapi.OpActionRunning {
+			if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
 
-				hlog.Printf("info", "hostlet/box Stop %s", inst.Name)
+				hlog.Printf("info", "hostlet box %s, start", inst.Name)
 
-				if err := tp.client.StopContainer(inst.ID, 10); err != nil {
+				if err := tp.client.StopContainer(inst.ID, 10); err == nil ||
+					strings.Contains(err.Error(), "No such container") ||
+					strings.Contains(err.Error(), "Container not running") {
+					inst.StatusActionSet(inapi.OpActionStopped)
+					time.Sleep(2e8)
+				} else {
 					return err
 				}
-
-				inst.Status.Action = inapi.OpActionStopped
 			}
 
-			hlog.Printf("info", "hostlet/box Remove %s", inst.Name)
+			// hlog.Printf("info", "hostlet/box Remove %s", inst.Name)
 
-			if err := tp.client.RemoveContainer(drclient.RemoveContainerOptions{
+			if err := tp.client.RemoveContainer(drvClient.RemoveContainerOptions{
 				ID:    inst.ID,
 				Force: true,
-			}); err != nil {
-				inst.Status.Action = inapi.OpActionWarning
+			}); err != nil &&
+				!strings.Contains(err.Error(), "No such container") {
+				inst.StatusActionSet(inapi.OpActionWarning)
+				hlog.Printf("info", "hostlet box %s, remove err %s", inst.Name, err.Error())
 				return err
 			}
 
 			inst.ID = ""
 			time.Sleep(2e8)
 		}
-
-	} else {
-
-		if inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) {
-			// hlog.Printf("info", "hostlet/box Skip Stop+NotExist %s", inst.Name)
-			// inst.Status.Action = inapi.OpActionStopped
-			return nil
-		}
 	}
 
 	//
 	var (
-		dirPodHome = napi.VolPodHomeDir(inst.PodID, inst.RepId)
-		initSrc    = in_cf.Prefix + "/bin/ininit"
+		dirPodHome = napi.VolPodHomeDir(inst.PodID, inst.Replica.RepId)
+		initSrc    = inCfg.Prefix + "/bin/ininit"
 		initDst    = dirPodHome + "/.sysinner/ininit"
-		agentSrc   = in_cf.Prefix + "/bin/inagent"
+		agentSrc   = inCfg.Prefix + "/bin/inagent"
 		agentDst   = dirPodHome + "/.sysinner/inagent"
 		bashrcDst  = dirPodHome + "/.bashrc"
 		bashpfDst  = dirPodHome + "/.bash_profile"
-		bashrcSrc  = in_cf.Prefix + "/misc/bash/bashrc"
-		bashpfSrc  = in_cf.Prefix + "/misc/bash/bash_profile"
-		expPorts   = map[drclient.Port]struct{}{}
-		bindPorts  = map[drclient.Port][]drclient.PortBinding{}
+		bashrcSrc  = inCfg.Prefix + "/misc/bash/bashrc"
+		bashpfSrc  = inCfg.Prefix + "/misc/bash/bash_profile"
+		expPorts   = map[drvClient.Port]struct{}{}
+		bindPorts  = map[drvClient.Port][]drvClient.PortBinding{}
 	)
 
 	//
-	for _, port := range inst.Ports {
+	for _, port := range inst.Replica.Ports {
 
 		if port.HostPort == 0 {
 			port.HostPort, _ = portutil.Free(30000, 40000)
 		}
 
-		portKey := drclient.Port(strconv.Itoa(int(port.BoxPort)) + "/tcp")
+		portKey := drvClient.Port(strconv.Itoa(int(port.BoxPort)) + "/tcp")
 
 		expPorts[portKey] = struct{}{} // TODO TCP,UDP...
 
-		bindPorts[portKey] = append(bindPorts[drclient.Port(strconv.Itoa(int(port.BoxPort)))], drclient.PortBinding{
+		bindPorts[portKey] = append(bindPorts[drvClient.Port(strconv.Itoa(int(port.BoxPort)))], drvClient.PortBinding{
 			HostPort: strconv.Itoa(int(port.HostPort)),
-			// HostIP:   in_cf.Config.Host.LanAddr.IP(),
+			// HostIP:   inCfg.Config.Host.LanAddr.IP(),
 		})
 	}
 
@@ -641,7 +576,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		//
 		if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", 2048, 2048, 0750); err != nil {
 			hlog.Printf("error", "hostlet/box BOX:%s, FsMakeDir Err:%v", inst.Name, err)
-			inst.Status.Action = inapi.OpActionWarning
+			inst.StatusActionSet(inapi.OpActionWarning)
 			return err
 		}
 
@@ -654,13 +589,13 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 
 		if imageName == "" {
 			hlog.Printf("error", "hostlet/box BOX:%s, No Image Name Found", inst.Name)
-			inst.Status.Action = inapi.OpActionWarning
+			inst.StatusActionSet(inapi.OpActionWarning)
 			return err
 		}
 
-		boxInspect, err := tp.client.CreateContainer(drclient.CreateContainerOptions{
+		boxInspect, err := tp.client.CreateContainer(drvClient.CreateContainerOptions{
 			Name: inst.Name,
-			Config: &drclient.Config{
+			Config: &drvClient.Config{
 				Hostname:     inst.Name,
 				Cmd:          inst.Spec.Command,
 				Image:        imageName,
@@ -668,7 +603,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				Env:          []string{"POD_ID=" + inst.PodID},
 				User:         "action",
 			},
-			HostConfig: &drclient.HostConfig{
+			HostConfig: &drvClient.HostConfig{
 				Binds:            append(inst.VolumeMountsExport(), tp.lxcfsVols...),
 				PortBindings:     bindPorts,
 				Memory:           int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
@@ -676,7 +611,7 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 				MemorySwappiness: 0,
 				CPUPeriod:        1000000,
 				CPUQuota:         int64(inst.Spec.Resources.CpuLimit) * 1e5,
-				Ulimits: []drclient.ULimit{
+				Ulimits: []drvClient.ULimit{
 					{
 						Name: "nofile",
 						Soft: 30000,
@@ -686,21 +621,30 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 			},
 		})
 
-		if err != nil || boxInspect.ID == "" {
+		if (err != nil && !strings.Contains(err.Error(), "container already exists")) ||
+			boxInspect.ID == "" {
 			hlog.Printf("info", "hostlet/box Create %s, Err: %v", inst.Name, err)
-			inst.Status.Action = inapi.OpActionWarning
+			inst.StatusActionSet(inapi.OpActionWarning)
 			return errors.New("BoxCreate Error " + err.Error())
 		}
 
 		hlog.Printf("info", "hostlet/box Create %s OK", inst.Name)
 
 		// TODO
-		inst.ID, inst.Status.Action = boxInspect.ID, 0
+		inst.ID = boxInspect.ID
+		inst.StatusActionSet(inapi.OpActionStopped)
 	}
 
+	hlog.Printf("info", "box pod %s, rep %d, inst %s, opAction %s, status %s",
+		inst.PodID, inst.Replica.RepId,
+		inst.ID,
+		strings.Join(inapi.OpActionStrings(inst.Replica.Action), ","),
+		strings.Join(inapi.OpActionStrings(inst.Status.Action), ","),
+	)
+
 	if inst.ID != "" &&
-		inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) &&
-		inst.Status.Action != inapi.OpActionRunning {
+		inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) &&
+		!inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
 
 		// hlog.Printf("info", "hostlet/box Start %s", inst.Name)
 
@@ -710,22 +654,126 @@ func (tp *BoxDriver) ActionCommandEntry(inst *napi.BoxInstance) error {
 		exec.Command(binInstall, bashrcSrc, bashrcDst).Output()
 		exec.Command(binInstall, bashpfSrc, bashpfDst).Output()
 
-		err = tp.client.StartContainer(inst.ID, nil)
-
-		if err != nil {
+		if err := tp.client.StartContainer(inst.ID, nil); err != nil {
 			hlog.Printf("info", "hostlet/box Start %s, Error %v", inst.Name, err)
-			inst.Status.Action = inapi.OpActionWarning
+			inst.StatusActionSet(inapi.OpActionWarning)
 			return err
 		}
 
 		hlog.Printf("info", "hostlet/box Start %s OK", inst.Name)
 
-		inst.Status.Action = inapi.OpActionRunning
+		inst.StatusActionSet(inapi.OpActionRunning)
 
 		time.Sleep(1e9)
 		// tp.docker_status_watch_entry(inst.ID)
 	} else {
-		hlog.Printf("info", "hostlet/box Start %s, SKIP", inst.Name)
+		// hlog.Printf("info", "hostlet/box Start %s, SKIP", inst.Name)
+		// inapi.ObjPrint(inst.Name, inst)
+	}
+
+	return nil
+}
+
+func (tp *BoxDriver) BoxStop(inst *napi.BoxInstance) error {
+
+	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStop) {
+		return nil
+	}
+
+	if !tp.inited {
+		return errors.New("Box Server Init Error")
+	}
+
+	if !inst.OpLock() {
+		return nil
+	}
+	defer inst.OpUnlock()
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
+	if inst.ID == "" {
+		return nil
+	}
+
+	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
+
+		if err := tp.client.StopContainer(inst.ID, 5); err == nil ||
+			strings.Contains(err.Error(), "No such container") ||
+			strings.Contains(err.Error(), "Container not running") {
+			inst.StatusActionSet(inapi.OpActionStopped)
+			hlog.Printf("info", "hostlet box %s, stop OK", inst.Name)
+		} else {
+			hlog.Printf("info", "hostlet box %s, stop err %s",
+				inst.Name, err.Error())
+		}
+	}
+
+	return nil
+}
+
+func (tp *BoxDriver) BoxRemove(inst *napi.BoxInstance) error {
+
+	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) {
+		return nil
+	}
+
+	if !tp.inited {
+		return errors.New("Box Server Init Error")
+	}
+
+	if !inst.OpLock() {
+		return nil
+	}
+	defer inst.OpUnlock()
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
+	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionDestroyed) {
+		return nil
+	}
+
+	if tp.createSets.Get(inst.Name) == nil {
+		inst.StatusActionSet(inapi.OpActionDestroyed)
+		inst.ID = ""
+		hlog.Printf("debug", "hostlet/box %s remove", inst.Name)
+		return nil
+	}
+
+	//
+	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
+		if err = tp.client.StopContainer(inst.ID, 10); err == nil ||
+			strings.Contains(err.Error(), "No such container") ||
+			strings.Contains(err.Error(), "Container not running") {
+			inst.StatusActionSet(inapi.OpActionStopped)
+			time.Sleep(500e6)
+		} else {
+			inst.StatusActionSet(inapi.OpActionWarning)
+		}
+		hlog.Printf("warn", "hostlet/box %s stopped", inst.Name)
+	}
+
+	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionStopped) {
+
+		if err = tp.client.RemoveContainer(drvClient.RemoveContainerOptions{
+			ID:    inst.ID,
+			Force: true,
+		}); err == nil ||
+			strings.Contains(err.Error(), "No such container") {
+			inst.StatusActionSet(inapi.OpActionDestroyed)
+			inst.ID = ""
+			hlog.Printf("warn", "hostlet/box removed %s", inst.Name)
+		} else {
+			inst.StatusActionSet(inapi.OpActionWarning)
+		}
+
 	}
 
 	return nil

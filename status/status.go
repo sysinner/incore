@@ -44,12 +44,14 @@ var (
 	ZoneHostList              inapi.ResHostList
 	ZoneHostListImported      = false
 	ZoneHostSecretKeys        types.KvPairs
+	ZonePodList               = inapi.PodList{}
 	ZonePodStatusList         = inapi.PodStatusList{}
-	ZonePodList               inapi.PodSets
 	ZonePodServiceMaps        = []*inapi.NsPodServiceMap{}
 	zonePodChargeIamAccessKey = iamapi.AccessKey{
 		User: "sysadmin",
 	}
+
+	// local cell
 
 	// global cluster
 	GlobalZones    []inapi.ResZone
@@ -73,23 +75,11 @@ func ZonePodChargeAccessKey() iamapi.AccessKey {
 }
 
 func IsZoneMaster() bool {
-
-	if len(LocalZoneMasterList.Items) == 0 {
-		for _, v := range config.Config.Masters {
-			if v == config.Config.Host.LanAddr {
-				return true
-			}
-		}
-		return false
-	}
-
-	for _, v := range LocalZoneMasterList.Items {
-
-		if v.Id == Host.Meta.Id {
+	for _, v := range config.Config.Masters {
+		if v == config.Config.Host.LanAddr {
 			return true
 		}
 	}
-
 	return false
 }
 

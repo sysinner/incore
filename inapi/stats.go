@@ -82,13 +82,13 @@ func NewPbStatsSampleFeed(c uint32) *PbStatsSampleFeed {
 	}
 }
 
-func (this *PbStatsSampleFeed) SampleSync(name string, timo uint32, value int64) {
+func (this *PbStatsSampleFeed) SampleSync(name string, timo uint32, value int64, opAppend bool) {
 
 	timo = stats_time_trim(timo, this.Cycle, true)
 
 	for _, v := range this.Items {
 		if v.Name == name {
-			v.SampleSync(timo, value)
+			v.SampleSync(timo, value, opAppend)
 			return
 		}
 	}
@@ -96,7 +96,7 @@ func (this *PbStatsSampleFeed) SampleSync(name string, timo uint32, value int64)
 	entry := &PbStatsSampleEntry{
 		Name: name,
 	}
-	entry.SampleSync(timo, value)
+	entry.SampleSync(timo, value, opAppend)
 	this.Items = append(this.Items, entry)
 }
 
@@ -153,7 +153,7 @@ func (this *PbStatsSampleEntry) Sort() {
 	})
 }
 
-func (this *PbStatsSampleEntry) SampleSync(timo uint32, value int64) {
+func (this *PbStatsSampleEntry) SampleSync(timo uint32, value int64, opAppend bool) {
 
 	if value < 0 || timo < this.lastTime() {
 		return
@@ -161,7 +161,11 @@ func (this *PbStatsSampleEntry) SampleSync(timo uint32, value int64) {
 
 	for _, v := range this.Items {
 		if v.Time == timo {
-			v.Value = value
+			if opAppend {
+				v.Value += value
+			} else {
+				v.Value = value
+			}
 			return
 		}
 	}
@@ -303,7 +307,7 @@ func (this *PbStatsIndexFeed) Sync(name string, timo uint32, value int64) {
 
 	for _, v := range this.Items {
 		if v.Name == name {
-			v.SampleSync(timo, value)
+			v.SampleSync(timo, value, false)
 			return
 		}
 	}
@@ -311,7 +315,7 @@ func (this *PbStatsIndexFeed) Sync(name string, timo uint32, value int64) {
 	entry := &PbStatsSampleEntry{
 		Name: name,
 	}
-	entry.SampleSync(timo, value)
+	entry.SampleSync(timo, value, false)
 
 	this.Items = append(this.Items, entry)
 }

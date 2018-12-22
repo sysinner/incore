@@ -20,7 +20,7 @@ import (
 )
 
 // prioritizer is a priority function that favors hosts with fewer requested resources.
-func prioritizer(hosts []*host_fit) (host_priority_list, error) {
+func prioritizer(hosts []*hostFit) (host_priority_list, error) {
 
 	ls := host_priority_list{}
 
@@ -38,7 +38,7 @@ func prioritizer(hosts []*host_fit) (host_priority_list, error) {
 }
 
 // Calculate the occupancy on a host
-func calculate_occupancy(host *host_fit) host_priority {
+func calculate_occupancy(host *hostFit) host_priority {
 
 	var (
 		cpu_pused = calculate_percentage(host.cpu_used, host.cpu_total)

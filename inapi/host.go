@@ -24,6 +24,8 @@ import (
 // default: 127.0.0.1:9529
 type HostNodeAddress string
 
+type HostNodeAddresses []HostNodeAddress
+
 func (addr HostNodeAddress) String() string {
 	return string(addr)
 }
@@ -80,4 +82,23 @@ func (addr *HostNodeAddress) SetPort(port uint16) error {
 	}
 
 	return nil
+}
+
+func (it HostNodeAddresses) Equal(it2 HostNodeAddresses) bool {
+	if len(it) == len(it2) {
+		for _, v := range it {
+			found := false
+			for _, v2 := range it2 {
+				if v == v2 {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

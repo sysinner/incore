@@ -35,8 +35,8 @@ import (
 )
 
 var (
-	pod_action_set_time_min   uint32 = 60
-	pod_action_queue_time_min uint32 = 600
+	podActionSetTimeMin   uint32 = 60
+	podActionQueueTimeMin uint32 = 600
 )
 
 type Pod struct {
@@ -151,7 +151,7 @@ func (c Pod) ListAction() {
 
 			if len(fields) > 0 {
 
-				podfs := inapi.Pod{
+				podfs := &inapi.Pod{
 					Meta: types.InnerObjectMeta{
 						ID: pod.Meta.ID,
 					},
@@ -251,7 +251,7 @@ func (c Pod) ListAction() {
 
 				ls.Items = append(ls.Items, podfs)
 			} else {
-				ls.Items = append(ls.Items, pod)
+				ls.Items = append(ls.Items, &pod)
 			}
 		}
 	}
@@ -570,7 +570,7 @@ func (c Pod) OpActionSetAction() {
 	if (inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) && inapi.OpActionAllow(op_action, inapi.OpActionStart)) ||
 		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(op_action, inapi.OpActionStop)) {
 
-		if tn-prev.Operate.Operated < pod_action_set_time_min {
+		if tn-prev.Operate.Operated < podActionSetTimeMin {
 			set.Error = types.NewErrorMeta("400", "too many operations in 1 minute, try again later")
 			return
 		}
@@ -584,7 +584,7 @@ func (c Pod) OpActionSetAction() {
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < pod_action_queue_time_min {
+		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return
@@ -663,9 +663,12 @@ func (c Pod) SetInfoAction() {
 	}
 
 	//
-	if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
-		set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
-		return
+	if config.Config.ZoneMaster != nil &&
+		config.Config.ZoneMaster.ReplicaEnable {
+		if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
+			set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
+			return
+		}
 	}
 
 	//
@@ -693,7 +696,7 @@ func (c Pod) SetInfoAction() {
 	if (inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) && inapi.OpActionAllow(set.Operate.Action, inapi.OpActionStart)) ||
 		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(set.Operate.Action, inapi.OpActionStop)) {
 
-		if tn-prev.Operate.Operated < pod_action_set_time_min {
+		if tn-prev.Operate.Operated < podActionSetTimeMin {
 			set.Error = types.NewErrorMeta("400", "too many operations in 1 minute, try again later")
 			return
 		}
@@ -707,7 +710,10 @@ func (c Pod) SetInfoAction() {
 
 	//
 	prev.Operate.ExpSysState = set.Operate.ExpSysState
-	prev.Operate.ReplicaCap = set.Operate.ReplicaCap
+	if config.Config.ZoneMaster != nil &&
+		config.Config.ZoneMaster.ReplicaEnable {
+		prev.Operate.ReplicaCap = set.Operate.ReplicaCap
+	}
 
 	//
 	prev.Meta.Updated = types.MetaTimeNow()
@@ -715,7 +721,7 @@ func (c Pod) SetInfoAction() {
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < pod_action_queue_time_min {
+		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
 		}
@@ -818,7 +824,7 @@ func (c Pod) DeleteAction() {
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < pod_action_set_time_min {
+		if tn-prev.Operate.Operated < podActionSetTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
 		}
@@ -896,6 +902,7 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 		if v := status.ZonePodStatusList.Get(pod.Meta.ID); v != nil {
 			podStatus = *v
 		}
+
 	} else {
 		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
 			rs.Decode(&podStatus)
@@ -1014,7 +1021,7 @@ func (c Pod) AccessSetAction() {
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < pod_action_queue_time_min {
+		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return
@@ -1221,7 +1228,7 @@ func (c Pod) SpecSetAction() {
 
 	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < pod_action_queue_time_min {
+		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return

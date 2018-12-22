@@ -27,10 +27,13 @@ var (
 	OpActionStopped   uint32 = 1 << 4
 	OpActionDestroy   uint32 = 1 << 5
 	OpActionDestroyed uint32 = 1 << 6
+	OpActionMigrate   uint32 = 1 << 7
+	OpActionMigrated  uint32 = 1 << 8
 	OpActionPending   uint32 = 1 << 11
 	OpActionWarning   uint32 = 1 << 12
 	OpActionResFree   uint32 = 1 << 24
 	OpActionHang      uint32 = 1 << 25
+	OpActionUnbound   uint32 = 1 << 26
 	oplogListMu       sync.RWMutex
 	oplogSetsMu       sync.RWMutex
 
@@ -38,6 +41,7 @@ var (
 		OpActionStart, OpActionRunning,
 		OpActionStop, OpActionStopped,
 		OpActionDestroy, OpActionDestroyed,
+		OpActionMigrate, OpActionMigrated,
 	}
 )
 
@@ -46,9 +50,31 @@ func OpActionValid(op uint32) bool {
 		OpActionStart|OpActionRunning|
 			OpActionStop|OpActionStopped|
 			OpActionDestroy|OpActionDestroyed|
+			OpActionMigrate|
 			OpActionPending|OpActionWarning,
 		op,
 	)
+}
+
+func OpActionStatusClean(opCtr, opStatus uint32) uint32 {
+	for i := 0; i < len(OpActionDesires); i += 2 {
+		if OpActionAllow(opStatus, OpActionDesires[i+1]) &&
+			!OpActionAllow(opCtr, OpActionDesires[i]) {
+			opStatus = OpActionRemove(opStatus, OpActionDesires[i+1])
+		}
+	}
+	return opStatus
+}
+
+func OpActionDesire(opbase, op uint32) uint32 {
+	opDes := uint32(0)
+	for i := 0; i < len(OpActionDesires); i += 2 {
+		if OpActionAllow(opbase, OpActionDesires[i]) &&
+			OpActionAllow(op, OpActionDesires[i+1]) {
+			opDes = opDes | OpActionDesires[i+1]
+		}
+	}
+	return opDes
 }
 
 func OpActionAllow(opbase, op uint32) bool {
@@ -103,6 +129,14 @@ func OpActionStrings(action uint32) []string {
 		s = append(s, "destroyed")
 	}
 
+	if OpActionAllow(action, OpActionMigrate) {
+		s = append(s, "migrate")
+	}
+
+	if OpActionAllow(action, OpActionMigrated) {
+		s = append(s, "migrated")
+	}
+
 	if OpActionAllow(action, OpActionPending) {
 		s = append(s, "pending")
 	}
@@ -128,12 +162,18 @@ const (
 	PbOpLogInfo  = "info"
 	PbOpLogWarn  = "warn"
 	PbOpLogError = "error"
-	PbOpLogFatal = "fatal"
+
+	NsOpLogZoneRepMigrateAlloc       = "zm/rep-migrate/alloc"
+	NsOpLogZoneRepMigratePrevStop    = "zm/rep-migrate/stop"
+	NsOpLogZoneRepMigratePrevDestory = "zm/rep-migrate/destroy"
+	NsOpLogZoneRepMigrateNextData    = "zm/rep-migrate/data"
+	NsOpLogZoneRepMigrateDone        = "zm/rep-migrate/done"
 )
 
 const (
-	OpLogNsZoneMasterPodScheduleCharge = "zm/ps/charge"
-	OpLogNsZoneMasterPodScheduleAlloc  = "zm/ps/alloc"
+	OpLogNsZoneMasterPodScheduleCharge  = "zm/ps/charge"
+	OpLogNsZoneMasterPodScheduleAlloc   = "zm/ps/alloc"
+	OpLogNsZoneMasterPodScheduleResFree = "zm/ps/resfree"
 )
 
 var (

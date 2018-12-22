@@ -55,13 +55,16 @@ func (c *PodStats) owner_or_sysadmin_allow(user, privilege string) bool {
 func (c PodStats) FeedAction() {
 
 	var (
-		pod_id         = c.Params.Get("id")
+		podId          = c.Params.Get("id")
+		repId          = uint32(c.Params.Uint64("rep_id"))
+		repAll         = c.Params.Get("rep_all")
 		qry            = c.Params.Get("qry")
 		qry_names      = c.Params.Get("qry_names")
 		qry_time_past  = uint32(c.Params.Uint64("qry_time_past"))
 		qry_time_cycle = uint32(c.Params.Uint64("qry_time_cycle"))
 		pod            inapi.Pod
 		fq             inapi.TimeStatsFeedQuerySet
+		reps           = []uint32{}
 	)
 
 	if len(qry) > 2 {
@@ -103,7 +106,7 @@ func (c PodStats) FeedAction() {
 		return
 	}
 
-	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); obj.OK() {
+	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(podId)); obj.OK() {
 		obj.Decode(&pod)
 		if pod.Meta.ID == "" || !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 			c.RenderJson(types.NewTypeErrorMeta("400", "Pod Not Found"))
@@ -114,6 +117,17 @@ func (c PodStats) FeedAction() {
 		return
 	}
 
+	if repAll == "yes" {
+		for i := uint32(0); i < uint32(pod.Operate.ReplicaCap); i++ {
+			reps = append(reps, i)
+		}
+	} else if repId >= uint32(pod.Operate.ReplicaCap) {
+		c.RenderJson(types.NewTypeErrorMeta("400", "Invalid rep_id"))
+		return
+	} else {
+		reps = append(reps, repId)
+	}
+
 	feed := inapi.NewPbStatsSampleFeed(fq.TimeCycle)
 
 	// feed.Debugs.Set("time_start", fmt.Sprintf("%d", fq.TimeStart))
@@ -121,38 +135,50 @@ func (c PodStats) FeedAction() {
 	// feed.Debugs.Set("time_cut", fmt.Sprintf("%d", fq.TimeCutset))
 	// feed.Debugs.Set("time_cuts", time.Unix(int64(fq.TimeCutset), 0))
 
-	if rs := data.ZoneMaster.KvProgScan(
-		inapi.NsZonePodRepStats(pod.Spec.Zone,
-			pod.Meta.ID,
-			0,
-			"sys",
-			fq.TimeStart-fq.TimeCycle-600,
-		),
-		inapi.NsZonePodRepStats(pod.Spec.Zone,
-			pod.Meta.ID,
-			0,
-			"sys",
-			fq.TimeCutset+600,
-		),
-		50000,
-	); rs.OK() {
+	for _, repId = range reps {
 
-		ls := rs.KvList()
-		var ifeed inapi.PbStatsIndexFeed
-		for _, v := range ls {
+		if rs := data.ZoneMaster.KvProgScan(
+			inapi.NsZonePodRepStats(pod.Spec.Zone,
+				pod.Meta.ID,
+				repId,
+				"sys",
+				fq.TimeStart-fq.TimeCycle-600,
+			),
+			inapi.NsZonePodRepStats(pod.Spec.Zone,
+				pod.Meta.ID,
+				repId,
+				"sys",
+				fq.TimeCutset+600,
+			),
+			50000,
+		); rs.OK() {
 
-			if err := v.Decode(&ifeed); err != nil {
-				continue
-			}
+			var (
+				ls    = rs.KvList()
+				ifeed inapi.PbStatsIndexFeed
+				jfeed = inapi.NewPbStatsSampleFeed(fq.TimeCycle)
+			)
+			for _, v := range ls {
 
-			for _, ientry := range ifeed.Items {
-				if fq.Get(ientry.Name) == nil {
+				if err := v.Decode(&ifeed); err != nil {
 					continue
 				}
-				for _, iv := range ientry.Items {
-					if iv.Time <= fq.TimeCutset {
-						feed.SampleSync(ientry.Name, iv.Time, iv.Value)
+
+				for _, ientry := range ifeed.Items {
+					if fq.Get(ientry.Name) == nil {
+						continue
 					}
+					for _, iv := range ientry.Items {
+						if iv.Time <= fq.TimeCutset {
+							jfeed.SampleSync(ientry.Name, iv.Time, iv.Value, false)
+						}
+					}
+				}
+			}
+
+			for _, v := range jfeed.Items {
+				for _, v2 := range v.Items {
+					feed.SampleSync(v.Name, v2.Time, v2.Value, true)
 				}
 			}
 		}

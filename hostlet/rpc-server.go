@@ -39,7 +39,7 @@ func (s *ApiHostMember) HostJoin(
 	if opts == nil ||
 		len(config.Config.Masters) > 0 ||
 		len(config.Config.Host.Id) < 12 ||
-		len(config.Config.Host.ZoneId) > 0 {
+		(len(config.Config.Host.ZoneId) > 0 && config.Config.Host.ZoneId != opts.ZoneId) {
 		return nil, errors.New("Action Denied")
 	}
 

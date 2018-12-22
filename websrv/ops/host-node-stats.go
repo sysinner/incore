@@ -88,7 +88,7 @@ func (c Host) NodeStatsFeedAction() {
 				}
 				for _, iv := range ientry.Items {
 					if iv.Time <= fq.TimeCutset {
-						feed.SampleSync(ientry.Name, iv.Time, iv.Value)
+						feed.SampleSync(ientry.Name, iv.Time, iv.Value, false)
 					}
 				}
 			}

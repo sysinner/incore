@@ -140,7 +140,11 @@ type AppSpecResRequirements struct {
 	VolMin int32 `json:"vol_min,omitempty"`
 }
 
-type appSpecResRequirementsUpgrade AppSpecResRequirements
+type appSpecResRequirementsUpgrade struct {
+	CpuMin int32 `json:"cpu_min,omitempty"`
+	MemMin int64 `json:"mem_min,omitempty"`
+	VolMin int64 `json:"vol_min,omitempty"`
+}
 
 func (it *AppSpecResRequirements) UnmarshalJSON(b []byte) error {
 
@@ -156,21 +160,27 @@ func (it *AppSpecResRequirements) UnmarshalJSON(b []byte) error {
 		it2.CpuMin = 1
 	}
 
-	if it2.MemMin > int32(ByteMB) {
-		it2.MemMin = it2.MemMin / int32(ByteMB)
+	if it2.MemMin > ByteMB {
+		it2.MemMin = it2.MemMin / ByteMB
 	}
 	if it2.MemMin < 32 {
 		it2.MemMin = 32
 	}
 
-	if it2.VolMin > int32(ByteMB) {
-		it2.VolMin = it2.VolMin / int32(ByteGB)
+	if it2.VolMin > 200 {
+		it2.VolMin = it2.VolMin / ByteGB
 	}
 	if it2.VolMin < 1 {
 		it2.VolMin = 1
 	}
 
-	*it = AppSpecResRequirements(it2)
+	it3 := &AppSpecResRequirements{
+		CpuMin: it2.CpuMin,
+		MemMin: int32(it2.MemMin),
+		VolMin: int32(it2.VolMin),
+	}
+
+	*it = AppSpecResRequirements(*it3)
 
 	return nil
 }

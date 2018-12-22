@@ -51,7 +51,7 @@ func Start() error {
 				if err := schedAction(); err != nil {
 					hlog.Printf("warn", "zm/scheduler err:%s", err.Error())
 				}
-				if err := pod_charge(); err != nil {
+				if err := podChargeRefresh(); err != nil {
 					hlog.Printf("warn", "zm/pod/charge err:%s", err.Error())
 				}
 			}

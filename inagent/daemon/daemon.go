@@ -125,7 +125,7 @@ func worker() {
 func workerEntry() {
 
 	var (
-		pod inapi.Pod
+		pod inapi.PodRep
 		err error
 	)
 

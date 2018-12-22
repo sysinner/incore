@@ -259,7 +259,7 @@ func QuotaKeeperInit() error {
 func podVolQuotaRefresh() error {
 
 	if err := QuotaKeeperInit(); err != nil {
-		hlog.Printf("error", "Failed to Enable Disk Quota: %s", err.Error())
+		hlog.Printf("error", "hostlet/vol Failed to Enable Vol Quota : %s", err.Error())
 		return nil
 	}
 
@@ -449,17 +449,17 @@ func podVolQuotaRefresh() error {
 
 	// hlog.Printf("info", "get info %d, pods %d", len(quotaConfig.Items), len(nstatus.PodRepActives))
 
-	nstatus.PodRepActives.Each(func(pod *inapi.Pod) {
+	nstatus.PodRepActives.Each(func(podRep *inapi.PodRep) {
 
-		if pod.Spec == nil || pod.Operate.Replica == nil {
+		if podRep.Spec == nil {
 			return
 		}
 
-		if !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) {
+		if !inapi.OpActionAllow(podRep.Operate.Action, inapi.OpActionStart) {
 			return
 		}
 
-		name := inapi.NsZonePodOpRepKey(pod.Meta.ID, pod.Operate.Replica.RepId)
+		name := inapi.NsZonePodOpRepKey(podRep.Meta.ID, podRep.Replica.RepId)
 
 		//
 		path := filepath.Clean(config.Config.PodHomeDir + "/" + name)
@@ -472,18 +472,18 @@ func podVolQuotaRefresh() error {
 		//
 		proj := quotaConfig.FetchOrCreate(name)
 		if proj == nil {
-			hlog.Printf("error", "failed to create quota/project : %s", name)
+			hlog.Printf("error", "hostlet/vol failed to create quota/project : %s", name)
 			return
 		}
 
-		volSys := int64(pod.Operate.Replica.VolSys) * inapi.ByteGB
+		volSys := int64(podRep.Replica.VolSys) * inapi.ByteGB
 		if quota_gots.Has(uint32(proj.Id)) && proj.Soft == volSys {
 			return
 		}
 
 		err = quotaConfig.SyncVendor()
 		if err != nil {
-			hlog.Printf("warn", "config init %s", err.Error())
+			hlog.Printf("warn", "hostlet/vol config init %s", err.Error())
 			return
 		}
 
@@ -496,7 +496,7 @@ func podVolQuotaRefresh() error {
 
 		_, err = exec.Command(quotaCmd, args...).Output()
 		if err != nil {
-			hlog.Printf("warn", "quota init %s", err.Error())
+			hlog.Printf("warn", "hostlet/vol quota init %s", err.Error())
 			return
 		}
 
@@ -509,7 +509,7 @@ func podVolQuotaRefresh() error {
 			quotaMountpoint,
 		}
 		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {
-			hlog.Printf("warn", "quota limit %s, {{{%s}}}", err.Error(), string(out))
+			hlog.Printf("warn", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
 			return
 		}
 
@@ -525,8 +525,8 @@ func podVolQuotaRefresh() error {
 			continue
 		}
 
-		pod := nstatus.PodRepActives.Get(v.Name)
-		if pod != nil && inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) {
+		podRep := nstatus.PodRepActives.Get(v.Name)
+		if podRep != nil && inapi.OpActionAllow(podRep.Operate.Action, inapi.OpActionStart) {
 			continue
 		}
 
@@ -540,7 +540,7 @@ func podVolQuotaRefresh() error {
 
 		_, err = exec.Command(quotaCmd, args...).Output()
 		if err != nil {
-			hlog.Printf("warn", "quota clean project %s, err %s", v.Name, err.Error())
+			hlog.Printf("warn", "hostlet/vol quota clean project %s, err %s", v.Name, err.Error())
 			return err
 		}
 
@@ -552,11 +552,11 @@ func podVolQuotaRefresh() error {
 		}
 		_, err = exec.Command(quotaCmd, args...).Output()
 		if err != nil {
-			hlog.Printf("warn", "quota clean project %s, err %s", v.Name, err.Error())
+			hlog.Printf("warn", "hostlet/vol quota clean project %s, err %s", v.Name, err.Error())
 			return err
 		}
 
-		hlog.Printf("warn", "quota clean project %s, done", v.Name)
+		hlog.Printf("warn", "hostlet/vol quota clean project %s, done", v.Name)
 	}
 
 	quotaRefreshed = tn

@@ -39,7 +39,7 @@ func execStatusName(id string, name types.NameIdentifier) types.NameIdentifier {
 	return types.NameIdentifier(fmt.Sprintf("%s/%s", id, name))
 }
 
-func execAction(pod *inapi.Pod, home_dir, appspec_id, exec_name string, action uint32) error {
+func execAction(pod *inapi.PodRep, home_dir, appspec_id, exec_name string, action uint32) error {
 
 	if pod.Apps == nil || len(pod.Apps) < 1 {
 		return nil
@@ -82,18 +82,18 @@ func execAction(pod *inapi.Pod, home_dir, appspec_id, exec_name string, action u
 	return errors.New("timeout in execAction")
 }
 
-func Restart(pod *inapi.Pod, home_dir, appspec_id, exec_name string) error {
+func Restart(pod *inapi.PodRep, home_dir, appspec_id, exec_name string) error {
 	if err := execAction(pod, home_dir, appspec_id, exec_name, inapi.OpActionStop); err != nil {
 		return err
 	}
 	return execAction(pod, home_dir, appspec_id, exec_name, inapi.OpActionStart)
 }
 
-func StopAll(pod *inapi.Pod, home_dir string) error {
+func StopAll(pod *inapi.PodRep, home_dir string) error {
 	return execAction(pod, home_dir, "", "", inapi.OpActionStop)
 }
 
-func Runner(pod *inapi.Pod, home_dir string) error {
+func Runner(pod *inapi.PodRep, home_dir string) error {
 
 	if err := executor_init_ssh(pod); err != nil {
 		return err
@@ -167,7 +167,7 @@ fi
 `
 )
 
-func executor_init_ssh(pod *inapi.Pod) error {
+func executor_init_ssh(pod *inapi.PodRep) error {
 
 	if pod.Operate.Access == nil {
 		return nil

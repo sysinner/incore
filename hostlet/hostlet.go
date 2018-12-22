@@ -15,15 +15,12 @@
 package hostlet
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 
 	"github.com/sysinner/incore/hostlet/napi"
-	"github.com/sysinner/incore/hostlet/nstatus"
-	"github.com/sysinner/incore/inapi"
 
 	"github.com/sysinner/incore/hostlet/box/docker"
 	"github.com/sysinner/incore/hostlet/box/pouch"
@@ -32,7 +29,7 @@ import (
 var (
 	mu         sync.Mutex
 	running    = false
-	boxDrivers []napi.BoxDriver
+	boxDrivers napi.BoxDriverList
 )
 
 func Start() error {
@@ -46,14 +43,14 @@ func Start() error {
 	running = true
 
 	if dr, err := docker.NewDriver(); err == nil {
-		boxDrivers = append(boxDrivers, dr)
+		boxDrivers.Items = append(boxDrivers.Items, dr)
 	}
 
 	if dr, err := pouch.NewDriver(); err == nil {
-		boxDrivers = append(boxDrivers, dr)
+		boxDrivers.Items = append(boxDrivers.Items, dr)
 	}
 
-	for _, dv := range boxDrivers {
+	for _, dv := range boxDrivers.Items {
 		if err := dv.Start(); err != nil {
 			hlog.Printf("error", "box.Driver %s Start Error %s", dv.Name(), err.Error())
 		}
@@ -62,8 +59,9 @@ func Start() error {
 	go func() {
 
 		for {
+			time.Sleep(3e9)
 
-			for _, dv := range boxDrivers {
+			for _, dv := range boxDrivers.Items {
 				for {
 					sts := dv.StatusEntry()
 					if sts == nil {
@@ -80,38 +78,12 @@ func Start() error {
 				}
 			}
 
-			statusTracker()
-
-			podOpPull()
-
-			actions := boxActionRefresh()
-
-			for _, action_inst := range actions {
-
-				for _, dv := range boxDrivers {
-
-					if dv.Name() != action_inst.Spec.Image.Driver {
-						continue
-					}
-
-					go func(dv napi.BoxDriver, inst *napi.BoxInstance) {
-
-						if err := dv.ActionCommandEntry(inst); err != nil {
-							nstatus.PodRepOpLogs.LogSet(
-								inst.OpRepKey(), inst.PodOpVersion,
-								napi.OpLogNsCtnCmd, inapi.PbOpLogError, fmt.Sprintf("box/%s ERR:%s", inst.Name, err.Error()),
-							)
-						} else {
-							nstatus.PodRepOpLogs.LogSet(
-								inst.OpRepKey(), inst.PodOpVersion,
-								napi.OpLogNsCtnCmd, inapi.PbOpLogOK, fmt.Sprintf("box/%s OK", inst.Name),
-							)
-						}
-					}(dv, action_inst)
-				}
+			if err := zoneMasterSync(); err != nil {
+				hlog.Printf("warn", "hostlet/zm/sync %s", err.Error())
+				continue
 			}
 
-			time.Sleep(3e9)
+			podRepListCtrlRefresh()
 		}
 	}()
 

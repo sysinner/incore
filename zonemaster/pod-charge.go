@@ -16,6 +16,7 @@ package zonemaster
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -29,13 +30,13 @@ import (
 )
 
 var (
-	pod_spec_plans    = []*inapi.PodSpecPlan{}
+	pod_specPlans     = []*inapi.PodSpecPlan{}
 	pod_charge_iam_ak = iamapi.AccessKey{
 		User: "sysadmin",
 	}
 )
 
-func pod_charge() error {
+func podChargeRefresh() error {
 
 	if status.ZoneId == "" ||
 		!status.ZoneHostListImported ||
@@ -56,43 +57,30 @@ func pod_charge() error {
 	}
 
 	// TODO
-	pod_spec_plans = []*inapi.PodSpecPlan{}
+	pod_specPlans = []*inapi.PodSpecPlan{}
 	if rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100); rs.OK() {
 		rss := rs.KvList()
 		for _, v := range rss {
 			var item inapi.PodSpecPlan
 			if err := v.Decode(&item); err == nil {
 				item.ChargeFix()
-				pod_spec_plans = append(pod_spec_plans, &item)
+				pod_specPlans = append(pod_specPlans, &item)
 			}
 		}
 	}
 
-	if len(pod_spec_plans) < 1 {
+	if len(pod_specPlans) < 1 {
 		hlog.Printf("info", "no pod spec plan found")
 	}
 
-	if rs := data.ZoneMaster.PvScan(
-		inapi.NsZonePodInstance(status.ZoneId, ""), "", "", 1000); rs.OK() {
-
-		pods := []inapi.Pod{}
-		rss := rs.KvList()
-		for _, v := range rss {
-			var pod inapi.Pod
-			if err := v.Decode(&pod); err == nil {
-				pods = append(pods, pod)
-			}
-		}
-		// hlog.Printf("info", "charging %d pods", len(pods))
-		for _, pod := range pods {
-			pod_charge_entry(pod)
-		}
+	for _, pod := range status.ZonePodList.Items {
+		podItemCharge(pod)
 	}
 
 	return nil
 }
 
-func pod_charge_entry(pod inapi.Pod) bool {
+func podItemCharge(pod *inapi.Pod) bool {
 
 	if pod.Payment == nil {
 		pod.Payment = &inapi.PodPayment{}
@@ -110,54 +98,83 @@ func pod_charge_entry(pod inapi.Pod) bool {
 	if pod.Spec == nil || pod.Spec.Ref.Name == "" {
 		return false
 	}
-	var spec_plan *inapi.PodSpecPlan
-	for _, v := range pod_spec_plans {
+	var specPlan *inapi.PodSpecPlan
+	for _, v := range pod_specPlans {
 		if v.Meta.Name == pod.Spec.Ref.Name {
-			spec_plan = v
+			specPlan = v
 			break
 		}
 	}
-	if spec_plan == nil {
+	if specPlan == nil {
 		return false
 	}
 
-	inst_num := 0
+	var (
+		cav    = float64(0)
+		cac    = float64(0)
+		cam    = float64(0)
+		repNum = 0
+	)
 	for _, v := range pod.Operate.Replicas {
-		if v.Node != "" {
-			inst_num++
+
+		if v.Node == "" ||
+			inapi.OpActionAllow(v.Action, inapi.OpActionDestroy) {
+			continue
 		}
+
+		// Volume
+		cav += iamapi.AccountFloat64Round(
+			specPlan.ResVolumeCharge.CapSize*float64(v.VolSys), 4)
+
+		if inapi.OpActionAllow(v.Action, inapi.OpActionStart) {
+
+			// CPU in cores, 1 = .1 cores
+			cac += iamapi.AccountFloat64Round(
+				specPlan.ResComputeCharge.Cpu*(float64(v.ResCpu)/10), 4)
+
+			// MEM in ByteMB
+			cam += iamapi.AccountFloat64Round(
+				specPlan.ResComputeCharge.Mem*float64(v.ResMem), 4)
+		}
+
+		repNum += 1
 	}
 
 	var (
-		cycle_amount = float64(0)
-		tn           = uint32(time.Now().Unix())
+		cycleAmount = cav + cav + cam
+		comments    = []string{
+			fmt.Sprintf("VOL %.4f", cav),
+			fmt.Sprintf("CPU %.4f", cac),
+			fmt.Sprintf("RAM %.4f", cam),
+			fmt.Sprintf("REP %d", repNum),
+		}
+		tn = uint32(time.Now().Unix())
 	)
 
 	// Res Volumes
 	for _, v := range pod.Spec.Volumes {
 		// v.SizeLimit = 20 * inapi.ByteGB
-		cycle_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
+		cycleAmount += iamapi.AccountFloat64Round(
+			specPlan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
 	}
 
 	// Res Computes
 	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) &&
 		!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) {
-		// for _, v := range pod.Spec.Boxes {
+
 		if pod.Spec.Box.Resources != nil {
 
 			// CPU v.Resources.CpuLimit = 1000
-			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/10), 4)
+			cycleAmount += iamapi.AccountFloat64Round(
+				specPlan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/10), 4)
 
 			// MEM v.Resources.MemLimit = 1 * inapi.ByteGB
-			cycle_amount += iamapi.AccountFloat64Round(
-				spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
+			cycleAmount += iamapi.AccountFloat64Round(
+				specPlan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
 		}
-		// }
 	}
 
-	if cycle_amount == 0 || inst_num == 0 {
+	if cycleAmount == 0 || repNum == 0 {
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 			pod.Payment.TimeClose = tn
 			data.ZoneMaster.PvPut(
@@ -169,7 +186,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		return false
 	}
 
-	cycle_amount = iamapi.AccountFloat64Round(cycle_amount*float64(inst_num), 4)
+	cycleAmount = iamapi.AccountFloat64Round(cycleAmount, 4)
 
 	// close prev payment cycle
 	if pod.Payment.Payout > 0 {
@@ -194,41 +211,42 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		return false
 	}
 
-	if pod.Payment.CycleAmount == 0 || pod.Payment.CycleAmount == cycle_amount {
-		pod.Payment.CycleAmount = cycle_amount
+	if pod.Payment.CycleAmount == 0 || pod.Payment.CycleAmount == cycleAmount {
+		pod.Payment.CycleAmount = cycleAmount
 	}
 
-	if pod.Payment.CycleAmount != cycle_amount {
+	if pod.Payment.CycleAmount != cycleAmount {
 		pod.Payment.TimeClose = iamapi.AccountChargeTimeNow()
 		hlog.Printf("warn", "Pod %s AccountCharge CycleAmount Changed from %f to %f",
-			pod.Meta.ID, pod.Payment.CycleAmount, cycle_amount)
+			pod.Meta.ID, pod.Payment.CycleAmount, cycleAmount)
 	}
 
-	pay_amount := pod.Payment.CycleAmount * (float64(pod.Payment.TimeClose-pod.Payment.TimeStart) / 3600)
-	pay_amount = iamapi.AccountFloat64Round(pay_amount, 2)
-	if pay_amount < 0.01 {
-		pay_amount = 0.01
+	payAmount := pod.Payment.CycleAmount * (float64(pod.Payment.TimeClose-pod.Payment.TimeStart) / 3600)
+	payAmount = iamapi.AccountFloat64Round(payAmount, 2)
+	if payAmount < 0.01 {
+		payAmount = 0.01
 	}
 
-	// hlog.Printf("info", "Pod %s AccountCharge AMOUNT %f, NUM: %d", pod.Meta.ID, pay_amount, inst_num)
+	// hlog.Printf("info", "Pod %s AccountCharge AMOUNT %f, NUM: %d", pod.Meta.ID, payAmount, repNum)
 
-	time_close_now := iamapi.AccountChargeCycleTimeCloseNow(iamapi.AccountChargeCycleMonth)
+	timeCloseNow := iamapi.AccountChargeCycleTimeCloseNow(iamapi.AccountChargeCycleMonth)
 
-	if pod.Payment.TimeClose == time_close_now && pod.Payment.Prepay == 0 {
+	if pod.Payment.TimeClose == timeCloseNow && pod.Payment.Prepay == 0 {
 
 		// hlog.Printf("info", "Pod %s AccountChargePrepay %f %d %d",
-		// 	pod.Meta.ID, pay_amount,
+		// 	pod.Meta.ID, payAmount,
 		// 	pod.Payment.TimeStart, pod.Payment.TimeClose)
 
 		if rsp := iamclient.AccountChargePrepay(iamapi.AccountChargePrepay{
 			User:      pod.Meta.User,
 			Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
-			Prepay:    pay_amount,
+			Prepay:    payAmount,
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
+			Comment:   strings.Join(comments, ", "),
 		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePrepay" {
-			pod.Payment.Prepay = pay_amount
-			pod.Payment.CycleAmount = cycle_amount
+			pod.Payment.Prepay = payAmount
+			pod.Payment.CycleAmount = cycleAmount
 			data.ZoneMaster.PvPut(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
 				pod,
@@ -238,7 +256,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		} else {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
-					pod_entry_chargeout(pod.Meta.ID)
+					podEntryChargeOut(pod.Meta.ID)
 					//
 					pod.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(pod.Operate.OpLog,
 						inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleCharge, inapi.PbOpLogWarn, rsp.Error.Message))
@@ -254,7 +272,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 			}
 		}
 
-	} else if pod.Payment.TimeClose < time_close_now && pod.Payment.Payout == 0 {
+	} else if pod.Payment.TimeClose < timeCloseNow && pod.Payment.Payout == 0 {
 
 		// hlog.Printf("error", "Pod %s AccountChargePayout %f %d %d",
 		// 	pod.Meta.ID, pod.Payment.Payout, pod.Payment.TimeStart, pod.Payment.TimeClose)
@@ -262,12 +280,13 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		if rsp := iamclient.AccountChargePayout(iamapi.AccountChargePayout{
 			User:      pod.Meta.User,
 			Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
-			Payout:    pay_amount,
+			Payout:    payAmount,
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
+			Comment:   strings.Join(comments, ", "),
 		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePayout" {
-			pod.Payment.Payout = pay_amount
-			pod.Payment.CycleAmount = cycle_amount
+			pod.Payment.Payout = payAmount
+			pod.Payment.CycleAmount = cycleAmount
 			data.ZoneMaster.PvPut(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
 				pod,
@@ -277,7 +296,7 @@ func pod_charge_entry(pod inapi.Pod) bool {
 		} else {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
-					pod_entry_chargeout(pod.Meta.ID)
+					podEntryChargeOut(pod.Meta.ID)
 				}
 				hlog.Printf("error", "Pod %s AccountChargePayout %f %s",
 					pod.Meta.ID, pod.Payment.Payout, rsp.Error.Code+" : "+rsp.Error.Message)
@@ -290,13 +309,11 @@ func pod_charge_entry(pod inapi.Pod) bool {
 	return false
 }
 
-func pod_entry_chargeout(pod_id string) {
+func podEntryChargeOut(pod_id string) {
 
-	var prev inapi.Pod
-	if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(status.ZoneId, pod_id)); !rs.OK() {
+	prev := status.ZonePodList.Items.Get(pod_id)
+	if prev == nil {
 		return
-	} else {
-		rs.Decode(&prev)
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) {

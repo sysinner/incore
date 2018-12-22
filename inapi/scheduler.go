@@ -17,8 +17,7 @@ package inapi
 // Scheduler is an interface implemented by things that know how to schedule pods
 // onto hosts.
 type Scheduler interface {
-	Schedule(pod Pod, hosts ResHostList) (host_id string, err error)
-	// ScheduleSets(pod Pod, hosts ResHostList) (host_ids []string, err error)
+	Schedule(spec *PodSpecBound, rep *PodOperateReplica, hosts ResHostList, opts *ScheduleOptions) (host_id string, err error)
 	ScheduleHostValid(host *ResHost, entry ScheduleEntry) error
 }
 
@@ -26,6 +25,10 @@ type ScheduleEntry struct {
 	Cpu    int64 // in Cores (1 = .001 cores)
 	Mem    int64 // in Bytes
 	VolSys int64 // in Bytes
+}
+
+type ScheduleOptions struct {
+	HostExcludes []string
 }
 
 /*

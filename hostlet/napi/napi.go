@@ -32,14 +32,16 @@ import (
 )
 
 const (
+	NsOpLogHostletRepSync   = "hostlet/rep/sync"
+	NsOpLogHostletRepAction = "hostlet/rep/action"
+)
+
+const (
 	stats_tick          int64  = 5e9
 	BoxStatsSampleCycle uint32 = 20
 	BoxStatsLogCycle    uint32 = 60
 
 	AgentBoxStatus = "%s/%s/home/action/.sysinner/box_status.json"
-
-	OpLogNsPodPull = "hostlet/pod-updater"
-	OpLogNsCtnCmd  = "hostlet/box-keeper"
 )
 
 var (
@@ -95,7 +97,23 @@ type BoxDriver interface {
 	Stop() error
 	StatusEntry() *BoxInstance
 	StatsEntry() *BoxInstanceStatsFeed
-	ActionCommandEntry(inst *BoxInstance) error
+	BoxStart(box *BoxInstance) error
+	BoxStop(box *BoxInstance) error
+	BoxRemove(box *BoxInstance) error
+}
+
+type BoxDriverList struct {
+	Items []BoxDriver
+}
+
+func (ls *BoxDriverList) Get(name string) BoxDriver {
+
+	for _, dv := range ls.Items {
+		if dv.Name() == name {
+			return dv
+		}
+	}
+	return nil
 }
 
 type BoxInstanceStatsEntry struct {
@@ -117,27 +135,25 @@ func (it *BoxInstanceStatsFeed) Set(name string, value int64) {
 }
 
 type BoxInstance struct {
-	stats_pending bool
+	mu            sync.Mutex
+	statusPending bool
+	opPending     bool
 	ID            string
 	Name          string
 	PodID         string
-	RepId         uint32
-	PodOpAction   uint32
 	PodOpVersion  uint32
+	UpUpdated     uint32
 	Spec          inapi.PodSpecBoxBound
 	Apps          inapi.AppInstances
-	Ports         inapi.ServicePorts
+	Replica       inapi.PodOperateReplica
 	Retry         int
 	Env           []inapi.EnvVar
 	Status        inapi.PbPodBoxStatus
 	Stats         *inapi.PbStatsSampleFeed
 }
 
-func BoxInstanceName(podId string, rep *inapi.PodOperateReplica) string {
-	repId := uint32(0)
-	if rep != nil {
-		repId = rep.RepId
-	}
+func BoxInstanceName(podId string, repId uint32) string {
+
 	if repId > 65535 {
 		repId = 65535
 	}
@@ -161,8 +177,50 @@ func BoxInstanceNameParse(hostname string) (podId string, repId uint32) {
 	return "", 0
 }
 
+func (it *BoxInstance) OpLock() bool {
+
+	it.mu.Lock()
+	defer it.mu.Unlock()
+
+	if it.opPending {
+		return false
+	}
+	it.opPending = true
+
+	return true
+}
+
+func (it *BoxInstance) OpUnlock() {
+
+	it.mu.Lock()
+	defer it.mu.Unlock()
+
+	it.opPending = false
+}
+
+func (it *BoxInstance) StatusLock() bool {
+
+	it.mu.Lock()
+	defer it.mu.Unlock()
+
+	if it.statusPending {
+		return false
+	}
+	it.statusPending = true
+
+	return true
+}
+
+func (it *BoxInstance) StatusUnlock() {
+
+	it.mu.Lock()
+	defer it.mu.Unlock()
+
+	it.statusPending = false
+}
+
 func (inst *BoxInstance) OpRepKey() string {
-	return inapi.NsZonePodOpRepKey(inst.PodID, inst.RepId)
+	return inapi.NsZonePodOpRepKey(inst.PodID, inst.Replica.RepId)
 }
 
 func (inst *BoxInstance) SpecDesired() bool {
@@ -179,12 +237,12 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return false
 	}
 
-	if len(inst.Ports) != len(inst.Status.Ports) {
+	if len(inst.Replica.Ports) != len(inst.Status.Ports) {
 		hlog.Printf("debug", "box/spec miss-desire inst.Ports")
 		return false
 	}
 
-	for _, v := range inst.Ports {
+	for _, v := range inst.Replica.Ports {
 
 		mat := false
 		for _, vd := range inst.Status.Ports {
@@ -252,9 +310,7 @@ func (inst *BoxInstance) SpecDesired() bool {
 
 func (inst *BoxInstance) OpActionDesired() bool {
 
-	if (inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStart) && inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning)) ||
-		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionStop) && inapi.OpActionAllow(inst.Status.Action, inapi.OpActionStopped)) ||
-		(inapi.OpActionAllow(inst.PodOpAction, inapi.OpActionDestroy) && inapi.OpActionAllow(inst.Status.Action, inapi.OpActionDestroyed)) {
+	if inapi.OpActionDesire(inst.Replica.Action, inst.Status.Action) > 0 {
 		return true
 	}
 
@@ -267,8 +323,14 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 		{
 			Name:      "home",
 			MountPath: "/home/action",
-			HostDir:   VolPodHomeDir(inst.PodID, inst.RepId),
+			HostDir:   VolPodHomeDir(inst.PodID, inst.Replica.RepId),
 			ReadOnly:  false,
+		},
+		{
+			Name:      "hosts",
+			MountPath: "/etc/hosts",
+			HostDir:   "/etc/hosts",
+			ReadOnly:  true,
 		},
 		{
 			Name:      "sysinner/nsz",
@@ -316,6 +378,16 @@ func (inst *BoxInstance) VolumeMountsExport() []string {
 	}
 
 	return bind_vols
+}
+
+func (inst *BoxInstance) StatusActionSet(op uint32) {
+
+	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionMigrated) &&
+		!inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
+		inst.Status.Action = op | inapi.OpActionMigrated
+	} else {
+		inst.Status.Action = op
+	}
 }
 
 var box_sets_mu sync.RWMutex
@@ -383,4 +455,19 @@ func (ls *BoxInstanceSets) Each(fn func(item *BoxInstance)) {
 	for _, v := range *ls {
 		fn(v)
 	}
+}
+
+func (ls *BoxInstanceSets) OpLockNum() int {
+	n := 0
+	for _, v := range *ls {
+		if v.opPending {
+			n += 1
+		}
+	}
+	return n
+}
+
+type RsyncModuleItem struct {
+	User string `json:"user"`
+	Dir  string `json:"dir"`
 }

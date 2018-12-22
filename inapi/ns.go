@@ -161,13 +161,6 @@ func NsZonePodOpRepKeyValid(key string) bool {
 	return nsZonePodOpRepKeyReg.MatchString(key)
 }
 
-func NsZoneHostBoundPodRep(zone_id, host_id, pod_id string, repId uint32) string {
-	if len(pod_id) < 8 {
-		return fmt.Sprintf("/inz/%s/bp/%s/pod", zone_id, host_id)
-	}
-	return fmt.Sprintf("/inz/%s/bp/%s/pod/%s", zone_id, host_id, NsZonePodOpRepKey(pod_id, repId))
-}
-
 func NsZonePodStatus(zone_id, pod_id string) string {
 	if len(pod_id) < 8 {
 		return fmt.Sprintf("/inz/%s/pst", zone_id)
@@ -177,11 +170,6 @@ func NsZonePodStatus(zone_id, pod_id string) string {
 
 func NsZonePodServiceMap(pod_id string) string {
 	return fmt.Sprintf("/inz/ns/ps/%s", pod_id)
-}
-
-//
-func NsLocalZoneMasterList() string {
-	return "/inl/zm/list"
 }
 
 func NsLocalCacheBoundPod(pod_id string, repId uint32) string {

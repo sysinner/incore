@@ -16,6 +16,8 @@ package zonemaster
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -44,7 +46,9 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 	// fmt.Println("host status sync", opts.Meta.Id, opts.Status.Uptime)
 	if !status.IsZoneMasterLeader() {
-		return nil, errors.New("No ZoneMasterLeader Found")
+		return &inapi.ResHostBound{
+			Masters: &status.ZoneMasterList,
+		}, nil
 	}
 
 	if opts == nil || opts.Meta == nil {
@@ -63,38 +67,41 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 	//
 	if opts.Spec.PeerLanAddr != "" && opts.Spec.PeerLanAddr != host.Spec.PeerLanAddr {
-		zm_host_addr_change(opts, host.Spec.PeerLanAddr)
+		zmHostAddrChange(opts, host.Spec.PeerLanAddr)
 	}
 
 	if opts.Status != nil && opts.Status.Stats != nil {
+
 		arrs := inapi.NewPbStatsIndexList(600, 60)
 		for _, v := range opts.Status.Stats.Items {
 			for _, v2 := range v.Items {
 				arrs.Sync(v.Name, v2.Time, v2.Value)
 			}
 		}
+
 		for _, v := range arrs.Items {
+
 			pk := inapi.NsZoneSysHostStats(status.ZoneId, opts.Meta.Id, v.Time)
 
-			var stats_index inapi.PbStatsIndexFeed
+			var statsIndex inapi.PbStatsIndexFeed
 			if rs := data.ZoneMaster.KvProgGet(pk); rs.OK() {
-				rs.Decode(&stats_index)
-				if stats_index.Time < 1 {
+				rs.Decode(&statsIndex)
+				if statsIndex.Time < 1 {
 					continue
 				}
 			}
 
-			stats_index.Time = v.Time
+			statsIndex.Time = v.Time
 			for _, entry := range v.Items {
 				for _, sv := range entry.Items {
-					stats_index.Sync(entry.Name, sv.Time, sv.Value)
+					statsIndex.Sync(entry.Name, sv.Time, sv.Value)
 				}
 			}
 
-			if len(stats_index.Items) > 0 {
+			if len(statsIndex.Items) > 0 {
 				data.ZoneMaster.KvProgPut(
 					pk,
-					skv.NewKvEntry(stats_index),
+					skv.NewKvEntry(statsIndex),
 					&skv.KvProgWriteOptions{
 						Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
 					},
@@ -111,12 +118,35 @@ func (s *ApiZoneMaster) HostStatusSync(
 		// hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
 	}
 
-	// tn := uint32(time.Now().Unix())
+	tn := uint32(time.Now().Unix())
+	/**
+	hlog.Printf("debug", "zone-master/host %s, rep status %d updated",
+		opts.Meta.Id, len(opts.Prs))
+	*/
 
 	// PodReplica Status
 	for _, repStatus := range opts.Prs {
 
-		if repStatus.Stats != nil {
+		if repStatus.PodId == "" {
+			continue
+		}
+
+		podActive := status.ZonePodList.Items.Get(repStatus.PodId)
+		if podActive == nil {
+			continue
+		}
+
+		ctrRep := podActive.Operate.Replicas.Get(repStatus.RepId)
+		if ctrRep == nil {
+			continue
+		}
+
+		if ctrRep.Node != opts.Meta.Id &&
+			(ctrRep.Next == nil || ctrRep.Next.Node != opts.Meta.Id) {
+			continue
+		}
+
+		if ctrRep.Node == opts.Meta.Id && repStatus.Stats != nil {
 
 			arrs := inapi.NewPbStatsIndexList(600, 60)
 
@@ -131,33 +161,37 @@ func (s *ApiZoneMaster) HostStatusSync(
 				repStatsKey := inapi.NsZonePodRepStats(
 					status.ZoneId, repStatus.PodId, repStatus.RepId, "sys", iv.Time)
 
-				var stats_index inapi.PbStatsIndexFeed
+				var statsIndex inapi.PbStatsIndexFeed
 				if rs := data.ZoneMaster.KvProgGet(repStatsKey); rs.OK() {
-					rs.Decode(&stats_index)
-					if stats_index.Time < 1 {
+					rs.Decode(&statsIndex)
+					if statsIndex.Time < 1 {
 						continue
 					}
 				}
 
-				stats_index.Time = iv.Time
+				statsIndex.Time = iv.Time
 				for _, entry := range iv.Items {
 					for _, sv := range entry.Items {
-						stats_index.Sync(entry.Name, sv.Time, sv.Value)
+						statsIndex.Sync(entry.Name, sv.Time, sv.Value)
 					}
 				}
 
-				if len(stats_index.Items) > 0 {
+				if len(statsIndex.Items) > 0 {
 					data.ZoneMaster.KvProgPut(
 						repStatsKey,
-						skv.NewKvEntry(stats_index),
+						skv.NewKvEntry(statsIndex),
 						&skv.KvProgWriteOptions{
 							Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
 						},
 					)
 				}
 			}
+		}
+		repStatus.Stats = nil
 
-			repStatus.Stats = nil
+		if repStatus.OpLog == nil {
+			repStatus.OpLog = inapi.NewPbOpLogSets(
+				inapi.NsZonePodOpRepKey(repStatus.PodId, repStatus.RepId), 0)
 		}
 
 		podStatus := status.ZonePodStatusList.Get(repStatus.PodId)
@@ -179,23 +213,64 @@ func (s *ApiZoneMaster) HostStatusSync(
 			status.ZonePodStatusList.Set(podStatus)
 		}
 
-		if repStatus.OpLog == nil {
-			repStatus.OpLog = inapi.NewPbOpLogSets(inapi.NsZonePodOpRepKey(repStatus.PodId, repStatus.RepId), 0)
-		}
+		if ctrRep.Node == opts.Meta.Id {
 
-		if prevRepStatus := podStatus.RepGet(repStatus.RepId); prevRepStatus != nil && prevRepStatus.OpLog != nil {
+			if prevRepStatus := podStatus.RepGet(repStatus.RepId); prevRepStatus != nil {
 
-			if repStatus.OpLog.Version <= prevRepStatus.OpLog.Version {
+				if prevRepStatus.OpLog == nil || prevRepStatus.OpLog.Version < podActive.Operate.Version {
+					prevRepStatus.OpLog = inapi.NewPbOpLogSets(
+						inapi.NsZonePodOpRepKey(repStatus.PodId, repStatus.RepId), podActive.Operate.Version)
+				}
 
-				for _, vlog := range prevRepStatus.OpLog.Items {
-					repStatus.OpLog.LogSetEntry(vlog)
+				hlog.Printf("debug", "zm/rpc-server host %s, rep %s#%d, prev-oplog v%d n%d, status-oplog v%d n%d",
+					opts.Meta.Id, repStatus.PodId, repStatus.RepId,
+					prevRepStatus.OpLog.Version, len(prevRepStatus.OpLog.Items),
+					repStatus.OpLog.Version, len(repStatus.OpLog.Items),
+				)
+
+				if repStatus.OpLog.Version == prevRepStatus.OpLog.Version {
+					for _, vlog := range repStatus.OpLog.Items {
+						prevRepStatus.OpLog.LogSetEntry(vlog)
+					}
+					repStatus.OpLog = prevRepStatus.OpLog
 				}
 			}
+			repStatus.Node = opts.Meta.Id
+
+			hlog.Printf("debug", "zm/rpc-server host %s, rep %s#%d, status %s",
+				opts.Meta.Id, repStatus.PodId, repStatus.RepId,
+				strings.Join(inapi.OpActionStrings(repStatus.Action), "|"),
+			)
 		}
 
-		// inapi.ObjPrint(repStatus.PodId, repStatus)
-		// fmt.Println(repStatus.PodId, inapi.OpActionStrings(repStatus.Action))
-		podStatus.RepSync(repStatus)
+		if ctrRep.Next != nil && ctrRep.Next.Node == opts.Meta.Id {
+
+			if inapi.OpActionAllow(repStatus.Action, inapi.OpActionMigrated) &&
+				!inapi.OpActionAllow(ctrRep.Next.Action, inapi.OpActionMigrated) {
+				// NOTICE
+				ctrRep.Next.Action = ctrRep.Next.Action | inapi.OpActionMigrated
+				hlog.Printf("warn", "zm/rpc-server rep %s#%d, action %s, nextAction %s, Migrate IN",
+					repStatus.PodId, repStatus.RepId,
+					strings.Join(inapi.OpActionStrings(ctrRep.Action), "|"),
+					strings.Join(inapi.OpActionStrings(ctrRep.Next.Action), "|"),
+				)
+
+				repStatus.OpLog.LogSet(
+					podActive.Operate.Version,
+					inapi.NsOpLogZoneRepMigrateDone, inapi.PbOpLogOK,
+					fmt.Sprintf("migrate rep %s:%d, data sync done",
+						repStatus.PodId, repStatus.RepId),
+				)
+			}
+
+		} else {
+
+			repStatus.Updated = tn
+
+			// inapi.ObjPrint(repStatus.PodId, repStatus)
+			// fmt.Println(repStatus.PodId, inapi.OpActionStrings(repStatus.Action))
+			podStatus.RepSync(repStatus)
+		}
 
 		/**
 		if rs := data.ZoneMaster.PvPut(podStatusKey, podStatus, nil); !rs.OK() {
@@ -210,45 +285,116 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 	// hlog.Printf("info", "zone-master/rpc-server hostlet synced pods:%d", len(opts.Prs))
 
-	hostBound := &inapi.ResHostBound{
-		Masters:              &status.ZoneMasterList,
-		ExpPsmaps:            status.ZonePodServiceMaps,
-		ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
-	}
-
-	// TODO
-	bk := inapi.NsZoneHostBoundPodRep(status.ZoneId, opts.Meta.Id, "", 0)
-	rss := data.ZoneMaster.PvScan(bk, "", "", 1000).KvList()
-	hlog.Printf("debug", "zone-master/rpc-server, host (%s) bound pods %d",
-		opts.Meta.Id, len(rss))
-	for _, v := range rss {
-		var bpod inapi.Pod
-		if err := v.Decode(&bpod); err != nil {
-			continue
+	var (
+		hostBound = &inapi.ResHostBound{
+			Masters:              &status.ZoneMasterList,
+			ExpPsmaps:            status.ZonePodServiceMaps,
+			ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
 		}
+	)
 
-		if bpod.Operate.Replica == nil {
-			continue
-		}
+	// Control Replica
+	for _, bpod := range status.ZonePodList.Items {
 
-		if inapi.OpActionAllow(bpod.Operate.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
-			if uint32(time.Now().Unix())-bpod.Operate.Operated > inapi.PodDestroyTTL {
-				bk2 := inapi.NsZoneHostBoundPodRep(status.ZoneId, opts.Meta.Id, bpod.Meta.ID, bpod.Operate.Replica.RepId)
-				data.ZoneMaster.PvDel(bk2, nil)
-				hlog.Printf("warn", "zone-master/pod/bound remove %s", bpod.Meta.ID)
+		for _, ctrRep := range bpod.Operate.Replicas {
+
+			if ctrRep.PrevNode == opts.Meta.Id && ctrRep.Next == nil {
+
+				hostBound.ExpBoxRemoves = append(hostBound.ExpBoxRemoves,
+					inapi.PodRepInstanceName(bpod.Meta.ID, ctrRep.RepId))
 				continue
 			}
-		}
 
-		// inapi.ObjPrint("rpc/server/"+opts.Meta.Id, v)
-		js, _ := json.Encode(bpod, "")
-		hostBound.ExpPods = append(hostBound.ExpPods, string(js))
+			if ctrRep.Node != opts.Meta.Id &&
+				(ctrRep.Next == nil || ctrRep.Next.Node != opts.Meta.Id) {
+				continue
+			}
+
+			if ctrRep.Node == opts.Meta.Id {
+
+				if inapi.OpActionAllow(ctrRep.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
+					hostBound.ExpBoxRemoves = append(hostBound.ExpBoxRemoves,
+						inapi.PodRepInstanceName(bpod.Meta.ID, ctrRep.RepId))
+					continue
+				}
+
+				if inapi.OpActionAllow(ctrRep.Action, inapi.OpActionStop|inapi.OpActionStopped) &&
+					!inapi.OpActionAllow(ctrRep.Action, inapi.OpActionMigrate) {
+					hostBound.ExpBoxStops = append(hostBound.ExpBoxStops,
+						inapi.PodRepInstanceName(bpod.Meta.ID, ctrRep.RepId))
+					continue
+				}
+			}
+
+			podRep := inapi.PodRep{
+				Meta:    bpod.Meta,
+				Spec:    bpod.Spec,
+				Apps:    bpod.Apps,
+				Operate: bpod.Operate,
+			}
+
+			if ctrRep.Next != nil && ctrRep.Next.Node == opts.Meta.Id {
+
+				if ctrRep.Action == (inapi.OpActionMigrate | inapi.OpActionStop) {
+					continue
+				}
+
+				podRep.Replica = inapi.PodOperateReplica{
+					RepId:   ctrRep.RepId,
+					Node:    ctrRep.Next.Node,
+					Action:  ctrRep.Next.Action,
+					ResCpu:  ctrRep.Next.ResCpu,
+					ResMem:  ctrRep.Next.ResMem,
+					VolSys:  ctrRep.Next.VolSys,
+					Ports:   ctrRep.Next.Ports,
+					Options: ctrRep.Options,
+				}
+			} else {
+				podRep.Replica = inapi.PodOperateReplica{
+					RepId:   ctrRep.RepId,
+					Node:    ctrRep.Node,
+					Action:  ctrRep.Action,
+					ResCpu:  ctrRep.ResCpu,
+					ResMem:  ctrRep.ResMem,
+					VolSys:  ctrRep.VolSys,
+					Ports:   ctrRep.Ports,
+					Options: ctrRep.Options,
+					Next:    ctrRep.Next,
+				}
+
+				/**
+				// bugfix
+				if inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionMigrate) &&
+					!inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionStop) &&
+					!inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionDestroy) {
+					podRep.Replica.Action = podRep.Replica.Action | inapi.OpActionStop
+					ctrRep.Action = ctrRep.Action | inapi.OpActionStop
+				}
+				*/
+			}
+
+			podRep.Replica.Updated = tn
+
+			js, _ := json.Encode(podRep, "")
+			hostBound.ExpPods = append(hostBound.ExpPods, string(js))
+
+			hlog.Printf("debug", "zm/rpc-server ctrl host %s, rep %s#%d, podAction %s, repAction %s, removes %s",
+				podRep.Replica.Node,
+				bpod.Meta.ID, podRep.Replica.RepId,
+				strings.Join(inapi.OpActionStrings(bpod.Operate.Action), ","),
+				strings.Join(inapi.OpActionStrings(podRep.Replica.Action), ","),
+				strings.Join(hostBound.ExpBoxRemoves, ","))
+		}
 	}
+
+	hlog.Printf("debug", "zm/rpc-server Ctr host %s, removes %d",
+		opts.Meta.Id,
+		len(hostBound.ExpBoxRemoves))
 
 	return hostBound, nil
 }
 
-func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
+func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 
 	zmMu.Lock()
 	defer zmMu.Unlock()
@@ -275,7 +421,7 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
 			status.Zone.LanAddrs[i] = host.Spec.PeerLanAddr
 
-			hlog.Printf("warn", "ZoneMaster status.Zone.LanAddrs %s->%s",
+			hlog.Printf("warn", "zm status.Zone.LanAddrs %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 
 			break
@@ -290,7 +436,7 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
 			status.ZoneMasterList.Items[i].Addr = host.Spec.PeerLanAddr
 
-			hlog.Printf("warn", "ZoneMaster status.ZoneMasterList.Items %s->%s",
+			hlog.Printf("warn", "zm status.ZoneMasterList.Items %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 
@@ -308,7 +454,7 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
 			status.ZoneHostList.Items[i].Spec.PeerLanAddr = host.Spec.PeerLanAddr
 
-			hlog.Printf("warn", "ZoneMaster status.ZoneHostList.Items %s->%s",
+			hlog.Printf("warn", "zm status.ZoneHostList.Items %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 	}
@@ -318,7 +464,7 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
 			status.LocalZoneMasterList.Items[i].Addr = host.Spec.PeerLanAddr
 
-			hlog.Printf("warn", "ZoneMaster status.LocalZoneMasterList.Items %s->%s",
+			hlog.Printf("warn", "zm status.LocalZoneMasterList.Items %s->%s",
 				addr_prev, host.Spec.PeerLanAddr)
 			break
 		}
@@ -346,7 +492,7 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 
 					zone.LanAddrs[i] = host.Spec.PeerLanAddr
 
-					hlog.Printf("warn", "ZoneMaster GlobalSysZone %s->%s",
+					hlog.Printf("warn", "zm GlobalSysZone %s->%s",
 						addr_prev, host.Spec.PeerLanAddr)
 
 					// TOPO
@@ -373,11 +519,11 @@ func zm_host_addr_change(host *inapi.ResHost, addr_prev string) {
 					Action: 1,
 				}, nil)
 
-				hlog.Printf("warn", "ZoneMaster NsZoneSysMasterNode %s->%s",
+				hlog.Printf("warn", "zm NsZoneSysMasterNode %s->%s",
 					addr_prev, host.Spec.PeerLanAddr)
 			}
 		}
 	}
 
-	hlog.Printf("warn", "ZoneMaster %s->%s", addr_prev, host.Spec.PeerLanAddr)
+	hlog.Printf("info", "zm/host/addr %s->%s", addr_prev, host.Spec.PeerLanAddr)
 }

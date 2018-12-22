@@ -27,11 +27,11 @@ import (
 
 var (
 	podOpMu          sync.RWMutex
-	pod_sets_mu      sync.RWMutex
+	podItemsMu       sync.RWMutex
 	pod_st_mu        sync.RWMutex
 	PodIdReg         = regexp.MustCompile("^[a-f0-9]{16,24}$")
 	PodSpecPlanIdReg = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
-	PodDestroyTTL    = uint32(864000)
+	PodDestroyTTL    = uint32(86400)
 )
 
 const (
@@ -62,12 +62,12 @@ type Pod struct {
 	// Spec defines the behavior of a pod.
 	Spec *PodSpecBound `json:"spec,omitempty"`
 
-	//
-	Operate PodOperate `json:"operate,omitempty"`
-
 	// Apps represents the information about a collection of applications to deploy.
 	// this is a module for App Engine
 	Apps AppInstances `json:"apps,omitempty"`
+
+	//
+	Operate PodOperate `json:"operate,omitempty"`
 
 	// Status represents the current information about a pod. This data may not be up
 	// to date.
@@ -119,17 +119,6 @@ func (pod *Pod) AppServicePorts() ServicePorts {
 	}
 
 	return ports
-}
-
-func (pod *Pod) OpRepKey() string {
-	if pod.Operate.Replica == nil {
-		return NsZonePodOpRepKey(pod.Meta.ID, 0)
-	}
-	return NsZonePodOpRepKey(pod.Meta.ID, pod.Operate.Replica.RepId)
-}
-
-func (pod *Pod) IterKey() string {
-	return pod.OpRepKey()
 }
 
 func (pod *Pod) OpRepCapValid(num_new int) error {
@@ -213,25 +202,39 @@ func (pod *Pod) OpResScheduleFit() bool {
 	return destNum == pod.Operate.ReplicaCap
 }
 
-type PodSets []*Pod
+func (pod *Pod) PodRepClone(repId uint32) *PodRep {
 
-func (ls *PodSets) Get(key string) *Pod {
-	pod_sets_mu.RLock()
-	defer pod_sets_mu.RUnlock()
+	return &PodRep{
+		Meta:    pod.Meta,
+		Spec:    pod.Spec,
+		Apps:    pod.Apps,
+		Operate: pod.Operate,
+		Replica: PodOperateReplica{
+			RepId:  repId,
+			Action: pod.Operate.Action,
+		},
+	}
+}
+
+type PodItems []*Pod
+
+func (ls *PodItems) Get(podId string) *Pod {
+	podItemsMu.RLock()
+	defer podItemsMu.RUnlock()
 	for _, v := range *ls {
-		if v.IterKey() == key {
+		if v.Meta.ID == podId {
 			return v
 		}
 	}
 	return nil
 }
 
-func (ls *PodSets) Set(item *Pod) {
-	pod_sets_mu.Lock()
-	defer pod_sets_mu.Unlock()
+func (ls *PodItems) Set(item *Pod) {
+	podItemsMu.Lock()
+	defer podItemsMu.Unlock()
 
 	for i, v := range *ls {
-		if v.IterKey() == item.IterKey() {
+		if v.Meta.ID == item.Meta.ID {
 			(*ls)[i] = item
 			return
 		}
@@ -239,20 +242,20 @@ func (ls *PodSets) Set(item *Pod) {
 	*ls = append(*ls, item)
 }
 
-func (ls *PodSets) Del(key string) {
-	pod_sets_mu.Lock()
-	defer pod_sets_mu.Unlock()
+func (ls *PodItems) Del(podId string) {
+	podItemsMu.Lock()
+	defer podItemsMu.Unlock()
 	for i, v := range *ls {
-		if v.IterKey() == key {
+		if v.Meta.ID == podId {
 			*ls = append((*ls)[:i], (*ls)[i+1:]...)
 			return
 		}
 	}
 }
 
-func (ls *PodSets) Each(fn func(item *Pod)) {
-	pod_sets_mu.RLock()
-	defer pod_sets_mu.RUnlock()
+func (ls *PodItems) Each(fn func(item *Pod)) {
+	podItemsMu.RLock()
+	defer podItemsMu.RUnlock()
 
 	for _, v := range *ls {
 		fn(v)
@@ -262,7 +265,7 @@ func (ls *PodSets) Each(fn func(item *Pod)) {
 // PodList is a list of Pods.
 type PodList struct {
 	types.TypeMeta `json:",inline"`
-	Items          []Pod `json:"items"`
+	Items          PodItems `json:"items"`
 }
 
 // PodSpecBound is a description of a bound spec based on PodSpecPlan
@@ -809,13 +812,10 @@ type PodSpecPlan struct {
 
 // TODO
 func (s *PodSpecPlan) ChargeFix() {
-
 	s.ResourceCharge.Cycle = 3600
-
-	s.ResComputeCharge.Cpu = 0.1
-	s.ResComputeCharge.Mem = 0.0001
-
-	s.ResVolumeCharge.CapSize = 0.0001 // TODO
+	s.ResComputeCharge.Cpu = 0.1       // 0.07778
+	s.ResComputeCharge.Mem = 0.0001    // 0.00005
+	s.ResVolumeCharge.CapSize = 0.0005 // 0.0004
 }
 
 func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {
@@ -973,7 +973,7 @@ type PodOperate struct {
 	Priority    int                `json:"priority,omitempty"` // TODO
 	ReplicaCap  int                `json:"replica_cap,omitempty"`
 	Replicas    PodOperateReplicas `json:"replicas,omitempty"`
-	Replica     *PodOperateReplica `json:"replica,omitempty"`
+	RepMigrates []uint32           `json:"rep_migrates,omitempty"`
 	OpLog       []*PbOpLogEntry    `json:"op_log,omitempty"`
 	Operated    uint32             `json:"operated,omitempty"`
 	Access      *PodOperateAccess  `json:"access,omitempty"`
@@ -981,33 +981,28 @@ type PodOperate struct {
 }
 
 var (
-	PodOpRepActStart uint32 = OpActionStart
-	PodOpRepActStop         = OpActionStop
-	PodOpRepActFree         = OpActionDestroy
-	PodOpRepActWait         = 1 << 16
+	PodOpRepActStart          = OpActionStart
+	PodOpRepActStop           = OpActionStop
+	PodOpRepActFree           = OpActionDestroy
+	PodOpRepActMigrate        = OpActionMigrate
+	PodOpRepActWait    uint32 = 1 << 16
 )
 
 type PodOperateReplica struct {
-	RepId  uint32       `json:"rep_id"`
-	Node   string       `json:"node,omitempty"`
-	Action uint32       `json:"action,omitempty"`
-	ResCpu int32        `json:"res_cpu,omitempty"` // in 1 = .1 Cores
-	ResMem int32        `json:"res_mem,omitempty"` // in MiB
-	VolSys int32        `json:"vol_sys,omitempty"` // in GiB
-	Ports  ServicePorts `json:"ports,omitempty"`
+	RepId    uint32             `json:"rep_id"`
+	Node     string             `json:"node,omitempty"`
+	Action   uint32             `json:"action,omitempty"`
+	ResCpu   int32              `json:"res_cpu,omitempty"` // in 1 = .1 Cores
+	ResMem   int32              `json:"res_mem,omitempty"` // in MiB
+	VolSys   int32              `json:"vol_sys,omitempty"` // in GiB
+	Ports    ServicePorts       `json:"ports,omitempty"`
+	Options  types.Labels       `json:"options,omitempty"`
+	Next     *PodOperateReplica `json:"next,omitempty"`
+	PrevNode string             `json:"prev_node,omitempty"`
+	Updated  uint32             `json:"updated,omitempty"`
 }
 
 type PodOperateReplicas []*PodOperateReplica
-
-func (ls *PodOperateReplicas) SchedNum() int {
-	n := 0
-	for _, v := range *ls {
-		if v.Node != "" {
-			n += 1
-		}
-	}
-	return n
-}
 
 func (ls *PodOperateReplicas) Set(set PodOperateReplica) error {
 
@@ -1085,6 +1080,7 @@ type PodExecutorStatus struct {
 	Items          ExecutorStatuses `json:"items"`
 }
 
+// Pod Status
 type PodRepStatuses []*PbPodRepStatus
 
 func (ls *PodRepStatuses) Sort() {

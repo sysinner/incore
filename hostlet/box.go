@@ -15,6 +15,8 @@
 package hostlet
 
 import (
+	"time"
+
 	"github.com/hooto/hlog4g/hlog"
 
 	"github.com/sysinner/incore/hostlet/napi"
@@ -22,38 +24,9 @@ import (
 	"github.com/sysinner/incore/inapi"
 )
 
-func boxActionRefresh() []*napi.BoxInstance {
-
-	actions := []*napi.BoxInstance{}
-	dels := []string{}
-
-	nstatus.PodRepActives.Each(func(pod *inapi.Pod) {
-
-		instName := napi.BoxInstanceName(pod.Meta.ID, pod.Operate.Replica)
-
-		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
-			nstatus.BoxActives.Del(instName)
-		} else {
-
-			inst := boxActionRefreshEntry(instName, pod, pod.Spec.Box)
-			actions = append(actions, inst)
-		}
-
-		if inapi.OpActionAllow(pod.Operate.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
-			dels = append(dels, pod.Meta.ID)
-		}
-	})
-
-	for _, v := range dels {
-		nstatus.PodRepActives.Del(v)
-	}
-
-	return actions
-}
-
 func boxActionRefreshEntry(
 	instName string,
-	pod *inapi.Pod,
+	pod *inapi.PodRep,
 	box_spec inapi.PodSpecBoxBound,
 ) *napi.BoxInstance {
 
@@ -66,24 +39,19 @@ func boxActionRefreshEntry(
 
 		inst = &napi.BoxInstance{
 			ID:           "",
-			Name:         instName,
-			PodOpAction:  pod.Operate.Replica.Action,
-			PodOpVersion: pod.Operate.Version,
 			PodID:        pod.Meta.ID,
-			RepId:        pod.Operate.Replica.RepId,
+			Name:         instName,
+			PodOpVersion: pod.Operate.Version,
 			Spec:         box_spec,
 			Apps:         pod.Apps,
-			Ports:        pod.Operate.Replica.Ports, // TODO
+			Replica:      pod.Replica,
 			Stats:        inapi.NewPbStatsSampleFeed(napi.BoxStatsSampleCycle),
+			UpUpdated:    uint32(time.Now().Unix()),
 		}
 
 		nstatus.BoxActives.Set(inst)
 
 	} else {
-
-		if pod.Operate.Replica.Action != inst.PodOpAction && pod.Operate.Replica.Action > 0 {
-			inst.PodOpAction = pod.Operate.Replica.Action
-		}
 
 		if pod.Operate.Version > inst.PodOpVersion {
 			inst.PodOpVersion = pod.Operate.Version
@@ -91,6 +59,10 @@ func boxActionRefreshEntry(
 
 		if inst.Spec.Updated < 1 || inst.Spec.Updated != box_spec.Updated {
 			inst.Spec = box_spec
+		}
+
+		if pod.Replica.Updated > inst.Replica.Updated {
+			inst.Replica = pod.Replica
 		}
 	}
 
@@ -107,8 +79,8 @@ func boxActionRefreshEntry(
 		}
 	}
 
-	if !inst.Ports.Equal(pod.Operate.Replica.Ports) {
-		inst.Ports = pod.Operate.Replica.Ports
+	if !inst.Replica.Ports.Equal(pod.Replica.Ports) {
+		inst.Replica.Ports = pod.Replica.Ports
 	}
 
 	inst.VolumeMountsRefresh()
@@ -136,10 +108,14 @@ func boxStatusSync(item *napi.BoxInstance) {
 			inst.Status.Executors = item.Status.Executors
 		}
 
+		if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionMigrated) {
+			item.Status.Action = item.Status.Action | inapi.OpActionMigrated
+		}
+
 		inst.Status.Sync(&item.Status)
 
-		if inst.PodOpAction != item.PodOpAction && item.PodOpAction > 0 {
-			inst.PodOpAction = item.PodOpAction
+		if inst.Replica.Action != item.Replica.Action && item.Replica.Action > 0 {
+			inst.Replica.Action = item.Replica.Action
 		}
 
 		if inapi.OpActionAllow(item.Status.Action, inapi.OpActionDestroyed) {
@@ -162,7 +138,7 @@ func boxStatsSync(v *napi.BoxInstanceStatsFeed) {
 			inst.Stats = inapi.NewPbStatsSampleFeed(napi.BoxStatsSampleCycle)
 		}
 		for _, v2 := range v.Items {
-			inst.Stats.SampleSync(v2.Name, v.Time, v2.Value)
+			inst.Stats.SampleSync(v2.Name, v.Time, v2.Value, false)
 		}
 	}
 }

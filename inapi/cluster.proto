@@ -96,9 +96,11 @@ message ResHostStatus {
 
 message ResHostBound {
     ResZoneMasterList masters  = 2;
-    repeated string   exp_pods = 5;
+    repeated string exp_pods = 5;
     repeated NsPodServiceMap exp_psmaps = 6;
     string zone_inpack_service_url = 7;
+    repeated string exp_box_removes = 8;
+    repeated string exp_box_stops = 9;
 }
 
 message ResZone {

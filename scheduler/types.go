@@ -14,7 +14,7 @@
 
 package scheduler
 
-type host_fit struct {
+type hostFit struct {
 	id        string
 	cpu_used  int64
 	cpu_total int64

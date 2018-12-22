@@ -81,7 +81,7 @@ func actionLogStatus(act uint32) string {
 	return inapi.PbOpLogInfo
 }
 
-func Action(pod *inapi.Pod) (int, error) {
+func Action(pod *inapi.PodRep) (int, error) {
 
 	if pod.Apps == nil || len(pod.Apps) < 1 {
 		return 0, nil

@@ -57,7 +57,7 @@ type ConfigCommon struct {
 	filepath              string                   `json:"-"`
 	InstanceId            string                   `json:"instance_id"`
 	Host                  HostMember               `json:"host"`
-	Masters               []inapi.HostNodeAddress  `json:"masters"`
+	Masters               inapi.HostNodeAddresses  `json:"masters"`
 	ZoneMaster            *ZoneMaster              `json:"zone_master,omitempty"`
 	IoConnectors          connect.MultiConnOptions `json:"io_connects"`
 	PodHomeDir            string                   `json:"pod_home_dir"`
