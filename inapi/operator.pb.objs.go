@@ -23,20 +23,11 @@ func (it *PbOpLogEntry) Sync(it2 *PbOpLogEntry) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.Status != it2.Status {
-		it.Status, changed = it2.Status, true
-	}
-	if it.Updated != it2.Updated {
-		it.Updated, changed = it2.Updated, true
-	}
-	if it.Message != it2.Message {
-		it.Message, changed = it2.Message, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbOpLogEntrySliceGet(ls []*PbOpLogEntry, arg_name string) *PbOpLogEntry {
@@ -65,13 +56,7 @@ func PbOpLogEntrySliceEqual(ls, ls2 []*PbOpLogEntry) bool {
 			if v.Name != v2.Name {
 				continue
 			}
-			if v.Status != v2.Status {
-				return false
-			}
-			if v.Updated != v2.Updated {
-				return false
-			}
-			if v.Message != v2.Message {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -93,18 +78,12 @@ func PbOpLogEntrySliceSync(ls []*PbOpLogEntry, it2 *PbOpLogEntry) ([]*PbOpLogEnt
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.Name != it2.Name {
 			continue
 		}
-		if v.Status != it2.Status {
-			v.Status, changed = it2.Status, true
-		}
-		if v.Updated != it2.Updated {
-			v.Updated, changed = it2.Updated, true
-		}
-		if v.Message != it2.Message {
-			v.Message, changed = it2.Message, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -117,38 +96,10 @@ func PbOpLogEntrySliceSync(ls []*PbOpLogEntry, it2 *PbOpLogEntry) ([]*PbOpLogEnt
 }
 
 func PbOpLogEntrySliceSyncSlice(ls, ls2 []*PbOpLogEntry) ([]*PbOpLogEntry, bool) {
-	if len(ls2) == 0 {
+	if PbOpLogEntrySliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbOpLogEntry.Lock()
-	defer object_slice_mu_PbOpLogEntry.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.Name != v2.Name {
-				continue
-			}
-			if v.Status != v2.Status {
-				v.Status, changed = v2.Status, true
-			}
-			if v.Updated != v2.Updated {
-				v.Updated, changed = v2.Updated, true
-			}
-			if v.Message != v2.Message {
-				v.Message, changed = v2.Message, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }
 
 var object_slice_mu_PbOpLogSets sync.RWMutex
@@ -167,17 +118,11 @@ func (it *PbOpLogSets) Sync(it2 *PbOpLogSets) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.Version != it2.Version {
-		it.Version, changed = it2.Version, true
-	}
-	if rs, ok := PbOpLogEntrySliceSyncSlice(it.Items, it2.Items); ok {
-		it.Items, changed = rs, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbOpLogSetsSliceGet(ls []*PbOpLogSets, arg_name string) *PbOpLogSets {
@@ -206,10 +151,7 @@ func PbOpLogSetsSliceEqual(ls, ls2 []*PbOpLogSets) bool {
 			if v.Name != v2.Name {
 				continue
 			}
-			if v.Version != v2.Version {
-				return false
-			}
-			if !PbOpLogEntrySliceEqual(v.Items, v2.Items) {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -231,15 +173,12 @@ func PbOpLogSetsSliceSync(ls []*PbOpLogSets, it2 *PbOpLogSets) ([]*PbOpLogSets, 
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.Name != it2.Name {
 			continue
 		}
-		if v.Version != it2.Version {
-			v.Version, changed = it2.Version, true
-		}
-		if rs, ok := PbOpLogEntrySliceSyncSlice(v.Items, it2.Items); ok {
-			v.Items, changed = rs, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -252,33 +191,8 @@ func PbOpLogSetsSliceSync(ls []*PbOpLogSets, it2 *PbOpLogSets) ([]*PbOpLogSets, 
 }
 
 func PbOpLogSetsSliceSyncSlice(ls, ls2 []*PbOpLogSets) ([]*PbOpLogSets, bool) {
-	if len(ls2) == 0 {
+	if PbOpLogSetsSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbOpLogSets.Lock()
-	defer object_slice_mu_PbOpLogSets.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.Name != v2.Name {
-				continue
-			}
-			if v.Version != v2.Version {
-				v.Version, changed = v2.Version, true
-			}
-			if rs, ok := PbOpLogEntrySliceSyncSlice(v.Items, v2.Items); ok {
-				v.Items, changed = rs, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }

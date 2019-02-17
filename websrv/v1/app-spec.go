@@ -115,11 +115,21 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("depends") {
 				for _, dep := range spec.Depends {
-					depf := inapi.AppSpecDepend{}
+					depf := &inapi.AppSpecDepend{}
 					if fields.Has("depends/name") {
 						depf.Name = dep.Name
 					}
 					specf.Depends = append(specf.Depends, depf)
+				}
+			}
+
+			if fields.Has("dep_remotes") {
+				for _, dep := range spec.DepRemotes {
+					depf := &inapi.AppSpecDepend{}
+					if fields.Has("dep_remote/name") {
+						depf.Name = dep.Name
+					}
+					specf.DepRemotes = append(specf.DepRemotes, depf)
 				}
 			}
 
@@ -321,7 +331,7 @@ func (c AppSpec) SetAction() {
 
 	var (
 		tn            = types.MetaTimeNow()
-		set_new       = false
+		setNew        = false
 		reqVersion, _ = strconv.Atoi(req.Meta.Version)
 	)
 
@@ -331,7 +341,7 @@ func (c AppSpec) SetAction() {
 
 		prev.Meta.Created = tn
 		prev.Meta.User = c.us.UserName
-		set_new = true
+		setNew = true
 
 	} else {
 
@@ -352,7 +362,7 @@ func (c AppSpec) SetAction() {
 		prev.ExpRes = req.ExpRes
 		prev.ExpDeploy = req.ExpDeploy
 
-		prev.Depends = []inapi.AppSpecDepend{}
+		prev.Depends = []*inapi.AppSpecDepend{}
 		for _, v := range req.Depends {
 			if err := v.Valid(); err != nil {
 				set.Error = types.NewErrorMeta("400", "Bad Request")
@@ -361,8 +371,22 @@ func (c AppSpec) SetAction() {
 			if v.Id == prev.Meta.ID {
 				continue
 			}
-			if types.IterObjectGet(prev.Depends, v.Id) == nil {
+			if inapi.AppSpecDependSliceGet(prev.Depends, v.Id) == nil {
 				prev.Depends = append(prev.Depends, v)
+			}
+		}
+
+		prev.DepRemotes = []*inapi.AppSpecDepend{}
+		for _, v := range req.DepRemotes {
+			if err := v.Valid(); err != nil {
+				set.Error = types.NewErrorMeta("400", "Bad Request")
+				return
+			}
+			if v.Id == prev.Meta.ID {
+				continue
+			}
+			if inapi.AppSpecDependSliceGet(prev.DepRemotes, v.Id) == nil {
+				prev.DepRemotes = append(prev.DepRemotes, v)
 			}
 		}
 
@@ -374,6 +398,11 @@ func (c AppSpec) SetAction() {
 			v.Name = strings.TrimSpace(v.Name)
 			if len(v.Name) == 0 {
 				set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "Invalid ServicePort Name")
+				return
+			}
+
+			if v.HostPort > 9999 {
+				set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid HostPort")
 				return
 			}
 
@@ -455,9 +484,36 @@ func (c AppSpec) SetAction() {
 		prev.ExpRes.VolMin = 200
 	}
 
+	appSpecSets := types.ArrayString([]string{prev.Meta.ID})
+
 	for _, v := range prev.Depends {
+
+		if appSpecSets.Has(v.Id) {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeObjectPathConflict,
+				"Internally dependent AppSpec ("+v.Id+") Conflict with others")
+			return
+		}
+		appSpecSets.Set(v.Id)
+
 		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
-			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecDepend ("+v.Id+") Not Found")
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
+				"Internally dependent AppSpec ("+v.Id+") Not Found")
+			return
+		}
+	}
+
+	for _, v := range prev.DepRemotes {
+
+		if appSpecSets.Has(v.Id) {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeObjectPathConflict,
+				"Remotely dependent AppSpec ("+v.Id+") Conflict with others")
+			return
+		}
+		appSpecSets.Set(v.Id)
+
+		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
+				"Remotely dependent AppSpec ("+v.Id+") Not Found")
 			return
 		}
 	}
@@ -500,7 +556,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	//
-	if set_new {
+	if setNew {
 		rs = data.GlobalMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
 	} else {
 		rs = data.GlobalMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)

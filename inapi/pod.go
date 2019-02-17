@@ -639,6 +639,49 @@ type PodSpecResVolume struct {
 	Default int32 `json:"default,omitempty"` // default to 1 GiB
 }
 
+type podSpecResVolumeUpgrade struct {
+	types.TypeMeta `json:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	Status         string                `json:"status,omitempty"`
+	Labels         types.Labels          `json:"labels,omitempty"`
+	Limit          int64                 `json:"limit,omitempty"`   // max to 1000 GB
+	Request        int64                 `json:"request,omitempty"` // start from 1 GiB
+	Step           int64                 `json:"step,omitempty"`    // every step by 1 GiB
+	Default        int64                 `json:"default,omitempty"` // default to 1 GiB
+}
+
+func (it *PodSpecResVolume) UnmarshalJSON(b []byte) error {
+
+	var it2 podSpecResVolumeUpgrade
+	if err := json.Unmarshal(b, &it2); err != nil {
+		return err
+	}
+
+	if it2.Meta.ID == "lt1" {
+		it2.Limit = 10
+		it2.Request = 1
+		it2.Step = 1
+		it2.Default = 1
+	} else if it2.Meta.ID == "lg1" {
+		it2.Limit = 200
+		it2.Request = 10
+		it2.Step = 10
+		it2.Default = 10
+	}
+
+	*it = PodSpecResVolume{
+		Meta:    it2.Meta,
+		Status:  it2.Status,
+		Labels:  it2.Labels,
+		Limit:   int32(it2.Limit),
+		Request: int32(it2.Request),
+		Step:    int32(it2.Step),
+		Default: int32(it2.Default),
+	}
+
+	return nil
+}
+
 type PodSpecResVolumeList struct {
 	types.TypeMeta `json:",inline"`
 	Items          []PodSpecResVolume `json:"items,omitempty"`
@@ -968,16 +1011,17 @@ func (s *PodCreate) Valid(plan PodSpecPlan) error {
 }
 
 type PodOperate struct {
-	Action      uint32             `json:"action,omitempty"`
-	Version     uint32             `json:"version,omitempty"`
-	Priority    int                `json:"priority,omitempty"` // TODO
-	ReplicaCap  int                `json:"replica_cap,omitempty"`
-	Replicas    PodOperateReplicas `json:"replicas,omitempty"`
-	RepMigrates []uint32           `json:"rep_migrates,omitempty"`
-	OpLog       []*PbOpLogEntry    `json:"op_log,omitempty"`
-	Operated    uint32             `json:"operated,omitempty"`
-	Access      *PodOperateAccess  `json:"access,omitempty"`
-	ExpSysState int                `json:"exp_sys_state,omitempty"`
+	Action       uint32                   `json:"action,omitempty"`
+	Version      uint32                   `json:"version,omitempty"`
+	Priority     int                      `json:"priority,omitempty"` // TODO
+	ReplicaCap   int                      `json:"replica_cap,omitempty"`
+	Replicas     PodOperateReplicas       `json:"replicas,omitempty"`
+	RepMigrates  []uint32                 `json:"rep_migrates,omitempty"`
+	OpLog        []*PbOpLogEntry          `json:"op_log,omitempty"`
+	Operated     uint32                   `json:"operated,omitempty"`
+	Access       *PodOperateAccess        `json:"access,omitempty"`
+	ExpSysState  int                      `json:"exp_sys_state,omitempty"`
+	BindServices []*AppServicePortPodBind `json:"bind_services,omitempty"`
 }
 
 var (

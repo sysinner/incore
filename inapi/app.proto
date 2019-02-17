@@ -16,21 +16,40 @@ syntax = "proto3";
 
 package inapi;
 
-message NsPodServiceHost {
+// host
+message AppSpecDepend {
+    string id = 1; // struct:object_slice_key
+	string name = 2;
+	string version = 3;
+	int32 priority = 4;
+    repeated string configs = 5;
+}
+
+message AppServiceReplica {
     uint32 rep = 1; // struct:object_slice_key
     string ip = 2;
     uint32 port = 3;
 }
 
-message NsPodServiceEntry {
+message AppServicePort {
     uint32 port = 1; // struct:object_slice_key
-    repeated NsPodServiceHost items = 2;
+    repeated AppServiceReplica endpoints = 2;
+	int64 updated = 3; // struct:object_slice_equal_skip
+    string name = 5;
+	string spec = 6;
+    string pod_id = 7;
 }
 
-message NsPodServiceMap {
-    string id = 1; // struct:object_slice_key
-    string user = 2;
-    repeated NsPodServiceEntry services = 3;
-    uint64 updated = 4;
+message AppServicePortPodBind {
+    uint32 port = 1; // struct:object_slice_key
+    string pod_id = 2; // struct:object_slice_key
+    repeated AppServiceReplica endpoints = 3;
+	int64 updated = 4; // struct:object_slice_equal_skip
+}
+
+message AppServicePod {
+    string pod_id = 1; // struct:object_slice_key
+	repeated AppServicePort ports = 4;
+	int64 updated = 5; // struct:object_slice_equal_skip
 }
 

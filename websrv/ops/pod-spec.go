@@ -70,6 +70,13 @@ func (c PodSpec) ResComputeListAction() {
 
 			var item inapi.PodSpecResCompute
 			if err := v.Decode(&item); err == nil {
+
+				// datafix
+				if item.Meta.ID != fmt.Sprintf("c%dm%d", item.CpuLimit, item.MemLimit) {
+					data.GlobalMaster.PvDel(inapi.NsGlobalPodSpec("res/compute", item.Meta.ID), nil)
+					continue
+				}
+
 				ls.Items = append(ls.Items, &item)
 			}
 		}
@@ -500,6 +507,8 @@ func (c PodSpec) ResVolumeListAction() {
 		var item inapi.PodSpecResVolume
 		if err := v.Decode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
+		} else {
+			hlog.Printf("info", "%s, %s", err.Error(), v.String())
 		}
 	}
 

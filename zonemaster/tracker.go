@@ -136,12 +136,6 @@ func zoneTracker() {
 		return
 	}
 
-	// TODO
-	if err := zmWorkerZonePodServiceMapRefresh(); err != nil {
-		hlog.Printf("warn", "refresh host list err %s", err.Error())
-		return
-	}
-
 	/**
 	if forceRefresh {
 
@@ -381,6 +375,10 @@ func zmWorkerZoneHostListRefresh() error {
 				// hlog.Printf("info", "pod set %s", pod.Meta.ID)
 				status.ZonePodList.Items.Set(&pod)
 
+				if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
+					continue
+				}
+
 				for _, opRep := range pod.Operate.Replicas {
 
 					host := status.ZoneHostList.Item(opRep.Node)
@@ -416,85 +414,6 @@ func zmWorkerZoneHostListRefresh() error {
 	}
 
 	// hlog.Printf("info", "zm/host-list %d refreshed", len(status.ZoneHostList.Items))
-	return nil
-}
-
-func zmWorkerZonePodServiceMapRefresh() error {
-	rs := data.ZoneMaster.PvScan(inapi.NsZonePodServiceMap(""), "", "", 10000)
-	if !rs.OK() {
-		return nil
-	}
-
-	nszs := []*inapi.NsPodServiceMap{}
-
-	rs.KvEach(func(v *skv.ResultEntry) int {
-
-		var nsz inapi.NsPodServiceMap
-		if err := v.Decode(&nsz); err == nil {
-
-			if pod := status.ZonePodList.Items.Get(nsz.Id); pod != nil {
-
-				if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
-					return 0
-				}
-
-				if len(pod.Operate.Replicas) < 1 {
-					return 0
-				}
-
-				nsz_sync := false
-				nsz.Id = string(v.Key)
-
-				for _, rep := range pod.Operate.Replicas {
-
-					lan_addr := ""
-					if host := status.ZoneHostList.Item(rep.Node); host != nil {
-						lan_addr = host.Spec.PeerLanAddr
-						if i := strings.IndexByte(lan_addr, ':'); i > 0 {
-							lan_addr = lan_addr[:i]
-						}
-					}
-
-					if lan_addr == "" {
-						continue
-					}
-
-					for _, sport := range rep.Ports {
-
-						pse := nsz.Get(uint16(sport.BoxPort))
-						if pse == nil {
-							continue
-						}
-						psh := inapi.NsPodServiceHostSliceGet(pse.Items, rep.RepId)
-						if psh == nil {
-							continue
-						}
-
-						if psh.Ip != lan_addr {
-							psh.Ip = lan_addr
-						}
-
-						nsz_sync = true
-					}
-				}
-
-				if nsz_sync {
-					data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(nsz.Id), nsz, nil)
-					nszs, _ = inapi.NsPodServiceMapSliceSync(nszs, &nsz)
-				}
-			}
-		}
-
-		return 0
-	})
-
-	if !inapi.NsPodServiceMapSliceEqual(status.ZonePodServiceMaps, nszs) {
-		status.ZonePodServiceMaps = nszs
-		hlog.Printf("info", "zm/pod-service-maps refreshed %d", len(nszs))
-		inapi.ObjPrint("ns 1", status.ZonePodServiceMaps)
-		inapi.ObjPrint("ns 2", nszs)
-	}
-
 	return nil
 }
 

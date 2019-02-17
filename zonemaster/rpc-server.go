@@ -288,7 +288,6 @@ func (s *ApiZoneMaster) HostStatusSync(
 	var (
 		hostBound = &inapi.ResHostBound{
 			Masters:              &status.ZoneMasterList,
-			ExpPsmaps:            status.ZonePodServiceMaps,
 			ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
 		}
 	)

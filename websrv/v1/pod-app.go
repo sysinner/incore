@@ -155,7 +155,12 @@ func (c Pod) AppSyncAction() {
 					fmt.Sprintf("Network Port Conflict (dependent AppSpec/ServicePorts/BoxPort %d)", spv.BoxPort))
 				return
 			}
-			app.Spec.ServicePorts.Sync(*spv)
+			app.Spec.ServicePorts.Sync(inapi.ServicePort{
+				Name:     spv.Name,
+				AppSpec:  dv.Id,
+				BoxPort:  spv.BoxPort,
+				HostPort: spv.HostPort,
+			})
 		}
 	}
 
@@ -177,7 +182,7 @@ func (c Pod) AppSyncAction() {
 		return
 	}
 
-	pod.Apps.Sync(app)
+	pod.Apps.Sync(&app)
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
@@ -246,9 +251,9 @@ func (c Pod) AppSetAction() {
 
 	app.Spec.Configurator = nil
 
-	app_operate_option_render(&app, false)
+	appOpOptRender(&app, false)
 
-	pod.Apps.Sync(app)
+	pod.Apps.Sync(&app)
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 

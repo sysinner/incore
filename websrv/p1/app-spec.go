@@ -86,7 +86,7 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("depends") {
 				for _, dep := range spec.Depends {
-					depf := inapi.AppSpecDepend{}
+					depf := &inapi.AppSpecDepend{}
 					if fields.Has("depends/name") {
 						depf.Name = dep.Name
 					}

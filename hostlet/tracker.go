@@ -121,10 +121,6 @@ func zoneMasterSync() error {
 		}
 	}
 
-	if zms.ExpPsmaps != nil {
-		podServiceMapRefresh(zms.ExpPsmaps)
-	}
-
 	if zms.ExpBoxRemoves != nil {
 		sets := types.ArrayString(zms.ExpBoxRemoves)
 		for _, v := range sets {
@@ -175,59 +171,7 @@ func zoneMasterSync() error {
 
 var (
 	hostSyncVolLasted int64 = 0
-	sync_nsz_lasts          = map[string]uint64{}
-	sync_nszs               = []*inapi.NsPodServiceMap{}
-	sync_nsz_path           = "/dev/shm/sysinner/nsz"
 )
-
-func podServiceMapRefresh(ls []*inapi.NsPodServiceMap) {
-
-	if len(sync_nszs) == 0 {
-		os.MkdirAll(sync_nsz_path, 0755)
-
-		filepath.Walk(sync_nsz_path, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
-				return nil
-			}
-			if !inapi.PodIdReg.MatchString(info.Name()) {
-				return nil
-			}
-			var nsz inapi.NsPodServiceMap
-			if err := json.DecodeFile(path, &nsz); err != nil {
-				os.Remove(path)
-			} else {
-				sync_nszs = append(sync_nszs, &nsz)
-			}
-			return nil
-		})
-	}
-
-	for _, v := range sync_nszs {
-		if p := inapi.NsPodServiceMapSliceGet(ls, v.Id); p == nil {
-			os.Remove(sync_nsz_path + "/" + v.Id)
-			if _, ok := sync_nsz_lasts[v.Id]; ok {
-				delete(sync_nsz_lasts, v.Id)
-			}
-		}
-	}
-
-	for _, v := range ls {
-
-		if len(v.Id) < 8 {
-			continue
-		}
-
-		last, ok := sync_nsz_lasts[v.Id]
-		if !ok || v.Updated > last {
-			json.EncodeToFile(v, sync_nsz_path+"/"+v.Id, "")
-			sync_nsz_lasts[v.Id] = v.Updated
-		}
-	}
-
-	if !inapi.NsPodServiceMapSliceEqual(sync_nszs, ls) {
-		sync_nszs = ls
-	}
-}
 
 func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 

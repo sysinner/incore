@@ -36,6 +36,8 @@ type ServicePort struct {
 	LanAddr string `json:"lan_addr,omitempty"`
 	// Optional
 	WanAddr string `json:"wan_addr,omitempty"`
+	// Optional
+	AppSpec string `json:"app_spec,omitempty"`
 }
 
 type ServicePorts []*ServicePort
@@ -102,6 +104,11 @@ func (ls *ServicePorts) Sync(item ServicePort) (changed bool) {
 			changed = true
 		}
 
+		if item.AppSpec != "" && v.AppSpec != item.AppSpec {
+			(*ls)[i].AppSpec = item.AppSpec
+			changed = true
+		}
+
 		return changed
 	}
 
@@ -140,6 +147,7 @@ func (ls *ServicePorts) Equal(items ServicePorts) bool {
 			}
 
 			if v.Name != v2.Name ||
+				v.AppSpec != v2.AppSpec ||
 				v.HostPort != v2.HostPort {
 				return false
 			}

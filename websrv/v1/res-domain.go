@@ -310,6 +310,16 @@ func (c Resource) DomainBoundAction() {
 				set.Error = types.NewErrorMeta("400", "Invalid Pod ID:Port")
 				return
 			}
+
+			/**
+			bindPod := status.ZonePodList.Items.Get(ups[0])
+			if bindPod == nil {
+				set.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("Pod ID %s Not Found"), ups[0])
+				return
+			}
+			*/
+
 			if port, err := strconv.Atoi(ups[1]); err != nil || port < 80 || port > 65505 {
 				set.Error = types.NewErrorMeta("400", "Invalid Pod ID:Port")
 				return

@@ -18,12 +18,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 
+	inCfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
@@ -32,6 +34,7 @@ import (
 
 var (
 	podRepCtrlNumMax = 200
+	binInstall       = "install"
 )
 
 func podRepCtrlSet(pod *inapi.PodRep) error {
@@ -113,6 +116,7 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 
 	return nil
 }
+
 func podRepListCtrlRefresh() error {
 
 	var (
@@ -202,6 +206,12 @@ func podRepListCtrlRefresh() error {
 
 		go func(drv napi.BoxDriver, inst *napi.BoxInstance) {
 
+			defer func() {
+				if r := recover(); r != nil {
+					hlog.Printf("error", "host/driver panic %v", r)
+				}
+			}()
+
 			var err error
 
 			if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) {
@@ -209,7 +219,9 @@ func podRepListCtrlRefresh() error {
 			} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStop) {
 				err = drv.BoxStop(inst)
 			} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
-				err = drv.BoxStart(inst)
+				if err = podRepVolSetup(inst); err == nil {
+					err = drv.BoxStart(inst)
+				}
 			}
 
 			logType, logMsg := inapi.PbOpLogOK, fmt.Sprintf("box %s, Setup OK", inst.Name)
@@ -235,6 +247,51 @@ func podRepListCtrlRefresh() error {
 		nstatus.BoxActives.Del(instName)
 		hlog.Printf("debug", "hostlet/box %s, status unbound", instName)
 	}
+
+	return nil
+}
+
+func podRepVolSetup(inst *napi.BoxInstance) error {
+
+	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
+		return nil
+	}
+
+	tn := time.Now().Unix()
+	if inst.SysVolSynced+86400 > tn {
+		return nil
+	}
+
+	var (
+		dirOpt     = napi.VolPodPath(inst.PodID, inst.Replica.RepId, "/opt")
+		dirPodHome = napi.VolPodHomeDir(inst.PodID, inst.Replica.RepId)
+		initSrc    = inCfg.Prefix + "/bin/ininit"
+		initDst    = dirPodHome + "/.sysinner/ininit"
+		agentSrc   = inCfg.Prefix + "/bin/inagent"
+		agentDst   = dirPodHome + "/.sysinner/inagent"
+		bashrcSrc  = inCfg.Prefix + "/misc/bash/bashrc"
+		bashrcDst  = dirPodHome + "/.bashrc"
+		bashpfSrc  = inCfg.Prefix + "/misc/bash/bash_profile"
+		bashpfDst  = dirPodHome + "/.bash_profile"
+	)
+
+	if err := inutils.FsMakeDir(dirOpt, 2048, 2048, 0750); err != nil {
+		return fmt.Errorf("hostlet/box BOX:%s, FsMakeDir Err: %s", inst.Name, err.Error())
+	}
+
+	if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", 2048, 2048, 0750); err != nil {
+		return fmt.Errorf("hostlet/box BOX:%s, FsMakeDir Err: %s", inst.Name, err.Error())
+	}
+
+	//
+	exec.Command(binInstall, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
+	exec.Command(binInstall, "-m", "755", "-g", "root", "-o", "root", agentSrc, agentDst).Output()
+	exec.Command("rsync", bashrcSrc, bashrcDst).Output()
+	exec.Command("rsync", bashpfSrc, bashpfDst).Output()
+
+	inst.SysVolSynced = tn
+
+	hlog.Printf("info", "host/box %s, start/pre setup", inst.Name)
 
 	return nil
 }

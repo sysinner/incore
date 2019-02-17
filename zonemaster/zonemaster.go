@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	iamWorker "github.com/hooto/iam/worker"
 
 	"github.com/sysinner/incore/status"
 )
@@ -54,6 +55,8 @@ func Start() error {
 				if err := podChargeRefresh(); err != nil {
 					hlog.Printf("warn", "zm/pod/charge err:%s", err.Error())
 				}
+
+				go iamWorker.AccountChargeCloseRefresh()
 			}
 		}
 	}()

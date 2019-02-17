@@ -20,6 +20,7 @@ package inapi
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
@@ -53,6 +54,10 @@ const (
 	GeneralPhaseSuspend = "Suspend"
 	GeneralPhaseOffline = "Offline"
 )
+
+func TimeNowMs() int64 {
+	return (time.Now().UnixNano() / 1e6)
+}
 
 // Protocol defines network protocols supported for things like conatiner ports.
 type Protocol string

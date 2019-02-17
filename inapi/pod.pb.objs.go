@@ -14,6 +14,10 @@ func (it *PbPodRepStatus) Equal(it2 *PbPodRepStatus) bool {
 		it.RepId != it2.RepId ||
 		it.Action != it2.Action ||
 		it.Node != it2.Node ||
+		(it.OpLog == nil && it2.OpLog != nil) ||
+		(it.OpLog != nil && !it.OpLog.Equal(it2.OpLog)) ||
+		(it.Stats == nil && it2.Stats != nil) ||
+		(it.Stats != nil && !it.Stats.Equal(it2.Stats)) ||
 		it.Updated != it2.Updated ||
 		!PbVolumeStatusSliceEqual(it.Volumes, it2.Volumes) ||
 		it.Started != it2.Started ||
@@ -27,32 +31,11 @@ func (it *PbPodRepStatus) Sync(it2 *PbPodRepStatus) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.PodId != it2.PodId {
-		it.PodId, changed = it2.PodId, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.RepId != it2.RepId {
-		it.RepId, changed = it2.RepId, true
-	}
-	if it.Action != it2.Action {
-		it.Action, changed = it2.Action, true
-	}
-	if it.Node != it2.Node {
-		it.Node, changed = it2.Node, true
-	}
-	if it.Updated != it2.Updated {
-		it.Updated, changed = it2.Updated, true
-	}
-	if rs, ok := PbVolumeStatusSliceSyncSlice(it.Volumes, it2.Volumes); ok {
-		it.Volumes, changed = rs, true
-	}
-	if it.Started != it2.Started {
-		it.Started, changed = it2.Started, true
-	}
-	if rs, ok := PbServicePortSliceSyncSlice(it.Ports, it2.Ports); ok {
-		it.Ports, changed = rs, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbPodRepStatusSliceGet(ls []*PbPodRepStatus, arg_podid string, arg_repid uint32) *PbPodRepStatus {
@@ -81,22 +64,7 @@ func PbPodRepStatusSliceEqual(ls, ls2 []*PbPodRepStatus) bool {
 			if v.PodId != v2.PodId || v.RepId != v2.RepId {
 				continue
 			}
-			if v.Action != v2.Action {
-				return false
-			}
-			if v.Node != v2.Node {
-				return false
-			}
-			if v.Updated != v2.Updated {
-				return false
-			}
-			if !PbVolumeStatusSliceEqual(v.Volumes, v2.Volumes) {
-				return false
-			}
-			if v.Started != v2.Started {
-				return false
-			}
-			if !PbServicePortSliceEqual(v.Ports, v2.Ports) {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -118,27 +86,12 @@ func PbPodRepStatusSliceSync(ls []*PbPodRepStatus, it2 *PbPodRepStatus) ([]*PbPo
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.PodId != it2.PodId || v.RepId != it2.RepId {
 			continue
 		}
-		if v.Action != it2.Action {
-			v.Action, changed = it2.Action, true
-		}
-		if v.Node != it2.Node {
-			v.Node, changed = it2.Node, true
-		}
-		if v.Updated != it2.Updated {
-			v.Updated, changed = it2.Updated, true
-		}
-		if rs, ok := PbVolumeStatusSliceSyncSlice(v.Volumes, it2.Volumes); ok {
-			v.Volumes, changed = rs, true
-		}
-		if v.Started != it2.Started {
-			v.Started, changed = it2.Started, true
-		}
-		if rs, ok := PbServicePortSliceSyncSlice(v.Ports, it2.Ports); ok {
-			v.Ports, changed = rs, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -151,54 +104,16 @@ func PbPodRepStatusSliceSync(ls []*PbPodRepStatus, it2 *PbPodRepStatus) ([]*PbPo
 }
 
 func PbPodRepStatusSliceSyncSlice(ls, ls2 []*PbPodRepStatus) ([]*PbPodRepStatus, bool) {
-	if len(ls2) == 0 {
+	if PbPodRepStatusSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbPodRepStatus.Lock()
-	defer object_slice_mu_PbPodRepStatus.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.PodId != v2.PodId || v.RepId != v2.RepId {
-				continue
-			}
-			if v.Action != v2.Action {
-				v.Action, changed = v2.Action, true
-			}
-			if v.Node != v2.Node {
-				v.Node, changed = v2.Node, true
-			}
-			if v.Updated != v2.Updated {
-				v.Updated, changed = v2.Updated, true
-			}
-			if rs, ok := PbVolumeStatusSliceSyncSlice(v.Volumes, v2.Volumes); ok {
-				v.Volumes, changed = rs, true
-			}
-			if v.Started != v2.Started {
-				v.Started, changed = v2.Started, true
-			}
-			if rs, ok := PbServicePortSliceSyncSlice(v.Ports, v2.Ports); ok {
-				v.Ports, changed = rs, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }
 
 var object_slice_mu_PbVolumeMount sync.RWMutex
 
 func (it *PbVolumeMount) Equal(it2 *PbVolumeMount) bool {
 	if it2 == nil ||
-		it.Name != it2.Name ||
 		it.ReadOnly != it2.ReadOnly ||
 		it.MountPath != it2.MountPath ||
 		it.HostDir != it2.HostDir {
@@ -211,20 +126,11 @@ func (it *PbVolumeMount) Sync(it2 *PbVolumeMount) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.ReadOnly != it2.ReadOnly {
-		it.ReadOnly, changed = it2.ReadOnly, true
-	}
-	if it.MountPath != it2.MountPath {
-		it.MountPath, changed = it2.MountPath, true
-	}
-	if it.HostDir != it2.HostDir {
-		it.HostDir, changed = it2.HostDir, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbVolumeMountSliceGet(ls []*PbVolumeMount, arg_mountpath string) *PbVolumeMount {
@@ -253,10 +159,7 @@ func PbVolumeMountSliceEqual(ls, ls2 []*PbVolumeMount) bool {
 			if v.MountPath != v2.MountPath {
 				continue
 			}
-			if v.ReadOnly != v2.ReadOnly {
-				return false
-			}
-			if v.HostDir != v2.HostDir {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -278,18 +181,12 @@ func PbVolumeMountSliceSync(ls []*PbVolumeMount, it2 *PbVolumeMount) ([]*PbVolum
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.MountPath != it2.MountPath {
 			continue
 		}
-		if v.Name != it2.Name {
-			v.Name, changed = it2.Name, true
-		}
-		if v.ReadOnly != it2.ReadOnly {
-			v.ReadOnly, changed = it2.ReadOnly, true
-		}
-		if v.HostDir != it2.HostDir {
-			v.HostDir, changed = it2.HostDir, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -302,38 +199,10 @@ func PbVolumeMountSliceSync(ls []*PbVolumeMount, it2 *PbVolumeMount) ([]*PbVolum
 }
 
 func PbVolumeMountSliceSyncSlice(ls, ls2 []*PbVolumeMount) ([]*PbVolumeMount, bool) {
-	if len(ls2) == 0 {
+	if PbVolumeMountSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbVolumeMount.Lock()
-	defer object_slice_mu_PbVolumeMount.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.MountPath != v2.MountPath {
-				continue
-			}
-			if v.Name != v2.Name {
-				v.Name, changed = v2.Name, true
-			}
-			if v.ReadOnly != v2.ReadOnly {
-				v.ReadOnly, changed = v2.ReadOnly, true
-			}
-			if v.HostDir != v2.HostDir {
-				v.HostDir, changed = v2.HostDir, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }
 
 var object_slice_mu_PbVolumeStatus sync.RWMutex
@@ -351,14 +220,11 @@ func (it *PbVolumeStatus) Sync(it2 *PbVolumeStatus) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.MountPath != it2.MountPath {
-		it.MountPath, changed = it2.MountPath, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.Used != it2.Used {
-		it.Used, changed = it2.Used, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbVolumeStatusSliceGet(ls []*PbVolumeStatus, arg_mountpath string) *PbVolumeStatus {
@@ -387,7 +253,7 @@ func PbVolumeStatusSliceEqual(ls, ls2 []*PbVolumeStatus) bool {
 			if v.MountPath != v2.MountPath {
 				continue
 			}
-			if v.Used != v2.Used {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -409,12 +275,12 @@ func PbVolumeStatusSliceSync(ls []*PbVolumeStatus, it2 *PbVolumeStatus) ([]*PbVo
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.MountPath != it2.MountPath {
 			continue
 		}
-		if v.Used != it2.Used {
-			v.Used, changed = it2.Used, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -427,39 +293,16 @@ func PbVolumeStatusSliceSync(ls []*PbVolumeStatus, it2 *PbVolumeStatus) ([]*PbVo
 }
 
 func PbVolumeStatusSliceSyncSlice(ls, ls2 []*PbVolumeStatus) ([]*PbVolumeStatus, bool) {
-	if len(ls2) == 0 {
+	if PbVolumeStatusSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbVolumeStatus.Lock()
-	defer object_slice_mu_PbVolumeStatus.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.MountPath != v2.MountPath {
-				continue
-			}
-			if v.Used != v2.Used {
-				v.Used, changed = v2.Used, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }
 
 var object_slice_mu_PbServicePort sync.RWMutex
 
 func (it *PbServicePort) Equal(it2 *PbServicePort) bool {
 	if it2 == nil ||
-		it.Name != it2.Name ||
 		it.BoxPort != it2.BoxPort ||
 		it.HostPort != it2.HostPort {
 		return false
@@ -471,17 +314,11 @@ func (it *PbServicePort) Sync(it2 *PbServicePort) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.BoxPort != it2.BoxPort {
-		it.BoxPort, changed = it2.BoxPort, true
-	}
-	if it.HostPort != it2.HostPort {
-		it.HostPort, changed = it2.HostPort, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbServicePortSliceGet(ls []*PbServicePort, arg_boxport uint32) *PbServicePort {
@@ -510,7 +347,7 @@ func PbServicePortSliceEqual(ls, ls2 []*PbServicePort) bool {
 			if v.BoxPort != v2.BoxPort {
 				continue
 			}
-			if v.HostPort != v2.HostPort {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -532,15 +369,12 @@ func PbServicePortSliceSync(ls []*PbServicePort, it2 *PbServicePort) ([]*PbServi
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.BoxPort != it2.BoxPort {
 			continue
 		}
-		if v.Name != it2.Name {
-			v.Name, changed = it2.Name, true
-		}
-		if v.HostPort != it2.HostPort {
-			v.HostPort, changed = it2.HostPort, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -553,35 +387,10 @@ func PbServicePortSliceSync(ls []*PbServicePort, it2 *PbServicePort) ([]*PbServi
 }
 
 func PbServicePortSliceSyncSlice(ls, ls2 []*PbServicePort) ([]*PbServicePort, bool) {
-	if len(ls2) == 0 {
+	if PbServicePortSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbServicePort.Lock()
-	defer object_slice_mu_PbServicePort.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.BoxPort != v2.BoxPort {
-				continue
-			}
-			if v.Name != v2.Name {
-				v.Name, changed = v2.Name, true
-			}
-			if v.HostPort != v2.HostPort {
-				v.HostPort, changed = v2.HostPort, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }
 
 var object_slice_mu_PbPodBoxStatusExecutor sync.RWMutex
@@ -602,23 +411,11 @@ func (it *PbPodBoxStatusExecutor) Sync(it2 *PbPodBoxStatusExecutor) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.Phase != it2.Phase {
-		it.Phase, changed = it2.Phase, true
-	}
-	if it.Retry != it2.Retry {
-		it.Retry, changed = it2.Retry, true
-	}
-	if it.ErrorCode != it2.ErrorCode {
-		it.ErrorCode, changed = it2.ErrorCode, true
-	}
-	if it.ErrorMessage != it2.ErrorMessage {
-		it.ErrorMessage, changed = it2.ErrorMessage, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbPodBoxStatusExecutorSliceGet(ls []*PbPodBoxStatusExecutor, arg_name string) *PbPodBoxStatusExecutor {
@@ -647,16 +444,7 @@ func PbPodBoxStatusExecutorSliceEqual(ls, ls2 []*PbPodBoxStatusExecutor) bool {
 			if v.Name != v2.Name {
 				continue
 			}
-			if v.Phase != v2.Phase {
-				return false
-			}
-			if v.Retry != v2.Retry {
-				return false
-			}
-			if v.ErrorCode != v2.ErrorCode {
-				return false
-			}
-			if v.ErrorMessage != v2.ErrorMessage {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -678,21 +466,12 @@ func PbPodBoxStatusExecutorSliceSync(ls []*PbPodBoxStatusExecutor, it2 *PbPodBox
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.Name != it2.Name {
 			continue
 		}
-		if v.Phase != it2.Phase {
-			v.Phase, changed = it2.Phase, true
-		}
-		if v.Retry != it2.Retry {
-			v.Retry, changed = it2.Retry, true
-		}
-		if v.ErrorCode != it2.ErrorCode {
-			v.ErrorCode, changed = it2.ErrorCode, true
-		}
-		if v.ErrorMessage != it2.ErrorMessage {
-			v.ErrorMessage, changed = it2.ErrorMessage, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -705,41 +484,10 @@ func PbPodBoxStatusExecutorSliceSync(ls []*PbPodBoxStatusExecutor, it2 *PbPodBox
 }
 
 func PbPodBoxStatusExecutorSliceSyncSlice(ls, ls2 []*PbPodBoxStatusExecutor) ([]*PbPodBoxStatusExecutor, bool) {
-	if len(ls2) == 0 {
+	if PbPodBoxStatusExecutorSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbPodBoxStatusExecutor.Lock()
-	defer object_slice_mu_PbPodBoxStatusExecutor.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.Name != v2.Name {
-				continue
-			}
-			if v.Phase != v2.Phase {
-				v.Phase, changed = v2.Phase, true
-			}
-			if v.Retry != v2.Retry {
-				v.Retry, changed = v2.Retry, true
-			}
-			if v.ErrorCode != v2.ErrorCode {
-				v.ErrorCode, changed = v2.ErrorCode, true
-			}
-			if v.ErrorMessage != v2.ErrorMessage {
-				v.ErrorMessage, changed = v2.ErrorMessage, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }
 
 var object_slice_mu_PbPodBoxStatus sync.RWMutex
@@ -767,44 +515,11 @@ func (it *PbPodBoxStatus) Sync(it2 *PbPodBoxStatus) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.ImageDriver != it2.ImageDriver {
-		it.ImageDriver, changed = it2.ImageDriver, true
-	}
-	if rs, ok := LabelSliceSyncSlice(it.ImageOptions, it2.ImageOptions); ok {
-		it.ImageOptions, changed = rs, true
-	}
-	if it.ResCpuLimit != it2.ResCpuLimit {
-		it.ResCpuLimit, changed = it2.ResCpuLimit, true
-	}
-	if it.ResMemLimit != it2.ResMemLimit {
-		it.ResMemLimit, changed = it2.ResMemLimit, true
-	}
-	if rs, ok := PbVolumeMountSliceSyncSlice(it.Mounts, it2.Mounts); ok {
-		it.Mounts, changed = rs, true
-	}
-	if rs, ok := PbServicePortSliceSyncSlice(it.Ports, it2.Ports); ok {
-		it.Ports, changed = rs, true
-	}
-	if rs, ok := PbStringSliceSyncSlice(it.Command, it2.Command); ok {
-		it.Command, changed = rs, true
-	}
-	if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(it.Executors, it2.Executors); ok {
-		it.Executors, changed = rs, true
-	}
-	if it.Action != it2.Action {
-		it.Action, changed = it2.Action, true
-	}
-	if it.Started != it2.Started {
-		it.Started, changed = it2.Started, true
-	}
-	if it.Updated != it2.Updated {
-		it.Updated, changed = it2.Updated, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func PbPodBoxStatusSliceGet(ls []*PbPodBoxStatus, arg_name string) *PbPodBoxStatus {
@@ -833,37 +548,7 @@ func PbPodBoxStatusSliceEqual(ls, ls2 []*PbPodBoxStatus) bool {
 			if v.Name != v2.Name {
 				continue
 			}
-			if v.ImageDriver != v2.ImageDriver {
-				return false
-			}
-			if !LabelSliceEqual(v.ImageOptions, v2.ImageOptions) {
-				return false
-			}
-			if v.ResCpuLimit != v2.ResCpuLimit {
-				return false
-			}
-			if v.ResMemLimit != v2.ResMemLimit {
-				return false
-			}
-			if !PbVolumeMountSliceEqual(v.Mounts, v2.Mounts) {
-				return false
-			}
-			if !PbServicePortSliceEqual(v.Ports, v2.Ports) {
-				return false
-			}
-			if !PbStringSliceEqual(v.Command, v2.Command) {
-				return false
-			}
-			if !PbPodBoxStatusExecutorSliceEqual(v.Executors, v2.Executors) {
-				return false
-			}
-			if v.Action != v2.Action {
-				return false
-			}
-			if v.Started != v2.Started {
-				return false
-			}
-			if v.Updated != v2.Updated {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -885,42 +570,12 @@ func PbPodBoxStatusSliceSync(ls []*PbPodBoxStatus, it2 *PbPodBoxStatus) ([]*PbPo
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.Name != it2.Name {
 			continue
 		}
-		if v.ImageDriver != it2.ImageDriver {
-			v.ImageDriver, changed = it2.ImageDriver, true
-		}
-		if rs, ok := LabelSliceSyncSlice(v.ImageOptions, it2.ImageOptions); ok {
-			v.ImageOptions, changed = rs, true
-		}
-		if v.ResCpuLimit != it2.ResCpuLimit {
-			v.ResCpuLimit, changed = it2.ResCpuLimit, true
-		}
-		if v.ResMemLimit != it2.ResMemLimit {
-			v.ResMemLimit, changed = it2.ResMemLimit, true
-		}
-		if rs, ok := PbVolumeMountSliceSyncSlice(v.Mounts, it2.Mounts); ok {
-			v.Mounts, changed = rs, true
-		}
-		if rs, ok := PbServicePortSliceSyncSlice(v.Ports, it2.Ports); ok {
-			v.Ports, changed = rs, true
-		}
-		if rs, ok := PbStringSliceSyncSlice(v.Command, it2.Command); ok {
-			v.Command, changed = rs, true
-		}
-		if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(v.Executors, it2.Executors); ok {
-			v.Executors, changed = rs, true
-		}
-		if v.Action != it2.Action {
-			v.Action, changed = it2.Action, true
-		}
-		if v.Started != it2.Started {
-			v.Started, changed = it2.Started, true
-		}
-		if v.Updated != it2.Updated {
-			v.Updated, changed = it2.Updated, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -933,60 +588,8 @@ func PbPodBoxStatusSliceSync(ls []*PbPodBoxStatus, it2 *PbPodBoxStatus) ([]*PbPo
 }
 
 func PbPodBoxStatusSliceSyncSlice(ls, ls2 []*PbPodBoxStatus) ([]*PbPodBoxStatus, bool) {
-	if len(ls2) == 0 {
+	if PbPodBoxStatusSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_PbPodBoxStatus.Lock()
-	defer object_slice_mu_PbPodBoxStatus.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.Name != v2.Name {
-				continue
-			}
-			if v.ImageDriver != v2.ImageDriver {
-				v.ImageDriver, changed = v2.ImageDriver, true
-			}
-			if rs, ok := LabelSliceSyncSlice(v.ImageOptions, v2.ImageOptions); ok {
-				v.ImageOptions, changed = rs, true
-			}
-			if v.ResCpuLimit != v2.ResCpuLimit {
-				v.ResCpuLimit, changed = v2.ResCpuLimit, true
-			}
-			if v.ResMemLimit != v2.ResMemLimit {
-				v.ResMemLimit, changed = v2.ResMemLimit, true
-			}
-			if rs, ok := PbVolumeMountSliceSyncSlice(v.Mounts, v2.Mounts); ok {
-				v.Mounts, changed = rs, true
-			}
-			if rs, ok := PbServicePortSliceSyncSlice(v.Ports, v2.Ports); ok {
-				v.Ports, changed = rs, true
-			}
-			if rs, ok := PbStringSliceSyncSlice(v.Command, v2.Command); ok {
-				v.Command, changed = rs, true
-			}
-			if rs, ok := PbPodBoxStatusExecutorSliceSyncSlice(v.Executors, v2.Executors); ok {
-				v.Executors, changed = rs, true
-			}
-			if v.Action != v2.Action {
-				v.Action, changed = v2.Action, true
-			}
-			if v.Started != v2.Started {
-				v.Started, changed = v2.Started, true
-			}
-			if v.Updated != v2.Updated {
-				v.Updated, changed = v2.Updated, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }

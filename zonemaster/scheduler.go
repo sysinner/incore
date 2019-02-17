@@ -125,7 +125,9 @@ func schedPodListRefresh() error {
 
 	//
 	var (
-		tn = uint32(time.Now().Unix())
+		tn            = uint32(time.Now().Unix())
+		chg           = false
+		podServiceChg = false
 	)
 
 	// local zone scheduled pods
@@ -191,6 +193,7 @@ func schedPodListRefresh() error {
 		}
 
 		specRes := pod.Spec.ResComputeBound()
+
 		for _, rp := range pod.Operate.Replicas {
 
 			if rp.Node == "" {
@@ -214,12 +217,92 @@ func schedPodListRefresh() error {
 			}
 
 			for _, rpp := range rp.Ports {
-				if rpp.HostPort > 0 {
-					hostRes.ports.Set(uint32(rpp.HostPort))
+
+				if rpp.HostPort == 0 {
+					continue
+				}
+
+				hostRes.ports.Set(uint32(rpp.HostPort))
+			}
+		}
+
+		// refresh pod's service endpoints
+		zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, pod.Meta.ID)
+		if zmPodService == nil {
+			zmPodService = &inapi.AppServicePod{
+				PodId:   pod.Meta.ID,
+				Updated: inapi.TimeNowMs(),
+			}
+			status.ZonePodServices.Items, _ = inapi.AppServicePodSliceSync(status.ZonePodServices.Items, zmPodService)
+			hlog.Printf("info", "zm/pod %s, service init", pod.Meta.ID)
+			podServiceChg = true
+		}
+		//
+		for _, app := range pod.Apps {
+
+			for _, appSpecPort := range app.Spec.ServicePorts {
+
+				appSpecId := app.Spec.Meta.ID
+				if appSpecPort.AppSpec != "" {
+					appSpecId = appSpecPort.AppSpec
+				}
+
+				asp := inapi.AppServicePortSliceGet(zmPodService.Ports, uint32(appSpecPort.BoxPort))
+				if asp == nil {
+					asp = &inapi.AppServicePort{
+						Spec:    appSpecId,
+						Port:    uint32(appSpecPort.BoxPort),
+						Updated: inapi.TimeNowMs(),
+						Name:    appSpecPort.Name,
+					}
+					zmPodService.Ports, _ = inapi.AppServicePortSliceSync(zmPodService.Ports, asp)
+					hlog.Printf("info", "zm/scheduler pod %s, app-spec %s, service-port %d, init",
+						pod.Meta.ID, app.Spec.Meta.ID, appSpecPort.BoxPort)
+					podServiceChg = true
+				}
+				if asp.Name != appSpecPort.Name {
+					asp.Name = appSpecPort.Name
+				}
+
+				for _, rp := range pod.Operate.Replicas {
+
+					if rp.Node == "" {
+						continue
+					}
+
+					repIp := status.ZoneHostIp(rp.Node)
+					if repIp == "" {
+						continue
+					}
+
+					for _, rpp := range rp.Ports {
+
+						if rpp.HostPort == 0 || rpp.BoxPort != appSpecPort.BoxPort {
+							continue
+						}
+
+						aspRep := &inapi.AppServiceReplica{
+							Rep:  rp.RepId,
+							Port: uint32(rpp.HostPort),
+							Ip:   repIp,
+						}
+						if asp.Endpoints, chg = inapi.AppServiceReplicaSliceSync(asp.Endpoints, aspRep); chg {
+							asp.Updated = inapi.TimeNowMs()
+							podServiceChg = true
+							hlog.Printf("info", "zm/scheduler pod %s, rep %d, addr %s:%d app-service-replica refresh",
+								pod.Meta.ID, rp.RepId, aspRep.Ip, aspRep.Port)
+						}
+					}
 				}
 			}
 		}
 	}
+
+	if podServiceChg {
+		status.ZonePodServicesFlush()
+	}
+
+	// inapi.ObjPrint("ns", status.ZonePodServices.Items)
 
 	return nil
 }
@@ -336,7 +419,28 @@ func schedPodListQueue(cellId string) {
 
 			pod.Meta = podq.Meta
 			pod.Spec = podq.Spec
+
+			apps := pod.Apps
+
 			pod.Apps = podq.Apps
+
+			for _, appPrev := range apps {
+
+				if len(appPrev.Operate.Services) == 0 {
+					continue
+				}
+
+				for _, app := range pod.Apps {
+
+					if app.Meta.ID != appPrev.Meta.ID {
+						continue
+					}
+
+					app.Operate.Services = appPrev.Operate.Services
+
+					break
+				}
+			}
 
 			pod.Operate.Action = podq.Operate.Action
 			pod.Operate.Version = podq.Operate.Version
@@ -345,6 +449,7 @@ func schedPodListQueue(cellId string) {
 			pod.Operate.Operated = podq.Operate.Operated
 			pod.Operate.Access = podq.Operate.Access
 			pod.Operate.OpLog = podq.Operate.OpLog
+			pod.Operate.BindServices = podq.Operate.BindServices
 			pod.Operate.ExpSysState = podq.Operate.ExpSysState
 
 			if len(podq.Operate.RepMigrates) > 0 {
@@ -402,7 +507,7 @@ func schedPodListBound() {
 
 		err := schedPodItem(podq)
 		if err != nil {
-			hlog.Print("error", "Scheduler Pod %s, ER %s", podq.Meta.ID, err.Error())
+			hlog.Printf("error", "Scheduler Pod %s, ER %s", podq.Meta.ID, err.Error())
 		}
 
 		if len(podq.Operate.OpLog) > 0 {
@@ -413,7 +518,7 @@ func schedPodListBound() {
 
 			err = schedPodMigrate(podq)
 			if err != nil {
-				hlog.Print("error", "Scheduler Pod/Migrate %s, ER %s", podq.Meta.ID, err.Error())
+				hlog.Printf("error", "Scheduler Pod/Migrate %s, ER %s", podq.Meta.ID, err.Error())
 			}
 		}
 
@@ -436,6 +541,159 @@ func schedPodItem(podq *inapi.Pod) error {
 	specVol := podq.Spec.Volume("system")
 	if specVol == nil {
 		return errors.New("No Spec/Volume(system) Found")
+	}
+
+	for _, app := range podq.Apps {
+
+		var ports types.ArrayUint32
+
+		for _, appOpt := range app.Operate.Options {
+
+			if appOpt.Ref == nil ||
+				appOpt.Ref.PodId == "" ||
+				(len(appOpt.Ref.Ports) == 0 && len(app.Operate.Services) == 0) {
+				continue
+			}
+
+			zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, appOpt.Ref.PodId)
+			if zmPodService == nil {
+				continue
+			}
+
+			for _, appOptPort := range appOpt.Ref.Ports {
+
+				srvPort := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(appOptPort.BoxPort))
+				if srvPort == nil {
+
+					hlog.Printf("info", "pod %s, app/ref-spec %s, port %d, service port init",
+						podq.Meta.ID, appOpt.Ref.SpecId, appOptPort.BoxPort)
+
+					app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, &inapi.AppServicePort{
+						Spec: appOpt.Ref.SpecId,
+						Port: uint32(appOptPort.BoxPort),
+						Name: appOptPort.Name,
+					})
+
+				} else if srvPort.Name != appOptPort.Name {
+					srvPort.Name = appOptPort.Name
+				}
+
+				ports.Set(uint32(appOptPort.BoxPort))
+			}
+
+			//
+			for _, appOpService := range app.Operate.Services {
+
+				srvPort := inapi.AppServicePortSliceGet(zmPodService.Ports, appOpService.Port)
+				if srvPort == nil || srvPort.Updated <= appOpService.Updated {
+					continue
+				}
+
+				// inapi.ObjPrint("name 1", appOpService)
+
+				chg := false
+				if appOpService.Endpoints, chg = inapi.AppServiceReplicaSliceSyncSlice(appOpService.Endpoints, srvPort.Endpoints); chg {
+					hlog.Printf("info", "pod %s, app %s, port %d, service endpoints refreshed ",
+						podq.Meta.ID, app.Meta.ID, appOpService.Port)
+				}
+				appOpService.Updated = srvPort.Updated
+			}
+		}
+
+		//
+		zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, podq.Meta.ID)
+		if zmPodService == nil {
+			continue
+		}
+
+		//
+		for _, appSpecServicePort := range app.Spec.ServicePorts {
+
+			if ports.Has(uint32(appSpecServicePort.BoxPort)) {
+				continue
+			}
+
+			appSpecId := appSpecServicePort.AppSpec
+			if appSpecId == "" {
+				appSpecId = app.Spec.Meta.ID
+			}
+
+			srvPort := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(appSpecServicePort.BoxPort))
+			if srvPort == nil {
+
+				hlog.Printf("info", "pod %s, app/depend-spec %s, port %d, service port init",
+					podq.Meta.ID, appSpecId, appSpecServicePort.BoxPort)
+
+				srvPort = &inapi.AppServicePort{
+					Spec: appSpecId,
+					Port: uint32(appSpecServicePort.BoxPort),
+					Name: appSpecServicePort.Name,
+				}
+
+				app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, srvPort)
+
+			} else {
+
+				if srvPort.Name != appSpecServicePort.Name {
+					srvPort.Name = appSpecServicePort.Name
+				}
+
+				if srvPort.Spec != appSpecId {
+					srvPort.Spec = appSpecId
+				}
+			}
+		}
+
+		//
+		for _, appOpService := range app.Operate.Services {
+
+			srvPort := inapi.AppServicePortSliceGet(zmPodService.Ports, appOpService.Port)
+			if srvPort == nil || srvPort.Updated <= appOpService.Updated {
+				continue
+			}
+
+			// inapi.ObjPrint("name 1", appOpService)
+			// inapi.ObjPrint("name 2", srvPort)
+
+			chg := false
+			if appOpService.Endpoints, chg = inapi.AppServiceReplicaSliceSyncSlice(appOpService.Endpoints, srvPort.Endpoints); chg {
+				hlog.Printf("info", "pod %s, app %s, port %d, service endpoints refreshed ",
+					podq.Meta.ID, app.Meta.ID, appOpService.Port)
+			}
+			appOpService.Updated = srvPort.Updated
+		}
+
+		for _, appBindService := range app.Operate.BindServices {
+
+			srvPort := inapi.AppServicePortPodBindSliceGet(podq.Operate.BindServices,
+				appBindService.Port, appBindService.PodId)
+			if srvPort == nil {
+				podq.Operate.BindServices, _ = inapi.AppServicePortPodBindSliceSync(podq.Operate.BindServices, &inapi.AppServicePortPodBind{
+					Port:  appBindService.Port,
+					PodId: appBindService.PodId,
+				})
+			}
+		}
+	}
+
+	for _, v := range podq.Operate.BindServices {
+
+		zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, v.PodId)
+		if zmPodService == nil {
+			continue
+		}
+
+		srvPort := inapi.AppServicePortSliceGet(zmPodService.Ports, v.Port)
+		if srvPort == nil {
+			continue
+		}
+
+		if v.Updated >= srvPort.Updated {
+			continue
+		}
+
+		v.Endpoints = srvPort.Endpoints
+		v.Updated = srvPort.Updated
 	}
 
 	if podq.OpResScheduleFit() {
@@ -1043,56 +1301,6 @@ func schedPodRepNetPortAlloc(
 
 		} else {
 			hlog.Printf("warn", "zm host %s res-port out range", host.Meta.Id)
-		}
-	}
-
-	//
-	if len(ports) > 0 {
-
-		var nsz inapi.NsPodServiceMap
-
-		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodServiceMap(podq.Meta.ID)); rs.OK() {
-			rs.Decode(&nsz)
-		}
-
-		if nsz.User == "" {
-			nsz.User = podq.Meta.User
-		}
-		if nsz.Id == "" {
-			nsz.Id = podq.Meta.ID
-		}
-
-		changed := false
-
-		for _, popv := range ports {
-
-			if nsz.Sync(&inapi.NsPodServiceMap{
-				Id:   podq.Meta.ID,
-				User: podq.Meta.User,
-				Services: []*inapi.NsPodServiceEntry{
-					{
-						Port: uint32(popv.BoxPort),
-						Items: []*inapi.NsPodServiceHost{
-							{
-								Rep:  uint32(opRep.RepId),
-								Ip:   hostPeerLan.IP(),
-								Port: uint32(popv.HostPort),
-							},
-						},
-					},
-				},
-			}) {
-				changed = true
-			}
-
-			// } popv.BoxPort, opRep.RepId, hostPeerLan.IP(), popv.HostPort) {
-			// 	changed = true
-			// }
-		}
-
-		if changed {
-			nsz.Updated = uint64(types.MetaTimeNow())
-			data.ZoneMaster.PvPut(inapi.NsZonePodServiceMap(podq.Meta.ID), nsz, nil)
 		}
 	}
 

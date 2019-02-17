@@ -168,10 +168,6 @@ func NsZonePodStatus(zone_id, pod_id string) string {
 	return fmt.Sprintf("/inz/%s/pst/%s", zone_id, pod_id)
 }
 
-func NsZonePodServiceMap(pod_id string) string {
-	return fmt.Sprintf("/inz/ns/ps/%s", pod_id)
-}
-
 func NsLocalCacheBoundPod(pod_id string, repId uint32) string {
 	if len(pod_id) < 8 {
 		return fmt.Sprintf("/inl/c/bp")

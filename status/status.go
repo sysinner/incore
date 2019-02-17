@@ -16,9 +16,12 @@ package status
 
 import (
 	"errors"
+	"strings"
 	"time"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
+	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/config"
@@ -38,15 +41,17 @@ var (
 	LocalZoneMasterList inapi.ResZoneMasterList
 
 	// local zone
-	ZoneId                    string
-	Zone                      *inapi.ResZone
-	ZoneMasterList            inapi.ResZoneMasterList
-	ZoneHostList              inapi.ResHostList
-	ZoneHostListImported      = false
-	ZoneHostSecretKeys        types.KvPairs
-	ZonePodList               = inapi.PodList{}
-	ZonePodStatusList         = inapi.PodStatusList{}
-	ZonePodServiceMaps        = []*inapi.NsPodServiceMap{}
+	ZoneId               string
+	Zone                 *inapi.ResZone
+	ZoneMasterList       inapi.ResZoneMasterList
+	ZoneHostList         inapi.ResHostList
+	ZoneHostListImported = false
+	ZoneHostSecretKeys   types.KvPairs
+	ZonePodList          = inapi.PodList{}
+	ZonePodStatusList    = inapi.PodStatusList{}
+	ZonePodServices      struct {
+		Items []*inapi.AppServicePod `json:"items"`
+	}
 	zonePodChargeIamAccessKey = iamapi.AccessKey{
 		User: "sysadmin",
 	}
@@ -120,13 +125,33 @@ func Init() error {
 
 	ZoneId = config.Config.Host.ZoneId
 
+	if config.IsZoneMaster() {
+		json.DecodeFile(config.Prefix+"/etc/zm-pod-services.json", &ZonePodServices)
+		hlog.Printf("info", "status/zone/pod/service refreshed %d", len(ZonePodServices.Items))
+	}
+
 	inited = true
 
 	return nil
 }
 
+func ZonePodServicesFlush() {
+	json.EncodeToFile(ZonePodServices, config.Prefix+"/etc/zm-pod-services.json", "  ")
+}
+
 func HostletReady() bool {
 	return inited
+}
+
+func ZoneHostIp(hostId string) string {
+	if host := ZoneHostList.Item(hostId); host != nil {
+		lanAddr := host.Spec.PeerLanAddr
+		if i := strings.IndexByte(lanAddr, ':'); i > 0 {
+
+			return lanAddr[:i]
+		}
+	}
+	return ""
 }
 
 /*

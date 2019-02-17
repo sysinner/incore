@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -62,6 +63,13 @@ var (
 func ObjPrint(name string, v interface{}) {
 	js, _ := json.Encode(v, "  ")
 	fmt.Println("\n", name, string(js))
+}
+
+func VolPodPath(podId string, repId uint32, path string) string {
+	return filepath.Clean(fmt.Sprintf(PodVolSysFmt,
+		config.Config.PodHomeDir,
+		inapi.NsZonePodOpRepKey(podId, repId),
+	) + "/" + path)
 }
 
 func VolPodHomeDir(podId string, repId uint32) string {
@@ -150,6 +158,7 @@ type BoxInstance struct {
 	Env           []inapi.EnvVar
 	Status        inapi.PbPodBoxStatus
 	Stats         *inapi.PbStatsSampleFeed
+	SysVolSynced  int64
 }
 
 func BoxInstanceName(podId string, repId uint32) string {
@@ -327,16 +336,10 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 			ReadOnly:  false,
 		},
 		{
-			Name:      "hosts",
-			MountPath: "/etc/hosts",
-			HostDir:   "/etc/hosts",
-			ReadOnly:  true,
-		},
-		{
-			Name:      "sysinner/nsz",
-			MountPath: "/dev/shm/sysinner/nsz",
-			HostDir:   "/dev/shm/sysinner/nsz",
-			ReadOnly:  true,
+			Name:      "opt",
+			MountPath: "/opt",
+			HostDir:   VolPodPath(inst.PodID, inst.Replica.RepId, "/opt"),
+			ReadOnly:  false,
 		},
 	}
 

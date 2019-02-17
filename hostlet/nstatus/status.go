@@ -9,8 +9,10 @@ import (
 
 var (
 	PodRepActives inapi.PodRepItems
-	PodRepOpLogs  inapi.OpLogList
-	BoxActives    napi.BoxInstanceSets
 	PodRepRemoves types.ArrayString
 	PodRepStops   types.ArrayString
+)
+var (
+	BoxActives   napi.BoxInstanceSets
+	PodRepOpLogs inapi.OpLogList
 )

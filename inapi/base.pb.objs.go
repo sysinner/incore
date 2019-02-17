@@ -21,14 +21,11 @@ func (it *Label) Sync(it2 *Label) bool {
 	if it2 == nil {
 		return false
 	}
-	changed := false
-	if it.Name != it2.Name {
-		it.Name, changed = it2.Name, true
+	if it.Equal(it2) {
+		return false
 	}
-	if it.Value != it2.Value {
-		it.Value, changed = it2.Value, true
-	}
-	return changed
+	*it = *it2
+	return true
 }
 
 func LabelSliceGet(ls []*Label, arg_name string) *Label {
@@ -57,7 +54,7 @@ func LabelSliceEqual(ls, ls2 []*Label) bool {
 			if v.Name != v2.Name {
 				continue
 			}
-			if v.Value != v2.Value {
+			if !v.Equal(v2) {
 				return false
 			}
 			hit = true
@@ -79,12 +76,12 @@ func LabelSliceSync(ls []*Label, it2 *Label) ([]*Label, bool) {
 
 	hit := false
 	changed := false
-	for _, v := range ls {
+	for i, v := range ls {
 		if v.Name != it2.Name {
 			continue
 		}
-		if v.Value != it2.Value {
-			v.Value, changed = it2.Value, true
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
 		}
 		hit = true
 		break
@@ -97,30 +94,8 @@ func LabelSliceSync(ls []*Label, it2 *Label) ([]*Label, bool) {
 }
 
 func LabelSliceSyncSlice(ls, ls2 []*Label) ([]*Label, bool) {
-	if len(ls2) == 0 {
+	if LabelSliceEqual(ls, ls2) {
 		return ls, false
 	}
-	object_slice_mu_Label.Lock()
-	defer object_slice_mu_Label.Unlock()
-
-	hit := false
-	changed := false
-	for _, v2 := range ls2 {
-		hit = false
-		for _, v := range ls {
-			if v.Name != v2.Name {
-				continue
-			}
-			if v.Value != v2.Value {
-				v.Value, changed = v2.Value, true
-			}
-			hit = true
-			break
-		}
-		if !hit {
-			ls = append(ls, v2)
-			changed = true
-		}
-	}
-	return ls, changed
+	return ls2, true
 }

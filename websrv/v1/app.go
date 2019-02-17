@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -107,9 +108,8 @@ func (c App) ListAction() {
 			continue
 		}
 
-		if c.Params.Get("operate_option") != "" {
-
-			if opt := inst.Operate.Options.Get(c.Params.Get("operate_option")); opt == nil || opt.Ref != nil {
+		if c.Params.Get("spec_id") != "" {
+			if inst.Spec.Meta.ID != c.Params.Get("spec_id") {
 				continue
 			}
 		}
@@ -178,10 +178,10 @@ func (c App) ListAction() {
 				}
 			}
 
-			ls.Items = append(ls.Items, instf)
+			ls.Items = append(ls.Items, &instf)
 
 		} else {
-			ls.Items = append(ls.Items, inst)
+			ls.Items = append(ls.Items, &inst)
 		}
 	}
 
@@ -195,7 +195,7 @@ func (c App) EntryAction() {
 		rs.Decode(&app)
 	}
 
-	app_operate_option_render(&app, true)
+	appOpOptRender(&app, true)
 
 	if app.Meta.ID == "" || !c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		c.RenderJson(types.NewTypeErrorMeta(inapi.ErrCodeObjectNotFound, "App Not Found"))
@@ -314,12 +314,12 @@ func (c App) SetAction() {
 			return
 		}
 
-		if err := app_pod_conflict_check(&pod, &prev); err != nil {
+		if err := appPodConflictCheck(&pod, &prev); err != nil {
 			rsp.Error = types.NewErrorMeta("400", err.Error())
 			return
 		}
 
-		if err := app_pod_res_check(&pod, &prev.Spec.ExpRes); err != nil {
+		if err := appPodResCheck(&pod, &prev.Spec.ExpRes); err != nil {
 			rsp.Error = types.NewErrorMeta("400", err.Error()+", try to select another pod to deploy this application")
 			return
 		}
@@ -351,7 +351,7 @@ func (c App) SetAction() {
 	rsp.Kind = "App"
 }
 
-func app_pod_res_check(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) error {
+func appPodResCheck(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) error {
 
 	if pod.Spec == nil {
 		return errors.New("this pod currently unavailable")
@@ -378,7 +378,7 @@ func app_pod_res_check(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirement
 	return nil
 }
 
-func app_pod_conflict_check(pod *inapi.Pod, app *inapi.AppInstance) error {
+func appPodConflictCheck(pod *inapi.Pod, app *inapi.AppInstance) error {
 
 	for _, v := range pod.Apps {
 
@@ -481,7 +481,7 @@ func (c App) ListOpResAction() {
 		if inst.Meta.User == c.us.UserName ||
 			inst.Operate.ResBoundRoles.MatchAny(c.us.Roles) {
 
-			ls.Items = append(ls.Items, inapi.AppInstance{
+			ls.Items = append(ls.Items, &inapi.AppInstance{
 				Meta: inst.Meta,
 				Spec: inapi.AppSpec{
 					Meta: types.InnerObjectMeta{
@@ -591,9 +591,9 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 		return types.NewErrorMeta("404", "No Pod Found")
 	}
 
-	app_operate_option_render(&app, false)
+	appOpOptRender(&app, false)
 
-	pod.Apps.Sync(app)
+	pod.Apps.Sync(&app)
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
@@ -668,9 +668,34 @@ func (c App) OpResSetAction() {
 		Updated: uint64(types.MetaTimeNow()),
 	}
 	for _, v := range res.Bounds {
-		if v.Action == 1 {
-			opt.Items.Set(v.Name, v.Value)
+		if v.Action != 1 {
+			continue
 		}
+		opt.Items.Set(v.Name, v.Value)
+
+		//
+		if !strings.HasPrefix(v.Value, "pod:") {
+			continue
+		}
+
+		ar := strings.Split(v.Value, ":")
+		if len(ar) != 3 {
+			continue
+		}
+
+		if !inapi.PodIdReg.MatchString(ar[1]) {
+			continue
+		}
+
+		port, _ := strconv.Atoi(ar[2])
+		if port < 1 || port > 65535 {
+			continue
+		}
+
+		app.Operate.BindServices, _ = inapi.AppServicePortSliceSync(app.Operate.BindServices, &inapi.AppServicePort{
+			Port:  uint32(port),
+			PodId: ar[1],
+		})
 	}
 
 	if app.Operate.Options.Set(opt) {
@@ -741,12 +766,13 @@ func (c App) ConfigAction() {
 		return
 	}
 
-	var app_configurator *inapi.AppConfigurator
+	var appConfigurator *inapi.AppConfigurator
 
 	if app.Spec.Configurator != nil &&
 		app.Spec.Configurator.Name == set.Option.Name {
-		app_configurator = app.Spec.Configurator
+		appConfigurator = app.Spec.Configurator
 	} else {
+
 		for _, v := range app.Spec.Depends {
 
 			if v.Id != set.SpecId {
@@ -763,32 +789,32 @@ func (c App) ConfigAction() {
 				}
 			}
 			if app_spec.Configurator != nil && len(app_spec.Configurator.Fields) > 0 {
-				app_configurator = app_spec.Configurator
+				appConfigurator = app_spec.Configurator
 			}
 
 			break
 		}
 	}
 
-	if app_configurator == nil {
+	if appConfigurator == nil {
 		rsp.Kind = "AppInstConfig"
 		return
 	}
 
-	if set.Option.Name != app_configurator.Name {
+	if set.Option.Name != appConfigurator.Name {
 		rsp.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
 
-	app_op_opt := app.Operate.Options.Get(string(set.Option.Name))
-	if app_op_opt == nil {
-		app_op_opt = &inapi.AppOption{}
+	appOpOpt := app.Operate.Options.Get(string(set.Option.Name))
+	if appOpOpt == nil {
+		appOpOpt = &inapi.AppOption{}
 	}
 	set_opt := inapi.AppOption{
 		Name: set.Option.Name,
 	}
 
-	for _, field := range app_configurator.Fields {
+	for _, field := range appConfigurator.Fields {
 
 		var (
 			value      = ""
@@ -797,7 +823,7 @@ func (c App) ConfigAction() {
 		if v, ok := set.Option.Items.Get(field.Name); ok {
 			value = v.String()
 		}
-		if v, ok := app_op_opt.Items.Get(field.Name); ok {
+		if v, ok := appOpOpt.Items.Get(field.Name); ok {
 			value_prev = v.String()
 		}
 
@@ -844,91 +870,108 @@ func (c App) ConfigAction() {
 			}
 		}
 
-		if len(value) < 1 {
-			continue
+		if len(value) > 0 {
+			set_opt.Items.Set(field.Name, value)
 		}
+	}
 
-		if field.Type == inapi.AppConfigFieldTypeAppOpBound {
+	if len(set.DepRemotes) > 0 && len(app.Spec.DepRemotes) > 0 {
 
-			if len(value) < 12 {
-				rsp.Error = types.NewErrorMeta("400", "No AppConfigBound Found")
+		for _, v := range set.DepRemotes {
+
+			//
+			depRemote := inapi.AppSpecDependSliceGet(app.Spec.DepRemotes, v.SpecId)
+			if depRemote == nil {
+				rsp.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("No AppSpec:%s Found", v.SpecId))
 				return
 			}
 
-			var app_ref inapi.AppInstance
-			if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(value)); rs.OK() {
-				rs.Decode(&app_ref)
+			//
+			var refApp inapi.AppInstance
+			if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(v.AppId)); rs.OK() {
+				rs.Decode(&refApp)
 			}
-			if app_ref.Meta.ID != value {
-				rsp.Error = types.NewErrorMeta("400", "No AppConfigBound Found")
+			if refApp.Meta.ID != v.AppId {
+				rsp.Error = types.NewErrorMeta("400",
+					fmt.Sprintf("No AppInstance %s Found", v.AppId))
 				return
 			}
-			if !c.owner_or_sysadmin_allow(app_ref.Meta.User, "sysinner.admin") {
+			if !c.owner_or_sysadmin_allow(refApp.Meta.User, "sysinner.admin") {
 				rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
 				return
 			}
-			if len(app_ref.Operate.PodId) < 16 {
-				rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectPending, "App in pennding")
+			if len(refApp.Operate.PodId) < 16 {
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectPending,
+					fmt.Sprintf("AppInstance %s is not ready, try again later", v.AppId))
 				return
 			}
 
-			opt_ref := app_ref.Operate.Options.Get(field.Default)
-			if opt_ref == nil {
-				rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound, "OptionRef Not Found")
-				return
-			}
+			//
+			for _, cfgName := range depRemote.Configs {
 
-			if pv, ok := app_op_opt.Items.Get(field.Name); ok && len(pv.String()) >= 12 && pv.String() != value {
+				refAppOpt := refApp.Operate.Options.Get(cfgName)
+				if refAppOpt == nil {
+					rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
+						fmt.Sprintf("AppInstance %s, Option %s Not Found", v.AppId, cfgName))
+					return
+				}
 
-				if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(pv.String())); rs.OK() {
+				optRefCfg := app.Operate.Options.Get(cfgName)
 
-					var app_refp inapi.AppInstance
-					rs.Decode(&app_refp)
+				// clean prev settings
+				if optRefCfg != nil && optRefCfg.Ref != nil && optRefCfg.Ref.AppId != v.AppId {
 
-					if app_refp.Meta.ID == pv.String() {
+					if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(optRefCfg.Ref.AppId)); rs.OK() {
 
-						if app_refp_opt := app_refp.Operate.Options.Get(field.Default); app_refp_opt != nil {
+						var refAppPrev inapi.AppInstance
+						rs.Decode(&refAppPrev)
 
-							app_refp_opt.Subs.Remove(app.Meta.ID)
-							app_refp.Operate.Options.Sync(*app_refp_opt)
+						if refAppPrev.Meta.ID == optRefCfg.Ref.AppId {
 
-							if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app_refp.Meta.ID), app_refp, nil); !rs.OK() {
-								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
-								return
-							}
+							if refAppPrevOpt := refAppPrev.Operate.Options.Get(cfgName); refAppPrevOpt != nil {
 
-							//
-							if value != app.Meta.ID {
-								app.Operate.Options.Del(field.Default)
+								refAppPrevOpt.Subs.Remove(app.Meta.ID)
+								refAppPrev.Operate.Options.Sync(*refAppPrevOpt)
+
+								if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev, nil); !rs.OK() {
+									rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+									return
+								}
 							}
 						}
 					}
 				}
-			}
 
-			if value != app.Meta.ID {
-
-				opt_ref.Subs.Insert(app.Meta.ID)
-				app_ref.Operate.Options.Sync(*opt_ref)
-
-				if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app_ref.Meta.ID), app_ref, nil); !rs.OK() {
+				//
+				refAppOpt.Subs.Insert(app.Meta.ID)
+				refApp.Operate.Options.Sync(*refAppOpt)
+				if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp, nil); !rs.OK() {
 					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 					return
 				}
 
 				//
-				opt_ref.Subs = []string{}
-				opt_ref.Ref = &inapi.AppOptionRef{
-					AppId: app_ref.Meta.ID,
-					PodId: app_ref.Operate.PodId,
-					Ports: app_ref.Spec.ServicePorts,
+				refAppOpt.Subs = []string{}
+				refAppOpt.Ref = &inapi.AppOptionRef{
+					SpecId: depRemote.Id,
+					AppId:  refApp.Meta.ID,
+					PodId:  refApp.Operate.PodId,
+					Ports:  refApp.Spec.ServicePorts, // TORM
 				}
-				app.Operate.Options.Sync(*opt_ref)
+				app.Operate.Options.Sync(*refAppOpt)
 			}
-		}
 
-		if len(value) > 0 {
-			set_opt.Items.Set(field.Name, value)
+			//
+			for _, v := range refApp.Spec.ServicePorts {
+				if srv := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(v.BoxPort)); srv == nil {
+					app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, &inapi.AppServicePort{
+						Spec: refApp.Spec.Meta.ID,
+						Port: uint32(v.BoxPort),
+						Name: v.Name,
+					})
+				}
+			}
 		}
 	}
 
@@ -943,12 +986,13 @@ func (c App) ConfigAction() {
 	rsp.Kind = "AppInstConfig"
 }
 
-var ex_arr = map[string]string{}
+var exArr = map[string]string{}
 
-func app_operate_option_render(app *inapi.AppInstance, spec_render bool) {
-	if len(ex_arr) == 0 {
-		ex_arr["xcs_sysinner_iam_service_url"] = iamclient.ServiceUrl
-		ex_arr["xcs_sysinner_iam_service_url_frontend"] = iamclient.ServiceUrlFrontend
+func appOpOptRender(app *inapi.AppInstance, specRender bool) {
+
+	if len(exArr) == 0 {
+		exArr["xcs_sysinner_iam_service_url"] = iamclient.ServiceUrl
+		exArr["xcs_sysinner_iam_service_url_frontend"] = iamclient.ServiceUrlFrontend
 	}
 
 	for _, v := range app.Operate.Options {
@@ -958,21 +1002,21 @@ func app_operate_option_render(app *inapi.AppInstance, spec_render bool) {
 			}
 			if tpl, err := template.New("s").Parse(v2.Value); err == nil {
 				var dst bytes.Buffer
-				if err := tpl.Execute(&dst, ex_arr); err == nil {
+				if err := tpl.Execute(&dst, exArr); err == nil {
 					v.Items.Set(v2.Name, dst.String())
 				}
 			}
 		}
 	}
 
-	if spec_render && app.Spec.Configurator != nil {
+	if specRender && app.Spec.Configurator != nil {
 		for _, v := range app.Spec.Configurator.Fields {
 			if strings.Index(v.Default, "{{.") < 0 {
 				continue
 			}
 			if tpl, err := template.New("s").Parse(v.Default); err == nil {
 				var dst bytes.Buffer
-				if err := tpl.Execute(&dst, ex_arr); err == nil {
+				if err := tpl.Execute(&dst, exArr); err == nil {
 					v.Default = dst.String()
 				}
 			}

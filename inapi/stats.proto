@@ -18,17 +18,17 @@ package inapi;
 
 message PbStatsSampleFeed {
 	string                      kind  = 1;
-    uint32                      cycle = 2;
+    uint32                      cycle = 2; // struct:object_slice_key
     repeated PbStatsSampleEntry items = 3;
 }
 
 message PbStatsSampleEntry {
-    string                      name  = 1;
+    string                      name  = 1; // struct:object_slice_key
     repeated PbStatsSampleValue items = 2;
 }
 
 message PbStatsSampleValue {
-    uint32 time  = 1;
+    uint32 time  = 1; // struct:object_slice_key
     int64  value = 2;
 }
 

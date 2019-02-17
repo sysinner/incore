@@ -15,25 +15,21 @@
 package confrender
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
-	"text/template"
 
 	"github.com/hooto/hflag4g/hflag"
-	"github.com/lessos/lessgo/encoding/json"
 
-	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inconf"
 	"github.com/sysinner/incore/inutils/filerender"
 )
 
 var (
-	pod_inst_json = "/home/action/.sysinner/pod_instance.json"
-	pod           inapi.PodRep
+	podCfr  *inconf.PodConfigurator
+	appCfr  *inconf.AppConfigurator
+	appSpec = ""
+	err     error
 )
 
 func ActionConfig() error {
@@ -59,17 +55,9 @@ func keyenc(k string) string {
 	return strings.Replace(strings.Replace(k, "/", "__", -1), "-", "_", -1)
 }
 
-func nsz_entry(id string) *inapi.NsPodServiceMap {
-	var nsz inapi.NsPodServiceMap
-	if err := json.DecodeFile("/dev/shm/sysinner/nsz/"+id, &nsz); err != nil {
-		return nil
-	}
-	return &nsz
-}
-
 func cfgRender(src, dst string) error {
 
-	sets := map[string]string{}
+	sets := map[string]interface{}{}
 
 	hflag.Each(func(key, val string) {
 		if strings.HasPrefix(key, "var__") {
@@ -77,27 +65,28 @@ func cfgRender(src, dst string) error {
 		}
 	})
 
-	for _, app := range pod.Apps {
-		for _, op := range app.Operate.Options {
-			for _, item := range op.Items {
-				key := keyenc(fmt.Sprintf("app__%s__option__%s__%s",
-					app.Spec.Meta.ID,
-					op.Name,
-					item.Name,
-				))
-				sets[key] = item.Value
-			}
+	for _, op := range appCfr.App.Operate.Options {
+		for _, item := range op.Items {
+			key := keyenc(fmt.Sprintf("app__%s__option__%s__%s",
+				appCfr.AppSpecId,
+				op.Name,
+				item.Name,
+			))
+			sets[key] = item.Value
 		}
 	}
 
-	if nsz := nsz_entry(pod.Meta.ID); nsz != nil {
-		for _, p := range pod.Replica.Ports {
-			key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
-				p.Name,
-			))
-			sets[key+"host_port"] = fmt.Sprintf("%d", p.HostPort)
-			sets[key+"lan_addr"] = nsz.GetIp(p.BoxPort)
+	for _, p := range appCfr.App.Operate.Services {
+
+		if p.Name == "" || len(p.Endpoints) < 1 {
+			continue
 		}
+
+		key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
+			p.Name,
+		))
+		sets[key+"lan_addr"] = p.Endpoints[0].Ip
+		sets[key+"host_port"] = fmt.Sprintf("%d", p.Endpoints[0].Port)
 	}
 
 	return filerender.Render(src, dst, 0644, sets)
@@ -105,13 +94,17 @@ func cfgRender(src, dst string) error {
 
 func pod_init() error {
 
-	if err := json.DecodeFile(pod_inst_json, &pod); err != nil {
+	if podCfr, err = inconf.NewPodConfigurator(); err != nil {
 		return err
 	}
 
-	if pod.Spec == nil ||
-		pod.Spec.Box.Resources == nil {
-		return errors.New("Not Pod Instance Setup")
+	if v, ok := hflag.ValueOK("app-spec"); ok {
+		appSpec = v.String()
+	}
+
+	appCfr = podCfr.AppConfigurator(appSpec)
+	if appCfr == nil {
+		return errors.New("No AppSpec (" + appSpec + ") Found")
 	}
 
 	return nil

@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -37,7 +36,6 @@ import (
 	"github.com/sysinner/incore/hostlet/ipm"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/inutils"
 	inSts "github.com/sysinner/incore/status"
 )
 
@@ -268,9 +266,9 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 	for _, cm := range boxInspect.Mounts {
 
 		if !strings.HasPrefix(cm.Destination, "/home/action") &&
+			!strings.HasPrefix(cm.Destination, "/opt") &&
 			!strings.HasPrefix(cm.Destination, "/etc/hosts") &&
-			!strings.HasPrefix(cm.Destination, "/usr/sysinner/") &&
-			!strings.HasPrefix(cm.Destination, "/dev/shm/sysinner/nsz") {
+			!strings.HasPrefix(cm.Destination, "/usr/sysinner/") {
 			continue
 		}
 
@@ -515,17 +513,8 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 	//
 	var (
-		dirPodHome = napi.VolPodHomeDir(inst.PodID, inst.Replica.RepId)
-		initSrc    = inCfg.Prefix + "/bin/ininit"
-		initDst    = dirPodHome + "/.sysinner/ininit"
-		agentSrc   = inCfg.Prefix + "/bin/inagent"
-		agentDst   = dirPodHome + "/.sysinner/inagent"
-		bashrcDst  = dirPodHome + "/.bashrc"
-		bashpfDst  = dirPodHome + "/.bash_profile"
-		bashrcSrc  = inCfg.Prefix + "/misc/bash/bashrc"
-		bashpfSrc  = inCfg.Prefix + "/misc/bash/bash_profile"
-		expPorts   = map[string]interface{}{}
-		bindPorts  = map[string][]drvClientTypes.PortBinding{}
+		expPorts  = map[string]interface{}{}
+		bindPorts = map[string][]drvClientTypes.PortBinding{}
 	)
 
 	//
@@ -549,13 +538,6 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 	if inst.ID == "" {
 
 		// hlog.Printf("info", "hostlet/box Create %s", inst.Name)
-
-		//
-		if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", 2048, 2048, 0750); err != nil {
-			hlog.Printf("error", "hostlet/box BOX:%s, FsMakeDir Err:%v", inst.Name, err)
-			inst.StatusActionSet(inapi.OpActionWarning)
-			return err
-		}
 
 		// hlog.Printf("info", "hostlet/box Create %s, homefs:%s", inst.Name, dirPodHome)
 
@@ -609,17 +591,18 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			inst.Name,
 		)
 
-		if err != nil || boxInspect.ID == "" {
+		if err != nil && !strings.Contains(err.Error(), "already existed") {
 			hlog.Printf("info", "hostlet/box Create %s, Err: %v", inst.Name, err)
 			inst.StatusActionSet(inapi.OpActionWarning)
 			return errors.New("BoxCreate Error " + err.Error())
+			//
 		}
 
-		hlog.Printf("info", "hostlet/box Create %s OK", inst.Name)
-
-		// TODO
-		inst.ID = boxInspect.ID
-		inst.StatusActionSet(0)
+		if boxInspect != nil && boxInspect.ID != "" {
+			inst.ID = boxInspect.ID
+			hlog.Printf("info", "hostlet/box Create %s OK", inst.Name)
+			inst.StatusActionSet(0)
+		}
 	}
 
 	if inst.ID != "" &&
@@ -628,18 +611,13 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 		// hlog.Printf("info", "hostlet/box Start %s", inst.Name)
 
-		//
-		exec.Command(binInstall, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
-		exec.Command(binInstall, "-m", "755", "-g", "root", "-o", "root", agentSrc, agentDst).Output()
-		exec.Command(binInstall, bashrcSrc, bashrcDst).Output()
-		exec.Command(binInstall, bashpfSrc, bashpfDst).Output()
-
 		if err := tp.client.ContainerStart(context.Background(), inst.ID, drvClientTypes.ContainerStartOptions{}); err != nil {
 
 			hlog.Printf("error", "hostlet/box Start %s, Error %v", inst.Name, err)
 
-			if strings.Contains(err.Error(), "failed to create container") ||
-				strings.Contains(err.Error(), "not found") {
+			if strings.Contains(err.Error(), "not found") {
+				inst.ID = ""
+			} else if strings.Contains(err.Error(), "failed to create container") {
 
 				if err := tp.client.ContainerRemove(context.Background(), inst.ID, &drvClientTypes.ContainerRemoveOptions{
 					Force: true,

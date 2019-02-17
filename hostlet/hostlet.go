@@ -61,22 +61,7 @@ func Start() error {
 		for {
 			time.Sleep(3e9)
 
-			for _, dv := range boxDrivers.Items {
-				for {
-					sts := dv.StatusEntry()
-					if sts == nil {
-						break
-					}
-					boxStatusSync(sts)
-				}
-				for {
-					sts := dv.StatsEntry()
-					if sts == nil {
-						break
-					}
-					boxStatsSync(sts)
-				}
-			}
+			boxListRefresh()
 
 			if err := zoneMasterSync(); err != nil {
 				hlog.Printf("warn", "hostlet/zm/sync %s", err.Error())
@@ -88,6 +73,34 @@ func Start() error {
 	}()
 
 	hlog.Printf("info", "hostlet started")
+
+	return nil
+}
+
+func boxListRefresh() error {
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "host/driver panic %v", r)
+		}
+	}()
+
+	for _, dv := range boxDrivers.Items {
+		for {
+			sts := dv.StatusEntry()
+			if sts == nil {
+				break
+			}
+			boxStatusSync(sts)
+		}
+		for {
+			sts := dv.StatsEntry()
+			if sts == nil {
+				break
+			}
+			boxStatsSync(sts)
+		}
+	}
 
 	return nil
 }

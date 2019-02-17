@@ -144,7 +144,7 @@ func (c Pod) ListAction() {
 			}
 
 			if exp_filter_app_spec_res.CpuMin > 0 {
-				if err := app_pod_res_check(&pod, &exp_filter_app_spec_res); err != nil {
+				if err := appPodResCheck(&pod, &exp_filter_app_spec_res); err != nil {
 					continue
 				}
 			}
@@ -203,7 +203,7 @@ func (c Pod) ListAction() {
 							afs.Meta.Name = a.Meta.Name
 						}
 
-						podfs.Apps = append(podfs.Apps, afs)
+						podfs.Apps = append(podfs.Apps, &afs)
 					}
 				}
 
@@ -272,21 +272,28 @@ func (c Pod) EntryAction() {
 
 	if zone_id == "" {
 		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(id)); rs.OK() {
-			rs.Decode(&set)
+			if err := rs.Decode(&set); err != nil {
+				set.Error = types.NewErrorMeta("404", "Pod Not Found "+err.Error())
+				return
+			}
 			if set.Meta.ID == "" || !c.owner_or_sysadmin_allow(set.Meta.User, "sysinner.admin") {
 				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
 				return
 			}
 			zone_id = set.Spec.Zone
+		} else {
+			hlog.Printf("info", "pod %s not found", id)
 		}
 	}
 
 	if zone_id != "" {
 
 		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(zone_id, id)); rs.OK() {
-
-			rs.Decode(&set)
+			if err := rs.Decode(&set); err != nil {
+				set.Error = types.NewErrorMeta("404", "Pod Not Found "+err.Error())
+				return
+			}
 			if set.Meta.ID == "" || !c.owner_or_sysadmin_allow(set.Meta.User, "sysinner.admin") {
 				set = inapi.Pod{}
 				set.Error = types.NewErrorMeta("404", "Pod Not Found")
@@ -482,7 +489,7 @@ func (c Pod) NewAction() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
 			if app_spec.Meta.ID == v && app_spec.ExpRes.CpuMin > 0 {
-				if err := app_pod_res_check(&pod, &app_spec.ExpRes); err != nil {
+				if err := appPodResCheck(&pod, &app_spec.ExpRes); err != nil {
 					set.Error = types.NewErrorMeta("400", err.Error())
 					return
 				}
@@ -1086,8 +1093,6 @@ func (c Pod) SpecSetAction() {
 		}
 	}
 
-	// TODO
-	// if len(prev.Spec.Boxes) > 0 {
 	if prev.Spec.Box.Image.Ref != nil {
 		if strings.Index(prev.Spec.Box.Image.Ref.Id, ":") < 1 {
 			prev.Spec.Box.Image.Ref.Id = "sysinner:" + prev.Spec.Box.Image.Ref.Id
@@ -1105,7 +1110,6 @@ func (c Pod) SpecSetAction() {
 			return
 		}
 	}
-	// }
 
 	//
 	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
@@ -1210,7 +1214,7 @@ func (c Pod) SpecSetAction() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
 			if app_spec.Meta.ID == app.Spec.Meta.ID && app_spec.ExpRes.CpuMin > 0 {
-				if err := app_pod_res_check(&prev, &app_spec.ExpRes); err != nil {
+				if err := appPodResCheck(&prev, &app_spec.ExpRes); err != nil {
 					set.Error = types.NewErrorMeta("400", err.Error())
 					return
 				}
@@ -1228,10 +1232,10 @@ func (c Pod) SpecSetAction() {
 
 	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < podActionQueueTimeMin {
+		if prev.Operate.Operated+podActionQueueTimeMin < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
+			return
 		}
-		return
 	}
 
 	prev.Operate.Operated = tn

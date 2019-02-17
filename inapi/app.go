@@ -24,13 +24,13 @@ import (
 )
 
 var (
-	app_op_mu             sync.RWMutex
-	app_op_ref_mu         sync.RWMutex
-	app_spec_cfg_name_re2 = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
-	AppIdRe2              = regexp.MustCompile("^[a-f0-9]{16,24}$")
-	AppSpecIdReg          = regexp.MustCompile("^[a-z]{1}[a-z0-9_-]{2,39}$")
-	AppSpecVcsGitUrlReg   = regexp.MustCompile(`^(https?:\/\/)([\w\-_\.\/]+)(\.git)$`)
-	AppSpecVcsDirReg      = regexp.MustCompile(`^[a-zA-Z0-9\.\/\-_]{1,50}$`)
+	appOpMu             sync.RWMutex
+	appOpRefMu          sync.RWMutex
+	appSpecCfgNameReg   = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
+	AppIdRe2            = regexp.MustCompile("^[a-f0-9]{16,24}$")
+	AppSpecIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9_-]{2,39}$")
+	AppSpecVcsGitUrlReg = regexp.MustCompile(`^(https?:\/\/)([\w\-_\.\/]+)(\.git)$`)
+	AppSpecVcsDirReg    = regexp.MustCompile(`^[a-zA-Z0-9\.\/\-_]{1,50}$`)
 )
 
 type AppPhase string
@@ -62,9 +62,9 @@ type AppInstanceList struct {
 	Items          AppInstances `json:"items,omitempty"`
 }
 
-type AppInstances []AppInstance
+type AppInstances []*AppInstance
 
-func (ls *AppInstances) Sync(app AppInstance) {
+func (ls *AppInstances) Sync(app *AppInstance) {
 
 	for i, v := range *ls {
 
@@ -97,22 +97,11 @@ func (ls *AppInstances) SpecExpDeployIsStateful() bool {
 	return false
 }
 
-type AppSpecDepend struct {
-	Id       string `json:"id,omitempty"`
-	Name     string `json:"name,omitempty"`
-	Version  string `json:"version,omitempty"`
-	Priority uint8  `json:"priority,omitempty"`
-}
-
 func (it *AppSpecDepend) Valid() error {
 	if !AppSpecIdReg.MatchString(it.Id) {
 		return errors.New("Invalid AppSpecDepend.ID")
 	}
 	return nil
-}
-
-func (it *AppSpecDepend) IterKey() string {
-	return it.Id
 }
 
 //
@@ -123,13 +112,14 @@ type AppSpec struct {
 	Roles          types.ArrayUint32            `json:"roles,omitempty"`
 	Vendor         string                       `json:"vendor,omitempty"`
 	Description    string                       `json:"description,omitempty"`
+	Depends        []*AppSpecDepend             `json:"depends,omitempty"`
+	DepRemotes     []*AppSpecDepend             `json:"dep_remotes,omitempty"`
 	Packages       AppPackages                  `json:"packages,omitempty"`
 	VcsRepos       VcsRepoItems                 `json:"vcs_repos,omitempty"`
 	Executors      Executors                    `json:"executors,omitempty"`
 	VolumeMounts   AppVolumeMounts              `json:"volume_mounts,omitempty"`
 	ServicePorts   ServicePorts                 `json:"service_ports,omitempty"`
 	Configurator   *AppConfigurator             `json:"configurator,omitempty"`
-	Depends        []AppSpecDepend              `json:"depends,omitempty"`
 	ExpRes         AppSpecResRequirements       `json:"exp_res,omitempty"`
 	ExpDeploy      AppSpecExpDeployRequirements `json:"exp_deploy,omitempty"`
 }
@@ -255,9 +245,8 @@ type AppConfigurator struct {
 }
 
 const (
-	AppConfigFieldTypeString     uint16 = 1
-	AppConfigFieldTypeSelect     uint16 = 2
-	AppConfigFieldTypeAppOpBound uint16 = 10
+	AppConfigFieldTypeString uint16 = 1
+	AppConfigFieldTypeSelect uint16 = 2
 
 	AppConfigFieldAutoFillDefaultValue = "defval"
 	AppConfigFieldAutoFillHexString_32 = "hexstr_32"
@@ -292,12 +281,19 @@ type AppConfigField struct {
 
 type AppConfigFields []*AppConfigField
 
+type AppConfigDepend struct {
+	Name  types.NameIdentifier `json:"name"`
+	Title string               `json:"title,omitempty"`
+}
+
+type AppConfigDepends []*AppConfigDepend
+
 func (ls *AppConfigFields) Sync(item AppConfigField) {
 
-	app_op_mu.Lock()
-	defer app_op_mu.Unlock()
+	appOpMu.Lock()
+	defer appOpMu.Unlock()
 
-	if !app_spec_cfg_name_re2.MatchString(item.Name) {
+	if !appSpecCfgNameReg.MatchString(item.Name) {
 		return
 	}
 
@@ -314,8 +310,8 @@ func (ls *AppConfigFields) Sync(item AppConfigField) {
 
 func (ls *AppConfigFields) Del(name string) {
 
-	app_op_mu.Lock()
-	defer app_op_mu.Unlock()
+	appOpMu.Lock()
+	defer appOpMu.Unlock()
 
 	for i, v := range *ls {
 
@@ -332,7 +328,16 @@ type AppOperate struct {
 	Zone          string            `json:"zone,omitempty"`
 	PodId         string            `json:"pod_id,omitempty"`
 	Options       AppOptions        `json:"options,omitempty"`
+	Services      []*AppServicePort `json:"services,omitempty"`
+	BindServices  []*AppServicePort `json:"bind_services,omitempty"`
 	ResBoundRoles types.ArrayUint32 `json:"res_bound_roles,omitempty"`
+}
+
+func (it *AppOperate) Service(spec string, port uint32) *AppServicePort {
+	if len(it.Services) > 0 {
+		return AppServicePortSliceGet(it.Services, port)
+	}
+	return nil
 }
 
 type AppOption struct {
@@ -344,12 +349,23 @@ type AppOption struct {
 	Updated uint64               `json:"updated,omitempty"`
 }
 
+func (it *AppOption) ValueOK(name string) (types.Bytex, bool) {
+	return it.Items.Get(name)
+}
+
+func (it *AppOption) Value(name string) types.Bytex {
+	if v, ok := it.Items.Get(name); ok {
+		return v
+	}
+	return types.Bytex{}
+}
+
 type AppOptions []*AppOption
 
 func (ls *AppOptions) Get(name string) *AppOption {
 
-	app_op_mu.RLock()
-	defer app_op_mu.RUnlock()
+	appOpMu.RLock()
+	defer appOpMu.RUnlock()
 
 	for _, v := range *ls {
 
@@ -363,8 +379,8 @@ func (ls *AppOptions) Get(name string) *AppOption {
 
 func (ls *AppOptions) Set(item AppOption) (changed bool) {
 
-	app_op_mu.Lock()
-	defer app_op_mu.Unlock()
+	appOpMu.Lock()
+	defer appOpMu.Unlock()
 
 	for i, v := range *ls {
 
@@ -385,8 +401,8 @@ func (ls *AppOptions) Set(item AppOption) (changed bool) {
 
 func (ls *AppOptions) Sync(item AppOption) (changed bool) {
 
-	app_op_mu.Lock()
-	defer app_op_mu.Unlock()
+	appOpMu.Lock()
+	defer appOpMu.Unlock()
 
 	for _, prev := range *ls {
 
@@ -425,8 +441,8 @@ func (ls *AppOptions) Sync(item AppOption) (changed bool) {
 
 func (ls *AppOptions) Del(name string) {
 
-	app_op_mu.Lock()
-	defer app_op_mu.Unlock()
+	appOpMu.Lock()
+	defer appOpMu.Unlock()
 
 	for i, prev := range *ls {
 
@@ -438,9 +454,11 @@ func (ls *AppOptions) Del(name string) {
 }
 
 type AppOptionRef struct {
-	AppId string       `json:"app_id"`
-	PodId string       `json:"pod_id"`
-	Ports ServicePorts `json:"ports,omitempty"`
+	SpecId  string       `json:"spec_id"`
+	AppId   string       `json:"app_id"`
+	PodId   string       `json:"pod_id"`
+	Ports   ServicePorts `json:"ports,omitempty"`
+	Updated int64        `json:"updated,omitempty"`
 }
 
 func (it *AppOptionRef) Equal(item *AppOptionRef) bool {
@@ -469,8 +487,8 @@ type AppOptionRefs []*AppOptionRef
 
 func (ls *AppOptionRefs) Get(app_id string) *AppOptionRef {
 
-	app_op_ref_mu.RLock()
-	defer app_op_ref_mu.RUnlock()
+	appOpRefMu.RLock()
+	defer appOpRefMu.RUnlock()
 
 	for _, v := range *ls {
 
@@ -484,8 +502,8 @@ func (ls *AppOptionRefs) Get(app_id string) *AppOptionRef {
 
 func (ls *AppOptionRefs) Sync(item AppOptionRef) (changed bool) {
 
-	app_op_ref_mu.Lock()
-	defer app_op_ref_mu.Unlock()
+	appOpRefMu.Lock()
+	defer appOpRefMu.Unlock()
 
 	for _, prev := range *ls {
 
@@ -513,8 +531,8 @@ func (ls *AppOptionRefs) Sync(item AppOptionRef) (changed bool) {
 
 func (ls *AppOptionRefs) Del(app_id string) {
 
-	app_op_ref_mu.Lock()
-	defer app_op_ref_mu.Unlock()
+	appOpRefMu.Lock()
+	defer appOpRefMu.Unlock()
 
 	for i, prev := range *ls {
 
@@ -527,8 +545,8 @@ func (ls *AppOptionRefs) Del(app_id string) {
 
 func (ls *AppOptionRefs) Equal(items AppOptionRefs) bool {
 
-	app_op_ref_mu.Lock()
-	defer app_op_ref_mu.Unlock()
+	appOpRefMu.Lock()
+	defer appOpRefMu.Unlock()
 
 	if len(*ls) != len(items) {
 		return false
@@ -565,9 +583,15 @@ func (ls *AppOptionRefs) Equal(items AppOptionRefs) bool {
 }
 
 type AppConfigSet struct {
-	Id     string    `json:"id"`
-	SpecId string    `json:"spec_id"`
-	Option AppOption `json:"option"`
+	Id         string                           `json:"id"`
+	SpecId     string                           `json:"spec_id"`
+	Option     AppOption                        `json:"option"`
+	DepRemotes []*AppConfigSetAppSpecRemoteBind `json:"dep_remotes,omitempty"`
+}
+
+type AppConfigSetAppSpecRemoteBind struct {
+	SpecId string `json:"spec_id"`
+	AppId  string `json:"app_id"`
 }
 
 type AppStatus struct {
