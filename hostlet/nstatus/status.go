@@ -12,6 +12,7 @@ var (
 	PodRepRemoves types.ArrayString
 	PodRepStops   types.ArrayString
 )
+
 var (
 	BoxActives   napi.BoxInstanceSets
 	PodRepOpLogs inapi.OpLogList

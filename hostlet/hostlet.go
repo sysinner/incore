@@ -21,6 +21,7 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 
 	"github.com/sysinner/incore/hostlet/napi"
+	"github.com/sysinner/incore/hostlet/nstatus"
 
 	"github.com/sysinner/incore/hostlet/box/docker"
 	"github.com/sysinner/incore/hostlet/box/pouch"
@@ -41,6 +42,8 @@ func Start() error {
 		return nil
 	}
 	running = true
+
+	Setup()
 
 	if dr, err := docker.NewDriver(); err == nil {
 		boxDrivers.Items = append(boxDrivers.Items, dr)
@@ -101,6 +104,10 @@ func boxListRefresh() error {
 			boxStatsSync(sts)
 		}
 	}
+
+	nstatus.BoxActives.Fix()
+
+	ConfigFlush()
 
 	return nil
 }

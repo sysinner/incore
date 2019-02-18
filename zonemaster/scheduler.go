@@ -393,7 +393,7 @@ func schedPodListQueue(cellId string) {
 
 			var prev inapi.Pod
 			if err := rs.Decode(&prev); err != nil {
-				hlog.Printf("error", "bad prev podq %s instance", podq.Meta.ID)
+				hlog.Printf("error", "bad prev podq %s instance, err %s", podq.Meta.ID, err.Error())
 				continue
 			}
 

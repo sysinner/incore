@@ -51,6 +51,8 @@ func boxActionRefreshEntry(
 
 		nstatus.BoxActives.Set(inst)
 
+		ConfigFlush()
+
 	} else {
 
 		if pod.Operate.Version > inst.PodOpVersion {
@@ -64,6 +66,8 @@ func boxActionRefreshEntry(
 		if pod.Replica.Updated > inst.Replica.Updated {
 			inst.Replica = pod.Replica
 		}
+
+		nstatus.BoxActives.SpecCpuSetsDesired(inst)
 	}
 
 	// TODO destroy bound apps
@@ -112,6 +116,10 @@ func boxStatusSync(item *napi.BoxInstance) {
 			item.Status.Action = item.Status.Action | inapi.OpActionMigrated
 		}
 
+		if !napi.ArrayInt32Equal(inst.Status.CpuSets, item.Status.CpuSets) {
+			inst.Status.CpuSets = item.Status.CpuSets
+		}
+
 		inst.Status.Sync(&item.Status)
 
 		if inst.Replica.Action != item.Replica.Action && item.Replica.Action > 0 {
@@ -127,7 +135,8 @@ func boxStatusSync(item *napi.BoxInstance) {
 		hlog.Printf("debug", "boxStatusSync %s, action %d", item.Name, item.Status.Action)
 
 	} else {
-		nstatus.BoxActives.Set(item)
+		nstatus.BoxActives.StatusSet(item)
+		ConfigFlush()
 	}
 }
 

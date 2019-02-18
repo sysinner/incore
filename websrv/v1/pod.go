@@ -676,6 +676,8 @@ func (c Pod) SetInfoAction() {
 			set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
 			return
 		}
+	} else {
+		set.Operate.ReplicaCap = prev.Operate.ReplicaCap
 	}
 
 	//

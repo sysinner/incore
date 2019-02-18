@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -146,19 +149,20 @@ type BoxInstance struct {
 	mu            sync.Mutex
 	statusPending bool
 	opPending     bool
-	ID            string
-	Name          string
-	PodID         string
-	PodOpVersion  uint32
-	UpUpdated     uint32
-	Spec          inapi.PodSpecBoxBound
-	Apps          inapi.AppInstances
-	Replica       inapi.PodOperateReplica
-	Retry         int
-	Env           []inapi.EnvVar
-	Status        inapi.PbPodBoxStatus
-	Stats         *inapi.PbStatsSampleFeed
-	SysVolSynced  int64
+	ID            string                   `json:"id"`
+	Name          string                   `json:"name"`
+	PodID         string                   `json:"pod_id"`
+	PodOpVersion  uint32                   `json:"pod_op_version"`
+	UpUpdated     uint32                   `json:"up_updated"`
+	Spec          inapi.PodSpecBoxBound    `json:"spec"`
+	Apps          inapi.AppInstances       `json:"apps"`
+	Replica       inapi.PodOperateReplica  `json:"replica"`
+	Retry         int                      `json:"retry"`
+	Env           []inapi.EnvVar           `json:"env"`
+	Status        inapi.PbPodBoxStatus     `json:"status"`
+	Stats         *inapi.PbStatsSampleFeed `json:"-"`
+	SysVolSynced  int64                    `json:"sys_vol_synced"`
+	SpecCpuSets   []int32                  `json:"spec_cpu_sets"`
 }
 
 func BoxInstanceName(podId string, repId uint32) string {
@@ -314,6 +318,11 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return false
 	}
 
+	if !ArrayInt32Equal(inst.SpecCpuSets, inst.Status.CpuSets) {
+		hlog.Printf("debug", "box/spec miss-desire inst.CpuSets")
+		return false
+	}
+
 	return true
 }
 
@@ -393,9 +402,129 @@ func (inst *BoxInstance) StatusActionSet(op uint32) {
 	}
 }
 
+func (inst *BoxInstance) CpuSets() string {
+	cpus := []string{}
+	ArrayInt32Sort(inst.SpecCpuSets)
+	for _, v := range inst.SpecCpuSets {
+		cpus = append(cpus, strconv.Itoa(int(v)))
+	}
+	return strings.Join(cpus, ",")
+}
+
+type SysCpuUsage struct {
+	Num   int32 `json:"num"`
+	Usage int   `json:"usage"`
+}
+
 var box_sets_mu sync.RWMutex
 
-type BoxInstanceSets []*BoxInstance
+type BoxInstanceSets struct {
+	Items     []*BoxInstance `json:"items"`
+	CpuUsages []*SysCpuUsage `json:"cpu_usages"`
+	CpuCap    int32          `json:"cpu_cap"`
+}
+
+func (ls *BoxInstanceSets) Fix() bool {
+
+	box_sets_mu.Lock()
+	defer box_sets_mu.Unlock()
+
+	chg := false
+
+	if ls.CpuCap != int32(runtime.NumCPU()) {
+
+		ls.CpuUsages = []*SysCpuUsage{}
+		ls.CpuCap = int32(runtime.NumCPU())
+
+		for i := int32(0); i < ls.CpuCap; i++ {
+			ls.CpuUsages = append(ls.CpuUsages, &SysCpuUsage{
+				Num:   i,
+				Usage: 0,
+			})
+		}
+	}
+
+	//
+	cpuUsages := map[int32]int{}
+	for i := int32(0); i < ls.CpuCap; i++ {
+		cpuUsages[i] = 0
+	}
+
+	for _, inst := range ls.Items {
+
+		if inst.Spec.Resources == nil {
+			continue
+		}
+
+		for _, v := range inst.SpecCpuSets {
+			cpuUsages[v] += int(inst.Spec.Resources.CpuLimit)
+		}
+	}
+
+	for k, v := range cpuUsages {
+		for _, v2 := range ls.CpuUsages {
+			if k == v2.Num && v != v2.Usage {
+				v2.Usage, chg = v, true
+				break
+			}
+		}
+	}
+
+	return chg
+}
+
+func (ls *BoxInstanceSets) cpuSort() {
+
+	if ls.CpuCap != int32(runtime.NumCPU()) {
+		ls.CpuUsages = []*SysCpuUsage{}
+		ls.CpuCap = int32(runtime.NumCPU())
+	}
+
+	if len(ls.CpuUsages) < 1 {
+
+		for i := int32(0); i < ls.CpuCap; i++ {
+			ls.CpuUsages = append(ls.CpuUsages, &SysCpuUsage{
+				Num:   i,
+				Usage: 0,
+			})
+		}
+	}
+
+	sort.Slice(ls.CpuUsages, func(i, j int) bool {
+		return ls.CpuUsages[i].Usage < ls.CpuUsages[j].Usage
+	})
+}
+
+func (ls *BoxInstanceSets) SpecCpuSetsDesired(inst *BoxInstance) bool {
+
+	if inst.Spec.Resources != nil {
+
+		ls.cpuSort()
+
+		cpuCores := int32(inst.Spec.Resources.CpuLimit / 10)
+		if cpuCores < 1 {
+			cpuCores = 1
+		} else if cpuCores > ls.CpuCap {
+			cpuCores = ls.CpuCap
+		}
+
+		if int32(len(inst.SpecCpuSets)) != cpuCores {
+
+			inst.SpecCpuSets = []int32{}
+			for i, v := range ls.CpuUsages {
+				if int32(i) >= cpuCores {
+					break
+				}
+				inst.SpecCpuSets = append(inst.SpecCpuSets, v.Num)
+				v.Usage += int(inst.Spec.Resources.CpuLimit)
+			}
+			ArrayInt32Sort(inst.SpecCpuSets)
+			return false
+		}
+	}
+
+	return true
+}
 
 func (ls *BoxInstanceSets) Get(name string) *BoxInstance {
 
@@ -406,7 +535,7 @@ func (ls *BoxInstanceSets) Get(name string) *BoxInstance {
 	box_sets_mu.RLock()
 	defer box_sets_mu.RUnlock()
 
-	for _, v := range *ls {
+	for _, v := range ls.Items {
 		if v.Name == name {
 			return v
 		}
@@ -414,19 +543,72 @@ func (ls *BoxInstanceSets) Get(name string) *BoxInstance {
 	return nil
 }
 
+func (ls *BoxInstanceSets) StatusSet(item *BoxInstance) {
+
+	box_sets_mu.Lock()
+	defer box_sets_mu.Unlock()
+
+	var prev *BoxInstance
+
+	for _, v := range ls.Items {
+		if v.Name == item.Name {
+			prev = v
+			break
+		}
+	}
+
+	if prev == nil {
+		prev = &BoxInstance{
+			Name:    item.Name,
+			ID:      item.ID,
+			PodID:   item.PodID,
+			Replica: item.Replica,
+			Status:  item.Status,
+			Stats:   inapi.NewPbStatsSampleFeed(BoxStatsSampleCycle),
+		}
+		ls.Items = append(ls.Items, prev)
+	} else {
+		prev.Status = item.Status
+		prev.ID = item.ID
+	}
+}
+
 func (ls *BoxInstanceSets) Set(item *BoxInstance) {
 
 	box_sets_mu.Lock()
 	defer box_sets_mu.Unlock()
 
-	for i, v := range *ls {
+	ls.SpecCpuSetsDesired(item)
+
+	var prev *BoxInstance
+
+	for _, v := range ls.Items {
 		if v.Name == item.Name {
-			(*ls)[i] = item
-			return
+			prev = v
+			break
 		}
 	}
 
-	*ls = append(*ls, item)
+	if prev == nil {
+		prev = &BoxInstance{
+			Name:         item.Name,
+			PodID:        item.PodID,
+			PodOpVersion: item.PodOpVersion,
+			Spec:         item.Spec,
+			Apps:         item.Apps,
+			Replica:      item.Replica,
+			Stats:        inapi.NewPbStatsSampleFeed(BoxStatsSampleCycle),
+			UpUpdated:    item.UpUpdated,
+			SpecCpuSets:  item.SpecCpuSets,
+		}
+		ls.Items = append(ls.Items, prev)
+	} else {
+		prev.PodOpVersion = item.PodOpVersion
+		prev.Spec = item.Spec
+		prev.SpecCpuSets = item.SpecCpuSets
+		prev.Replica = item.Replica
+		prev.Apps = item.Apps
+	}
 }
 
 func (ls *BoxInstanceSets) Del(name string) {
@@ -434,9 +616,9 @@ func (ls *BoxInstanceSets) Del(name string) {
 	box_sets_mu.Lock()
 	defer box_sets_mu.Unlock()
 
-	for i, v := range *ls {
+	for i, v := range ls.Items {
 		if v.Name == name {
-			*ls = append((*ls)[:i], (*ls)[i+1:]...)
+			ls.Items = append(ls.Items[:i], ls.Items[i+1:]...)
 			return
 		}
 	}
@@ -447,7 +629,7 @@ func (ls *BoxInstanceSets) Size() int {
 	box_sets_mu.RLock()
 	defer box_sets_mu.RUnlock()
 
-	return len(*ls)
+	return len(ls.Items)
 }
 
 func (ls *BoxInstanceSets) Each(fn func(item *BoxInstance)) {
@@ -455,14 +637,14 @@ func (ls *BoxInstanceSets) Each(fn func(item *BoxInstance)) {
 	box_sets_mu.RLock()
 	defer box_sets_mu.RUnlock()
 
-	for _, v := range *ls {
+	for _, v := range ls.Items {
 		fn(v)
 	}
 }
 
 func (ls *BoxInstanceSets) OpLockNum() int {
 	n := 0
-	for _, v := range *ls {
+	for _, v := range ls.Items {
 		if v.opPending {
 			n += 1
 		}

@@ -247,6 +247,9 @@ func podRepListCtrlRefresh() error {
 		nstatus.BoxActives.Del(instName)
 		hlog.Printf("debug", "hostlet/box %s, status unbound", instName)
 	}
+	if len(boxDels) > 0 {
+		ConfigFlush()
+	}
 
 	return nil
 }

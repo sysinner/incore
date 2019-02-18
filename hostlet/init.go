@@ -18,9 +18,24 @@ import (
 	"fmt"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/encoding/json"
 
+	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/hostlet/nstatus"
 )
+
+func Setup() error {
+	//
+	json.DecodeFile(config.Prefix+"/etc/hostlet-actives.json", &nstatus.BoxActives)
+
+	hlog.Printf("info", "hostlet setup, replicas %d", len(nstatus.BoxActives.Items))
+	return nil
+}
+
+func ConfigFlush() error {
+	return json.EncodeToFile(nstatus.BoxActives, config.Prefix+"/etc/hostlet-actives.json", "  ")
+}
 
 func InitData(items map[string]interface{}) error {
 

@@ -311,3 +311,8 @@ func ObjPrint(name string, v interface{}) {
 	js, _ := json.Encode(v, "  ")
 	fmt.Println("\n", name, string(js))
 }
+
+func ObjSprint(v interface{}, idx string) string {
+	js, _ := json.Encode(v, idx)
+	return string(js)
+}

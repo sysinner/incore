@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"runtime"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/locker"
 	"github.com/lessos/lessgo/net/portutil"
 	"github.com/lessos/lessgo/types"
@@ -133,6 +135,12 @@ func (tp *BoxDriver) statusRefresh() {
 		return
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
 	if tp.client == nil {
 
 		for i := 0; i < 3; i++ {
@@ -227,6 +235,12 @@ func (tp *BoxDriver) statusRefresh() {
 
 func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
 	boxInspect, err := tp.client.ContainerGet(context.Background(), id)
 	if err != nil || boxInspect == nil {
 		return nil, fmt.Errorf("Invalid Box ID %s", id)
@@ -238,6 +252,15 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 	}
 
 	tn := uint32(time.Now().Unix())
+
+	cpuSets := []int32{}
+	if sets := strings.Split(boxInspect.HostConfig.CpusetCpus, ","); len(sets) > 0 {
+		for _, v := range sets {
+			if n, _ := strconv.Atoi(v); n >= 0 && n < 256 {
+				cpuSets = append(cpuSets, int32(n))
+			}
+		}
+	}
 
 	inst := &napi.BoxInstance{
 		ID:    id,
@@ -259,6 +282,7 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 				},
 			},
 			Command: boxInspect.Config.Cmd,
+			CpuSets: cpuSets,
 		},
 	}
 
@@ -267,7 +291,7 @@ func (tp *BoxDriver) entryStatus(id string) (*napi.BoxInstance, error) {
 
 		if !strings.HasPrefix(cm.Destination, "/home/action") &&
 			!strings.HasPrefix(cm.Destination, "/opt") &&
-			!strings.HasPrefix(cm.Destination, "/etc/hosts") &&
+			// !strings.HasPrefix(cm.Destination, "/etc/hosts") &&
 			!strings.HasPrefix(cm.Destination, "/usr/sysinner/") {
 			continue
 		}
@@ -360,12 +384,20 @@ func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, er
 		}
 	}()
 
-	stats, err := tp.client.ContainerStats(context.Background(), name)
+	statsBuf, err := tp.client.ContainerStats(context.Background(), name, false)
 	if err != nil {
 		return nil, err
 	}
+	var stats drvClientTypes.ContainerStats
+	if bs, err := ioutil.ReadAll(statsBuf); err != nil {
+		return nil, err
+	} else {
+		if err := json.Decode(bs, &stats); err != nil {
+			return nil, err
+		}
+	}
 
-	if stats == nil {
+	if stats.CPUStats == nil || stats.MemoryStats == nil {
 		return nil, errors.New("timeout")
 	}
 
@@ -441,6 +473,12 @@ func (tp *BoxDriver) StatsEntry() *napi.BoxInstanceStatsFeed {
 }
 
 func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
 
 	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
 		return nil
@@ -559,17 +597,21 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			Env:          []string{"POD_ID=" + inst.PodID},
 			User:         "action",
 			WorkingDir:   "/home/action",
+			DiskQuota: map[string]string{
+				"size": "10G",
+			},
 		}
 		bpHostConfig := &drvClientTypes.HostConfig{
 			EnableLxcfs:  inCfg.Config.LxcFsEnable,
 			NetworkMode:  "bridge",
-			Binds:        inst.VolumeMountsExport(),
 			PortBindings: bindPorts,
+			Binds:        inst.VolumeMountsExport(),
 			Resources: drvClientTypes.Resources{
 				Memory:     int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
 				MemorySwap: int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
 				CPUPeriod:  1000000,
 				CPUQuota:   int64(inst.Spec.Resources.CpuLimit) * 1e5,
+				CpusetCpus: inst.CpuSets(),
 				Ulimits: []*drvClientTypes.Ulimit{
 					{
 						Name: "nofile",
@@ -577,6 +619,9 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 						Hard: 30000,
 					},
 				},
+			},
+			StorageOpt: map[string]string{
+				"size": "10G",
 			},
 		}
 		bpNetworkingConfig := &drvClientTypes.NetworkingConfig{
@@ -645,6 +690,12 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 func (tp *BoxDriver) BoxStop(inst *napi.BoxInstance) error {
 
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
 	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStop) {
 		return nil
 	}
@@ -685,6 +736,12 @@ func (tp *BoxDriver) BoxStop(inst *napi.BoxInstance) error {
 }
 
 func (tp *BoxDriver) BoxRemove(inst *napi.BoxInstance) error {
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
 
 	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) {
 		return nil

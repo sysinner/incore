@@ -505,7 +505,8 @@ func (it *PbPodBoxStatus) Equal(it2 *PbPodBoxStatus) bool {
 		!PbPodBoxStatusExecutorSliceEqual(it.Executors, it2.Executors) ||
 		it.Action != it2.Action ||
 		it.Started != it2.Started ||
-		it.Updated != it2.Updated {
+		it.Updated != it2.Updated ||
+		!PbInt32SliceEqual(it.CpuSets, it2.CpuSets) {
 		return false
 	}
 	return true
