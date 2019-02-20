@@ -108,6 +108,7 @@ type BoxDriver interface {
 	Stop() error
 	StatusEntry() *BoxInstance
 	StatsEntry() *BoxInstanceStatsFeed
+	BoxCreate(box *BoxInstance) error
 	BoxStart(box *BoxInstance) error
 	BoxStop(box *BoxInstance) error
 	BoxRemove(box *BoxInstance) error
@@ -238,10 +239,12 @@ func (inst *BoxInstance) OpRepKey() string {
 
 func (inst *BoxInstance) SpecDesired() bool {
 
+	/**
 	if inst.Status.Action == 0 {
 		hlog.Printf("debug", "box/spec miss-desire inst.Status.Action")
 		return false
 	}
+	*/
 
 	//
 	if inst.Spec.Resources.CpuLimit != inst.Status.ResCpuLimit ||

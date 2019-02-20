@@ -491,6 +491,10 @@ func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, er
 	return boxStats, nil
 }
 
+func (tp *BoxDriver) BoxCreate(inst *napi.BoxInstance) error {
+	return nil
+}
+
 func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 	defer func() {

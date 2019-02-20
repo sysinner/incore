@@ -671,7 +671,7 @@ func (c Pod) SetInfoAction() {
 
 	//
 	if config.Config.ZoneMaster != nil &&
-		config.Config.ZoneMaster.ReplicaEnable {
+		config.Config.ZoneMaster.MultiReplicaEnable {
 		if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
 			set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
 			return
@@ -720,7 +720,7 @@ func (c Pod) SetInfoAction() {
 	//
 	prev.Operate.ExpSysState = set.Operate.ExpSysState
 	if config.Config.ZoneMaster != nil &&
-		config.Config.ZoneMaster.ReplicaEnable {
+		config.Config.ZoneMaster.MultiReplicaEnable {
 		prev.Operate.ReplicaCap = set.Operate.ReplicaCap
 	}
 

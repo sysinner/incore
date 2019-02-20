@@ -33,24 +33,20 @@ import (
 	"github.com/sysinner/incore/inapi"
 )
 
-/*
-sysctl net.ipv4.conf.all.forwarding=1
-iptables -P FORWARD ACCEPT
-*/
-
 type HostMember struct {
 	Id        string                `json:"id"`
-	ZoneId    string                `json:"zone_id,omitempty"`
+	ZoneId    string                `json:"zone_id"`
+	CellId    string                `json:"cell_id,omitempty"`
 	LanAddr   inapi.HostNodeAddress `json:"lan_addr"`
-	WanAddr   inapi.HostNodeAddress `json:"wan_addr,omitempty"`
-	HttpPort  uint16                `json:"http_port,omitempty"`
-	SecretKey string                `json:"secret_key,omitempty"`
+	WanAddr   inapi.HostNodeAddress `json:"wan_addr"`
+	HttpPort  uint16                `json:"http_port"`
+	SecretKey string                `json:"secret_key"`
 }
 
 type ZoneMaster struct {
-	MultiCellEnable bool `json:"multi_cell_enable,omitempty"`
-	MultiHostEnable bool `json:"multi_host_enable,omitempty"`
-	ReplicaEnable   bool `json:"replica_enable,omitempty"`
+	MultiCellEnable    bool `json:"multi_cell_enable"`
+	MultiHostEnable    bool `json:"multi_host_enable"`
+	MultiReplicaEnable bool `json:"multi_replica_enable"`
 }
 
 type ConfigCommon struct {
@@ -82,6 +78,8 @@ var (
 		Username: "action",
 		HomeDir:  "/home/action",
 	}
+	InitZoneId = "local"
+	InitCellId = "general"
 )
 
 func Init() error {

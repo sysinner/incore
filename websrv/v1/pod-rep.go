@@ -61,7 +61,7 @@ func (c PodRep) SetAction() {
 
 	if config.Config.ZoneMaster == nil ||
 		!config.Config.ZoneMaster.MultiHostEnable ||
-		!config.Config.ZoneMaster.ReplicaEnable {
+		!config.Config.ZoneMaster.MultiReplicaEnable {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Access Denied")
 		return
 	}

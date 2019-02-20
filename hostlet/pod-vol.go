@@ -259,7 +259,7 @@ func QuotaKeeperInit() error {
 func podVolQuotaRefresh() error {
 
 	if err := QuotaKeeperInit(); err != nil {
-		hlog.Printf("error", "hostlet/vol Failed to Enable Vol Quota : %s", err.Error())
+		hlog.Printf("warn", "hostlet/vol Failed to Enable Vol Quota : %s", err.Error())
 		return nil
 	}
 
@@ -483,7 +483,7 @@ func podVolQuotaRefresh() error {
 
 		err = quotaConfig.SyncVendor()
 		if err != nil {
-			hlog.Printf("warn", "hostlet/vol config init %s", err.Error())
+			hlog.Printf("info", "hostlet/vol config init %s", err.Error())
 			return
 		}
 
@@ -496,7 +496,7 @@ func podVolQuotaRefresh() error {
 
 		_, err = exec.Command(quotaCmd, args...).Output()
 		if err != nil {
-			hlog.Printf("warn", "hostlet/vol quota init %s", err.Error())
+			hlog.Printf("info", "hostlet/vol quota init %s", err.Error())
 			return
 		}
 
@@ -509,7 +509,7 @@ func podVolQuotaRefresh() error {
 			quotaMountpoint,
 		}
 		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {
-			hlog.Printf("warn", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
+			hlog.Printf("info", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
 			return
 		}
 
@@ -556,7 +556,7 @@ func podVolQuotaRefresh() error {
 			return err
 		}
 
-		hlog.Printf("warn", "hostlet/vol quota clean project %s, done", v.Name)
+		hlog.Printf("info", "hostlet/vol quota clean project %s, done", v.Name)
 	}
 
 	quotaRefreshed = tn
