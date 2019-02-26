@@ -40,3 +40,9 @@ func Uint16ToHexString(v uint16) string {
 	binary.BigEndian.PutUint16(bs, v)
 	return hex.EncodeToString(bs)
 }
+
+func Uint32ToHexString(v uint32) string {
+	bs := make([]byte, 4)
+	binary.BigEndian.PutUint32(bs, v)
+	return hex.EncodeToString(bs)
+}

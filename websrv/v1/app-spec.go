@@ -24,7 +24,6 @@ import (
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -72,10 +71,8 @@ func (c AppSpec) ListAction() {
 		}
 
 		//
-		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
-			data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version),
-				skv.NewKvEntry(spec),
-				nil)
+		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
+			data.GlobalMaster.KvPut(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version), spec, nil)
 		}
 
 		if spec.Meta.User != c.us.UserName &&
@@ -211,9 +208,12 @@ func (c AppSpec) VersionListAction() {
 		return
 	}
 
-	rs := data.GlobalMaster.KvProgRevScan(inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
-		inapi.NsGlobalAppSpecVersion(spec.Meta.ID, "0"), 50)
+	rs := data.GlobalMaster.KvRevScan(
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "0"),
+		50)
 	rss := rs.KvList()
+	fmt.Println(len(rss))
 
 	for _, v := range rss {
 
@@ -248,7 +248,7 @@ func (c AppSpec) EntryAction() {
 
 	version := c.Params.Get("version")
 	if version != "" {
-		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
+		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
 			rs.Decode(&set)
 		}
 	}
@@ -495,7 +495,7 @@ func (c AppSpec) SetAction() {
 		}
 		appSpecSets.Set(v.Id)
 
-		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
+		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Internally dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -511,7 +511,7 @@ func (c AppSpec) SetAction() {
 		}
 		appSpecSets.Set(v.Id)
 
-		if rs := data.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
+		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Remotely dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -529,8 +529,8 @@ func (c AppSpec) SetAction() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, err.Error())
 			return
 		}
-		id := ipapi.PackageMetaId(v.Name, version)
-		if rs := data.InpackData.KvProgGet(ipapi.DataPackKey(id)); !rs.OK() {
+		id := ipapi.PackageFilenameKey(v.Name, version)
+		if rs := data.InpackData.KvGet(ipapi.DataPackKey(id)); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
 				ipapi.PackageFilename(v.Name, version)+") Not Found")
 			return
@@ -567,9 +567,7 @@ func (c AppSpec) SetAction() {
 		return
 	}
 
-	rs = data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewKvEntry(prev),
-		nil)
+	rs = data.GlobalMaster.KvPut(inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev, nil)
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 	} else {
@@ -673,9 +671,8 @@ func (c AppSpec) CfgSetAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewKvEntry(prev),
-		nil); !rs.OK() {
+	if rs := data.GlobalMaster.KvPut(
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}
@@ -755,9 +752,8 @@ func (c AppSpec) CfgFieldDelAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.KvProgPut(inapi.NsGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version),
-		skv.NewKvEntry(prev),
-		nil); !rs.OK() {
+	if rs := data.GlobalMaster.KvPut(
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
 		return
 	}

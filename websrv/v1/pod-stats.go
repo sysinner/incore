@@ -23,6 +23,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
+
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -137,19 +138,9 @@ func (c PodStats) FeedAction() {
 
 	for _, repId = range reps {
 
-		if rs := data.ZoneMaster.KvProgScan(
-			inapi.NsZonePodRepStats(pod.Spec.Zone,
-				pod.Meta.ID,
-				repId,
-				"sys",
-				fq.TimeStart-fq.TimeCycle-600,
-			),
-			inapi.NsZonePodRepStats(pod.Spec.Zone,
-				pod.Meta.ID,
-				repId,
-				"sys",
-				fq.TimeCutset+600,
-			),
+		if rs := data.ZoneMaster.KvScan(
+			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeStart-fq.TimeCycle-600),
+			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeCutset+600),
 			50000,
 		); rs.OK() {
 

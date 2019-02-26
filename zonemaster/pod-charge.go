@@ -327,8 +327,8 @@ func podEntryChargeOut(pod_id string) {
 	data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev, nil)
 
 	// Pod Map to Cell Queue
-	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	data.GlobalMaster.PvPut(sqkey, prev, nil)
+	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	data.GlobalMaster.KvPut(sqkey, prev, nil)
 
 	hlog.Printf("info", "Pod %s AccountChargeOut", prev.Meta.ID)
 }

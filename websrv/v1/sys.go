@@ -56,9 +56,7 @@ func (c *Sys) CfgAction() {
 		sysCfg = &SysCfg{
 			ZoneId: in_cfg.Config.Host.ZoneId,
 		}
-		if in_cfg.Config.ZoneMaster != nil {
-			sysCfg.ZoneMaster = *in_cfg.Config.ZoneMaster
-		}
+		sysCfg.ZoneMaster = in_cfg.Config.ZoneMaster
 	}
 	c.RenderJson(&sysCfg)
 }

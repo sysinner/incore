@@ -17,6 +17,7 @@ package zonemaster
 import (
 	"errors"
 	"fmt"
+	"plugin"
 	"strings"
 	"time"
 
@@ -26,17 +27,21 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 
+	inCfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	typeScheduler "github.com/sysinner/incore/inapi/scheduler"
+	pScheduler "github.com/sysinner/incore/plugin/scheduler"
 	"github.com/sysinner/incore/status"
 )
 
 var (
-	Scheduler         inapi.Scheduler
+	Scheduler         typeScheduler.Scheduler
 	zonePodSpecPlans  inapi.PodSpecPlans
 	podResFreeTimeMin uint32 = 60
 	podInQueue        types.ArrayString
 	hostResUsages     = map[string]*hostUsageItem{}
+	scheduleHostList  typeScheduler.ScheduleHostList
 	errServerError    = errors.New("server error")
 )
 
@@ -47,18 +52,51 @@ const (
 
 type destResReplica struct {
 	Ports  inapi.ServicePorts `json:"ports,omitempty"`
-	ResCpu int32              `json:"res_cpu,omitempty"` // Cores, (1 = .1 Cores)
-	ResMem int32              `json:"res_mem,omitempty"` // MiB
-	VolSys int32              `json:"vol_sys,omitempty"` // GiB
+	ResCpu int32              `json:"res_cpu,omitempty"` // 1 = .1 cores
+	ResMem int32              `json:"res_mem,omitempty"` // MB
+	VolSys int32              `json:"vol_sys,omitempty"` // GB
 }
 
 type hostUsageItem struct {
-	cpu   int64 // 1000m
-	mem   int64 // bytes
+	cpu   int32 // 1 = .1 cores
+	mem   int32 // MB
 	ports types.ArrayUint32
 }
 
-func schedAction() error {
+func SetupScheduler() error {
+
+	if inCfg.Config.ZoneMasterSchedulerPlugin != "" {
+
+		p, err := plugin.Open(inCfg.Prefix + "/plugin/" + inCfg.Config.ZoneMasterSchedulerPlugin)
+		if err != nil {
+			return err
+		}
+
+		nc, err := p.Lookup("NewConnector")
+		if err != nil {
+			return err
+		}
+
+		fn, ok := nc.(func() (typeScheduler.Scheduler, error))
+		if !ok {
+			return fmt.Errorf("No Plugin/Method (%s) Found", "NewConnector")
+		}
+
+		cn, err := fn()
+		if err != nil {
+			return err
+		}
+
+		Scheduler = cn
+
+	} else {
+		Scheduler = pScheduler.NewScheduler()
+	}
+
+	return nil
+}
+
+func scheduleAction() error {
 
 	if status.ZoneId == "" ||
 		status.Zone == nil ||
@@ -70,17 +108,17 @@ func schedAction() error {
 		return errors.New("No Scheduler Found")
 	}
 
-	if err := schedPodSpecPlanListRefresh(); err != nil {
+	if err := schedulePodSpecPlanListRefresh(); err != nil {
 		return err
 	}
 
 	hostResUsages = map[string]*hostUsageItem{}
 
-	if err := schedPodListRefresh(); err != nil {
+	if err := schedulePodListRefresh(); err != nil {
 		return err
 	}
 
-	if err := schedHostListRefresh(); err != nil {
+	if err := scheduleHostListRefresh(); err != nil {
 		return err
 	}
 
@@ -89,15 +127,15 @@ func schedAction() error {
 
 	//
 	for _, cell := range status.Zone.Cells {
-		schedPodListQueue(cell.Meta.Id)
+		schedulePodListQueue(cell.Meta.Id)
 	}
 
-	schedPodListBound()
+	schedulePodListBound()
 
 	return nil
 }
 
-func schedPodSpecPlanListRefresh() error {
+func schedulePodSpecPlanListRefresh() error {
 
 	rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 1000)
 	if !rs.OK() {
@@ -121,7 +159,7 @@ func schedPodSpecPlanListRefresh() error {
 	return errors.New("No PodSpecPlan Found")
 }
 
-func schedPodListRefresh() error {
+func schedulePodListRefresh() error {
 
 	//
 	var (
@@ -161,7 +199,7 @@ func schedPodListRefresh() error {
 			//
 			if (pod.Operate.Operated + inapi.PodDestroyTTL) < tn {
 
-				if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstanceDestroy(status.ZoneId, pod.Meta.ID), pod, nil); rs.OK() {
+				if rs := data.ZoneMaster.KvPut(inapi.NsKvZonePodInstanceDestroy(status.ZoneId, pod.Meta.ID), pod, nil); rs.OK() {
 					rs = data.ZoneMaster.PvDel(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), nil)
 					//
 					status.ZonePodList.Items.Del(pod.Meta.ID)
@@ -212,8 +250,8 @@ func schedPodListRefresh() error {
 			}
 
 			if !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) {
-				hostRes.cpu += int64(specRes.CpuLimit) * 100
-				hostRes.mem += int64(specRes.MemLimit) * inapi.ByteMB
+				hostRes.cpu += specRes.CpuLimit
+				hostRes.mem += specRes.MemLimit
 			}
 
 			for _, rpp := range rp.Ports {
@@ -307,7 +345,9 @@ func schedPodListRefresh() error {
 	return nil
 }
 
-func schedHostListRefresh() error {
+func scheduleHostListRefresh() error {
+
+	scheduleHostList.Items = []*typeScheduler.ScheduleHostItem{}
 
 	//
 	for _, host := range status.ZoneHostList.Items {
@@ -331,8 +371,8 @@ func schedHostListRefresh() error {
 			if host.Operate.CpuUsed != res.cpu {
 				host.Operate.CpuUsed, sync = res.cpu, true
 			}
-			if host.Operate.MemUsed != res.mem {
-				host.Operate.MemUsed, sync = res.mem, true
+			if host.Operate.MemUsed != int64(res.mem) {
+				host.Operate.MemUsed, sync = int64(res.mem), true
 			}
 			if !res.ports.Equal(host.Operate.PortUsed) {
 				host.Operate.PortUsed, sync = res.ports, true
@@ -349,16 +389,33 @@ func schedHostListRefresh() error {
 				return fmt.Errorf("host %s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
 			}
 		}
+
+		if host.Spec != nil && host.Spec.Capacity != nil {
+			scheduleHostList.Items = append(scheduleHostList.Items, &typeScheduler.ScheduleHostItem{
+				Id:               host.Meta.Id,
+				CellId:           host.Operate.CellId,
+				OpAction:         host.Operate.Action,
+				CpuTotal:         host.Spec.Capacity.Cpu,
+				CpuUsed:          host.Operate.CpuUsed,
+				MemTotal:         int32(host.Spec.Capacity.Mem),
+				MemUsed:          int32(host.Operate.MemUsed),
+				BoxDockerVersion: host.Spec.ExpDockerVersion,
+				BoxPouchVersion:  host.Spec.ExpPouchVersion,
+			})
+		}
 	}
 
 	return nil
 }
 
-func schedPodListQueue(cellId string) {
+func schedulePodListQueue(cellId string) {
 
 	// TODO pager
-	rss := data.GlobalMaster.PvScan(
-		inapi.NsGlobalSetQueuePod(status.ZoneId, cellId, ""), "", "", 10000).KvList()
+	var (
+		offset = inapi.NsKvGlobalSetQueuePod(status.ZoneId, cellId, "")
+		cutset = inapi.NsKvGlobalSetQueuePod(status.ZoneId, cellId, "")
+	)
+	rss := data.GlobalMaster.KvScan(offset, cutset, 10000).KvList()
 	if len(rss) == 0 {
 		return
 	}
@@ -464,9 +521,9 @@ func schedPodListQueue(cellId string) {
 			}
 		}
 
-		err := schedPodItem(pod)
+		err := schedulePodItem(pod)
 		if err != nil {
-			hlog.Print("error", "Scheduler Pod %s, ER %s", pod.Meta.ID, err.Error())
+			hlog.Printf("error", "Scheduler Pod %s, ER %s", pod.Meta.ID, err.Error())
 		}
 
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil); !rs.OK() {
@@ -475,14 +532,14 @@ func schedPodListQueue(cellId string) {
 		}
 
 		if err == nil {
-			data.GlobalMaster.PvDel(inapi.NsGlobalSetQueuePod(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), nil)
+			data.GlobalMaster.KvDel(inapi.NsKvGlobalSetQueuePod(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), nil)
 			hlog.Printf("info", "zone/podq queue/clean %s", pod.Meta.ID)
 			podInQueue.Set(pod.Meta.ID)
 		}
 	}
 }
 
-func schedPodListBound() {
+func schedulePodListBound() {
 
 	if len(status.ZonePodList.Items) > 0 {
 		hlog.Printf("debug", "zone/pod/list %d", len(status.ZonePodList.Items))
@@ -505,7 +562,7 @@ func schedPodListBound() {
 			continue
 		}
 
-		err := schedPodItem(podq)
+		err := schedulePodItem(podq)
 		if err != nil {
 			hlog.Printf("error", "Scheduler Pod %s, ER %s", podq.Meta.ID, err.Error())
 		}
@@ -516,7 +573,7 @@ func schedPodListBound() {
 
 		if err == nil {
 
-			err = schedPodMigrate(podq)
+			err = schedulePodMigrate(podq)
 			if err != nil {
 				hlog.Printf("error", "Scheduler Pod/Migrate %s, ER %s", podq.Meta.ID, err.Error())
 			}
@@ -529,7 +586,7 @@ func schedPodListBound() {
 	}
 }
 
-func schedPodItem(podq *inapi.Pod) error {
+func schedulePodItem(podq *inapi.Pod) error {
 
 	// hlog.Printf("error", "exec podq %s instance", podq.Meta.ID)
 
@@ -719,8 +776,8 @@ func schedPodItem(podq *inapi.Pod) error {
 	// PreChargeValid
 	if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStart) {
 
-		if err := schedPodPreChargeValid(podq); err != nil {
-			return err
+		if err := schedulePodPreChargeValid(podq); err != nil {
+			return errors.New("zm/scheduler pod/pre-valid err " + err.Error())
 		}
 
 		specRes := podq.Spec.ResComputeBound()
@@ -745,7 +802,7 @@ func schedPodItem(podq *inapi.Pod) error {
 
 	for repid := uint32(0); repid < uint32(podq.Operate.ReplicaCap); repid++ {
 
-		oplog := schedPodRepItem(podq, 0, repid, destRes)
+		oplog := schedulePodRepItem(podq, 0, repid, destRes)
 		if oplog.Status == inapi.PbOpLogOK {
 			scaleup += 1
 		}
@@ -778,7 +835,7 @@ func schedPodItem(podq *inapi.Pod) error {
 		if !inapi.OpActionAllow(rep.Action, inapi.OpActionDestroy) {
 			hlog.Printf("info", "zm/rep %s:%d destroy", podq.Meta.ID, rep.RepId)
 			rep.Action = inapi.OpActionDestroy
-			schedPodRepItem(podq, inapi.OpActionDestroy, rep.RepId, &destResReplica{})
+			schedulePodRepItem(podq, inapi.OpActionDestroy, rep.RepId, &destResReplica{})
 		}
 	}
 
@@ -814,7 +871,7 @@ func schedPodItem(podq *inapi.Pod) error {
 	return nil
 }
 
-func schedPodRepItem(podq *inapi.Pod, opAction uint32,
+func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 	repId uint32, destRes *destResReplica) *inapi.PbOpLogEntry {
 
 	var (
@@ -838,29 +895,45 @@ func schedPodRepItem(podq *inapi.Pod, opAction uint32,
 			VolSys: destRes.VolSys,
 		}
 
-		hostId, err := Scheduler.Schedule(podq.Spec, opRep, status.ZoneHostList, nil)
+		hostFit, err := Scheduler.ScheduleHost(
+			&typeScheduler.SchedulePodSpec{
+				CellId:    podq.Spec.Cell,
+				BoxDriver: podq.Spec.Box.Image.Driver,
+			},
+			&typeScheduler.SchedulePodReplica{
+				RepId:  opRep.RepId,
+				Cpu:    opRep.ResCpu,
+				Mem:    opRep.ResMem,
+				VolSys: opRep.VolSys,
+			},
+			&scheduleHostList,
+			nil,
+		)
 
-		if err != nil || hostId == "" {
+		if err != nil {
 			// TODO error log
 			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
 				"no available resources, waiting for allocation")
 		}
 
-		host = status.ZoneHostList.Item(hostId)
+		host = status.ZoneHostList.Item(hostFit.Id)
 		if host == nil {
 			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
 				"no available resources, waiting for allocation")
 		}
 
-		opRep.Node = hostId
+		opRep.Node = hostFit.Id
 
 		podq.Operate.Replicas.Set(*opRep)
 		podq.Operate.Replicas.Sort()
 
-		host.SyncOpCpu(int64(destRes.ResCpu) * 100)
-		host.SyncOpMem(int64(destRes.ResMem) * inapi.ByteMB)
+		host.SyncOpCpu(destRes.ResCpu)
+		host.SyncOpMem(destRes.ResMem)
+
+		hostFit.CpuUsed += destRes.ResCpu
+		hostFit.MemUsed += destRes.ResMem
 
 		hostChanged = true
 
@@ -871,7 +944,7 @@ func schedPodRepItem(podq *inapi.Pod, opAction uint32,
 		}
 
 		hlog.Printf("info", "schedule rep %s:%d to host %s (new)",
-			podq.Meta.ID, opRep.RepId, hostId)
+			podq.Meta.ID, opRep.RepId, hostFit.Id)
 
 	} else {
 
@@ -915,11 +988,20 @@ func schedPodRepItem(podq *inapi.Pod, opAction uint32,
 		if inapi.OpActionAllow(opAction, inapi.OpActionStart) {
 
 			//
-			if err := Scheduler.ScheduleHostValid(host, inapi.ScheduleEntry{
-				Cpu:    int64(destRes.ResCpu-opRep.ResCpu) * 100,
-				Mem:    int64(destRes.ResMem-opRep.ResMem) * inapi.ByteMB,
-				VolSys: int64(destRes.VolSys-opRep.VolSys) * inapi.ByteGB,
-			}); err != nil {
+			if err := Scheduler.ScheduleHostValid(
+				&typeScheduler.ScheduleHostItem{
+					Id:       host.Meta.Id,
+					CpuTotal: host.Spec.Capacity.Cpu,
+					CpuUsed:  host.Operate.CpuUsed,
+					MemTotal: int32(host.Spec.Capacity.Mem),
+					MemUsed:  int32(host.Operate.MemUsed),
+				},
+				&typeScheduler.SchedulePodReplica{
+					Cpu:    destRes.ResCpu - opRep.ResCpu,
+					Mem:    destRes.ResMem - opRep.ResMem,
+					VolSys: destRes.VolSys - opRep.VolSys,
+				},
+			); err != nil {
 
 				hlog.Printf("warn", "rep %s-%d, err %s",
 					podq.Meta.ID, opRep.RepId, err.Error())
@@ -934,8 +1016,8 @@ func schedPodRepItem(podq *inapi.Pod, opAction uint32,
 			}
 		}
 
-		host.SyncOpCpu(int64(destRes.ResCpu-opRep.ResCpu) * 100)
-		host.SyncOpMem(int64(destRes.ResMem-opRep.ResMem) * inapi.ByteMB)
+		host.SyncOpCpu(destRes.ResCpu - opRep.ResCpu)
+		host.SyncOpMem(destRes.ResMem - opRep.ResMem)
 		hostChanged = true
 
 		opRep.ResCpu = destRes.ResCpu
@@ -946,7 +1028,7 @@ func schedPodRepItem(podq *inapi.Pod, opAction uint32,
 	}
 
 	if inapi.OpActionAllow(opAction, inapi.OpActionStart) {
-		if ports, chg := schedPodRepNetPortAlloc(podq, opRep, host); chg {
+		if ports, chg := schedulePodRepNetPortAlloc(podq, opRep, host); chg {
 			opRep.Ports = ports
 			hostChanged = true
 		}
@@ -974,7 +1056,7 @@ func schedPodRepItem(podq *inapi.Pod, opAction uint32,
 	return inapi.NewPbOpLogEntry("", inapi.PbOpLogOK, "sync to host/"+opRep.Node)
 }
 
-func schedPodMigrate(podq *inapi.Pod) error {
+func schedulePodMigrate(podq *inapi.Pod) error {
 
 	if len(podq.Operate.RepMigrates) < 1 ||
 		inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionDestroy) {
@@ -1155,10 +1237,24 @@ func schedPodMigrate(podq *inapi.Pod) error {
 			VolSys: rep.VolSys,
 		}
 
-		hostId, err := Scheduler.Schedule(podq.Spec, repNext, status.ZoneHostList, &inapi.ScheduleOptions{
-			HostExcludes: []string{rep.Node},
-		})
-		if err != nil || hostId == "" {
+		hostFit, err := Scheduler.ScheduleHost(
+			&typeScheduler.SchedulePodSpec{
+				CellId:    podq.Spec.Cell,
+				BoxDriver: podq.Spec.Box.Image.Driver,
+			},
+			&typeScheduler.SchedulePodReplica{
+				RepId:  repNext.RepId,
+				Cpu:    repNext.ResCpu,
+				Mem:    repNext.ResMem,
+				VolSys: repNext.VolSys,
+			},
+			&scheduleHostList,
+			&typeScheduler.ScheduleOptions{
+				HostExcludes: []string{rep.Node},
+			},
+		)
+
+		if err != nil {
 			repStatus.OpLog.LogSet(
 				podq.Operate.Version,
 				inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogWarn,
@@ -1168,13 +1264,13 @@ func schedPodMigrate(podq *inapi.Pod) error {
 			continue
 		}
 
-		host := status.ZoneHostList.Item(hostId)
+		host := status.ZoneHostList.Item(hostFit.Id)
 		if host == nil {
 			continue
 		}
-		repNext.Node = hostId
+		repNext.Node = hostFit.Id
 
-		if ports, chg := schedPodRepNetPortAlloc(podq, repNext, host); chg {
+		if ports, chg := schedulePodRepNetPortAlloc(podq, repNext, host); chg {
 			repNext.Ports = ports
 			host.OpPortSort()
 		}
@@ -1189,8 +1285,11 @@ func schedPodMigrate(podq *inapi.Pod) error {
 		rep.Action = inapi.OpActionStop | inapi.OpActionMigrate
 		rep.Updated = tn
 
-		host.SyncOpCpu(int64(repNext.ResCpu) * 100)
-		host.SyncOpMem(int64(repNext.ResMem) * inapi.ByteMB)
+		host.SyncOpCpu(repNext.ResCpu)
+		host.SyncOpMem(repNext.ResMem)
+
+		hostFit.CpuUsed += repNext.ResCpu
+		hostFit.MemUsed += repNext.ResMem
 
 		// hlog.Printf("info", "host %s sync changes", host.Meta.Id)
 
@@ -1202,7 +1301,7 @@ func schedPodMigrate(podq *inapi.Pod) error {
 		}
 
 		hlog.Printf("warn", "scheduler rep %s:%d, migrate from host %s to %s",
-			podq.Meta.ID, rep.RepId, prevHostId, hostId)
+			podq.Meta.ID, rep.RepId, prevHostId, hostFit.Id)
 
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
 			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
@@ -1211,14 +1310,14 @@ func schedPodMigrate(podq *inapi.Pod) error {
 		repStatus.OpLog.LogSet(
 			podq.Operate.Version,
 			inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogOK,
-			fmt.Sprintf("migrate rep from host %s to %s", prevHostId, hostId),
+			fmt.Sprintf("migrate rep from host %s to %s", prevHostId, hostFit.Id),
 		)
 	}
 
 	return nil
 }
 
-func schedPodRepNetPortAlloc(
+func schedulePodRepNetPortAlloc(
 	podq *inapi.Pod,
 	opRep *inapi.PodOperateReplica,
 	host *inapi.ResHost,
@@ -1307,7 +1406,7 @@ func schedPodRepNetPortAlloc(
 	return ports, hostChanged
 }
 
-func schedPodPreChargeValid(podq *inapi.Pod) error {
+func schedulePodPreChargeValid(podq *inapi.Pod) error {
 
 	specPlan := zonePodSpecPlans.Get(podq.Spec.Ref.Id)
 	if specPlan == nil {
@@ -1359,7 +1458,7 @@ func schedPodPreChargeValid(podq *inapi.Pod) error {
 		podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
 			inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleCharge, status, msg),
 		)
-		return errors.New("")
+		return errors.New(msg)
 	} else if rsp.Kind != "AccountCharge" {
 		return errors.New("Network Error")
 	}

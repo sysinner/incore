@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inapi
+package main
 
-/*
 import (
-	"github.com/lynkdb/iomix/skv"
+	typeScheduler "github.com/sysinner/incore/inapi/scheduler"
+	"github.com/sysinner/incore/plugin/scheduler"
 )
 
-type DataInitiator interface {
-	Init(conn skv.Connector) error
+func NewConnector() (typeScheduler.Scheduler, error) {
+	return scheduler.NewScheduler(), nil
 }
-*/

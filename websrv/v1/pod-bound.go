@@ -89,7 +89,7 @@ func (c Podbound) IndexAction() {
 
 	var pod inapi.Pod
 
-	rs := data.LocalDB.PvGet(inapi.NsLocalCacheBoundPod(pod_id, rep_id))
+	rs := data.LocalDB.KvGet(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id))
 	if rs.OK() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
@@ -97,8 +97,8 @@ func (c Podbound) IndexAction() {
 		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvProgWriteOptions{
-				Expired: uint64(time.Now().Add(3600e9).UnixNano()),
+			data.LocalDB.KvPut(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvWriteOptions{
+				Ttl: 3600000,
 			})
 		}
 	}
@@ -184,7 +184,7 @@ func pbPodInstanceSpec(pod_id string, rep_id uint32) *inapi.Pod {
 
 	var pod inapi.Pod
 
-	rs := data.LocalDB.PvGet(inapi.NsLocalCacheBoundPod(pod_id, rep_id))
+	rs := data.LocalDB.KvGet(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id))
 	if rs.OK() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
@@ -192,8 +192,8 @@ func pbPodInstanceSpec(pod_id string, rep_id uint32) *inapi.Pod {
 		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.PvPut(inapi.NsLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvProgWriteOptions{
-				Expired: uint64(time.Now().Add(3600e9).UnixNano()),
+			data.LocalDB.KvPut(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvWriteOptions{
+				Ttl: 3600000,
 			})
 		}
 	}

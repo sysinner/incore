@@ -44,25 +44,27 @@ type HostMember struct {
 }
 
 type ZoneMaster struct {
+	MultiZoneEnable    bool `json:"multi_zone_enable,omitempty"`
 	MultiCellEnable    bool `json:"multi_cell_enable"`
 	MultiHostEnable    bool `json:"multi_host_enable"`
 	MultiReplicaEnable bool `json:"multi_replica_enable"`
 }
 
 type ConfigCommon struct {
-	filepath              string                   `json:"-"`
-	InstanceId            string                   `json:"instance_id"`
-	Host                  HostMember               `json:"host"`
-	Masters               inapi.HostNodeAddresses  `json:"masters"`
-	ZoneMaster            *ZoneMaster              `json:"zone_master,omitempty"`
-	IoConnectors          connect.MultiConnOptions `json:"io_connects"`
-	PodHomeDir            string                   `json:"pod_home_dir"`
-	Options               types.Labels             `json:"items,omitempty"`
-	PprofHttpPort         uint16                   `json:"pprof_http_port,omitempty"`
-	InpackServiceUrl      string                   `json:"inpack_service_url,omitempty"`
-	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty"`
-	IamServiceUrlGlobal   string                   `json:"iam_service_url_global,omitempty"`
-	LxcFsEnable           bool                     `json:"lxc_fs_enable,omitempty"`
+	filepath                  string                   `json:"-"`
+	InstanceId                string                   `json:"instance_id"`
+	Host                      HostMember               `json:"host"`
+	Masters                   inapi.HostNodeAddresses  `json:"masters"`
+	ZoneMaster                ZoneMaster               `json:"zone_master,omitempty"`
+	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty"`
+	IoConnectors              connect.MultiConnOptions `json:"io_connects"`
+	PodHomeDir                string                   `json:"pod_home_dir"`
+	Options                   types.Labels             `json:"items,omitempty"`
+	PprofHttpPort             uint16                   `json:"pprof_http_port,omitempty"`
+	InpackServiceUrl          string                   `json:"inpack_service_url,omitempty"`
+	IamServiceUrlFrontend     string                   `json:"iam_service_url_frontend,omitempty"`
+	IamServiceUrlGlobal       string                   `json:"iam_service_url_global,omitempty"`
+	LxcFsEnable               bool                     `json:"lxc_fs_enable"`
 }
 
 func (cfg *ConfigCommon) Sync() error {
@@ -82,7 +84,7 @@ var (
 	InitCellId = "general"
 )
 
-func Init() error {
+func Setup() error {
 
 	var err error
 
@@ -101,11 +103,7 @@ func Init() error {
 	}
 	Config.filepath = Prefix + "/etc/config.json"
 
-	if err := init_host(); err != nil {
-		return err
-	}
-
-	if err := init_iox(); err != nil {
+	if err := setupHost(); err != nil {
 		return err
 	}
 
@@ -123,14 +121,19 @@ func Init() error {
 		return fmt.Errorf("Invalid iam_service_url_frontend")
 	}
 
-	if err := init_user(); err != nil {
+	if err := setupUser(); err != nil {
+		return err
+	}
+
+	//
+	if err := setupDataConnect(); err != nil {
 		return err
 	}
 
 	return Config.Sync()
 }
 
-func init_host() error {
+func setupHost() error {
 
 	if len(Config.Host.Id) < 16 {
 		Config.Host.Id = idhash.RandHexString(16)
@@ -188,30 +191,38 @@ func init_host() error {
 }
 
 //
-func init_iox() error {
 
-	io_name := types.NewNameIdentifier("in_local_cache")
-	opts := Config.IoConnectors.Options(io_name)
+func setupDataConnect() error {
 
-	if opts == nil {
+	conns := []types.NameIdentifier{
+		"in_local_cache",
+	}
+	if IsZoneMaster() {
+		conns = append(conns, []types.NameIdentifier{
+			"in_zone_master",
+			"in_global_master",
+		}...)
+	}
 
-		opts = &connect.ConnOptions{
-			Name:      io_name,
-			Connector: "iomix/skv/connector",
-			Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
+	for _, opName := range conns {
+		opts := Config.IoConnectors.Options(opName)
+		if opts == nil {
+			opts = &connect.ConnOptions{
+				Name:         opName,
+				Connector:    "iomix/skv/connector",
+				Driver:       types.NewNameIdentifier("lynkdb/kvgo"),
+				DriverPlugin: types.NewNameIdentifier("lynkdb-kvgo.so"),
+			}
 		}
+		if opts.Value("data_dir") == "" {
+			opts.SetValue("data_dir", Prefix+"/var/"+string(opName))
+		}
+		Config.IoConnectors.SetOptions(*opts)
 	}
-
-	if opts.Value("data_dir") == "" {
-		opts.SetValue("data_dir", Prefix+"/var/"+string(io_name))
-	}
-
-	Config.IoConnectors.SetOptions(*opts)
-
 	return nil
 }
 
-func init_user() error {
+func setupUser() error {
 
 	if _, err := user.Lookup(User.Username); err != nil {
 

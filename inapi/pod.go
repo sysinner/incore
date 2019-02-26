@@ -319,21 +319,6 @@ func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
 	return nil
 }
 
-func (obj *PodSpecBound) DriverBound() (docker_on, rkt_on, pouch_on bool) {
-
-	if obj != nil {
-
-		if obj.Box.Image.Driver == PodSpecBoxImageDocker {
-			docker_on = true
-		} else if obj.Box.Image.Driver == PodSpecBoxImageRkt {
-			rkt_on = true
-		} else if obj.Box.Image.Driver == PodSpecBoxImagePouch {
-			pouch_on = true
-		}
-	}
-	return docker_on, rkt_on, pouch_on
-}
-
 func (obj *PodSpecBound) ResComputeBound() *PodSpecBoxResComputeBound {
 
 	rs := &PodSpecBoxResComputeBound{}

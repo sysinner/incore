@@ -82,12 +82,12 @@ func zoneTracker() {
 
 	// refresh zone-master leader ttl
 	// pv := skv.NewKvEntry(status.Host.Meta.Id)
-	if rs := data.ZoneMaster.PvPut(
-		inapi.NsZoneSysMasterLeader(status.Host.Operate.ZoneId),
+	if rs := data.ZoneMaster.KvPut(
+		inapi.NsKvZoneSysMasterLeader(status.Host.Operate.ZoneId),
 		status.Host.Meta.Id,
-		&skv.KvProgWriteOptions{
+		&skv.KvWriteOptions{
 			// PrevSum: pv.Crc32(), // TODO BUG
-			Expired: uint64(time.Now().Add(12e9).UnixNano()),
+			Ttl: 12000,
 		},
 	); !rs.OK() {
 		hlog.Printf("warn", "zm/zone-master/leader ttl refresh failed "+rs.String())
@@ -170,19 +170,19 @@ func zmWorkerMasterLeaderActive() (bool, bool) {
 	// if leader active
 	var (
 		forceRefresh = false
-		zmLeaderKey  = inapi.NsZoneSysMasterLeader(status.Host.Operate.ZoneId)
+		zmLeaderKey  = inapi.NsKvZoneSysMasterLeader(status.Host.Operate.ZoneId)
 	)
-	if rs := data.ZoneMaster.PvGet(zmLeaderKey); rs.NotFound() {
+	if rs := data.ZoneMaster.KvGet(zmLeaderKey); rs.NotFound() {
 
 		if !inapi.ResSysHostIdReg.MatchString(status.Host.Meta.Id) {
 			return false, forceRefresh
 		}
 
-		if rs2 := data.ZoneMaster.PvNew(
+		if rs2 := data.ZoneMaster.KvNew(
 			zmLeaderKey,
 			status.Host.Meta.Id,
-			&skv.KvProgWriteOptions{
-				Expired: uint64(time.Now().Add(12e9).UnixNano()),
+			&skv.KvWriteOptions{
+				Ttl: 12000,
 			},
 		); rs2.OK() {
 			status.ZoneMasterList.Leader = status.Host.Meta.Id
@@ -333,7 +333,7 @@ func zmWorkerZoneHostListRefresh() error {
 
 		} else {
 			// TODO
-			hlog.Printf("error", "refresh host list %s", v.Value)
+			hlog.Printf("error", "refresh host list %s", err.Error())
 		}
 
 		// hlog.Printf("info", "refresh host refresh %d", len(rss))
@@ -485,13 +485,13 @@ func zmWorkerPodListStatusRefresh() {
 
 		var (
 			podSync       = false
-			podStatusKey  = inapi.NsZonePodStatus(status.Host.Operate.ZoneId, pod.Meta.ID)
-			podStatusKeyG = inapi.NsGlobalPodStatus(status.Host.Operate.ZoneId, pod.Meta.ID)
+			podStatusKey  = inapi.NsKvZonePodStatus(status.Host.Operate.ZoneId, pod.Meta.ID)
+			podStatusKeyG = inapi.NsKvGlobalPodStatus(status.Host.Operate.ZoneId, pod.Meta.ID)
 			podStatus     = status.ZonePodStatusList.Get(pod.Meta.ID)
 		)
 
 		if podStatus == nil {
-			if rs := data.ZoneMaster.PvGet(podStatusKey); rs.OK() {
+			if rs := data.ZoneMaster.KvGet(podStatusKey); rs.OK() {
 				var item inapi.PodStatus
 				if err := rs.Decode(&item); err == nil {
 					podStatus = &item
@@ -670,11 +670,11 @@ func zmWorkerPodListStatusRefresh() {
 		}
 		*/
 
-		if rs := data.ZoneMaster.PvPut(podStatusKey, podStatus, nil); !rs.OK() {
+		if rs := data.ZoneMaster.KvPut(podStatusKey, podStatus, nil); !rs.OK() {
 			continue
 		}
 
-		if rs := data.GlobalMaster.PvPut(podStatusKeyG, podStatus, nil); !rs.OK() {
+		if rs := data.GlobalMaster.KvPut(podStatusKeyG, podStatus, nil); !rs.OK() {
 			continue
 		}
 

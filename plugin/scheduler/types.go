@@ -16,10 +16,10 @@ package scheduler
 
 type hostFit struct {
 	id        string
-	cpu_used  int64
-	cpu_total int64
-	mem_used  int64
-	mem_total int64
+	cpu_used  int32 // 1 = .1 cores
+	cpu_total int32 // 1 = .1 cores
+	mem_used  int32 // MB
+	mem_total int32 // MB
 }
 
 // host_priority represents the priority of scheduling to a particular host, lower priority is better.

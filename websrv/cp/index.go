@@ -39,7 +39,7 @@ func (c Index) IndexAction() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <title>inPanel</title>
+  <title>InnerStack</title>
   <script src="/in/cp/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/cp/~/cp/js/main.js?v=` + inpanel.VersionHash + `"></script>
   <link rel="stylesheet" href="/in/cp/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
@@ -59,14 +59,14 @@ func (c Index) IndexAction() {
         <img src="/in/cp/~/cp/img/logo-g1s96.png">
       </div>
       <div class="body2c2">
-        <div>Sysinner PaaS Engine<br/>for DevOps</div>
+        <div>InnerStack<br/>Open Enterprise PaaS Engine</div>
       </div>
     </div>
     <div class="status status_dark" id="incp-well-status">loading</div>
   </div>
   <div class="footer">
-    <span class="copy">&copy;2018&nbsp;</span>
-    <span class="url-info"><a href="http://www.sysinner.com" target="_blank">Sysinner PaaS Engine</a></span>
+    <span class="copy">&copy;2019&nbsp;</span>
+    <span class="url-info"><a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
   </div>
 </div>
 </div>

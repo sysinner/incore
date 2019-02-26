@@ -49,7 +49,7 @@ func Start() error {
 			zoneTracker()
 
 			if status.IsZoneMasterLeader() {
-				if err := schedAction(); err != nil {
+				if err := scheduleAction(); err != nil {
 					hlog.Printf("warn", "zm/scheduler err:%s", err.Error())
 				}
 				if err := podChargeRefresh(); err != nil {

@@ -228,8 +228,8 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		vm, _ := ps_mem.VirtualMemory()
 
 		status.Host.Spec.Capacity = &inapi.ResHostResource{
-			Cpu: uint64(runtime.NumCPU()) * 1000,
-			Mem: vm.Total,
+			Cpu: int32(runtime.NumCPU()) * 10,     // 1 = 0.1 cores
+			Mem: (int64(vm.Total) / inapi.ByteMB), // MB
 		}
 	}
 

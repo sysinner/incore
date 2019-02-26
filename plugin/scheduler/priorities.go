@@ -51,7 +51,7 @@ func calculate_occupancy(host *hostFit) host_priority {
 	}
 }
 
-func calculate_percentage(numerator, denominator int64) int {
+func calculate_percentage(numerator, denominator int32) int {
 
 	if denominator <= 0 {
 		return 0

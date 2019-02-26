@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/lynkdb/iomix/skv"
+	"github.com/sysinner/incore/inutils"
 )
 
 const (
@@ -41,12 +41,12 @@ func NsGlobalSysZone(name string) string {
 	return fmt.Sprintf("/ing/sys/zone/%s", name)
 }
 
-func NsGlobalSysCell(zone_id, cell_id string) string {
-	return fmt.Sprintf("/ing/sys/cell/%s/%s", zone_id, cell_id)
+func NsGlobalSysCell(zoneId, cellId string) string {
+	return fmt.Sprintf("/ing/sys/cell/%s/%s", zoneId, cellId)
 }
 
-func NsGlobalSysHost(zone_id, host_id string) string {
-	return fmt.Sprintf("/ing/sys/host/%s/%s", zone_id, host_id)
+func NsGlobalSysHost(zoneId, hostId string) string {
+	return fmt.Sprintf("/ing/sys/host/%s/%s", zoneId, hostId)
 }
 
 func NsGlobalPodSpec(stype, id string) string {
@@ -57,102 +57,112 @@ func NsGlobalBoxImage(name, tag string) string {
 	return fmt.Sprintf("/ing/bi/%s/%s", name, tag)
 }
 
-func NsGlobalPodInstance(pod_id string) string {
-	return fmt.Sprintf("/ing/pi/%s", pod_id)
+func NsGlobalPodInstance(podId string) string {
+	return fmt.Sprintf("/ing/pi/%s", podId)
 }
 
-func NsGlobalPodInstanceDestroyed(pod_id string) string {
-	return fmt.Sprintf("/ing/pid/%s", pod_id)
+func NsKvGlobalPodInstanceDestroyed(podId string) []byte {
+	return []byte(fmt.Sprintf("ing:pod:rm:%s", podId))
 }
 
-func NsGlobalPodStatus(zone_id, pod_id string) string {
-	return fmt.Sprintf("/ing/z/%s/pst/%s", zone_id, pod_id)
+func NsKvGlobalPodStatus(zoneId, podId string) []byte {
+	return []byte(fmt.Sprintf("ing:z:%s:pst:%s", zoneId, podId))
 }
 
-func NsGlobalAppSpec(spec_id string) string {
-	return fmt.Sprintf("/ing/as/%s", spec_id)
+func NsGlobalAppSpec(specId string) string {
+	return fmt.Sprintf("/ing/as/%s", specId)
 }
 
-func NsGlobalAppSpecVersion(spec_id, version string) skv.KvProgKey {
-	u32, _ := strconv.Atoi(version)
-	if u32 > 65535 {
-		u32 = 65535 // TODO
+func DataAppSpecVersionKey(version string) string {
+	if version == "" {
+		return ""
 	}
-	return skv.NewKvProgKey("ing", "asv", spec_id, uint32(u32))
+	u32, _ := strconv.Atoi(version)
+	return fmt.Sprintf("%s.%s",
+		inutils.Uint32ToHexString(0), inutils.Uint32ToHexString(uint32(u32)))
 }
 
-func NsGlobalAppInstance(instance_id string) string {
-	return fmt.Sprintf("/ing/ai/%s", instance_id)
+func NsKvGlobalAppSpecVersion(specId, version string) []byte {
+	return []byte(fmt.Sprintf("ing:asv:%s:%s", specId, DataAppSpecVersionKey(version)))
 }
 
-func NsGlobalAppInstanceDestroyed(instance_id string) string {
-	return fmt.Sprintf("/ing/aid/%s", instance_id)
+func NsGlobalAppInstance(appId string) string {
+	return fmt.Sprintf("/ing/ai/%s", appId)
 }
 
-func NsGlobalResInstance(meta_name string) string {
-	return fmt.Sprintf("/ing/rs/%s", meta_name)
+func NsKvGlobalAppInstanceDestroyed(appId string) []byte {
+	return []byte(fmt.Sprintf("ing:app:rm:%s", appId))
 }
 
-func NsGlobalSetQueuePod(zone_id, cell_id, pod_id string) string {
-	return fmt.Sprintf("/ing/sq/%s/pod/%s/%s", zone_id, cell_id, pod_id)
+func NsGlobalResInstance(metaName string) string {
+	return fmt.Sprintf("/ing/rs/%s", metaName)
+}
+
+func NsKvGlobalSetQueuePod(zoneId, cellId, podId string) []byte {
+	return []byte(fmt.Sprintf("ing:queue:pod:%s:%s:%s", zoneId, cellId, podId))
 }
 
 //
-func NsZoneSysInfo(zone_id string) string {
-	return fmt.Sprintf("/inz/%s/sys/zone/info", zone_id)
+func NsZoneSysInfo(zoneId string) string {
+	return fmt.Sprintf("/inz/%s/sys/zone/info", zoneId)
 }
 
-func NsZoneSysCell(zone_id, cell_id string) string {
-	return fmt.Sprintf("/inz/%s/sys/cell/%s", zone_id, cell_id)
+func NsZoneSysCell(zoneId, cellId string) string {
+	return fmt.Sprintf("/inz/%s/sys/cell/%s", zoneId, cellId)
 }
 
-func NsZoneSysHost(zone_id, host_id string) string {
-	return fmt.Sprintf("/inz/%s/sys/host/%s", zone_id, host_id)
+func NsZoneSysHost(zoneId, hostId string) string {
+	return fmt.Sprintf("/inz/%s/sys/host/%s", zoneId, hostId)
 }
 
-func NsZoneSysHostSecretKey(zone_id, host_id string) string {
-	return fmt.Sprintf("/inz/%s/sys/hostkey/%s", zone_id, host_id)
+func NsZoneSysHostSecretKey(zoneId, hostId string) string {
+	return fmt.Sprintf("/inz/%s/sys/hostkey/%s", zoneId, hostId)
 }
 
-func NsZoneSysHostStats(zone_id, host_id string, timo uint32) skv.KvProgKey {
-	return skv.NewKvProgKey("inz", zone_id, "hs", host_id, timo)
+func NsKvZoneSysHostStats(zoneId, hostId string, timo uint32) []byte {
+	if timo == 0 {
+		return []byte(fmt.Sprintf("inz:sys:host:stats:%s:%s:",
+			zoneId, hostId,
+		))
+	}
+	return []byte(fmt.Sprintf("inz:sys:host:stats:%s:%s:%s",
+		zoneId, hostId, inutils.Uint32ToHexString(timo),
+	))
 }
 
-func NsZoneSysMasterLeader(zone_id string) string {
-	return fmt.Sprintf("/inz/%s/sys/zm/leader", zone_id)
+func NsKvZoneSysMasterLeader(zoneId string) []byte {
+	return []byte(fmt.Sprintf("inz:sys:zm:leader:%s", zoneId))
 }
 
-func NsZoneSysMasterNode(zone_id, node_id string) string {
-	return fmt.Sprintf("/inz/%s/sys/zm/node/%s", zone_id, node_id)
+func NsZoneSysMasterNode(zoneId, nodeId string) string {
+	return fmt.Sprintf("/inz/%s/sys/zm/node/%s", zoneId, nodeId)
 }
 
-func NsZoneSysCellScheduler(zone_id, cell_id string) string {
-	return fmt.Sprintf("/inz/%s/sys/job/%s/scheduler", zone_id, cell_id)
+func NsZonePodInstance(zoneId, podId string) string {
+	return fmt.Sprintf("/inz/%s/pi/%s", zoneId, podId)
 }
 
-func NsZonePodInstance(zone_id, pod_id string) string {
-	return fmt.Sprintf("/inz/%s/pi/%s", zone_id, pod_id)
+func NsKvZonePodInstanceDestroy(zoneId, podId string) []byte {
+	return []byte(fmt.Sprintf("inz:pod:rm:%s:%s", zoneId, podId))
 }
 
-func NsZonePodInstanceDestroy(zone_id, pod_id string) string {
-	return fmt.Sprintf("/inz/%s/pid/%s", zone_id, pod_id)
-}
-
-func NsZonePodRepStats(zone_id, pod_id string, repId uint32, name string, timo uint32) skv.KvProgKey {
-	return skv.NewKvProgKey(
-		"inz", zone_id, "ps",
-		NsZonePodOpRepKey(pod_id, repId),
-		name, timo,
+func NsKvZonePodRepStats(zoneId, podId string, repId uint32, name string, timo uint32) []byte {
+	if timo == 0 {
+		return []byte(fmt.Sprintf("inz:pod:stats:%s:%s:%s:",
+			zoneId, NsZonePodOpRepKey(podId, repId), name))
+	}
+	return []byte(fmt.Sprintf("inz:pod:stats:%s:%s:%s:%s",
+		zoneId, NsZonePodOpRepKey(podId, repId), name, inutils.Uint32ToHexString(timo)),
 	)
 }
 
-func NsZonePodOpRepKey(pod_id string, repId uint32) string {
+func NsZonePodOpRepKey(podId string, repId uint32) string {
 	if repId > 65535 {
 		repId = 65535
 	}
 	bs := make([]byte, 2)
 	binary.BigEndian.PutUint16(bs, uint16(repId))
-	return fmt.Sprintf("%s.%x", pod_id, bs)
+	return fmt.Sprintf("%s.%x", podId, bs)
 }
 
 var nsZonePodOpRepKeyReg = regexp.MustCompile("^[a-f0-9]{16,20}.[0-9]{4}$")
@@ -161,16 +171,16 @@ func NsZonePodOpRepKeyValid(key string) bool {
 	return nsZonePodOpRepKeyReg.MatchString(key)
 }
 
-func NsZonePodStatus(zone_id, pod_id string) string {
-	if len(pod_id) < 8 {
-		return fmt.Sprintf("/inz/%s/pst", zone_id)
+func NsKvZonePodStatus(zoneId, podId string) []byte {
+	if len(podId) < 8 {
+		return []byte(fmt.Sprintf("inz:pod:status:%s:", zoneId))
 	}
-	return fmt.Sprintf("/inz/%s/pst/%s", zone_id, pod_id)
+	return []byte(fmt.Sprintf("inz:pod:status:%s:%s", zoneId, podId))
 }
 
-func NsLocalCacheBoundPod(pod_id string, repId uint32) string {
-	if len(pod_id) < 8 {
-		return fmt.Sprintf("/inl/c/bp")
+func NsKvLocalCacheBoundPod(podId string, repId uint32) []byte {
+	if len(podId) < 8 {
+		return []byte("inl:pod:bind:")
 	}
-	return fmt.Sprintf("/inl/c/bp/%s", NsZonePodOpRepKey(pod_id, repId))
+	return []byte(fmt.Sprintf("inl:pod:bind:%s", NsZonePodOpRepKey(podId, repId)))
 }

@@ -122,6 +122,7 @@ type AppSpec struct {
 	Configurator   *AppConfigurator             `json:"configurator,omitempty"`
 	ExpRes         AppSpecResRequirements       `json:"exp_res,omitempty"`
 	ExpDeploy      AppSpecExpDeployRequirements `json:"exp_deploy,omitempty"`
+	Comment        string                       `json:"comment,omitempty"`
 }
 
 type AppSpecResRequirements struct {

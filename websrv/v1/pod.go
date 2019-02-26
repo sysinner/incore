@@ -516,8 +516,8 @@ func (c Pod) NewAction() {
 	*/
 
 	// Pod Map to Cell Queue
-	sqkey := inapi.NsGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	data.GlobalMaster.PvNew(sqkey, pod, nil)
+	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	data.GlobalMaster.KvNew(sqkey, pod, nil)
 
 	set.Pod = pod.Meta.ID
 	set.Kind = "PodInstance"
@@ -589,8 +589,8 @@ func (c Pod) OpActionSetAction() {
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	// Pod Map to Cell Queue
-	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
@@ -598,7 +598,7 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
@@ -607,7 +607,7 @@ func (c Pod) OpActionSetAction() {
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.KvPut(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 	}
@@ -670,8 +670,7 @@ func (c Pod) SetInfoAction() {
 	}
 
 	//
-	if config.Config.ZoneMaster != nil &&
-		config.Config.ZoneMaster.MultiReplicaEnable {
+	if config.Config.ZoneMaster.MultiReplicaEnable {
 		if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
 			set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
 			return
@@ -719,8 +718,7 @@ func (c Pod) SetInfoAction() {
 
 	//
 	prev.Operate.ExpSysState = set.Operate.ExpSysState
-	if config.Config.ZoneMaster != nil &&
-		config.Config.ZoneMaster.MultiReplicaEnable {
+	if config.Config.ZoneMaster.MultiReplicaEnable {
 		prev.Operate.ReplicaCap = set.Operate.ReplicaCap
 	}
 
@@ -728,8 +726,8 @@ func (c Pod) SetInfoAction() {
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	// Pod Map to Cell Queue
-	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -737,7 +735,7 @@ func (c Pod) SetInfoAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
@@ -746,7 +744,7 @@ func (c Pod) SetInfoAction() {
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.KvPut(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 	}
@@ -831,8 +829,8 @@ func (c Pod) DeleteAction() {
 	tn := uint32(time.Now().Unix())
 
 	// Pod Map to Cell Queue
-	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < podActionSetTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -840,7 +838,7 @@ func (c Pod) DeleteAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
@@ -849,7 +847,7 @@ func (c Pod) DeleteAction() {
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
 			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
 		})
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.GlobalMaster.KvPut(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
 	} else {
 		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
 	}
@@ -908,12 +906,13 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 	*/
 
 	if pod.Spec.Zone == status.ZoneId {
+
 		if v := status.ZonePodStatusList.Get(pod.Meta.ID); v != nil {
 			podStatus = *v
 		}
 
 	} else {
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
+		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
 			rs.Decode(&podStatus)
 		}
 	}
@@ -950,11 +949,27 @@ func (c Pod) AccessSetAction() {
 	if set.Operate.Access.SshOn {
 
 		if set.Operate.Access.SshKey != "" {
-			if len(set.Operate.Access.SshKey) > 512 ||
-				len(set.Operate.Access.SshKey) < 128 {
-				set.Error = types.NewErrorMeta("400", "Invalid SSH Public Key")
+
+			var (
+				keys    = strings.Split(set.Operate.Access.SshKey, "\n")
+				keySets = []string{}
+			)
+
+			for _, v := range keys {
+
+				v = strings.TrimSpace(v)
+
+				if len(v) < 512 && len(v) > 128 {
+					keySets = append(keySets, v)
+				}
+			}
+
+			if len(keySets) == 0 {
+				set.Error = types.NewErrorMeta("400", "incorrect SSH public Key or Key not found")
 				return
 			}
+
+			set.Operate.Access.SshKey = strings.Join(keySets, "\n")
 		}
 
 		if set.Operate.Access.SshPwd != "" &&
@@ -1028,8 +1043,8 @@ func (c Pod) AccessSetAction() {
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	// Pod Map to Cell Queue
-	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
 		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
@@ -1037,7 +1052,7 @@ func (c Pod) AccessSetAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.PvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
@@ -1232,8 +1247,8 @@ func (c Pod) SpecSetAction() {
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	sqkey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.PvGet(sqkey); rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
 		if prev.Operate.Operated+podActionQueueTimeMin < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -1249,7 +1264,7 @@ func (c Pod) SpecSetAction() {
 	}
 
 	// Pod Map to Cell Queue
-	data.GlobalMaster.PvPut(sqkey, prev, nil)
+	data.GlobalMaster.KvPut(sqkey, prev, nil)
 
 	set.Pod = prev.Meta.ID
 	set.Kind = "PodInstance"

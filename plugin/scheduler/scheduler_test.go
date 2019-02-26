@@ -20,7 +20,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/sysinner/incore/inapi"
+	typeScheduler "github.com/sysinner/incore/inapi/scheduler"
 )
 
 func TestPriorityList(t *testing.T) {
@@ -48,27 +48,27 @@ func TestPriorityList(t *testing.T) {
 
 func TestPrioritizer(t *testing.T) {
 
-	fit_hosts := []*host_fit{
+	fit_hosts := []*hostFit{
 		{
 			id:        "2",
-			cpu_used:  8000,
-			cpu_total: 16000,
-			mem_used:  5 * inapi.ByteGB,
-			mem_total: 10 * inapi.ByteGB,
+			cpu_used:  80,
+			cpu_total: 160,
+			mem_used:  5,
+			mem_total: 10,
 		},
 		{
 			id:        "1",
-			cpu_used:  1000,
-			cpu_total: 16000,
-			mem_used:  1 * inapi.ByteGB,
-			mem_total: 10 * inapi.ByteGB,
+			cpu_used:  10,
+			cpu_total: 160,
+			mem_used:  1,
+			mem_total: 10,
 		},
 		{
 			id:        "3",
-			cpu_used:  16000,
-			cpu_total: 16000,
-			mem_used:  10 * inapi.ByteGB,
-			mem_total: 10 * inapi.ByteGB,
+			cpu_used:  160,
+			cpu_total: 160,
+			mem_used:  10,
+			mem_total: 10,
 		},
 	}
 
@@ -83,7 +83,7 @@ func TestPrioritizer(t *testing.T) {
 }
 
 var (
-	hosts inapi.ResHostList
+	hosts typeScheduler.ScheduleHostList
 )
 
 func bench_init() {
@@ -95,21 +95,15 @@ func bench_init() {
 	// 5000 hosts in one zone-master
 	for i := 0; i < 5000; i++ {
 
-		hosts.Items = append(hosts.Items, &inapi.ResHost{
-			Meta: &inapi.ObjectMeta{
-				Id: fmt.Sprintf("%d", i),
-			},
-			Operate: &inapi.ResHostOperate{
-				Action:  1,
-				CpuUsed: rand.Int63n(16000),
-				MemUsed: int64(rand.Int63n(32 * int64(inapi.ByteGB))),
-			},
-			Spec: &inapi.ResHostSpec{
-				Capacity: &inapi.ResHostResource{
-					Cpu: 32000,
-					Mem: uint64(64 * int64(inapi.ByteGB)),
-				},
-			},
+		hosts.Items = append(hosts.Items, &typeScheduler.ScheduleHostItem{
+			Id:               fmt.Sprintf("%d", i),
+			CellId:           "general",
+			OpAction:         1,
+			CpuTotal:         320,
+			CpuUsed:          int32(rand.Int63n(160)),
+			MemTotal:         64 * 1024,
+			MemUsed:          int32(rand.Int63n(32)),
+			BoxDockerVersion: "1.0.0",
 		})
 	}
 }
@@ -120,23 +114,25 @@ func Benchmark_Schedule(b *testing.B) {
 
 	scheduler_bench := NewScheduler()
 
+	spec := &typeScheduler.SchedulePodSpec{
+		BoxDriver: "docker",
+		CellId:    "general",
+	}
+
 	for i := 0; i < b.N; i++ {
 
-		pod := inapi.Pod{
-			Spec: &inapi.PodSpecBound{
-				Box: inapi.PodSpecBoxBound{
-					Resources: &inapi.PodSpecBoxResComputeBound{
-						CpuLimit: rand.Int63n(16000),
-						MemLimit: rand.Int63n(32 * int64(inapi.ByteGB)),
-					},
-				},
-			},
+		rep := &typeScheduler.SchedulePodReplica{
+			RepId: 0,
+			Cpu:   int32(rand.Int63n(160)),
+			Mem:   int32(rand.Int63n(32)),
 		}
 
-		if id, err := scheduler_bench.Schedule(pod, hosts); err != nil {
+		if host, err := scheduler_bench.ScheduleHost(spec, rep, &hosts, nil); err != nil {
 			b.Fatalf("Failed Benchmark_Prioritizer %s", err.Error())
-		} else if id == "" {
+		} else if host.Id == "" {
 			b.Fatal("Failed Benchmark_Prioritizer")
+			// host.CpuUsed += rep.Cpu
+			// host.MemUsed += rep.Mem
 		}
 	}
 }

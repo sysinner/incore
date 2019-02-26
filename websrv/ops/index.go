@@ -35,7 +35,7 @@ func (c Index) IndexAction() {
 <html lang="en">
 <head>
 <meta charset="utf-8">
-  <title>inPanel Ops</title>
+  <title>InnerStack Ops</title>
   <script src="/in/ops/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/ops/~/ops/js/main.js?v=` + inpanel.VersionHash + `"></script>
   <link rel="stylesheet" href="/in/ops/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">

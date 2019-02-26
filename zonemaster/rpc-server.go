@@ -81,10 +81,10 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		for _, v := range arrs.Items {
 
-			pk := inapi.NsZoneSysHostStats(status.ZoneId, opts.Meta.Id, v.Time)
+			pk := inapi.NsKvZoneSysHostStats(status.ZoneId, opts.Meta.Id, v.Time)
 
 			var statsIndex inapi.PbStatsIndexFeed
-			if rs := data.ZoneMaster.KvProgGet(pk); rs.OK() {
+			if rs := data.ZoneMaster.KvGet(pk); rs.OK() {
 				rs.Decode(&statsIndex)
 				if statsIndex.Time < 1 {
 					continue
@@ -99,11 +99,11 @@ func (s *ApiZoneMaster) HostStatusSync(
 			}
 
 			if len(statsIndex.Items) > 0 {
-				data.ZoneMaster.KvProgPut(
+				data.ZoneMaster.KvPut(
 					pk,
-					skv.NewKvEntry(statsIndex),
-					&skv.KvProgWriteOptions{
-						Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
+					statsIndex,
+					&skv.KvWriteOptions{
+						Ttl: 30 * 86400000,
 					},
 				)
 			}
@@ -158,11 +158,11 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 			for _, iv := range arrs.Items {
 
-				repStatsKey := inapi.NsZonePodRepStats(
+				repStatsKey := inapi.NsKvZonePodRepStats(
 					status.ZoneId, repStatus.PodId, repStatus.RepId, "sys", iv.Time)
 
 				var statsIndex inapi.PbStatsIndexFeed
-				if rs := data.ZoneMaster.KvProgGet(repStatsKey); rs.OK() {
+				if rs := data.ZoneMaster.KvGet(repStatsKey); rs.OK() {
 					rs.Decode(&statsIndex)
 					if statsIndex.Time < 1 {
 						continue
@@ -177,11 +177,11 @@ func (s *ApiZoneMaster) HostStatusSync(
 				}
 
 				if len(statsIndex.Items) > 0 {
-					data.ZoneMaster.KvProgPut(
+					data.ZoneMaster.KvPut(
 						repStatsKey,
-						skv.NewKvEntry(statsIndex),
-						&skv.KvProgWriteOptions{
-							Expired: uint64(time.Now().Add(30 * 24 * time.Hour).UnixNano()),
+						statsIndex,
+						&skv.KvWriteOptions{
+							Ttl: 30 * 86400 * 1000,
 						},
 					)
 				}
@@ -196,19 +196,17 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		podStatus := status.ZonePodStatusList.Get(repStatus.PodId)
 		if podStatus == nil {
-			podStatusKey := inapi.NsZonePodStatus(status.ZoneId, repStatus.PodId)
-			if rs := data.ZoneMaster.PvGet(podStatusKey); rs.OK() {
+			podStatusKey := inapi.NsKvZonePodStatus(status.ZoneId, repStatus.PodId)
+			if rs := data.ZoneMaster.KvGet(podStatusKey); rs.OK() {
 				var item inapi.PodStatus
 				if err := rs.Decode(&item); err == nil {
 					podStatus = &item
 				}
-			} else if rs.NotFound() {
+			}
+			if podStatus == nil {
 				podStatus = &inapi.PodStatus{
 					PodId: repStatus.PodId,
 				}
-			}
-			if podStatus == nil {
-				continue
 			}
 			status.ZonePodStatusList.Set(podStatus)
 		}

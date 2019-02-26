@@ -59,8 +59,7 @@ func (c PodRep) SetAction() {
 	set := types.TypeMeta{}
 	defer c.RenderJson(&set)
 
-	if config.Config.ZoneMaster == nil ||
-		!config.Config.ZoneMaster.MultiHostEnable ||
+	if !config.Config.ZoneMaster.MultiHostEnable ||
 		!config.Config.ZoneMaster.MultiReplicaEnable {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Access Denied")
 		return
@@ -126,8 +125,8 @@ func (c PodRep) SetAction() {
 	}
 
 	// Pod Map to Cell Queue
-	podQueueKey := inapi.NsGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.PvGet(podQueueKey); rs.OK() {
+	podQueueKey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
+	if rs := data.GlobalMaster.KvGet(podQueueKey); rs.OK() {
 		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"the previous operation is in processing, please try again later")
@@ -154,7 +153,7 @@ func (c PodRep) SetAction() {
 		*/
 	}
 
-	if rs := data.GlobalMaster.PvPut(podQueueKey, prev, nil); !rs.OK() {
+	if rs := data.GlobalMaster.KvPut(podQueueKey, prev, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError,
 			"server error, please try again later")
 		return

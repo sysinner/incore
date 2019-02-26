@@ -62,15 +62,9 @@ func (c Host) NodeStatsFeedAction() {
 
 	feed := inapi.NewPbStatsSampleFeed(fq.TimeCycle)
 
-	if rs := data.ZoneMaster.KvProgScan(
-		inapi.NsZoneSysHostStats(status.ZoneId,
-			host_id,
-			fq.TimeStart,
-		),
-		inapi.NsZoneSysHostStats(status.ZoneId,
-			host_id,
-			fq.TimeCutset+600,
-		),
+	if rs := data.ZoneMaster.KvScan(
+		inapi.NsKvZoneSysHostStats(status.ZoneId, host_id, fq.TimeStart),
+		inapi.NsKvZoneSysHostStats(status.ZoneId, host_id, fq.TimeCutset+600),
 		10000,
 	); rs.OK() {
 

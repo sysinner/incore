@@ -96,7 +96,7 @@ func (c Pod) AppSyncAction() {
 	for _, dv := range app.Spec.Depends {
 
 		var dep_spec inapi.AppSpec
-		if rs := in_db.GlobalMaster.KvProgGet(inapi.NsGlobalAppSpecVersion(dv.Id, dv.Version)); rs.OK() {
+		if rs := in_db.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(dv.Id, dv.Version)); rs.OK() {
 			rs.Decode(&dep_spec)
 		} else if rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(dv.Id)); rs.OK() { // TODO
 			rs.Decode(&dep_spec)
@@ -193,8 +193,8 @@ func (c Pod) AppSyncAction() {
 
 	// Pod Map to Cell Queue
 	// pod.OpLogNew("app/"+app.Meta.ID, "info", "deploy sync")
-	sqkey := inapi.NsGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.GlobalMaster.PvPut(sqkey, pod, nil); !rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	if rs := in_db.GlobalMaster.KvPut(sqkey, pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
@@ -263,8 +263,8 @@ func (c Pod) AppSetAction() {
 	}
 
 	// Pod Map to Cell Queue
-	sqkey := inapi.NsGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.GlobalMaster.PvPut(sqkey, pod, nil); !rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	if rs := in_db.GlobalMaster.KvPut(sqkey, pod, nil); !rs.OK() {
 		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
@@ -365,8 +365,8 @@ func (c Pod) AppExecutorSetAction() {
 		return
 	}
 
-	sqkey := inapi.NsGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.GlobalMaster.PvPut(sqkey, pod, nil); !rs.OK() {
+	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
+	if rs := in_db.GlobalMaster.KvPut(sqkey, pod, nil); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}

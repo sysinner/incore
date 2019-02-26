@@ -27,8 +27,8 @@ import (
 var (
 	res_sys_mu             sync.Mutex
 	res_sys_host_mu        sync.RWMutex
-	ResSysZoneIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{2,11}$")
-	ResSysCellIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{2,11}$")
+	ResSysZoneIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{2,15}$")
+	ResSysCellIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{1,15}$")
 	ResSysHostIdReg        = regexp.MustCompile("^[0-9a-f]{12,16}$")
 	ResSysHostSecretKeyReg = regexp.MustCompile("^[0-9a-zA-Z\\+\\/]{20,40}$")
 	ResSysNodeNameReg      = regexp.MustCompile("^[0-9a-zA-Z._\\-]{1,30}$")
@@ -307,7 +307,7 @@ func (obj *ResHost) Sync(item ResHost) (changed bool) {
 	return
 }
 
-func (obj *ResHost) SyncOpCpu(cpu int64) {
+func (obj *ResHost) SyncOpCpu(cpu int32) {
 
 	if obj.Operate == nil {
 		obj.Operate = &ResHostOperate{}
@@ -316,13 +316,13 @@ func (obj *ResHost) SyncOpCpu(cpu int64) {
 	obj.Operate.CpuUsed += cpu
 }
 
-func (obj *ResHost) SyncOpMem(ram int64) {
+func (obj *ResHost) SyncOpMem(ram int32) {
 
 	if obj.Operate == nil {
 		obj.Operate = &ResHostOperate{}
 	}
 
-	obj.Operate.MemUsed += ram
+	obj.Operate.MemUsed += int64(ram)
 }
 
 const (
