@@ -197,6 +197,7 @@ type AppSpecList struct {
 type AppSpecVersionEntry struct {
 	Version string `json:"version"`
 	Created uint64 `json:"created"`
+	Comment string `json:"comment"`
 }
 
 type AppSpecVersionList struct {

@@ -61,6 +61,12 @@ var (
 
 func zoneMasterSync() error {
 
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "host/zm-sync panic %v", r)
+		}
+	}()
+
 	//
 	if len(config.Config.Masters) == 0 {
 		return errors.New("No MasterList.Items Found")

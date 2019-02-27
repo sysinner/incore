@@ -119,6 +119,12 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 
 func podRepListCtrlRefresh() error {
 
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "host/rep-control-refresh panic %v", r)
+		}
+	}()
+
 	var (
 		tn      = uint32(time.Now().Unix())
 		ctrDels = []string{}

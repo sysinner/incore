@@ -284,11 +284,13 @@ func (c App) SetAction() {
 	}
 
 	if spec.Meta.ID == "" || spec.Meta.ID != prev.Spec.Meta.ID {
-		rsp.Error = types.NewErrorMeta("400", fmt.Sprintf("AppSpec Not Found %s/%s", prev.Spec.Meta.ID, prev.Spec.Meta.Version))
-		return
+		if set_new {
+			rsp.Error = types.NewErrorMeta("400", fmt.Sprintf("AppSpec Not Found %s/%s", prev.Spec.Meta.ID, prev.Spec.Meta.Version))
+			return
+		}
+	} else {
+		prev.Spec = spec
 	}
-
-	prev.Spec = spec
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		prev.Operate.Action = prev.Operate.Action | inapi.OpActionStop

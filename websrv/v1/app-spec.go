@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
@@ -110,6 +111,10 @@ func (c AppSpec) ListAction() {
 				specf.Description = spec.Description
 			}
 
+			if fields.Has("comment") {
+				specf.Comment = spec.Comment
+			}
+
 			if fields.Has("depends") {
 				for _, dep := range spec.Depends {
 					depf := &inapi.AppSpecDepend{}
@@ -197,6 +202,10 @@ func (c AppSpec) VersionListAction() {
 		return
 	}
 
+	var (
+		version = c.Params.Get("version")
+	)
+
 	var spec inapi.AppSpec
 	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
 		rs.Decode(&spec)
@@ -208,12 +217,16 @@ func (c AppSpec) VersionListAction() {
 		return
 	}
 
+	// TODO
 	rs := data.GlobalMaster.KvRevScan(
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "0"),
-		50)
-	rss := rs.KvList()
-	fmt.Println(len(rss))
+		1000)
+	var (
+		rss         = rs.KvList()
+		prevVersion = ""
+		lastCount   = 0
+	)
 
 	for _, v := range rss {
 
@@ -222,13 +235,89 @@ func (c AppSpec) VersionListAction() {
 			continue
 		}
 
+		if cp := inapi.NewAppSpecVersion(spec.Meta.Version).Compare(
+			inapi.NewAppSpecVersion(version)); cp < 0 {
+
+			if prevVersion == "" {
+				prevVersion = spec.Meta.Version
+			} else {
+				break
+			}
+
+		} else if cp > 0 {
+
+			if lastCount >= 10 {
+				continue
+			}
+			lastCount += 1
+		}
+
 		ls.Items = append(ls.Items, inapi.AppSpecVersionEntry{
 			Version: spec.Meta.Version,
 			Created: uint64(spec.Meta.Updated),
+			Comment: spec.Comment,
 		})
 	}
 
 	ls.Kind = "AppSpecVersionList"
+}
+
+func (c AppSpec) ItemDelAction() {
+
+	set := types.TypeMeta{}
+	defer c.RenderJson(&set)
+
+	if c.Params.Get("id") == "" {
+		set.Error = types.NewErrorMeta("400", "ID can not be null")
+		return
+	}
+
+	var spec inapi.AppSpec
+	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+		rs.Decode(&spec)
+	}
+
+	if spec.Meta.ID != c.Params.Get("id") {
+		set.Error = types.NewErrorMeta("400", "Item Not Found")
+		return
+	}
+
+	if spec.Meta.User != c.us.UserName &&
+		!spec.Roles.MatchAny(c.us.Roles) {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
+		return
+	}
+
+	if rs := data.GlobalMaster.KvScan(
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, ""),
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, ""),
+		10000,
+	); rs.OK() {
+		rss := rs.KvList()
+		for _, v := range rss {
+			var item inapi.AppSpec
+			if err := v.Decode(&item); err == nil {
+				if rs := data.GlobalMaster.KvDel(
+					inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, item.Meta.Version), nil); !rs.OK() {
+					set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.String())
+					return
+				}
+			}
+		}
+
+	} else if !rs.NotFound() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error")
+		return
+	}
+
+	if rs := data.GlobalMaster.PvDel(inapi.NsGlobalAppSpec(spec.Meta.ID), nil); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.String())
+		return
+	}
+
+	hlog.Printf("info", "AppSpec %s, remove", spec.Meta.ID)
+
+	set.Kind = "AppSpec"
 }
 
 func (c AppSpec) EntryAction() {
@@ -260,11 +349,31 @@ func (c AppSpec) EntryAction() {
 	}
 
 	if set.Meta.ID != c.Params.Get("id") {
+
+		appId := c.Params.Get("app_id")
+
+		if inapi.AppIdRe2.MatchString(appId) {
+
+			if rs := data.GlobalMaster.PvGet(
+				inapi.NsGlobalAppInstance(appId)); rs.OK() {
+				var app inapi.AppInstance
+				rs.Decode(&app)
+				if app.Meta.ID == appId && app.Spec.Meta.ID == c.Params.Get("id") {
+					set = app.Spec
+				}
+			}
+		}
+	}
+
+	if set.Meta.ID != c.Params.Get("id") {
+
 		if version != "" {
 			version = ", version " + version
 		}
+
 		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
 			fmt.Sprintf("AppSpec Not Found : %s%s", c.Params.Get("id"), version))
+
 		return
 	}
 
@@ -361,6 +470,9 @@ func (c AppSpec) SetAction() {
 		prev.VcsRepos = req.VcsRepos
 		prev.ExpRes = req.ExpRes
 		prev.ExpDeploy = req.ExpDeploy
+
+		prev.Description = req.Description
+		prev.Comment = req.Comment
 
 		prev.Depends = []*inapi.AppSpecDepend{}
 		for _, v := range req.Depends {

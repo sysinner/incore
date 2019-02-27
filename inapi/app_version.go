@@ -97,7 +97,7 @@ func (v *AppSpecVersion) parse_fix() *AppSpecVersion {
 				if v.minor > 0 {
 					v.minor = 10 * v.minor
 				}
-				v.minor += v.minor - '0'
+				v.minor += (char - '0')
 			} else if v.minor > 0 {
 				v.major = v.minor
 				v.minor = 0
