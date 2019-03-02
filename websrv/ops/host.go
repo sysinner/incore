@@ -38,7 +38,6 @@ func (c *Host) Init() int {
 	}
 
 	if c.us.UserName != "sysadmin" { // TODO
-		c.Response.Out.WriteHeader(403)
 		c.RenderJson(types.NewTypeErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied"))
 		return 1
 	}

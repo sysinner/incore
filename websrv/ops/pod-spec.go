@@ -46,6 +46,11 @@ func (c *PodSpec) Init() int {
 		return 1
 	}
 
+	if c.us.UserName != "sysadmin" { // TODO
+		c.RenderJson(types.NewTypeErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied"))
+		return 1
+	}
+
 	return 0
 }
 

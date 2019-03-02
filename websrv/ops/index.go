@@ -18,6 +18,7 @@ import (
 	"fmt"
 
 	"github.com/hooto/httpsrv"
+	"github.com/hooto/iam/iamclient"
 
 	"github.com/sysinner/inpanel"
 )
@@ -30,6 +31,11 @@ func (c Index) IndexAction() {
 
 	c.AutoRender = false
 	c.Response.Out.Header().Set("Cache-Control", "no-cache")
+
+	login := "false"
+	if !iamclient.SessionIsLogin(c.Session) {
+		login = "true"
+	}
 
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
@@ -45,20 +51,29 @@ func (c Index) IndexAction() {
     inOps.nav_cluster_zone = ` + fmt.Sprintf("%v", inpanel.OpsClusterZone) + `;
     inOps.nav_cluster_cell = ` + fmt.Sprintf("%v", inpanel.OpsClusterCell) + `;
     inOps.nav_cluster_host = ` + fmt.Sprintf("%v", inpanel.OpsClusterHost) + `;
-    window.onload = inOps.Boot();
+    window.onload = inOps.Boot(` + login + `);
   </script>
 </head>
-
 <body id="body-content">
-<style>
-._inops_loading {
-  margin: 0;
-  padding: 30px 40px;
-  font-size: 48px;
-  color: #000;
-}
-</style>
-<div class="_inops_loading">loading</div>
+<div class="incp-well" id="incp-well">
+<div class="incp-well-box">
+  <div class="incp-well-panel">
+    <div class="body2c">
+      <div class="body2c1">
+        <img src="/in/cp/~/cp/img/logo-g1s96.png">
+      </div>
+      <div class="body2c2">
+        <div>InnerStack<br/>Operations Management</div>
+      </div>
+    </div>
+    <div class="status status_dark" id="incp-well-status">loading</div>
+  </div>
+  <div class="footer">
+    <span class="copy">&copy;2019&nbsp;</span>
+    <span class="url-info"><a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
+  </div>
+</div>
+</div>
 </body>
 </html>
 `)

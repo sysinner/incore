@@ -31,10 +31,18 @@ func (c Host) ZoneListAction() {
 
 	for _, v := range rs {
 
-		var zone inapi.ResZone
+		var item inapi.ResZone
 
-		if err := v.Decode(&zone); err != nil || zone.Meta.Id == "" {
+		if err := v.Decode(&item); err != nil || item.Meta.Id == "" {
 			continue
+		}
+		zone := inapi.ResZone{
+			Meta: &inapi.ObjectMeta{
+				Id: item.Meta.Id,
+			},
+			Summary:  item.Summary,
+			LanAddrs: item.LanAddrs,
+			Phase:    item.Phase,
 		}
 
 		if c.Params.Get("fields") == "cells" {
