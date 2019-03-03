@@ -203,7 +203,8 @@ func podRepListCtrlRefresh() error {
 		}
 
 		if inapi.OpActionAllow(instAction.Replica.Action, inapi.OpActionStart) {
-			instAction.Status.Action = inapi.OpActionStatusClean(instAction.Replica.Action, instAction.Status.Action)
+			instAction.Status.Action = inapi.OpActionStatusClean(
+				instAction.Replica.Action, instAction.Status.Action)
 		}
 
 		if nstatus.BoxActives.OpLockNum() > 10 {
@@ -212,11 +213,16 @@ func podRepListCtrlRefresh() error {
 
 		go func(drv napi.BoxDriver, inst *napi.BoxInstance) {
 
-			defer func() {
+			if !inst.OpLock() {
+				return
+			}
+
+			defer func(inst *napi.BoxInstance) {
 				if r := recover(); r != nil {
 					hlog.Printf("error", "host/driver panic %v", r)
 				}
-			}()
+				inst.OpUnlock()
+			}(inst)
 
 			var err error
 

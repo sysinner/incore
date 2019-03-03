@@ -20,11 +20,10 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"github.com/sysinner/incore/hostlet/napi"
-	"github.com/sysinner/incore/hostlet/nstatus"
-
 	"github.com/sysinner/incore/hostlet/box/docker"
 	"github.com/sysinner/incore/hostlet/box/pouch"
+	"github.com/sysinner/incore/hostlet/napi"
+	"github.com/sysinner/incore/hostlet/nstatus"
 )
 
 var (

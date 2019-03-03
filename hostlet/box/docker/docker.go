@@ -122,23 +122,22 @@ func (tp *BoxDriver) Start() error {
 	tp.mu.Lock()
 	defer tp.mu.Unlock()
 
-	if tp.running {
-		return nil
+	if !tp.running {
+
+		go func() {
+
+			for {
+
+				tp.statusRefresh()
+
+				go tp.statsRefresh()
+
+				time.Sleep(3e9)
+			}
+		}()
+
+		tp.running = true
 	}
-
-	go func() {
-
-		for {
-
-			tp.statusRefresh()
-
-			go tp.statsRefresh()
-
-			time.Sleep(3e9)
-		}
-	}()
-
-	tp.running = true
 
 	return nil
 }
@@ -388,6 +387,14 @@ func (tp *BoxDriver) statsRefresh() {
 	tp.statsPending = true
 	tp.mu.Unlock()
 
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+
+		tp.statsPending = false
+	}()
+
 	for _, key := range tp.actives {
 
 		if len(tp.statsSets) > activeNumMax {
@@ -403,8 +410,6 @@ func (tp *BoxDriver) statsRefresh() {
 			hlog.Printf("error", "box.Stats %s error %s", id, err.Error())
 		}
 	}
-
-	tp.statsPending = false
 }
 
 func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, error) {
@@ -511,19 +516,6 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		return errors.New("Box Server Init Error")
 	}
 
-	if !inst.OpLock() {
-		return nil
-	}
-	defer inst.OpUnlock()
-
-	/**
-	defer func() {
-		if r := recover(); r != nil {
-			hlog.Printf("error", "hostlet panic %v", r)
-		}
-	}()
-	*/
-
 	if inst.Spec.Name == "" {
 		hlog.Printf("warn", "hostlet/box Error: No Spec Found BOX:%d:%s",
 			inst.Replica.Action, inst.Name)
@@ -536,11 +528,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		return err
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			hlog.Printf("error", "hostlet panic %v", r)
-		}
-	}()
+	// hlog.Printf("info", "hostlet/box start %s", inst.Name)
 
 	if inst.ID != "" {
 
@@ -584,30 +572,30 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 	}
 
 	//
-	var (
-		expPorts  = map[drvClient.Port]struct{}{}
-		bindPorts = map[drvClient.Port][]drvClient.PortBinding{}
-	)
-
-	//
-	for _, port := range inst.Replica.Ports {
-
-		if port.HostPort == 0 {
-			port.HostPort, _ = portutil.Free(30000, 40000)
-		}
-
-		portKey := drvClient.Port(strconv.Itoa(int(port.BoxPort)) + "/tcp")
-
-		expPorts[portKey] = struct{}{} // TODO TCP,UDP...
-
-		bindPorts[portKey] = append(bindPorts[drvClient.Port(strconv.Itoa(int(port.BoxPort)))], drvClient.PortBinding{
-			HostPort: strconv.Itoa(int(port.HostPort)),
-			// HostIP:   inCfg.Config.Host.LanAddr.IP(),
-		})
-	}
-
-	//
 	if inst.ID == "" {
+
+		//
+		var (
+			expPorts  = map[drvClient.Port]struct{}{}
+			bindPorts = map[drvClient.Port][]drvClient.PortBinding{}
+		)
+
+		//
+		for _, port := range inst.Replica.Ports {
+
+			if port.HostPort == 0 {
+				port.HostPort, _ = portutil.Free(30000, 40000)
+			}
+
+			portKey := drvClient.Port(strconv.Itoa(int(port.BoxPort)) + "/tcp")
+
+			expPorts[portKey] = struct{}{} // TODO TCP,UDP...
+
+			bindPorts[portKey] = append(bindPorts[drvClient.Port(strconv.Itoa(int(port.BoxPort)))], drvClient.PortBinding{
+				HostPort: strconv.Itoa(int(port.HostPort)),
+				// HostIP:   inCfg.Config.Host.LanAddr.IP(),
+			})
+		}
 
 		// hlog.Printf("info", "hostlet/box Create %s", inst.Name)
 
@@ -724,11 +712,6 @@ func (tp *BoxDriver) BoxStop(inst *napi.BoxInstance) error {
 		return errors.New("Box Server Init Error")
 	}
 
-	if !inst.OpLock() {
-		return nil
-	}
-	defer inst.OpUnlock()
-
 	defer func() {
 		if r := recover(); r != nil {
 			hlog.Printf("error", "hostlet panic %v", r)
@@ -770,11 +753,6 @@ func (tp *BoxDriver) BoxRemove(inst *napi.BoxInstance) error {
 	if !tp.inited {
 		return errors.New("Box Server Init Error")
 	}
-
-	if !inst.OpLock() {
-		return nil
-	}
-	defer inst.OpUnlock()
 
 	defer func() {
 		if r := recover(); r != nil {
