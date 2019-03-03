@@ -105,6 +105,11 @@ func (c Pod) ListAction() {
 		}
 	}
 
+	var exp_filter_host_id string
+	if v := c.Params.Get("exp_filter_host_id"); v != "" {
+		exp_filter_host_id = v
+	}
+
 	action := uint32(c.Params.Uint64("operate_action"))
 
 	for _, v := range rss {
@@ -124,6 +129,19 @@ func (c Pod) ListAction() {
 			if c.Params.Int64("destroy_enable") != 1 &&
 				inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 				continue
+			}
+
+			if exp_filter_host_id != "" {
+				hostHit := false
+				for _, rep := range pod.Operate.Replicas {
+					if rep.Node == exp_filter_host_id {
+						hostHit = true
+						break
+					}
+				}
+				if !hostHit {
+					continue
+				}
 			}
 
 			if action > 0 && !inapi.OpActionAllow(pod.Operate.Action, action) {
@@ -186,6 +204,14 @@ func (c Pod) ListAction() {
 
 					if fields.Has("spec/cell") {
 						podfs.Spec.Cell = pod.Spec.Cell
+					}
+
+					if fields.Has("spec/volumes") {
+						podfs.Spec.Volumes = pod.Spec.Volumes
+					}
+
+					if fields.Has("spec/box") {
+						podfs.Spec.Box = pod.Spec.Box
 					}
 				}
 

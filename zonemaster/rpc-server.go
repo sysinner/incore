@@ -196,19 +196,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		podStatus := status.ZonePodStatusList.Get(repStatus.PodId)
 		if podStatus == nil {
-			podStatusKey := inapi.NsKvZonePodStatus(status.ZoneId, repStatus.PodId)
-			if rs := data.ZoneMaster.KvGet(podStatusKey); rs.OK() {
-				var item inapi.PodStatus
-				if err := rs.Decode(&item); err == nil {
-					podStatus = &item
-				}
-			}
-			if podStatus == nil {
-				podStatus = &inapi.PodStatus{
-					PodId: repStatus.PodId,
-				}
-			}
-			status.ZonePodStatusList.Set(podStatus)
+			continue
 		}
 
 		if ctrRep.Node == opts.Meta.Id {

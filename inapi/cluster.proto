@@ -30,6 +30,7 @@ message ResHostOperate {
     int64           mem_used  = 5; // MB
     int64           lss_used  = 6;
     repeated uint32 port_used = 7;
+    int32           box_num   = 8;
 }
 
 message ResHost {
@@ -90,7 +91,7 @@ message ResHostStatus {
     uint32                 uptime  = 2;
     repeated ResHostVolume volumes = 3;
     PbStatsSampleFeed      stats   = 4;
-	uint32                 updated = 5;
+    uint32                 updated = 5;
 }
 
 message ResHostBound {

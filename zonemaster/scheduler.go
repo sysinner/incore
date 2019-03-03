@@ -61,6 +61,7 @@ type hostUsageItem struct {
 	cpu   int32 // 1 = .1 cores
 	mem   int32 // MB
 	ports types.ArrayUint32
+	box   int32
 }
 
 func SetupScheduler() error {
@@ -252,6 +253,7 @@ func schedulePodListRefresh() error {
 			if !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) {
 				hostRes.cpu += specRes.CpuLimit
 				hostRes.mem += specRes.MemLimit
+				hostRes.box += 1
 			}
 
 			for _, rpp := range rp.Ports {
@@ -367,6 +369,9 @@ func scheduleHostListRefresh() error {
 			if len(host.Operate.PortUsed) > 0 {
 				host.Operate.PortUsed, sync = []uint32{}, true
 			}
+			if host.Operate.BoxNum > 0 {
+				host.Operate.BoxNum, sync = 0, true
+			}
 		} else {
 			if host.Operate.CpuUsed != res.cpu {
 				host.Operate.CpuUsed, sync = res.cpu, true
@@ -376,6 +381,9 @@ func scheduleHostListRefresh() error {
 			}
 			if !res.ports.Equal(host.Operate.PortUsed) {
 				host.Operate.PortUsed, sync = res.ports, true
+			}
+			if host.Operate.BoxNum != res.box {
+				host.Operate.BoxNum, sync = res.box, true
 			}
 		}
 
@@ -523,7 +531,7 @@ func schedulePodListQueue(cellId string) {
 
 		err := schedulePodItem(pod)
 		if err != nil {
-			hlog.Printf("error", "Scheduler Pod %s, ER %s", pod.Meta.ID, err.Error())
+			hlog.Printf("warn", "Scheduler Pod %s, ER %s", pod.Meta.ID, err.Error())
 		}
 
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod, nil); !rs.OK() {
@@ -805,6 +813,10 @@ func schedulePodItem(podq *inapi.Pod) error {
 		oplog := schedulePodRepItem(podq, 0, repid, destRes)
 		if oplog.Status == inapi.PbOpLogOK {
 			scaleup += 1
+			// podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(
+		} else {
+			podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(
+				podq.Operate.OpLog, oplog)
 		}
 	}
 

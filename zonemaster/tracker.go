@@ -494,6 +494,7 @@ func zmWorkerPodListStatusRefresh() {
 			if rs := data.ZoneMaster.KvGet(podStatusKey); rs.OK() {
 				var item inapi.PodStatus
 				if err := rs.Decode(&item); err == nil {
+
 					podStatus = &item
 				}
 			} else if rs.NotFound() {
@@ -504,6 +505,7 @@ func zmWorkerPodListStatusRefresh() {
 			if podStatus == nil {
 				continue
 			}
+			status.ZonePodStatusList.Set(podStatus)
 		}
 
 		if podStatus.PodId == "" {
