@@ -25,6 +25,15 @@ func NewModule() httpsrv.Module {
 	module := httpsrv.NewModule("in_ops")
 
 	module.RouteSet(httpsrv.Route{
+		Type: httpsrv.RouteTypeBasic,
+		Path: "/zonebound/:zone_id",
+		Params: map[string]string{
+			"controller": "zonebound",
+			"action":     "index",
+		},
+	})
+
+	module.RouteSet(httpsrv.Route{
 		Type:       httpsrv.RouteTypeStatic,
 		Path:       "~",
 		StaticPath: config.Prefix + "/webui/in",
@@ -40,6 +49,7 @@ func NewModule() httpsrv.Module {
 	module.ControllerRegister(new(PodSpec))
 	module.ControllerRegister(new(iamclient.Auth))
 	module.ControllerRegister(new(Index))
+	module.ControllerRegister(new(Zonebound))
 
 	return module
 }

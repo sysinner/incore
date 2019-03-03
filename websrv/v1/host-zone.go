@@ -42,6 +42,7 @@ func (c Host) ZoneListAction() {
 			},
 			Summary:  item.Summary,
 			LanAddrs: item.LanAddrs,
+			WanApi:   item.WanApi,
 			Phase:    item.Phase,
 		}
 

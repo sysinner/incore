@@ -123,6 +123,11 @@ func (c Host) NodeNewAction() {
 		return
 	}
 
+	if set.ZoneId != status.ZoneId {
+		set.Error = types.NewErrorMeta("400", "Access Denied : Cross-Zone Console WebUI")
+		return
+	}
+
 	var cell inapi.ResCell
 	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(set.ZoneId, set.CellId)); !rs.OK() {
 		set.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
@@ -183,6 +188,12 @@ func (c Host) NodeNewAction() {
 	node.Operate.CellId = set.CellId
 	node.Operate.Action = set.Action
 
+	//
+	if node.Operate.Pr < inapi.ResSysHostPriorityMin ||
+		node.Operate.Pr > inapi.ResSysHostPriorityMax {
+		node.Operate.Pr = inapi.ResSysHostPriorityDefault
+	}
+
 	status.ZoneHostList.Sync(*node)
 
 	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil); !rs.OK() {
@@ -221,6 +232,11 @@ func (c Host) NodeSetAction() {
 	}
 	defer c.RenderJson(&set)
 
+	if !status.IsZoneMasterLeader() {
+		set.Error = &types.ErrorMeta{"400", "Invalid ZoneMaster Leader"}
+		return
+	}
+
 	if err := c.Request.JsonDecode(&set.ResHost); err != nil {
 		set.Error = &types.ErrorMeta{"400", err.Error()}
 		return
@@ -236,7 +252,12 @@ func (c Host) NodeSetAction() {
 		return
 	}
 
-	prev := status.GlobalHostList.Item(set.Meta.Id)
+	if set.Operate.ZoneId != status.ZoneId {
+		set.Error = types.NewErrorMeta("400", "Access Denied : Cross-Zone Console WebUI")
+		return
+	}
+
+	prev := status.ZoneHostList.Item(set.Meta.Id)
 	if prev == nil {
 		set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
 		return
@@ -248,6 +269,15 @@ func (c Host) NodeSetAction() {
 	}
 	if set.Meta.Name != prev.Meta.Name {
 		prev.Meta.Name = set.Meta.Name
+	}
+
+	//
+	if set.Operate.Pr != prev.Operate.Pr {
+		prev.Operate.Pr = set.Operate.Pr
+	}
+	if prev.Operate.Pr < inapi.ResSysHostPriorityMin ||
+		prev.Operate.Pr > inapi.ResSysHostPriorityMax {
+		prev.Operate.Pr = inapi.ResSysHostPriorityDefault
 	}
 
 	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev, nil); !rs.OK() {

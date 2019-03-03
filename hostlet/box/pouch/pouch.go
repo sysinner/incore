@@ -142,11 +142,9 @@ func (tp *BoxDriver) statusRefresh() {
 			tp.client, err = drvClient.NewAPIClient(clientUnixSockAddr,
 				drvClient.TLSConfig{})
 			if err == nil {
-				hlog.Printf("info", "hostlet/status/refresh, connect to Pouch Server OK")
+				// hlog.Printf("info", "hostlet/status/refresh, connect to Pouch Server OK")
 				break
 			}
-
-			hlog.Printf("info", "hostlet/status/refresh, Can not connect to Pouch Server %s", err.Error())
 
 			time.Sleep(2e9)
 			if len(tp.sets) > 0 {

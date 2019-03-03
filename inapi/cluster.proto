@@ -31,6 +31,7 @@ message ResHostOperate {
     int64           lss_used  = 6;
     repeated uint32 port_used = 7;
     int32           box_num   = 8;
+    uint32          pr        = 9; // Priority
 }
 
 message ResHost {

@@ -245,7 +245,7 @@ func QuotaKeeperInit() error {
 	}
 
 	//
-	cfgpath := "/etc/sysinner_vol_quota.json"
+	cfgpath := config.Prefix + "/etc/hostlet_vol_quota.json"
 	if err := json.DecodeFile(cfgpath, &quotaConfig); err != nil && !os.IsNotExist(err) {
 		return err
 	}

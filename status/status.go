@@ -153,27 +153,3 @@ func ZoneHostIp(hostId string) string {
 	}
 	return ""
 }
-
-/*
-func ZonePodRepMergeOperateAction(pod_id string, rep_cap int) uint32 {
-
-	action := uint32(0)
-
-	for rep := uint16(0); rep < uint16(rep_cap); rep++ {
-		v := inapi.PbPodRepStatusSliceGet(ZonePodRepStatusSets, pod_id, uint32(rep))
-		if v == nil {
-			continue
-		}
-
-		if action == 0 {
-			action = v.Action
-		}
-
-		if action != 0 && action != v.Action {
-			return inapi.OpActionPending
-		}
-	}
-
-	return action
-}
-*/

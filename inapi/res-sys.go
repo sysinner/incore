@@ -38,6 +38,11 @@ var (
 	resLabelErrNameEmpty   = errors.New("res_label name cannot be empty")
 	resLabelErrNameLength  = errors.New("length of the res_label name must be less than 100")
 	resLabelErrNameInvalid = errors.New("invalid res_label name")
+
+	ResSysHostPriorityLength  uint32 = 6
+	ResSysHostPriorityMin     uint32 = 1
+	ResSysHostPriorityMax     uint32 = ResSysHostPriorityLength - 2
+	ResSysHostPriorityDefault uint32 = ResSysHostPriorityLength / 2
 )
 
 func (obj *ResZone) Cell(id string) *ResCell {

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1
+package ops
 
 import (
 	"bytes"
@@ -27,6 +27,7 @@ import (
 
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
+
 	"github.com/sysinner/incore/status"
 )
 
@@ -74,7 +75,7 @@ func (c Zonebound) IndexAction() {
 	}
 
 	url_path := strings.Replace(c.Request.URL.String(),
-		"/in/v1/zonebound/"+zone_id+"/", "/in/v1/", -1)
+		"/in/ops/zonebound/"+zone_id+"/", "/in/ops/", -1)
 	if strings.IndexByte(url_path, '?') < 0 {
 		url_path += "?"
 	} else {

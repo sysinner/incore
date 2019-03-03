@@ -21,8 +21,10 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lynkdb/iomix/skv"
 
+	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/status"
@@ -241,9 +243,30 @@ func zmWorkerZoneAccessKeySetup() error {
 		if v, ok := status.Zone.OptionGet("iam/acc_charge/secret_key"); ok {
 			init_if.SecretKey = v
 		}
-		if init_if.AccessKey != "" {
-			iam_db.AccessKeyInitData(init_if)
+
+		if init_if.AccessKey == "" || init_if.SecretKey == "" {
+			//
+			init_if.AccessKey = "00" + idhash.HashToHexString(
+				[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", status.Host.Operate.ZoneId)), 14)
+			init_if.SecretKey = idhash.HashToBase64String(
+				idhash.AlgSha256, []byte(config.Config.Host.SecretKey), 40)
+			//
+			status.Zone.OptionSet("iam/acc_charge/access_key", init_if.AccessKey)
+			status.Zone.OptionSet("iam/acc_charge/secret_key", init_if.SecretKey)
+			//
+			if rs := data.ZoneMaster.PvPut(inapi.NsGlobalSysZone(status.Host.Operate.ZoneId), status.Zone, nil); !rs.OK() {
+				return fmt.Errorf("Zone #%s AccessKey Reset Error",
+					status.Host.Operate.ZoneId)
+			}
+			if rs := data.ZoneMaster.PvPut(inapi.NsZoneSysInfo(status.Host.Operate.ZoneId), status.Zone, nil); !rs.OK() {
+				return fmt.Errorf("Zone #%s AccessKey Reset Error",
+					status.Host.Operate.ZoneId)
+			}
+			hlog.Printf("warn", "zone #%s, reset iam/acc_charge/key, access_key %s, secret_key %s...",
+				status.Host.Operate.ZoneId, init_if.AccessKey, init_if.SecretKey[:8])
 		}
+
+		iam_db.AccessKeyInitData(init_if)
 	}
 
 	return nil
