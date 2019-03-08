@@ -592,8 +592,9 @@ type AppConfigSet struct {
 }
 
 type AppConfigSetAppSpecRemoteBind struct {
-	SpecId string `json:"spec_id"`
-	AppId  string `json:"app_id"`
+	SpecId  string   `json:"spec_id"`
+	AppId   string   `json:"app_id"`
+	Configs []string `json:"configs"`
 }
 
 type AppStatus struct {

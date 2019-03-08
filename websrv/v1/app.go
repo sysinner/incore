@@ -877,6 +877,45 @@ func (c App) ConfigAction() {
 		}
 	}
 
+	app.Operate.Options.Sync(set_opt)
+	app.Meta.Updated = types.MetaTimeNow()
+
+	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		return
+	}
+
+	rsp.Kind = "AppInstConfig"
+}
+
+func (c App) ConfigRepRemotesAction() {
+
+	rsp := types.TypeMeta{}
+	defer c.RenderJson(&rsp)
+
+	//
+	var set inapi.AppConfigSet
+	if err := c.Request.JsonDecode(&set); err != nil {
+		rsp.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	if len(set.Id) < 8 {
+		rsp.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	var app inapi.AppInstance
+	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); rs.OK() {
+		rs.Decode(&app)
+	}
+
+	if app.Meta.ID != set.Id ||
+		!c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
+		return
+	}
+
 	if len(set.DepRemotes) > 0 && len(app.Spec.DepRemotes) > 0 {
 
 		for _, v := range set.DepRemotes {
@@ -959,25 +998,29 @@ func (c App) ConfigAction() {
 					SpecId: depRemote.Id,
 					AppId:  refApp.Meta.ID,
 					PodId:  refApp.Operate.PodId,
-					Ports:  refApp.Spec.ServicePorts, // TORM
+					// Ports:  refApp.Spec.ServicePorts, // TORM
 				}
 				app.Operate.Options.Sync(*refAppOpt)
 			}
 
 			//
-			for _, v := range refApp.Spec.ServicePorts {
-				if srv := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(v.BoxPort)); srv == nil {
-					app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, &inapi.AppServicePort{
-						Spec: refApp.Spec.Meta.ID,
-						Port: uint32(v.BoxPort),
-						Name: v.Name,
-					})
+			for _, vsp := range refApp.Spec.ServicePorts {
+				spSet := &inapi.AppServicePort{
+					Spec:  refApp.Spec.Meta.ID,
+					Port:  uint32(vsp.BoxPort),
+					Name:  vsp.Name,
+					PodId: refApp.Operate.PodId,
+					AppId: v.AppId,
+				}
+				if srv := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(vsp.BoxPort)); srv == nil {
+					app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, spSet)
+				} else {
+					srv.Sync(spSet)
 				}
 			}
 		}
 	}
 
-	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
 	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {

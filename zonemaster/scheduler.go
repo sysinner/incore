@@ -501,7 +501,16 @@ func schedulePodListQueue(cellId string) {
 						continue
 					}
 
-					app.Operate.Services = appPrev.Operate.Services
+					for _, posp := range appPrev.Operate.Services {
+
+						for _, osp := range app.Operate.Services {
+
+							if posp.Port == osp.Port {
+								osp.Endpoints = posp.Endpoints
+								break
+							}
+						}
+					}
 
 					break
 				}
@@ -612,6 +621,36 @@ func schedulePodItem(podq *inapi.Pod) error {
 
 		var ports types.ArrayUint32
 
+		// ServicePort of Remotely dependent AppSpec
+		for _, sp := range app.Operate.Services {
+
+			//
+			if sp.AppId == "" || sp.AppId == app.Meta.ID ||
+				sp.PodId == "" || sp.PodId == podq.Meta.ID {
+				continue
+			}
+
+			zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, sp.PodId)
+			if zmPodService == nil {
+				continue
+			}
+
+			srvPort := inapi.AppServicePortSliceGet(zmPodService.Ports, sp.Port)
+			if srvPort == nil || srvPort.Updated <= sp.Updated {
+				continue
+			}
+
+			chg := false
+			if sp.Endpoints, chg = inapi.AppServiceReplicaSliceSyncSlice(sp.Endpoints, srvPort.Endpoints); chg {
+				hlog.Printf("info", "pod %s, app %s, port %d, service endpoints refreshed ",
+					podq.Meta.ID, app.Meta.ID, sp.Port)
+			}
+			sp.Updated = srvPort.Updated
+
+			ports.Set(sp.Port)
+		}
+
+		/**
 		for _, appOpt := range app.Operate.Options {
 
 			if appOpt.Ref == nil ||
@@ -664,6 +703,7 @@ func schedulePodItem(podq *inapi.Pod) error {
 				appOpService.Updated = srvPort.Updated
 			}
 		}
+		*/
 
 		//
 		zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, podq.Meta.ID)
@@ -672,35 +712,35 @@ func schedulePodItem(podq *inapi.Pod) error {
 		}
 
 		//
-		for _, appSpecServicePort := range app.Spec.ServicePorts {
+		for _, assp := range app.Spec.ServicePorts {
 
-			if ports.Has(uint32(appSpecServicePort.BoxPort)) {
+			if ports.Has(uint32(assp.BoxPort)) {
 				continue
 			}
 
-			appSpecId := appSpecServicePort.AppSpec
+			appSpecId := assp.AppSpec
 			if appSpecId == "" {
 				appSpecId = app.Spec.Meta.ID
 			}
 
-			srvPort := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(appSpecServicePort.BoxPort))
+			srvPort := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(assp.BoxPort))
 			if srvPort == nil {
 
 				hlog.Printf("info", "pod %s, app/depend-spec %s, port %d, service port init",
-					podq.Meta.ID, appSpecId, appSpecServicePort.BoxPort)
+					podq.Meta.ID, appSpecId, assp.BoxPort)
 
 				srvPort = &inapi.AppServicePort{
 					Spec: appSpecId,
-					Port: uint32(appSpecServicePort.BoxPort),
-					Name: appSpecServicePort.Name,
+					Port: uint32(assp.BoxPort),
+					Name: assp.Name,
 				}
 
 				app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, srvPort)
 
 			} else {
 
-				if srvPort.Name != appSpecServicePort.Name {
-					srvPort.Name = appSpecServicePort.Name
+				if srvPort.Name != assp.Name {
+					srvPort.Name = assp.Name
 				}
 
 				if srvPort.Spec != appSpecId {
@@ -711,6 +751,10 @@ func schedulePodItem(podq *inapi.Pod) error {
 
 		//
 		for _, appOpService := range app.Operate.Services {
+
+			if appOpService.PodId != "" {
+				continue
+			}
 
 			srvPort := inapi.AppServicePortSliceGet(zmPodService.Ports, appOpService.Port)
 			if srvPort == nil || srvPort.Updated <= appOpService.Updated {

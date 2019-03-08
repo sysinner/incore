@@ -511,6 +511,13 @@ func (ls *BoxInstanceSets) SpecCpuSetsDesired(inst *BoxInstance) bool {
 			cpuCores = ls.CpuCap
 		}
 
+		for _, v := range inst.SpecCpuSets {
+			if v >= int32(len(ls.CpuUsages)) {
+				inst.SpecCpuSets = []int32{}
+				break
+			}
+		}
+
 		if int32(len(inst.SpecCpuSets)) != cpuCores {
 
 			inst.SpecCpuSets = []int32{}

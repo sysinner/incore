@@ -171,7 +171,7 @@ func podRepListCtrlRefresh() error {
 
 		if (instAction.UpUpdated+60) < tn && instAction.Replica.Action == 0 {
 
-			hlog.Printf("info", "hostlet rep %s:%d, timeout with control",
+			hlog.Printf("debug", "hostlet rep %s:%d, timeout with control",
 				instAction.PodID, instAction.Replica.RepId)
 
 			instAction.Replica.Action = inapi.OpActionDestroy

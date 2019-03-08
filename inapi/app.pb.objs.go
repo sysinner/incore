@@ -206,7 +206,8 @@ func (it *AppServicePort) Equal(it2 *AppServicePort) bool {
 		!AppServiceReplicaSliceEqual(it.Endpoints, it2.Endpoints) ||
 		it.Name != it2.Name ||
 		it.Spec != it2.Spec ||
-		it.PodId != it2.PodId {
+		it.PodId != it2.PodId ||
+		it.AppId != it2.AppId {
 		return false
 	}
 	return true

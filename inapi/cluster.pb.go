@@ -43,7 +43,7 @@ func (m *ResHostOperate) Reset()         { *m = ResHostOperate{} }
 func (m *ResHostOperate) String() string { return proto.CompactTextString(m) }
 func (*ResHostOperate) ProtoMessage()    {}
 func (*ResHostOperate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{0}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{0}
 }
 func (m *ResHostOperate) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostOperate.Unmarshal(m, b)
@@ -141,7 +141,7 @@ func (m *ResHost) Reset()         { *m = ResHost{} }
 func (m *ResHost) String() string { return proto.CompactTextString(m) }
 func (*ResHost) ProtoMessage()    {}
 func (*ResHost) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{1}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{1}
 }
 func (m *ResHost) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHost.Unmarshal(m, b)
@@ -215,7 +215,7 @@ func (m *ResHostNew) Reset()         { *m = ResHostNew{} }
 func (m *ResHostNew) String() string { return proto.CompactTextString(m) }
 func (*ResHostNew) ProtoMessage()    {}
 func (*ResHostNew) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{2}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{2}
 }
 func (m *ResHostNew) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostNew.Unmarshal(m, b)
@@ -309,7 +309,7 @@ func (m *ResHostList) Reset()         { *m = ResHostList{} }
 func (m *ResHostList) String() string { return proto.CompactTextString(m) }
 func (*ResHostList) ProtoMessage()    {}
 func (*ResHostList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{3}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{3}
 }
 func (m *ResHostList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostList.Unmarshal(m, b)
@@ -354,7 +354,7 @@ func (m *ResHostSpec) Reset()         { *m = ResHostSpec{} }
 func (m *ResHostSpec) String() string { return proto.CompactTextString(m) }
 func (*ResHostSpec) ProtoMessage()    {}
 func (*ResHostSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{4}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{4}
 }
 func (m *ResHostSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostSpec.Unmarshal(m, b)
@@ -443,7 +443,7 @@ func (m *ResPlatform) Reset()         { *m = ResPlatform{} }
 func (m *ResPlatform) String() string { return proto.CompactTextString(m) }
 func (*ResPlatform) ProtoMessage()    {}
 func (*ResPlatform) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{5}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{5}
 }
 func (m *ResPlatform) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResPlatform.Unmarshal(m, b)
@@ -496,7 +496,7 @@ func (m *ResHostResource) Reset()         { *m = ResHostResource{} }
 func (m *ResHostResource) String() string { return proto.CompactTextString(m) }
 func (*ResHostResource) ProtoMessage()    {}
 func (*ResHostResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{6}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{6}
 }
 func (m *ResHostResource) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostResource.Unmarshal(m, b)
@@ -543,7 +543,7 @@ func (m *ResHostVolume) Reset()         { *m = ResHostVolume{} }
 func (m *ResHostVolume) String() string { return proto.CompactTextString(m) }
 func (*ResHostVolume) ProtoMessage()    {}
 func (*ResHostVolume) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{7}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{7}
 }
 func (m *ResHostVolume) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostVolume.Unmarshal(m, b)
@@ -599,7 +599,7 @@ func (m *ResHostStatus) Reset()         { *m = ResHostStatus{} }
 func (m *ResHostStatus) String() string { return proto.CompactTextString(m) }
 func (*ResHostStatus) ProtoMessage()    {}
 func (*ResHostStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{8}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{8}
 }
 func (m *ResHostStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostStatus.Unmarshal(m, b)
@@ -669,7 +669,7 @@ func (m *ResHostBound) Reset()         { *m = ResHostBound{} }
 func (m *ResHostBound) String() string { return proto.CompactTextString(m) }
 func (*ResHostBound) ProtoMessage()    {}
 func (*ResHostBound) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{9}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{9}
 }
 func (m *ResHostBound) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostBound.Unmarshal(m, b)
@@ -742,7 +742,7 @@ func (m *ResZone) Reset()         { *m = ResZone{} }
 func (m *ResZone) String() string { return proto.CompactTextString(m) }
 func (*ResZone) ProtoMessage()    {}
 func (*ResZone) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{10}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{10}
 }
 func (m *ResZone) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResZone.Unmarshal(m, b)
@@ -833,7 +833,7 @@ func (m *ResCell) Reset()         { *m = ResCell{} }
 func (m *ResCell) String() string { return proto.CompactTextString(m) }
 func (*ResCell) ProtoMessage()    {}
 func (*ResCell) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{11}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{11}
 }
 func (m *ResCell) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResCell.Unmarshal(m, b)
@@ -901,7 +901,7 @@ func (m *ResZoneMasterNode) Reset()         { *m = ResZoneMasterNode{} }
 func (m *ResZoneMasterNode) String() string { return proto.CompactTextString(m) }
 func (*ResZoneMasterNode) ProtoMessage()    {}
 func (*ResZoneMasterNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{12}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{12}
 }
 func (m *ResZoneMasterNode) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResZoneMasterNode.Unmarshal(m, b)
@@ -956,7 +956,7 @@ func (m *ResZoneMasterList) Reset()         { *m = ResZoneMasterList{} }
 func (m *ResZoneMasterList) String() string { return proto.CompactTextString(m) }
 func (*ResZoneMasterList) ProtoMessage()    {}
 func (*ResZoneMasterList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_f2f1e18a7a13608c, []int{13}
+	return fileDescriptor_cluster_7aaf5d833090c202, []int{13}
 }
 func (m *ResZoneMasterList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResZoneMasterList.Unmarshal(m, b)
@@ -1157,9 +1157,9 @@ var _ApiZoneMaster_serviceDesc = grpc.ServiceDesc{
 	Metadata: "inapi/cluster.proto",
 }
 
-func init() { proto.RegisterFile("inapi/cluster.proto", fileDescriptor_cluster_f2f1e18a7a13608c) }
+func init() { proto.RegisterFile("inapi/cluster.proto", fileDescriptor_cluster_7aaf5d833090c202) }
 
-var fileDescriptor_cluster_f2f1e18a7a13608c = []byte{
+var fileDescriptor_cluster_7aaf5d833090c202 = []byte{
 	// 1204 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x56, 0xdd, 0x6e, 0x1b, 0x45,
 	0x14, 0xae, 0x7f, 0xd7, 0x1e, 0xc7, 0x69, 0x33, 0x2d, 0xed, 0x12, 0x84, 0x64, 0x56, 0xa5, 0x44,

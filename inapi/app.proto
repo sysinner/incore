@@ -38,6 +38,7 @@ message AppServicePort {
     string name = 5;
 	string spec = 6;
     string pod_id = 7;
+    string app_id = 8;
 }
 
 message AppServicePortPodBind {
