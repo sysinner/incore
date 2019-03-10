@@ -155,7 +155,7 @@ func (pod *Pod) OpSysStateValid(state_new int) error {
 		if pod.Apps != nil &&
 			pod.Apps.SpecExpDeployIsStateful() &&
 			state_new == AppSpecExpDeploySysStateless {
-			return errors.New("State conflict with App")
+			return errors.New("State conflict with AppSpec")
 		}
 	}
 

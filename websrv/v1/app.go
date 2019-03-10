@@ -328,6 +328,7 @@ func (c App) SetAction() {
 
 		rs = in_db.GlobalMaster.PvNew(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
 	} else {
+
 		rs = in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
 	}
 
@@ -381,6 +382,12 @@ func appPodResCheck(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) 
 }
 
 func appPodConflictCheck(pod *inapi.Pod, app *inapi.AppInstance) error {
+
+	if app.Spec.ExpDeploy.SysState == inapi.AppSpecExpDeploySysStateful &&
+		pod.Operate.ExpSysState == inapi.AppSpecExpDeploySysStateless {
+		return errors.New(
+			"conflict of State settings between AppSpec:Stateful and Pod:Stateless")
+	}
 
 	for _, v := range pod.Apps {
 

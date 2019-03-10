@@ -57,8 +57,7 @@ func (c PodStats) FeedAction() {
 
 	var (
 		podId          = c.Params.Get("id")
-		repId          = uint32(c.Params.Uint64("rep_id"))
-		repAll         = c.Params.Get("rep_all")
+		repId          = int32(c.Params.Int64("rep_id"))
 		qry            = c.Params.Get("qry")
 		qry_names      = c.Params.Get("qry_names")
 		qry_time_past  = uint32(c.Params.Uint64("qry_time_past"))
@@ -118,15 +117,15 @@ func (c PodStats) FeedAction() {
 		return
 	}
 
-	if repAll == "yes" {
+	if repId == -1 {
 		for i := uint32(0); i < uint32(pod.Operate.ReplicaCap); i++ {
 			reps = append(reps, i)
 		}
-	} else if repId >= uint32(pod.Operate.ReplicaCap) {
+	} else if repId < -1 || repId >= int32(pod.Operate.ReplicaCap) {
 		c.RenderJson(types.NewTypeErrorMeta("400", "Invalid rep_id"))
 		return
 	} else {
-		reps = append(reps, repId)
+		reps = append(reps, uint32(repId))
 	}
 
 	feed := inapi.NewPbStatsSampleFeed(fq.TimeCycle)
@@ -136,7 +135,7 @@ func (c PodStats) FeedAction() {
 	// feed.Debugs.Set("time_cut", fmt.Sprintf("%d", fq.TimeCutset))
 	// feed.Debugs.Set("time_cuts", time.Unix(int64(fq.TimeCutset), 0))
 
-	for _, repId = range reps {
+	for _, repId := range reps {
 
 		if rs := data.ZoneMaster.KvScan(
 			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeStart-fq.TimeCycle-600),

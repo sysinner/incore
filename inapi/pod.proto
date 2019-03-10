@@ -20,6 +20,7 @@ import "inapi/base.proto";
 import "inapi/operator.proto";
 import "inapi/stats.proto";
 
+
 message PbPodRepStatus {
     string                  pod_id  = 1; // struct:object_slice_key
     uint32                  rep_id  = 2; // struct:object_slice_key

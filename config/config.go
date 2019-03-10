@@ -80,8 +80,9 @@ var (
 		Username: "action",
 		HomeDir:  "/home/action",
 	}
-	InitZoneId = "local"
-	InitCellId = "general"
+	InitZoneId       = "local"
+	InitCellId       = "general"
+	SysConfigurators = []*inapi.SysConfigurator{}
 )
 
 func Setup() error {

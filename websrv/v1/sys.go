@@ -15,12 +15,17 @@
 package v1
 
 import (
+	"time"
+
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
 	in_cfg "github.com/sysinner/incore/config"
+	in_db "github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/inapi"
+	inStatus "github.com/sysinner/incore/status"
 )
 
 type Sys struct {
@@ -43,8 +48,10 @@ func (c *Sys) Init() int {
 }
 
 type SysCfg struct {
-	ZoneId     string            `json:"zone_id"`
-	ZoneMaster in_cfg.ZoneMaster `json:"zone_master"`
+	ZoneId           string                  `json:"zone_id"`
+	ZoneMaster       in_cfg.ZoneMaster       `json:"zone_master"`
+	SysConfigs       []*inapi.SysConfigGroup `json:"sys_configs,omitempty"`
+	sysConfigUpdated int64                   `json:"-"`
 }
 
 var (
@@ -52,11 +59,39 @@ var (
 )
 
 func (c *Sys) CfgAction() {
+
+	tn := time.Now().Unix()
+
 	if sysCfg == nil {
+
 		sysCfg = &SysCfg{
 			ZoneId: in_cfg.Config.Host.ZoneId,
 		}
 		sysCfg.ZoneMaster = in_cfg.Config.ZoneMaster
 	}
+
+	if (sysCfg.sysConfigUpdated + 60) < tn {
+
+		sysCfg.SysConfigs = []*inapi.SysConfigGroup{}
+
+		for _, v := range in_cfg.SysConfigurators {
+
+			if !v.ReadRoles.MatchAny(c.us.Roles) {
+				continue
+			}
+
+			//
+			if rs := in_db.GlobalMaster.KvGet(inapi.NsGlobalSysConfig(v.Name)); rs.OK() {
+				var item inapi.SysConfigGroup
+				if err := rs.Decode(&item); err == nil {
+					sysCfg.SysConfigs = append(sysCfg.SysConfigs, &item)
+					inStatus.ZoneSysConfigGroupList.Sync(&item)
+				}
+			}
+		}
+
+		sysCfg.sysConfigUpdated = tn
+	}
+
 	c.RenderJson(&sysCfg)
 }

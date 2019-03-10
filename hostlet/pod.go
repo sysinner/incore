@@ -226,6 +226,10 @@ func podRepListCtrlRefresh() error {
 
 			var err error
 
+			if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionRestart) {
+				hlog.Printf("info", "host/pod %s, restart", inst.PodID)
+			}
+
 			if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) {
 				err = drv.BoxRemove(inst)
 			} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStop) {

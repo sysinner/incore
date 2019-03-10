@@ -601,7 +601,8 @@ func (c Pod) OpActionSetAction() {
 	tn := uint32(time.Now().Unix())
 
 	if (inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStop) && inapi.OpActionAllow(op_action, inapi.OpActionStart)) ||
-		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(op_action, inapi.OpActionStop)) {
+		(inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionStart) && inapi.OpActionAllow(op_action, inapi.OpActionStop)) ||
+		inapi.OpActionAllow(op_action, inapi.OpActionRestart) {
 
 		if tn-prev.Operate.Operated < podActionSetTimeMin {
 			set.Error = types.NewErrorMeta("400", "too many operations in 1 minute, try again later")
@@ -621,6 +622,10 @@ func (c Pod) OpActionSetAction() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return
+	}
+
+	if inapi.OpActionAllow(op_action, inapi.OpActionRestart) {
+		prev.Operate.Action = inapi.OpActionRemove(prev.Operate.Action, inapi.OpActionRestart)
 	}
 
 	prev.Operate.Operated = tn
@@ -697,10 +702,22 @@ func (c Pod) SetInfoAction() {
 
 	//
 	if config.Config.ZoneMaster.MultiReplicaEnable {
+
 		if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
 			set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
 			return
 		}
+
+		if set.Operate.ReplicaCap > prev.Operate.ReplicaCap {
+			if cell := status.GlobalZoneCell(prev.Spec.Zone, prev.Spec.Cell); cell != nil {
+				if int32(prev.Operate.ReplicaCap+1) > cell.NodeNum {
+					set.Error = types.NewErrorMeta("400",
+						"Not enough resources to Allocate to replicas, please set a smaller value")
+					return
+				}
+			}
+		}
+
 	} else {
 		set.Operate.ReplicaCap = prev.Operate.ReplicaCap
 	}

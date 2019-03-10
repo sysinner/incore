@@ -55,13 +55,34 @@ var (
 	zonePodChargeIamAccessKey = iamapi.AccessKey{
 		User: "sysadmin",
 	}
+	ZoneSysConfigGroupList inapi.SysConfigGroupList
 
 	// local cell
 
 	// global cluster
-	GlobalZones    []inapi.ResZone
+	GlobalZones    []*inapi.ResZone
 	GlobalHostList inapi.ResHostList
 )
+
+func GlobalZone(zoneId string) *inapi.ResZone {
+	for _, v := range GlobalZones {
+		if v.Meta.Id == zoneId {
+			return v
+		}
+	}
+	return nil
+}
+
+func GlobalZoneCell(zoneId, cellId string) *inapi.ResCell {
+	if zone := GlobalZone(zoneId); zone != nil {
+		for _, v := range zone.Cells {
+			if v.Meta.Id == cellId {
+				return v
+			}
+		}
+	}
+	return nil
+}
 
 func ZonePodChargeAccessKey() iamapi.AccessKey {
 

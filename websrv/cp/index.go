@@ -18,6 +18,7 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
 
+	inStatus "github.com/sysinner/incore/status"
 	"github.com/sysinner/inpanel"
 )
 
@@ -35,10 +36,16 @@ func (c Index) IndexAction() {
 		login = "true"
 	}
 
+	cfgLogo, ok := inStatus.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
+		"cp_navbar_logo")
+	if !ok {
+		cfgLogo = "/in/cp/~/cp/img/logo-g1s96.png"
+	}
+
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+  <meta charset="utf-8">
   <title>InnerStack</title>
   <script src="/in/cp/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/cp/~/cp/js/main.js?v=` + inpanel.VersionHash + `"></script>
@@ -56,7 +63,7 @@ func (c Index) IndexAction() {
   <div class="incp-well-panel">
     <div class="body2c">
       <div class="body2c1">
-        <img src="/in/cp/~/cp/img/logo-g1s96.png">
+        <img src="` + cfgLogo + `">
       </div>
       <div class="body2c2">
         <div>InnerStack<br/>Open Enterprise PaaS Engine</div>

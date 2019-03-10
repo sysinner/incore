@@ -351,13 +351,23 @@ func scheduleHostListRefresh() error {
 
 	scheduleHostList.Items = []*typeScheduler.ScheduleHostItem{}
 
+	cellStatuses := map[string]*inapi.ResCellStatus{}
+	tn := uint32(time.Now().Unix())
+
 	//
 	for _, host := range status.ZoneHostList.Items {
 
 		var (
-			res, ok = hostResUsages[host.Meta.Id]
-			sync    = false
+			res, ok         = hostResUsages[host.Meta.Id]
+			sync            = false
+			cellStatus, cok = cellStatuses[host.Operate.CellId]
 		)
+		if !cok {
+			cellStatus = &inapi.ResCellStatus{
+				Updated: tn,
+			}
+			cellStatuses[host.Operate.CellId] = cellStatus
+		}
 
 		if !ok {
 			if host.Operate.CpuUsed > 0 {
@@ -387,6 +397,17 @@ func scheduleHostListRefresh() error {
 			}
 		}
 
+		cellStatus.CpuCap += int64(host.Spec.Capacity.Cpu)
+		cellStatus.CpuUsed += int64(host.Operate.CpuUsed)
+
+		cellStatus.MemCap += host.Spec.Capacity.Mem
+		cellStatus.MemUsed += host.Operate.MemUsed
+
+		cellStatus.HostCap += 1
+		if host.Operate.Action == 1 {
+			cellStatus.HostIn += 1
+		}
+
 		if sync {
 
 			host.OpPortSort()
@@ -410,6 +431,21 @@ func scheduleHostListRefresh() error {
 				BoxDockerVersion: host.Spec.ExpDockerVersion,
 				BoxPouchVersion:  host.Spec.ExpPouchVersion,
 			})
+		}
+	}
+
+	for id, v := range cellStatuses {
+		cell := status.Zone.Cell(id)
+		if cell == nil {
+			continue
+		}
+		if cell.Status != nil && (cell.Status.Updated+600) > v.Updated {
+			continue
+		}
+
+		cell.Status = v
+		if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysCell(status.Host.Operate.ZoneId, id), cell, nil); rs.OK() {
+			data.ZoneMaster.PvPut(inapi.NsZoneSysCell(status.Zone.Meta.Id, id), cell, nil)
 		}
 	}
 
@@ -514,6 +550,11 @@ func schedulePodListQueue(cellId string) {
 
 					break
 				}
+			}
+
+			if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionRestart) {
+				// podq.Operate.Action = inapi.OpActionRemote(podq.Operate.Action, inapi.OpActionRestart)
+				hlog.Printf("info", "Scheduler Pod %s, restart", pod.Meta.ID)
 			}
 
 			pod.Operate.Action = podq.Operate.Action

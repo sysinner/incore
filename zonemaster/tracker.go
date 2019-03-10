@@ -83,7 +83,6 @@ func zoneTracker() {
 	}
 
 	// refresh zone-master leader ttl
-	// pv := skv.NewKvEntry(status.Host.Meta.Id)
 	if rs := data.ZoneMaster.KvPut(
 		inapi.NsKvZoneSysMasterLeader(status.Host.Operate.ZoneId),
 		status.Host.Meta.Id,
@@ -95,6 +94,8 @@ func zoneTracker() {
 		hlog.Printf("warn", "zm/zone-master/leader ttl refresh failed "+rs.String())
 		return
 	}
+
+	zmWorkerSysConfigRefresh()
 
 	//
 	zmWorkerPodListStatusRefresh()
@@ -137,33 +138,6 @@ func zoneTracker() {
 		hlog.Printf("warn", "refresh host list err %s", err.Error())
 		return
 	}
-
-	/**
-	if forceRefresh {
-
-		repStatusKey := inapi.NsZonePodRepStatus(status.Zone.Meta.Id, "", 0)
-
-		rs := data.ZoneMaster.PvScan(repStatusKey, "", "", 100000)
-		if !rs.OK() {
-			hlog.Printf("warn", "refresh pod-replica-status list failed")
-			return
-		}
-
-		rss := rs.KvList()
-		for _, v := range rss {
-
-			var prs inapi.PbPodRepStatus
-			if err := v.Decode(&prs); err != nil {
-				continue
-			}
-
-			status.ZonePodRepStatusSets, _ = inapi.PbPodRepStatusSliceSync(
-				status.ZonePodRepStatusSets, &prs)
-		}
-
-		hlog.Printf("info", "zm/pod-replica-status refreshed %d", len(status.ZonePodRepStatusSets))
-	}
-	*/
 
 	// hlog.Printf("debug", "zm/status refreshed")
 }
@@ -309,11 +283,25 @@ func zmWorkerGlobalZoneListRefresh() error {
 				found = true
 
 				if pv.Meta.Updated < o.Meta.Updated {
-					status.GlobalZones[i] = o
+					status.GlobalZones[i] = &o
 				}
 			}
+
+			//
+			if rs := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(o.Meta.Id, ""), "", "", 100); rs.OK() {
+
+				rss2 := rs.KvList()
+				for _, v2 := range rss2 {
+
+					var cell inapi.ResCell
+					if err := v2.Decode(&cell); err == nil {
+						o.SyncCell(cell)
+					}
+				}
+			}
+
 			if !found {
-				status.GlobalZones = append(status.GlobalZones, o)
+				status.GlobalZones = append(status.GlobalZones, &o)
 			}
 		}
 	}
@@ -484,6 +472,31 @@ func zmWorkerZoneMasterListRefresh() error {
 	return nil
 }
 
+var zmWorkerSysConfigRefreshed = uint32(0)
+
+func zmWorkerSysConfigRefresh() {
+
+	tn := uint32(time.Now().Unix())
+
+	if (zmWorkerSysConfigRefreshed + 60) < tn {
+
+		for _, v := range config.SysConfigurators {
+
+			//
+			if rs := data.GlobalMaster.KvGet(inapi.NsGlobalSysConfig(v.Name)); rs.OK() {
+				var item inapi.SysConfigGroup
+				if err := rs.Decode(&item); err == nil {
+					status.ZoneSysConfigGroupList.Sync(&item)
+				}
+			}
+		}
+
+		zmWorkerSysConfigRefreshed = tn
+
+		// hlog.Printf("info", "zm/sys-config/refresh %d", len(config.SysConfigurators))
+	}
+}
+
 // refresh pod's status
 func zmWorkerPodListStatusRefresh() {
 
@@ -498,13 +511,6 @@ func zmWorkerPodListStatusRefresh() {
 		if pod.Operate.ReplicaCap < 1 {
 			continue
 		}
-
-		/*
-			if !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) &&
-				inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionHang) {
-				continue
-			}
-		*/
 
 		var (
 			podSync       = false
@@ -534,38 +540,6 @@ func zmWorkerPodListStatusRefresh() {
 		if podStatus.PodId == "" {
 			podStatus.PodId = pod.Meta.ID
 		}
-
-		/**
-		if len(pod.Operate.RepMigrates) < 1 {
-
-			if !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionHang) {
-
-				for j := 0; j < len(inapi.OpActionDesires); j += 2 {
-
-					// fmt.Println(inapi.OpActionStrings(pod.Operate.Action))
-
-					if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDesires[j]) &&
-						podStatus.RepActionAllow(pod.Operate.ReplicaCap, inapi.OpActionDesires[j+1]) {
-						//
-						pod.Operate.Action = pod.Operate.Action | inapi.OpActionHang
-						podSync = true
-						hlog.Printf("info", "zm/tracker pod %s, stataus refresh in hang", podStatus.PodId)
-					}
-				}
-			}
-
-			if !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) &&
-				!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionHang) &&
-				tn-pod.Operate.Operated > zmPodOperateHangTimeout {
-				//
-				// inapi.ObjPrint(pod.Meta.ID, v)
-				pod.Operate.Action = pod.Operate.Action | inapi.OpActionHang
-				podSync = true
-				hlog.Printf("info", "pod %s, force hang in timeout %d sec",
-					pod.Meta.ID, zmPodOperateHangTimeout)
-			}
-		}
-		*/
 
 		for _, repId := range pod.Operate.RepMigrates {
 
@@ -612,21 +586,6 @@ func zmWorkerPodListStatusRefresh() {
 					}
 				}
 			}
-
-			/**
-			if inapi.OpActionAllow(ctrRep.Action, inapi.OpActionMigrate) &&
-				inapi.OpActionAllow(repStatus.Action, inapi.OpActionMigrated) &&
-				!inapi.OpActionAllow(ctrRep.Next.Action, inapi.OpActionMigrated) {
-
-				ctrRep.Next.Action = ctrRep.NextAction | inapi.OpActionMigrated
-				podSync = true
-
-				hlog.Printf("warn", "zm/tracker pod %s, rep %d, set opAction to %s",
-					pod.Meta.ID, repId,
-					strings.Join(inapi.OpActionStrings(ctrRep.Action), "|"),
-				)
-			}
-			*/
 		}
 
 		// inapi.ObjPrint(pod.Meta.ID, v)
@@ -682,18 +641,6 @@ func zmWorkerPodListStatusRefresh() {
 			podStatus.RepDel(repId)
 			hlog.Printf("info", "zm/rep %s:%d, status out", pod.Meta.ID, repId)
 		}
-
-		/**
-		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) &&
-			inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionHang) &&
-			!podStatus.RepActionAllow(pod.Operate.ReplicaCap, inapi.OpActionRunning) {
-			//
-			pod.Operate.Action = inapi.OpActionRemove(pod.Operate.Action, inapi.OpActionHang)
-			podSync = true
-
-			// hlog.Printf("info", "zm/pod %s, action un-hang", pod.Meta.ID)
-		}
-		*/
 
 		if rs := data.ZoneMaster.KvPut(podStatusKey, podStatus, nil); !rs.OK() {
 			continue

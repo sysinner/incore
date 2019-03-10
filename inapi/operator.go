@@ -31,6 +31,7 @@ var (
 	OpActionMigrated  uint32 = 1 << 8
 	OpActionPending   uint32 = 1 << 11
 	OpActionWarning   uint32 = 1 << 12
+	OpActionRestart   uint32 = 1 << 23
 	OpActionResFree   uint32 = 1 << 24
 	OpActionHang      uint32 = 1 << 25
 	OpActionUnbound   uint32 = 1 << 26
@@ -51,7 +52,8 @@ func OpActionValid(op uint32) bool {
 			OpActionStop|OpActionStopped|
 			OpActionDestroy|OpActionDestroyed|
 			OpActionMigrate|
-			OpActionPending|OpActionWarning,
+			OpActionPending|OpActionWarning|
+			OpActionRestart,
 		op,
 	)
 }

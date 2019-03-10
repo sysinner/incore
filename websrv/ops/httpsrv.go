@@ -50,6 +50,7 @@ func NewModule() httpsrv.Module {
 	module.ControllerRegister(new(iamclient.Auth))
 	module.ControllerRegister(new(Index))
 	module.ControllerRegister(new(Zonebound))
+	module.ControllerRegister(new(Sys))
 
 	return module
 }

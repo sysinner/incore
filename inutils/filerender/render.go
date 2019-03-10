@@ -19,19 +19,50 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"text/template"
 )
+
+var (
+	renderKeyFilterRoles = []string{
+		"/", "__",
+		"-", "__",
+	}
+	renderTplReg = regexp.MustCompile(`{{(.*?)}}`)
+)
+
+func renderKeyFilter(k string) string {
+	for i := 0; i < len(renderKeyFilterRoles); i += 2 {
+		k = strings.ReplaceAll(k, renderKeyFilterRoles[i], renderKeyFilterRoles[i+1])
+	}
+	return k
+}
+
+func renderTplFilter(tpl string) string {
+	return string(renderTplReg.ReplaceAllFunc([]byte(tpl), func(bs []byte) []byte {
+		for i := 0; i < len(renderKeyFilterRoles); i += 2 {
+			bs = bytes.ReplaceAll(bs, []byte(renderKeyFilterRoles[i]), []byte(renderKeyFilterRoles[i+1]))
+		}
+		return bs
+	}))
+}
 
 func RenderString(src string, dstFile string, perm os.FileMode, sets map[string]interface{}) error {
 
 	//
-	tpl, err := template.New("s").Parse(src)
+	tpl, err := template.New("s").Parse(renderTplFilter(src))
 	if err != nil {
 		return err
 	}
 
+	resets := map[string]interface{}{}
+	for k, v := range sets {
+		resets[renderKeyFilter(k)] = v
+	}
+
 	var bsdst bytes.Buffer
-	if err := tpl.Execute(&bsdst, sets); err != nil {
+	if err := tpl.Execute(&bsdst, resets); err != nil {
 		return err
 	}
 

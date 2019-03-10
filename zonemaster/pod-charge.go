@@ -122,10 +122,6 @@ func podItemCharge(pod *inapi.Pod) bool {
 			continue
 		}
 
-		// Volume
-		cav += iamapi.AccountFloat64Round(
-			specPlan.ResVolumeCharge.CapSize*float64(v.VolSys), 4)
-
 		if inapi.OpActionAllow(v.Action, inapi.OpActionStart) {
 
 			// CPU in cores, 1 = .1 cores
@@ -137,20 +133,25 @@ func podItemCharge(pod *inapi.Pod) bool {
 				specPlan.ResComputeCharge.Mem*float64(v.ResMem), 4)
 		}
 
+		// Volume
+		cav += iamapi.AccountFloat64Round(
+			specPlan.ResVolumeCharge.CapSize*float64(v.VolSys), 4)
+
 		repNum += 1
 	}
 
 	var (
-		cycleAmount = cav + cav + cam
+		cycleAmount = cac + cam + cav
 		comments    = []string{
-			fmt.Sprintf("VOL %.4f", cav),
 			fmt.Sprintf("CPU %.4f", cac),
 			fmt.Sprintf("RAM %.4f", cam),
+			fmt.Sprintf("VOL %.4f", cav),
 			fmt.Sprintf("REP %d", repNum),
 		}
 		tn = uint32(time.Now().Unix())
 	)
 
+	/**
 	// Res Volumes
 	for _, v := range pod.Spec.Volumes {
 		// v.SizeLimit = 20 * inapi.ByteGB
@@ -173,6 +174,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 				specPlan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
 		}
 	}
+	*/
 
 	if cycleAmount == 0 || repNum == 0 {
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {

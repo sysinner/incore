@@ -44,7 +44,7 @@ func (x PbPodSpecBoxImageDriver) String() string {
 	return proto.EnumName(PbPodSpecBoxImageDriver_name, int32(x))
 }
 func (PbPodSpecBoxImageDriver) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_pod_85175f8ed75064d4, []int{0}
+	return fileDescriptor_pod_b107d1f1c2587d0b, []int{0}
 }
 
 type PbPodRepStatus struct {
@@ -68,7 +68,7 @@ func (m *PbPodRepStatus) Reset()         { *m = PbPodRepStatus{} }
 func (m *PbPodRepStatus) String() string { return proto.CompactTextString(m) }
 func (*PbPodRepStatus) ProtoMessage()    {}
 func (*PbPodRepStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_85175f8ed75064d4, []int{0}
+	return fileDescriptor_pod_b107d1f1c2587d0b, []int{0}
 }
 func (m *PbPodRepStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbPodRepStatus.Unmarshal(m, b)
@@ -172,7 +172,7 @@ func (m *PbVolumeMount) Reset()         { *m = PbVolumeMount{} }
 func (m *PbVolumeMount) String() string { return proto.CompactTextString(m) }
 func (*PbVolumeMount) ProtoMessage()    {}
 func (*PbVolumeMount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_85175f8ed75064d4, []int{1}
+	return fileDescriptor_pod_b107d1f1c2587d0b, []int{1}
 }
 func (m *PbVolumeMount) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbVolumeMount.Unmarshal(m, b)
@@ -232,7 +232,7 @@ func (m *PbVolumeStatus) Reset()         { *m = PbVolumeStatus{} }
 func (m *PbVolumeStatus) String() string { return proto.CompactTextString(m) }
 func (*PbVolumeStatus) ProtoMessage()    {}
 func (*PbVolumeStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_85175f8ed75064d4, []int{2}
+	return fileDescriptor_pod_b107d1f1c2587d0b, []int{2}
 }
 func (m *PbVolumeStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbVolumeStatus.Unmarshal(m, b)
@@ -279,7 +279,7 @@ func (m *PbServicePort) Reset()         { *m = PbServicePort{} }
 func (m *PbServicePort) String() string { return proto.CompactTextString(m) }
 func (*PbServicePort) ProtoMessage()    {}
 func (*PbServicePort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_85175f8ed75064d4, []int{3}
+	return fileDescriptor_pod_b107d1f1c2587d0b, []int{3}
 }
 func (m *PbServicePort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbServicePort.Unmarshal(m, b)
@@ -335,7 +335,7 @@ func (m *PbPodBoxStatusExecutor) Reset()         { *m = PbPodBoxStatusExecutor{}
 func (m *PbPodBoxStatusExecutor) String() string { return proto.CompactTextString(m) }
 func (*PbPodBoxStatusExecutor) ProtoMessage()    {}
 func (*PbPodBoxStatusExecutor) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_85175f8ed75064d4, []int{4}
+	return fileDescriptor_pod_b107d1f1c2587d0b, []int{4}
 }
 func (m *PbPodBoxStatusExecutor) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbPodBoxStatusExecutor.Unmarshal(m, b)
@@ -414,7 +414,7 @@ func (m *PbPodBoxStatus) Reset()         { *m = PbPodBoxStatus{} }
 func (m *PbPodBoxStatus) String() string { return proto.CompactTextString(m) }
 func (*PbPodBoxStatus) ProtoMessage()    {}
 func (*PbPodBoxStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_85175f8ed75064d4, []int{5}
+	return fileDescriptor_pod_b107d1f1c2587d0b, []int{5}
 }
 func (m *PbPodBoxStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbPodBoxStatus.Unmarshal(m, b)
@@ -535,9 +535,9 @@ func init() {
 	proto.RegisterEnum("inapi.PbPodSpecBoxImageDriver", PbPodSpecBoxImageDriver_name, PbPodSpecBoxImageDriver_value)
 }
 
-func init() { proto.RegisterFile("inapi/pod.proto", fileDescriptor_pod_85175f8ed75064d4) }
+func init() { proto.RegisterFile("inapi/pod.proto", fileDescriptor_pod_b107d1f1c2587d0b) }
 
-var fileDescriptor_pod_85175f8ed75064d4 = []byte{
+var fileDescriptor_pod_b107d1f1c2587d0b = []byte{
 	// 743 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x54, 0x4d, 0x6f, 0xe3, 0x36,
 	0x10, 0xad, 0xa3, 0x48, 0xb2, 0xc6, 0xf6, 0xd6, 0x25, 0xb2, 0x5b, 0x65, 0x17, 0x5b, 0x18, 0xee,

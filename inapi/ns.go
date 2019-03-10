@@ -73,6 +73,10 @@ func NsGlobalAppSpec(specId string) string {
 	return fmt.Sprintf("/ing/as/%s", specId)
 }
 
+func NsGlobalSysConfig(name string) []byte {
+	return []byte(fmt.Sprintf("ing:sys:config:%s", name))
+}
+
 func DataAppSpecVersionKey(version string) string {
 	if version == "" {
 		return ""
