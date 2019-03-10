@@ -16,10 +16,12 @@ package ops
 
 import (
 	"fmt"
+	"html"
 
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
 
+	status "github.com/sysinner/incore/status"
 	"github.com/sysinner/inpanel"
 )
 
@@ -37,11 +39,25 @@ func (c Index) IndexAction() {
 		login = "true"
 	}
 
+	cfgLogo, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
+		"cp_navbar_logo")
+	if !ok {
+		cfgLogo = "/in/cp/~/cp/img/logo-g1s96.png"
+	}
+
+	cfgTitle, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
+		"html_head_title")
+	if !ok {
+		cfgTitle = "InnerStack"
+	} else {
+		cfgTitle = html.EscapeString(cfgTitle)
+	}
+
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-  <title>InnerStack Ops</title>
+  <meta charset="utf-8">
+  <title>` + cfgTitle + `</title>
   <script src="/in/ops/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/ops/~/ops/js/main.js?v=` + inpanel.VersionHash + `"></script>
   <link rel="stylesheet" href="/in/ops/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
@@ -61,7 +77,7 @@ func (c Index) IndexAction() {
   <div class="incp-well-panel">
     <div class="body2c">
       <div class="body2c1">
-        <img src="/in/cp/~/cp/img/logo-g1s96.png">
+        <img src="` + cfgLogo + `">
       </div>
       <div class="body2c2">
         <div>InnerStack<br/>Operations Management</div>
@@ -71,7 +87,7 @@ func (c Index) IndexAction() {
   </div>
   <div class="footer">
     <span class="copy">&copy;2019&nbsp;</span>
-    <span class="url-info"><a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
+    <span class="url-info">Powered by <a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
   </div>
 </div>
 </div>

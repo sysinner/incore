@@ -155,7 +155,7 @@ func (this *PbStatsSampleEntry) Sort() {
 
 func (this *PbStatsSampleEntry) SampleSync(timo uint32, value int64, opAppend bool) {
 
-	if value < 0 || timo < this.lastTime() {
+	if value < 0 || (!opAppend && timo < this.lastTime()) {
 		return
 	}
 

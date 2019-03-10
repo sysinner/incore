@@ -25,7 +25,6 @@ import (
 	in_cfg "github.com/sysinner/incore/config"
 	in_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	inStatus "github.com/sysinner/incore/status"
 )
 
 type Sys struct {
@@ -85,7 +84,6 @@ func (c *Sys) CfgAction() {
 				var item inapi.SysConfigGroup
 				if err := rs.Decode(&item); err == nil {
 					sysCfg.SysConfigs = append(sysCfg.SysConfigs, &item)
-					inStatus.ZoneSysConfigGroupList.Sync(&item)
 				}
 			}
 		}

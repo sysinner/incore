@@ -15,10 +15,12 @@
 package cp
 
 import (
+	"html"
+
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
 
-	inStatus "github.com/sysinner/incore/status"
+	status "github.com/sysinner/incore/status"
 	"github.com/sysinner/inpanel"
 )
 
@@ -36,17 +38,25 @@ func (c Index) IndexAction() {
 		login = "true"
 	}
 
-	cfgLogo, ok := inStatus.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
+	cfgLogo, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
 		"cp_navbar_logo")
 	if !ok {
 		cfgLogo = "/in/cp/~/cp/img/logo-g1s96.png"
+	}
+
+	cfgTitle, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
+		"html_head_title")
+	if !ok {
+		cfgTitle = "InnerStack"
+	} else {
+		cfgTitle = html.EscapeString(cfgTitle)
 	}
 
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>InnerStack</title>
+  <title>` + cfgTitle + `</title>
   <script src="/in/cp/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/cp/~/cp/js/main.js?v=` + inpanel.VersionHash + `"></script>
   <link rel="stylesheet" href="/in/cp/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
@@ -73,7 +83,7 @@ func (c Index) IndexAction() {
   </div>
   <div class="footer">
     <span class="copy">&copy;2019&nbsp;</span>
-    <span class="url-info"><a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
+    <span class="url-info">Powered by <a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
   </div>
 </div>
 </div>
