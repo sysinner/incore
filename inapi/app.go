@@ -15,7 +15,6 @@
 package inapi
 
 import (
-	"encoding/json"
 	"errors"
 	"regexp"
 	"sync"
@@ -129,51 +128,6 @@ type AppSpecResRequirements struct {
 	CpuMin int32 `json:"cpu_min,omitempty"`
 	MemMin int32 `json:"mem_min,omitempty"`
 	VolMin int32 `json:"vol_min,omitempty"`
-}
-
-type appSpecResRequirementsUpgrade struct {
-	CpuMin int32 `json:"cpu_min,omitempty"`
-	MemMin int64 `json:"mem_min,omitempty"`
-	VolMin int64 `json:"vol_min,omitempty"`
-}
-
-func (it *AppSpecResRequirements) UnmarshalJSON(b []byte) error {
-
-	var it2 appSpecResRequirementsUpgrade
-	if err := json.Unmarshal(b, &it2); err != nil {
-		return err
-	}
-
-	if it2.CpuMin >= 100 {
-		it2.CpuMin = it2.CpuMin / 100
-	}
-	if it2.CpuMin < 1 {
-		it2.CpuMin = 1
-	}
-
-	if it2.MemMin > ByteMB {
-		it2.MemMin = it2.MemMin / ByteMB
-	}
-	if it2.MemMin < 32 {
-		it2.MemMin = 32
-	}
-
-	if it2.VolMin > 200 {
-		it2.VolMin = it2.VolMin / ByteGB
-	}
-	if it2.VolMin < 1 {
-		it2.VolMin = 1
-	}
-
-	it3 := &AppSpecResRequirements{
-		CpuMin: it2.CpuMin,
-		MemMin: int32(it2.MemMin),
-		VolMin: int32(it2.VolMin),
-	}
-
-	*it = AppSpecResRequirements(*it3)
-
-	return nil
 }
 
 const (

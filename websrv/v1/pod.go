@@ -1227,7 +1227,6 @@ func (c Pod) SpecSetAction() {
 	prev.Spec.Labels = spec_plan.Labels
 
 	//
-	// prev.Spec.Boxes = []inapi.PodSpecBoxBound{}
 	if strings.IndexByte(set.Box.Image, ':') < 0 { // UPGRADE
 		set.Box.Image = inapi.BoxImageRepoDefault + ":" + set.Box.Image
 		hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", prev.Meta.ID, set.Box.Image)
@@ -1323,8 +1322,6 @@ func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *typ
 			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
 	}
 
-	// for _, v := range pod.Spec.Boxes {
-
 	if pod.Spec.Box.Resources != nil {
 		// CPU
 		charge_amount += iamapi.AccountFloat64Round(
@@ -1334,7 +1331,6 @@ func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *typ
 		charge_amount += iamapi.AccountFloat64Round(
 			spec_plan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
 	}
-	// }
 
 	charge_amount = charge_amount * float64(pod.Operate.ReplicaCap)
 

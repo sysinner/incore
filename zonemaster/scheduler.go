@@ -397,11 +397,15 @@ func scheduleHostListRefresh() error {
 			}
 		}
 
-		cellStatus.CpuCap += int64(host.Spec.Capacity.Cpu)
-		cellStatus.CpuUsed += int64(host.Operate.CpuUsed)
+		if host.Spec != nil && host.Spec.Capacity != nil {
+			cellStatus.CpuCap += int64(host.Spec.Capacity.Cpu)
+			cellStatus.MemCap += host.Spec.Capacity.Mem
+		}
 
-		cellStatus.MemCap += host.Spec.Capacity.Mem
-		cellStatus.MemUsed += host.Operate.MemUsed
+		if host.Operate != nil {
+			cellStatus.CpuUsed += int64(host.Operate.CpuUsed)
+			cellStatus.MemUsed += host.Operate.MemUsed
+		}
 
 		cellStatus.HostCap += 1
 		if host.Operate.Action == 1 {

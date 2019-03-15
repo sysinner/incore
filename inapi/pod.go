@@ -15,7 +15,6 @@
 package inapi
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -54,7 +53,7 @@ const (
 	OpStatusUnknown   = "unknown"
 )
 
-// Pod is a collection of boxes, used as either input (create, update) or as output (list, get).
+// Pod is a collection of containers, used as either input (create, update) or as output (list, get).
 type Pod struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
@@ -277,34 +276,6 @@ type PodSpecBound struct {
 	Labels    types.Labels            `json:"labels,omitempty"`
 	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty"`
 	Box       PodSpecBoxBound         `json:"box,omitempty"`
-	Boxes     []PodSpecBoxBound       `json:"boxes,omitempty"` // DEPRECATED
-}
-
-type podSpecBoundJs PodSpecBound
-
-func (it *PodSpecBound) UnmarshalJSON(b []byte) error {
-
-	var obj podSpecBoundJs
-	if err := json.Unmarshal(b, &obj); err != nil {
-		return err
-	}
-
-	if obj.Box.Name == "" && len(obj.Boxes) > 0 {
-		obj.Box = obj.Boxes[0]
-	}
-
-	*it = PodSpecBound(obj)
-
-	return nil
-}
-
-func (it PodSpecBound) MarshalJSON() ([]byte, error) {
-
-	if it.Box.Name == "" && len(it.Boxes) > 0 {
-		it.Box = it.Boxes[0]
-	}
-
-	return json.Marshal(podSpecBoundJs(it))
 }
 
 func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
@@ -354,39 +325,6 @@ type PodSpecResVolumeBound struct {
 	SizeLimit int32           `json:"size_limit,omitempty"` // in GiB
 }
 
-type podSpecResVolumeBoundUpgrade struct {
-	Ref       ObjectReference `json:"ref,omitempty"`
-	Name      string          `json:"name"`
-	Labels    types.Labels    `json:"labels,omitempty"`
-	SizeLimit int64           `json:"size_limit,omitempty"` // in GiB
-}
-
-func (it *PodSpecResVolumeBound) UnmarshalJSON(b []byte) error {
-
-	var it2 podSpecResVolumeBoundUpgrade
-	if err := json.Unmarshal(b, &it2); err != nil {
-		return err
-	}
-
-	if it2.SizeLimit >= 200 {
-		it2.SizeLimit = it2.SizeLimit / 1024
-	}
-	if it2.SizeLimit < 1 {
-		it2.SizeLimit = 1
-	}
-
-	it3 := &PodSpecResVolumeBound{
-		Ref:       it2.Ref,
-		Name:      it2.Name,
-		SizeLimit: int32(it2.SizeLimit),
-		Labels:    it2.Labels,
-	}
-
-	*it = PodSpecResVolumeBound(*it3)
-
-	return nil
-}
-
 type PodSpecBoxBound struct {
 	Name      string                     `json:"name,omitempty"`
 	Image     PodSpecBoxImageBound       `json:"image,omitempty"`
@@ -420,43 +358,6 @@ type PodSpecBoxResComputeBound struct {
 	Ref      *ObjectReference `json:"ref,omitempty"`
 	CpuLimit int32            `json:"cpu_limit,omitempty"` // in .1 Cores
 	MemLimit int32            `json:"mem_limit,omitempty"` // in MiB
-}
-
-type podSpecBoxResComputeBoundUpgrade struct {
-	Ref      *ObjectReference `json:"ref,omitempty"`
-	CpuLimit int32            `json:"cpu_limit,omitempty"` // in .1 Cores
-	MemLimit int64            `json:"mem_limit,omitempty"` // in MiB
-}
-
-func (it *PodSpecBoxResComputeBound) UnmarshalJSON(b []byte) error {
-
-	var it2 podSpecBoxResComputeBoundUpgrade
-	if err := json.Unmarshal(b, &it2); err != nil {
-		return err
-	}
-
-	if it2.CpuLimit >= 100 {
-		it2.CpuLimit = it2.CpuLimit / 100
-	}
-	if it2.CpuLimit < 1 {
-		it2.CpuLimit = 1
-	}
-	if it2.MemLimit > ByteMB {
-		it2.MemLimit = it2.MemLimit / ByteMB
-	}
-	if it2.MemLimit < 1 {
-		it2.MemLimit = 1
-	}
-
-	it3 := &PodSpecBoxResComputeBound{
-		Ref:      it2.Ref,
-		CpuLimit: it2.CpuLimit,
-		MemLimit: int32(it2.MemLimit),
-	}
-
-	*it = PodSpecBoxResComputeBound(*it3)
-
-	return nil
 }
 
 type PodSpecBoxImage struct {
@@ -528,33 +429,6 @@ type PodSpecResCompute struct {
 	MemLimit int32 `json:"mem_limit,omitempty"`
 }
 
-type podSpecResComputeUpgrade PodSpecResCompute
-
-func (it *PodSpecResCompute) UnmarshalJSON(b []byte) error {
-
-	var it2 podSpecResComputeUpgrade
-	if err := json.Unmarshal(b, &it2); err != nil {
-		return err
-	}
-
-	if it2.CpuLimit >= 100 {
-		it2.CpuLimit = it2.CpuLimit / 100
-	}
-	if it2.CpuLimit < 1 {
-		it2.CpuLimit = 1
-	}
-	if it2.MemLimit > int32(ByteMB) {
-		it2.MemLimit = it2.MemLimit / int32(ByteMB)
-	}
-	if it2.MemLimit < 1 {
-		it2.MemLimit = 1
-	}
-
-	*it = PodSpecResCompute(it2)
-
-	return nil
-}
-
 type PodSpecPlanResComputeBounds []*PodSpecPlanResComputeBound
 
 func (s PodSpecPlanResComputeBounds) Len() int {
@@ -624,49 +498,6 @@ type PodSpecResVolume struct {
 	Default int32 `json:"default,omitempty"` // default to 1 GiB
 }
 
-type podSpecResVolumeUpgrade struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
-	Status         string                `json:"status,omitempty"`
-	Labels         types.Labels          `json:"labels,omitempty"`
-	Limit          int64                 `json:"limit,omitempty"`   // max to 1000 GB
-	Request        int64                 `json:"request,omitempty"` // start from 1 GiB
-	Step           int64                 `json:"step,omitempty"`    // every step by 1 GiB
-	Default        int64                 `json:"default,omitempty"` // default to 1 GiB
-}
-
-func (it *PodSpecResVolume) UnmarshalJSON(b []byte) error {
-
-	var it2 podSpecResVolumeUpgrade
-	if err := json.Unmarshal(b, &it2); err != nil {
-		return err
-	}
-
-	if it2.Meta.ID == "lt1" {
-		it2.Limit = 10
-		it2.Request = 1
-		it2.Step = 1
-		it2.Default = 1
-	} else if it2.Meta.ID == "lg1" {
-		it2.Limit = 200
-		it2.Request = 10
-		it2.Step = 10
-		it2.Default = 10
-	}
-
-	*it = PodSpecResVolume{
-		Meta:    it2.Meta,
-		Status:  it2.Status,
-		Labels:  it2.Labels,
-		Limit:   int32(it2.Limit),
-		Request: int32(it2.Request),
-		Step:    int32(it2.Step),
-		Default: int32(it2.Default),
-	}
-
-	return nil
-}
-
 type PodSpecResVolumeList struct {
 	types.TypeMeta `json:",inline"`
 	Items          []PodSpecResVolume `json:"items,omitempty"`
@@ -709,43 +540,6 @@ type PodSpecPlanResComputeBound struct {
 	MemLimit int32  `json:"mem_limit"` // in MiB
 }
 
-type podSpecPlanResComputeBoundUpgrade struct {
-	RefId    string `json:"ref_id"`
-	CpuLimit int32  `json:"cpu_limit"` // in .1 Cores
-	MemLimit int64  `json:"mem_limit"` // in MiB
-}
-
-func (it *PodSpecPlanResComputeBound) UnmarshalJSON(b []byte) error {
-
-	var it2 podSpecPlanResComputeBoundUpgrade
-	if err := json.Unmarshal(b, &it2); err != nil {
-		return err
-	}
-
-	if it2.CpuLimit >= 100 {
-		it2.CpuLimit = it2.CpuLimit / 100
-	}
-	if it2.CpuLimit < 1 {
-		it2.CpuLimit = 1
-	}
-	if it2.MemLimit > ByteMB {
-		it2.MemLimit = it2.MemLimit / ByteMB
-	}
-	if it2.MemLimit < 1 {
-		it2.MemLimit = 1
-	}
-
-	it3 := &PodSpecPlanResComputeBound{
-		RefId:    it2.RefId,
-		CpuLimit: it2.CpuLimit,
-		MemLimit: int32(it2.MemLimit),
-	}
-
-	*it = PodSpecPlanResComputeBound(*it3)
-
-	return nil
-}
-
 type PodSpecPlanResVolumeBound struct {
 	RefId   string       `json:"ref_id"`
 	Limit   int32        `json:"limit,omitempty"`   // max to 2000 GB
@@ -753,64 +547,6 @@ type PodSpecPlanResVolumeBound struct {
 	Step    int32        `json:"step,omitempty"`    // every step by 1 GiB
 	Default int32        `json:"default,omitempty"` // default to 1 GiB
 	Labels  types.Labels `json:"labels,omitempty"`
-}
-
-type podSpecPlanResVolumeBoundUpgrade struct {
-	RefId   string       `json:"ref_id"`
-	Limit   int64        `json:"limit,omitempty"`   // max to 2000 GB
-	Request int64        `json:"request,omitempty"` // start from 1 GiB
-	Step    int64        `json:"step,omitempty"`    // every step by 1 GiB
-	Default int64        `json:"default,omitempty"` // default to 1 GiB
-	Labels  types.Labels `json:"labels,omitempty"`
-}
-
-func (it *PodSpecPlanResVolumeBound) UnmarshalJSON(b []byte) error {
-
-	var it2 podSpecPlanResVolumeBoundUpgrade
-	if err := json.Unmarshal(b, &it2); err != nil {
-		return err
-	}
-
-	if it2.Limit > ByteMB {
-		it2.Limit = it2.Limit / ByteGB
-	}
-	if it2.Limit < 1 {
-		it2.Limit = 1
-	}
-
-	if it2.Request > ByteMB {
-		it2.Request = it2.Request / ByteGB
-	}
-	if it2.Request < 1 {
-		it2.Request = 1
-	}
-
-	if it2.Step > ByteMB {
-		it2.Step = it2.Step / ByteGB
-	}
-	if it2.Step < 1 {
-		it2.Step = 1
-	}
-
-	if it2.Default > ByteMB {
-		it2.Default = it2.Default / ByteGB
-	}
-	if it2.Default < 1 {
-		it2.Default = 1
-	}
-
-	it3 := &PodSpecPlanResVolumeBound{
-		RefId:   it2.RefId,
-		Limit:   int32(it2.Limit),
-		Request: int32(it2.Request),
-		Step:    int32(it2.Step),
-		Default: int32(it2.Default),
-		Labels:  it2.Labels,
-	}
-
-	*it = PodSpecPlanResVolumeBound(*it3)
-
-	return nil
 }
 
 type PodSpecPlan struct {
