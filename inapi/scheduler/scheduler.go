@@ -25,7 +25,7 @@ type Scheduler interface {
 		hostls *ScheduleHostList,
 		opts *ScheduleOptions,
 	) (
-		host *ScheduleHostItem,
+		hit *ScheduleHitItem,
 		err error,
 	)
 
@@ -44,29 +44,50 @@ type SchedulePodSpec struct {
 }
 
 type SchedulePodReplica struct {
-	RepId  uint32
-	Cpu    int32 // Cores (1 = .1 cores)
-	Mem    int32 // MB
-	VolSys int32 // GB
+	RepId       uint32
+	Cpu         int32 // Cores (1 = .1 cores)
+	Mem         int32 // MB
+	VolSys      int32 // GB
+	VolSysAttrs uint32
 }
 
 type ScheduleHostList struct {
 	Items []*ScheduleHostItem `json:"items,omitempty"`
 }
 
+type ScheduleHostVolume struct {
+	Name  string `json:"name"`
+	Total int32  `json:"total"` // GB
+	Used  int32  `json:"used"`  // GB
+	Attrs uint32 `json:"attrs"`
+}
+
+type ScheduleHostVolumes []*ScheduleHostVolume
+
 type ScheduleHostItem struct {
-	Id               string `json:"id"`
-	OpAction         uint32 `json:"op_action,omitempty"`
-	CellId           string `json:"cell_id,omitempty"`
-	CpuTotal         int32  `json:"cpu_total,omitempty"` // Cores (1 = .1 cores)
-	CpuUsed          int32  `json:"cpu_used,omitempty"`  // Cores (1 = .1 cores)
-	MemTotal         int32  `json:"mem_total,omitempty"` // MB
-	MemUsed          int32  `json:"mem_used,omitempty"`  // MB
-	VolSys           int32  `json:"vol_sys,omitempty"`   // GB
-	BoxDockerVersion string `json:"box_docker_version,omitempty"`
-	BoxPouchVersion  string `json:"box_pouch_version,omitempty"`
+	Id               string              `json:"id"`
+	OpAction         uint32              `json:"op_action,omitempty"`
+	CellId           string              `json:"cell_id,omitempty"`
+	CpuTotal         int32               `json:"cpu_total,omitempty"` // Cores (1 = .1 cores)
+	CpuUsed          int32               `json:"cpu_used,omitempty"`  // Cores (1 = .1 cores)
+	MemTotal         int32               `json:"mem_total,omitempty"` // MB
+	MemUsed          int32               `json:"mem_used,omitempty"`  // MB
+	Volumes          ScheduleHostVolumes `json:"volumes"`
+	BoxDockerVersion string              `json:"box_docker_version,omitempty"`
+	BoxPouchVersion  string              `json:"box_pouch_version,omitempty"`
 }
 
 type ScheduleOptions struct {
 	HostExcludes []string
+}
+
+type ScheduleHitVol struct {
+	Name string `json:"name"`
+	Size int32  `json:"size"`
+}
+
+type ScheduleHitItem struct {
+	HostId  string
+	Volumes []*ScheduleHitVol
+	Host    *ScheduleHostItem
 }

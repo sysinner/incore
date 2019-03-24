@@ -20,6 +20,7 @@ import (
 	ps_disk "github.com/shirou/gopsutil/disk"
 
 	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
 )
@@ -36,22 +37,25 @@ type QuotaConfig struct {
 	Items         []*QuotaProject `json:"items,omitempty"`
 	Updated       int64           `json:"updated"`
 	IdOffset      int             `json:"id_offset"`
+	MountPoints   []string        `json:"mount_points"`
 }
 
 type QuotaProject struct {
 	Id   int    `json:"id"`
+	Mnt  string `json:"mnt"`
 	Name string `json:"name"`
 	Soft int64  `json:"soft"`
 	Hard int64  `json:"hard"`
 	Used int64  `json:"used"`
 }
 
-func podBoxFoldMatch(basedir, boxdir string) (string, bool) {
+func podBoxFoldMatch(boxdir string) (string, bool) {
 
-	name := strings.TrimLeft(boxdir, basedir+"/")
-
-	if podBoxIdRe.MatchString(name) {
-		return name, true
+	if n := strings.LastIndex(boxdir, "/"); n > 0 && (n+12) < len(boxdir) {
+		name := boxdir[n+1:]
+		if podBoxIdRe.MatchString(name) {
+			return name, true
+		}
 	}
 
 	return "", false
@@ -83,7 +87,7 @@ func (it *QuotaConfig) FetchById(id int) *QuotaProject {
 	return nil
 }
 
-func (it *QuotaConfig) FetchOrCreate(name string) *QuotaProject {
+func (it *QuotaConfig) FetchOrCreate(mnt, name string) *QuotaProject {
 
 	it.mu.Lock()
 	defer it.mu.Unlock()
@@ -123,6 +127,7 @@ func (it *QuotaConfig) FetchOrCreate(name string) *QuotaProject {
 	p := &QuotaProject{
 		Id:   bind_id,
 		Name: name,
+		Mnt:  mnt,
 	}
 
 	it.Items = append(it.Items, p)
@@ -158,7 +163,13 @@ func (it *QuotaConfig) SyncVendor() error {
 		if v.Id < 1 {
 			continue
 		}
-		maps += fmt.Sprintf("%d:%s\n", v.Id, filepath.Clean(config.Config.PodHomeDir+"/"+v.Name))
+
+		if strings.HasPrefix(v.Mnt, "/data/") ||
+			strings.HasPrefix(v.Mnt, "/opt") {
+			maps += fmt.Sprintf("%d:%s\n", v.Id, filepath.Clean(v.Mnt+"/sysinner/pods/"+v.Name))
+		} else {
+			maps += fmt.Sprintf("%d:%s\n", v.Id, filepath.Clean(config.Config.PodHomeDir+"/"+v.Name))
+		}
 	}
 
 	maps_sum := fmt.Sprintf("%x", sha1.Sum([]byte(maps)))
@@ -188,13 +199,12 @@ func put_file(path, data string) error {
 }
 
 var (
-	quotaInited           = false
-	quotaRefreshed  int64 = 0
-	quotaCmd              = "xfs_quota"
-	quotaMountpoint       = ""
-	regMultiSpace         = regexp.MustCompile("\\ \\ +")
-	quotaConfig     QuotaConfig
-	err             error
+	quotaInited          = false
+	quotaRefreshed int64 = 0
+	quotaCmd             = "xfs_quota"
+	regMultiSpace        = regexp.MustCompile("\\ \\ +")
+	quotaConfig    QuotaConfig
+	err            error
 )
 
 func QuotaKeeperInit() error {
@@ -221,27 +231,35 @@ func QuotaKeeperInit() error {
 		return false
 	})
 
+	mountPoints := []string{}
 	for _, d := range devs {
-		if !strings.HasPrefix(config.Config.PodHomeDir, d.Mountpoint) {
+
+		if !strings.HasPrefix(d.Mountpoint, "/data/") &&
+			!strings.HasPrefix(d.Mountpoint, "/opt") &&
+			!strings.HasPrefix(config.Config.PodHomeDir, d.Mountpoint) {
 			continue
 		}
+
 		if d.Fstype != "xfs" {
-			return errors.New("invalid fstype (" + d.Fstype + ") to enable quota")
+			hlog.Printf("warn", "invalid fstype (%s) to enable quota", d.Fstype)
+			continue
 		}
+
 		if !strings.Contains(d.Opts, "prjquota") {
-			return errors.New("the option:prjquota required on mountpoint of " + d.Mountpoint)
+			hlog.Printf("warn", "the option:prjquota required on mountpoint of %s", d.Mountpoint)
+			continue
 		}
-		quotaMountpoint = d.Mountpoint
-		break
+
+		if _, err = exec.Command(quotaCmd, "-x", "-c", "report", d.Mountpoint).Output(); err != nil {
+			hlog.Printf("warn", "error to get report of prjquota on mountpoint of %s", d.Mountpoint)
+			continue
+		}
+
+		mountPoints = append(mountPoints, d.Mountpoint)
 	}
 
-	if quotaMountpoint == "" {
+	if len(mountPoints) == 0 {
 		return errors.New("no quota path found")
-	}
-
-	_, err = exec.Command(quotaCmd, "-x", "-c", "report", quotaMountpoint).Output()
-	if err != nil {
-		return err
 	}
 
 	//
@@ -250,6 +268,7 @@ func QuotaKeeperInit() error {
 		return err
 	}
 	quotaConfig.path = cfgpath
+	quotaConfig.MountPoints = mountPoints
 
 	quotaRefreshed = time.Now().Unix()
 
@@ -324,89 +343,96 @@ func podVolQuotaRefresh() error {
 	// 	}
 	// }
 
-	args := []string{
-		"-xc",
-		"path",
-		quotaMountpoint,
-	}
-	out, err := exec.Command(quotaCmd, args...).Output()
-	if err != nil {
-		return err
-	}
-
 	var (
-		lines      = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
 		path_gots  = map[string]int{}
 		quota_gots = types.ArrayUint32{}
-		device_ok  = false
+		device_ok  = 0
 	)
-	for _, v := range lines {
 
-		vs := strings.Split(strings.TrimSpace(v), " ")
-		if len(vs) < 4 || len(vs[0]) < 2 {
-			continue
+	for _, quotaMountpoint := range quotaConfig.MountPoints {
+
+		args := []string{
+			"-xc",
+			"path",
+			quotaMountpoint,
 		}
 
-		if vs[0] == "[000]" {
-			device_ok = true
-			continue
+		out, err := exec.Command(quotaCmd, args...).Output()
+		if err != nil {
+			return err
 		}
 
-		if len(vs) != 5 || vs[3] != "(project" || len(vs[4]) < 2 {
-			continue
+		lines := strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
+
+		for _, v := range lines {
+
+			vs := strings.Split(strings.TrimSpace(v), " ")
+			if len(vs) < 4 || len(vs[0]) < 2 {
+				continue
+			}
+
+			if vs[0] == "[000]" {
+				device_ok += 1
+				continue
+			}
+
+			if len(vs) != 5 || vs[3] != "(project" || len(vs[4]) < 2 {
+				continue
+			}
+
+			id, err := strconv.ParseInt(vs[4][:len(vs[4])-1], 10, 32)
+			if err != nil || id < 100 {
+				continue
+			}
+
+			if name, ok := podBoxFoldMatch(vs[1]); ok {
+				path_gots[name] = int(id)
+			}
 		}
 
-		id, err := strconv.ParseInt(vs[4][:len(vs[4])-1], 10, 32)
-		if err != nil || id < 100 {
-			continue
+		args = []string{
+			"-xc",
+			"df",
+			quotaMountpoint,
 		}
+		out, _ = exec.Command(quotaCmd, args...).Output()
 
-		if name, ok := podBoxFoldMatch(config.Config.PodHomeDir, vs[1]); ok {
-			path_gots[name] = int(id)
+		lines = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
+		for _, v := range lines {
+
+			vs := strings.Split(strings.TrimSpace(v), " ")
+			if len(vs) != 6 {
+				continue
+			}
+
+			name, ok := podBoxFoldMatch(vs[5])
+			if !ok {
+				continue
+			}
+
+			id, ok := path_gots[name]
+			if !ok || id < 100 {
+				continue
+			}
+
+			proj := quotaConfig.FetchById(int(id))
+			if proj == nil {
+				continue
+			}
+
+			if i64, err := strconv.ParseInt(vs[2], 10, 64); err == nil {
+				proj.Used = i64 * 1024
+			}
+
+			if i64, err := strconv.ParseInt(vs[1], 10, 64); err == nil {
+				proj.Soft = i64 * 1024
+			}
+
+			proj.Hard = proj.Soft
+			proj.Mnt = quotaMountpoint
+
+			quota_gots.Set(uint32(id))
 		}
-	}
-
-	args = []string{
-		"-xc",
-		"df",
-		quotaMountpoint,
-	}
-	out, _ = exec.Command(quotaCmd, args...).Output()
-
-	lines = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
-	for _, v := range lines {
-
-		vs := strings.Split(strings.TrimSpace(v), " ")
-		if len(vs) != 6 {
-			continue
-		}
-
-		name, ok := podBoxFoldMatch(config.Config.PodHomeDir, vs[5])
-		if !ok {
-			continue
-		}
-
-		id, ok := path_gots[name]
-		if !ok || id < 100 {
-			continue
-		}
-
-		proj := quotaConfig.FetchById(int(id))
-		if proj == nil {
-			continue
-		}
-
-		if i64, err := strconv.ParseInt(vs[2], 10, 64); err == nil {
-			proj.Used = i64 * 1024
-		}
-
-		if i64, err := strconv.ParseInt(vs[1], 10, 64); err == nil {
-			proj.Soft = i64 * 1024
-		}
-
-		proj.Hard = proj.Soft
-
-		quota_gots.Set(uint32(id))
 	}
 
 	// for p, id := range path_gots {
@@ -423,7 +449,7 @@ func podVolQuotaRefresh() error {
 
 	// hlog.Printf("info", "get info %d  %d", len(quotaConfig.Items), len(path_gots))
 
-	if device_ok {
+	if device_ok > 0 {
 		dels := []string{}
 		for _, v := range quotaConfig.Items {
 
@@ -451,7 +477,7 @@ func podVolQuotaRefresh() error {
 
 	nstatus.PodRepActives.Each(func(podRep *inapi.PodRep) {
 
-		if podRep.Spec == nil {
+		if podRep.Spec == nil || podRep.Replica.VolSysMnt == "" {
 			return
 		}
 
@@ -459,18 +485,18 @@ func podVolQuotaRefresh() error {
 			return
 		}
 
-		name := inapi.NsZonePodOpRepKey(podRep.Meta.ID, podRep.Replica.RepId)
-
 		//
-		path := filepath.Clean(config.Config.PodHomeDir + "/" + name)
+		path := napi.PodVolSysDir(podRep.Replica.VolSysMnt, podRep.Meta.ID, podRep.Replica.RepId)
 		fp, err := os.Open(path)
 		if err != nil {
+			hlog.Printf("warn", "hostlet/vol check sysdir %s", err.Error())
 			return
 		}
 		fp.Close()
 
 		//
-		proj := quotaConfig.FetchOrCreate(name)
+		name := inapi.NsZonePodOpRepKey(podRep.Meta.ID, podRep.Replica.RepId)
+		proj := quotaConfig.FetchOrCreate(podRep.Replica.VolSysMnt, name)
 		if proj == nil {
 			hlog.Printf("error", "hostlet/vol failed to create quota/project : %s", name)
 			return
@@ -491,7 +517,7 @@ func podVolQuotaRefresh() error {
 			"-x",
 			"-c",
 			fmt.Sprintf("project -s %d", proj.Id),
-			quotaMountpoint,
+			proj.Mnt,
 		}
 
 		_, err = exec.Command(quotaCmd, args...).Output()
@@ -504,15 +530,13 @@ func podVolQuotaRefresh() error {
 		args = []string{
 			"-x",
 			"-c",
-			fmt.Sprintf("limit -p bsoft=%d bhard=%d %d",
-				volSys, volSys, proj.Id),
-			quotaMountpoint,
+			fmt.Sprintf("limit -p bsoft=%d bhard=%d %d", volSys, volSys, proj.Id),
+			podRep.Replica.VolSysMnt,
 		}
 		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {
 			hlog.Printf("info", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
 			return
 		}
-
 	})
 
 	if err := quotaConfig.Sync(); err != nil {
@@ -535,7 +559,7 @@ func podVolQuotaRefresh() error {
 			"-x",
 			"-c",
 			fmt.Sprintf("limit -p bsoft=0 bhard=0 %d", v.Id),
-			quotaMountpoint,
+			v.Mnt,
 		}
 
 		_, err = exec.Command(quotaCmd, args...).Output()
@@ -548,7 +572,7 @@ func podVolQuotaRefresh() error {
 		args = []string{
 			"-xc",
 			fmt.Sprintf("project -C %d", v.Id),
-			quotaMountpoint,
+			v.Mnt,
 		}
 		_, err = exec.Command(quotaCmd, args...).Output()
 		if err != nil {

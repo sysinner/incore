@@ -306,12 +306,6 @@ func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[st
 		return inapi.PbOpLogInfo, "pending"
 	}
 
-	/*
-		if inapi.OpActionAllow(op_action, inapi.OpActionStop) {
-			es.Action.Append(inapi.ExecutorActionStop)
-		}
-	*/
-
 	// Exec Planner
 	if inapi.OpActionAllow(op_action, inapi.OpActionStop) {
 		es.Action = inapi.ExecutorActionStop
@@ -398,15 +392,6 @@ func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[st
 	if es.Cmd == nil {
 		es.Cmd = exec.Command("bash", "--rcfile", "/home/action/.bashrc")
 	}
-
-	//
-	/*
-		sets := map[string]string{}
-		for _, v := range etr.Packages {
-			sets[fmt.Sprintf("inpack_prefix_%s", v.Name)] = fmt.Sprintf("/usr/sysinner/%s/%s", v.Name, v.Version)
-			hlog.Printf("info", fmt.Sprintf("/usr/sysinner/%s/%s", v.Name, v.Version))
-		}
-	*/
 
 	//
 	tpl, err := template.New("s").Parse(script)

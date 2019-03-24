@@ -206,8 +206,8 @@ func (c Pod) ListAction() {
 						podfs.Spec.Cell = pod.Spec.Cell
 					}
 
-					if fields.Has("spec/volumes") {
-						podfs.Spec.Volumes = pod.Spec.Volumes
+					if fields.Has("spec/vol_sys") {
+						podfs.Spec.VolSys = pod.Spec.VolSys
 					}
 
 					if fields.Has("spec/box") {
@@ -236,30 +236,7 @@ func (c Pod) ListAction() {
 				if fields.Has("operate") {
 
 					if fields.Has("operate/action") {
-
 						podfs.Operate.Action = pod.Operate.Action
-
-						// TODO
-						/**
-						if pod.Spec.Zone != status.ZoneId {
-							if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
-								var pst inapi.PodStatus
-								if err := rs.Decode(&pst); err == nil {
-									var pst inapi.PodStatus
-									podfs.Operate.Action = pod.Operate.Action | pst.Action
-								}
-							}
-						} else {
-							podfs.Operate.Action = pod.Operate.Action | pst.Action
-
-						}
-						*/
-
-						/**
-						if podfs.Operate.Action < 1 || pod.Spec.Zone == status.ZoneId {
-							podfs.Operate.Action = pod.Operate.Action | status.ZonePodRepMergeOperateAction(pod.Meta.ID, pod.Operate.ReplicaCap)
-						}
-						*/
 					}
 
 					if fields.Has("operate/version") {
@@ -332,14 +309,6 @@ func (c Pod) EntryAction() {
 					set.Status = nil
 				}
 			}
-
-			// TODO
-			/**
-			if set.Spec.Zone == status.ZoneId {
-				set.Operate.Action = inapi.OpActionAppend(set.Operate.Action,
-					status.ZonePodRepMergeOperateAction(set.Meta.ID, set.Operate.ReplicaCap))
-			}
-			*/
 		}
 	}
 
@@ -450,15 +419,11 @@ func (c Pod) NewAction() {
 			Zone:   set.Zone,
 			Cell:   set.Cell,
 			Labels: spec_plan.Labels,
-			Volumes: []inapi.PodSpecResVolumeBound{
-				{
-					Ref: inapi.ObjectReference{
-						Id:   res_vol.RefId,
-						Name: res_vol.RefId,
-					},
-					Name:      "system",
-					SizeLimit: set.ResVolumeSize,
-				},
+			VolSys: &inapi.ResVolBound{
+				RefId:   res_vol.RefId,
+				RefName: res_vol.RefName,
+				Attrs:   res_vol.Attrs,
+				Size:    set.ResVolumeSize,
 			},
 		},
 		Operate: inapi.PodOperate{
@@ -532,14 +497,6 @@ func (c Pod) NewAction() {
 		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
 		return
 	}
-
-	/*
-		oplog := inapi.NewOpLog(c.us.UserName)
-		if rs := data.ZoneMaster.PvNew(inapi.NsZonePodOperateLog(pod.Spec.Zone, pod.RepId(0)), oplog, nil); !rs.OK() {
-			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
-			return
-		}
-	*/
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
@@ -922,32 +879,6 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 		}
 	}
 
-	/**
-	for _, rep := range pod.Operate.Replicas {
-
-		if rep.Node == "" {
-			continue
-		}
-
-		rep_status := inapi.PbPodRepStatusSliceGet(status.ZonePodRepStatusSets, pod.Meta.ID, uint32(rep.Id))
-		if rep_status == nil {
-			continue
-		}
-
-		if rep_status.Action == 0 {
-			rep_status.Action = inapi.OpActionPending
-		} else {
-
-			if rep_status.Action == inapi.OpActionRunning &&
-				(uint32(time.Now().UTC().Unix())-rep_status.Updated) > 600 {
-				rep_status.Action = 0
-			}
-
-			status.Replicas = append(status.Replicas, rep_status)
-		}
-	}
-	*/
-
 	if pod.Spec.Zone == status.ZoneId {
 
 		if v := status.ZonePodStatusList.Get(pod.Meta.ID); v != nil {
@@ -1208,21 +1139,14 @@ func (c Pod) SpecSetAction() {
 		prev.Spec.Ref.Version = spec_plan.Meta.Version
 	}
 
-	for i, v := range prev.Spec.Volumes {
-
-		if v.Name != "system" {
-			continue
-		}
-
-		if v.Ref.Id != res_vol.RefId {
-			prev.Spec.Volumes[i].Ref.Id = res_vol.RefId
-			prev.Spec.Volumes[i].Ref.Name = res_vol.RefId
-		}
-
-		if v.SizeLimit != set.ResVolumeSize {
-			prev.Spec.Volumes[i].SizeLimit = set.ResVolumeSize
-		}
+	if prev.Spec.VolSys == nil {
+		prev.Spec.VolSys = &inapi.ResVolBound{}
 	}
+
+	prev.Spec.VolSys.RefId = res_vol.RefId
+	prev.Spec.VolSys.RefName = res_vol.RefName
+	prev.Spec.VolSys.Attrs = res_vol.Attrs
+	prev.Spec.VolSys.Size = set.ResVolumeSize
 
 	prev.Spec.Labels = spec_plan.Labels
 
@@ -1314,13 +1238,13 @@ func (c Pod) SpecSetAction() {
 
 func podAccountChargePreValid(pod *inapi.Pod, spec_plan *inapi.PodSpecPlan) *types.ErrorMeta {
 
-	charge_amount := float64(0)
-
-	// Volumes
-	for _, v := range pod.Spec.Volumes {
-		charge_amount += iamapi.AccountFloat64Round(
-			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
+	if pod.Spec.VolSys == nil {
+		return types.NewErrorMeta("400", "No PodSpec/VolSys Setup")
 	}
+
+	// Volume
+	charge_amount := iamapi.AccountFloat64Round(
+		spec_plan.VolCharge(pod.Spec.VolSys.RefId)*float64(pod.Spec.VolSys.Size), 4)
 
 	if pod.Spec.Box.Resources != nil {
 		// CPU

@@ -20,6 +20,20 @@ import "inapi/base.proto";
 import "inapi/pod.proto";
 import "inapi/stats.proto";
 
+// volume
+message ResVolValue {
+    string name = 1; // struct:object_slice_key
+    int32 value = 2; // GB
+    uint32 attrs = 3;
+}
+
+message ResVolBound {
+    string ref_id = 1;
+    string ref_name = 2;
+    string mnt = 4;
+	int32 size = 5;
+    uint32 attrs = 6;
+}
 
 // host
 message ResHostOperate {
@@ -28,7 +42,7 @@ message ResHostOperate {
     string          zone_id   = 3;
     int32           cpu_used  = 4; // 10m
     int64           mem_used  = 5; // MB
-    int64           lss_used  = 6;
+    repeated ResVolValue vol_used = 6;
     repeated uint32 port_used = 7;
     int32           box_num   = 8;
     uint32          pr        = 9; // Priority
@@ -79,6 +93,7 @@ message ResPlatform {
 message ResHostResource {
     int64                 mem  = 1;
     int32                 cpu  = 2;
+    repeated ResVolValue vols = 3;
 }
 
 message ResHostVolume {
@@ -132,6 +147,8 @@ message ResCellStatus {
 	int64 mem_used = 8;
     int32 host_cap = 10;
     int32 host_in = 11;
+    int32 vol_cap = 12;
+    int32 vol_used = 13;
 }
 
 message ResZoneMasterNode {

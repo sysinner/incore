@@ -45,7 +45,7 @@ const (
 	BoxStatsSampleCycle uint32 = 20
 	BoxStatsLogCycle    uint32 = 60
 
-	AgentBoxStatus = "%s/%s/home/action/.sysinner/box_status.json"
+	AgentBoxStatusFmt = "%s/%s/home/action/.sysinner/box_status.json"
 )
 
 var (
@@ -68,36 +68,54 @@ func ObjPrint(name string, v interface{}) {
 	fmt.Println("\n", name, string(js))
 }
 
-func VolPodPath(podId string, repId uint32, path string) string {
+func volMountPoint(mnt string) string {
+	if strings.HasPrefix(mnt, "/data/") ||
+		strings.HasPrefix(mnt, "/opt") {
+		mnt += "/sysinner/pods"
+	} else {
+		mnt = config.Config.PodHomeDir
+	}
+	return mnt
+}
+
+func AgentBoxStatus(mnt, podId string, repId uint32) string {
+	return filepath.Clean(fmt.Sprintf(AgentBoxStatusFmt,
+		volMountPoint(mnt),
+		inapi.NsZonePodOpRepKey(podId, repId),
+	))
+}
+
+func VolPodPath(mnt string, podId string, repId uint32, path string) string {
 	return filepath.Clean(fmt.Sprintf(PodVolSysFmt,
-		config.Config.PodHomeDir,
+		volMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	) + "/" + path)
 }
 
-func VolPodHomeDir(podId string, repId uint32) string {
-	return fmt.Sprintf(VolPodHomeFmt, config.Config.PodHomeDir,
-		inapi.NsZonePodOpRepKey(podId, repId))
+func VolPodHomeDir(mnt string, podId string, repId uint32) string {
+	return filepath.Clean(fmt.Sprintf(VolPodHomeFmt,
+		volMountPoint(mnt),
+		inapi.NsZonePodOpRepKey(podId, repId)))
 }
 
-func PodVolSysDir(podId string, repId uint32) string {
+func PodVolSysDir(mnt string, podId string, repId uint32) string {
 	return fmt.Sprintf(PodVolSysFmt,
-		config.Config.PodHomeDir,
+		volMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	)
 }
 
-func PodVolSysDirArch(podId string, repId uint32) string {
+func PodVolSysDirArch(mnt string, podId string, repId uint32) string {
 	return fmt.Sprintf(PodVolSysArchFmt,
-		config.Config.PodHomeDir,
+		volMountPoint(mnt),
 		time.Now().UTC().Format("20060102.150405"),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	)
 }
 
-func VolAgentSysDir(podId string, repId uint32) string {
+func VolAgentSysDir(mnt string, podId string, repId uint32) string {
 	return fmt.Sprintf(VolAgentSysDirFmt,
-		config.Config.PodHomeDir,
+		volMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	)
 }
@@ -239,13 +257,6 @@ func (inst *BoxInstance) OpRepKey() string {
 
 func (inst *BoxInstance) SpecDesired() bool {
 
-	/**
-	if inst.Status.Action == 0 {
-		hlog.Printf("debug", "box/spec miss-desire inst.Status.Action")
-		return false
-	}
-	*/
-
 	//
 	if inst.Spec.Resources.CpuLimit != inst.Status.ResCpuLimit ||
 		inst.Spec.Resources.MemLimit != inst.Status.ResMemLimit {
@@ -344,13 +355,13 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 		{
 			Name:      "home",
 			MountPath: "/home/action",
-			HostDir:   VolPodHomeDir(inst.PodID, inst.Replica.RepId),
+			HostDir:   VolPodHomeDir(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId),
 			ReadOnly:  false,
 		},
 		{
 			Name:      "opt",
 			MountPath: "/opt",
-			HostDir:   VolPodPath(inst.PodID, inst.Replica.RepId, "/opt"),
+			HostDir:   VolPodPath(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId, "/opt"),
 			ReadOnly:  false,
 		},
 	}

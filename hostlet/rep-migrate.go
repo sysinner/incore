@@ -183,7 +183,7 @@ func podRepMigrateIn(inst *napi.BoxInstance) error {
 		"--password-file",
 		clientSecretFile,
 		srcAddr,
-		napi.PodVolSysDir(inst.PodID, inst.Replica.RepId) + "/",
+		napi.PodVolSysDir(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId) + "/",
 	}
 	cmd := exec.Command(inConf.Prefix+"/bin/rsync-client", args...)
 	err = cmd.Start()
@@ -200,7 +200,7 @@ func podRepMigrateIn(inst *napi.BoxInstance) error {
 		defer podRepMigrateMu.Unlock()
 
 		if err == nil {
-			sysdir := napi.VolAgentSysDir(inst.PodID, inst.Replica.RepId)
+			sysdir := napi.VolAgentSysDir(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId)
 			if _, err = os.Stat(sysdir); err == nil {
 				inst.StatusActionSet(inapi.OpActionMigrated)
 			}
@@ -221,21 +221,7 @@ func podRepMigrateIn(inst *napi.BoxInstance) error {
 
 func podRepMigrateOut(inst *napi.BoxInstance) error {
 
-	/**
-	hlog.Printf("info", "pod %s, rep %d, action %s, migrating",
-		inst.PodID, inst.Replica.RepId,
-		strings.Join(inapi.OpActionStrings(inst.Replica.Action), ","),
-	)
-	*/
-
-	// inapi.ObjPrint("a", inst.Replica)
-
 	if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionMigrate|inapi.OpActionStopped) {
-
-		/**
-		hlog.Printf("info", "pod %s, rep %d, stopped",
-			inst.PodID, inst.Replica.RepId)
-		*/
 
 		opt, ok := inst.Replica.Options.Get("rsync/auth")
 		if !ok {
@@ -276,7 +262,8 @@ func podRepMigrateOut(inst *napi.BoxInstance) error {
 				"prefix":      inConf.Prefix,
 				"server_port": fmt.Sprintf("%d", inConf.Config.Host.LanAddr.Port()+5),
 			}
-			rsyncdActiveModules.Set(inst.Name, napi.PodVolSysDir(inst.PodID, inst.Replica.RepId))
+			rsyncdActiveModules.Set(inst.Name,
+				napi.PodVolSysDir(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId))
 			mods := []napi.RsyncModuleItem{}
 			for _, v := range rsyncdActiveModules {
 				mods = append(mods, napi.RsyncModuleItem{

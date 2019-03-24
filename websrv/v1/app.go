@@ -360,9 +360,9 @@ func appPodResCheck(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) 
 		return errors.New("this pod currently unavailable")
 	}
 
-	if vol := pod.Spec.Volume("system"); vol == nil {
+	if pod.Spec.VolSys == nil {
 		return errors.New("pod currently unavailable")
-	} else if app_spec_res.VolMin > vol.SizeLimit {
+	} else if app_spec_res.VolMin > pod.Spec.VolSys.Size {
 		return fmt.Errorf("AppSpec requires at least %0.1f GB sytem volume space",
 			float64(app_spec_res.VolMin)/float64(inapi.ByteGB))
 	}

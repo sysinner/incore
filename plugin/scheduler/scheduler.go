@@ -16,7 +16,9 @@ package scheduler
 
 import (
 	"errors"
+	"sort"
 
+	"github.com/sysinner/incore/inapi"
 	typeScheduler "github.com/sysinner/incore/inapi/scheduler"
 )
 
@@ -39,7 +41,7 @@ func (*genericScheduler) ScheduleHost(
 	hostls *typeScheduler.ScheduleHostList,
 	opts *typeScheduler.ScheduleOptions,
 ) (
-	host *typeScheduler.ScheduleHostItem,
+	hit *typeScheduler.ScheduleHitItem,
 	err error,
 ) {
 
@@ -64,7 +66,16 @@ func (*genericScheduler) ScheduleHost(
 
 	for _, v := range hostls.Items {
 		if v.Id == priorityList[0].id {
-			return v, nil
+			return &typeScheduler.ScheduleHitItem{
+				HostId: v.Id,
+				Host:   v,
+				Volumes: []*typeScheduler.ScheduleHitVol{
+					{
+						Name: v.Volumes[0].Name,
+						Size: rep.VolSys,
+					},
+				},
+			}, nil
 		}
 	}
 
@@ -101,7 +112,8 @@ func findHostListThatFit(
 
 		if v.OpAction != 1 ||
 			v.CellId == "" ||
-			v.CellId != spec.CellId {
+			v.CellId != spec.CellId ||
+			len(v.Volumes) < 1 {
 			continue
 		}
 
@@ -133,12 +145,36 @@ func findHostListThatFit(
 			continue // TODO
 		}
 
+		sort.Slice(v.Volumes, func(i, j int) bool {
+			return (v.Volumes[i].Total - v.Volumes[i].Used) > (v.Volumes[j].Total - v.Volumes[j].Used)
+		})
+
+		volFit := ""
+		for _, vp := range v.Volumes {
+			if inapi.OpActionAllow(vp.Attrs, inapi.ResVolValueAttrOut) {
+				continue
+			}
+			if inapi.OpActionAllow(rep.VolSysAttrs, inapi.ResVolValueAttrSSD) &&
+				!inapi.OpActionAllow(vp.Attrs, inapi.ResVolValueAttrSSD) {
+				continue
+			}
+			if vp.Used+rep.VolSys < vp.Total {
+				volFit = vp.Name
+				break
+			}
+		}
+
+		if volFit == "" {
+			continue
+		}
+
 		hostFits = append(hostFits, &hostFit{
 			id:        v.Id,
 			cpu_used:  v.CpuUsed,
 			cpu_total: cpuCap,
 			mem_used:  v.MemUsed,
 			mem_total: memCap,
+			vol_name:  volFit,
 		})
 	}
 

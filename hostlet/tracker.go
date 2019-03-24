@@ -257,6 +257,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		})
 
 		ars := types.ArrayString{}
+		mnts := types.ArrayString{}
 		for _, dev := range devs {
 
 			if ars.Has(dev.Device) {
@@ -271,11 +272,39 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 			}
 
 			if st, err := ps_disk.Usage(dev.Mountpoint); err == nil {
+
 				vols = append(vols, &inapi.ResHostVolume{
 					Name:  dev.Mountpoint,
 					Total: st.Total,
 					Used:  st.Used,
 				})
+
+				if dev.Mountpoint == "/" ||
+					dev.Mountpoint == "/opt" ||
+					strings.HasPrefix(dev.Mountpoint, "/data/") {
+
+					vv := &inapi.ResVolValue{
+						Name:  dev.Mountpoint,
+						Value: int32(int64(st.Total) / inapi.ByteGB),
+					}
+
+					if strings.HasPrefix(dev.Mountpoint, "/data/ssd_") {
+						vv.Attrs = vv.Attrs | inapi.ResVolValueAttrSSD
+					}
+
+					status.Host.Spec.Capacity.Vols, _ = inapi.ResVolValueSliceSync(
+						status.Host.Spec.Capacity.Vols,
+						vv,
+					)
+
+					mnts.Set(dev.Mountpoint)
+				}
+			}
+		}
+
+		for _, vv := range status.Host.Spec.Capacity.Vols {
+			if !mnts.Has(vv.Name) {
+				vv.Attrs = vv.Attrs | inapi.ResVolValueAttrOut
 			}
 		}
 
@@ -367,16 +396,18 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 
 			ctrDels = append(ctrDels, podRep.RepKey())
 
-			dir := napi.PodVolSysDir(podRep.Meta.ID, podRep.Replica.RepId)
+			dir := napi.PodVolSysDir(podRep.Replica.VolSysMnt, podRep.Meta.ID, podRep.Replica.RepId)
 			if _, err := os.Stat(dir); err == nil {
-				dir2 := napi.PodVolSysDirArch(podRep.Meta.ID, podRep.Replica.RepId)
+				dir2 := napi.PodVolSysDirArch(podRep.Replica.VolSysMnt, podRep.Meta.ID, podRep.Replica.RepId)
 				if err = os.Rename(dir, dir2); err != nil {
 					hlog.Printf("error", "pod %s, rep %d, archive vol-sys err %s",
 						podRep.Meta.ID, podRep.Replica.RepId, err.Error())
 					return
 				}
-			}
 
+				hlog.Printf("warn", "pod %s, rep %d, archive vol-sys from %s to %s",
+					podRep.Meta.ID, podRep.Replica.RepId, dir, dir2)
+			}
 		}
 
 		// hlog.Printf("debug", "PodRep %s Phase %s", podRep.RepKey(), repStatus.Phase)
@@ -400,7 +431,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		status.Host.Prs = append(status.Host.Prs, repStatus)
 
 		var boxOpLog inapi.PbOpLogSets
-		fpath := fmt.Sprintf(napi.AgentBoxStatus, config.Config.PodHomeDir, podRep.RepKey())
+		fpath := napi.AgentBoxStatus(podRep.Replica.VolSysMnt, podRep.Meta.ID, podRep.Replica.RepId)
 		if err := json.DecodeFile(fpath, &boxOpLog); err == nil {
 			if boxOpLog.Version >= repStatus.OpLog.Version {
 				for _, vlog := range boxOpLog.Items {

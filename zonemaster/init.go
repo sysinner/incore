@@ -17,6 +17,7 @@ package zonemaster
 import (
 	"fmt"
 
+	"github.com/hooto/hflag4g/hflag"
 	"github.com/hooto/hlog4g/hlog"
 
 	"github.com/sysinner/incore/data"
@@ -36,47 +37,49 @@ func InitData(items map[string]interface{}) error {
 
 		if len(k) > 5 && (k[:5] == "/ing/" || k[:5] == "/iam/") {
 
-			if rs := data.GlobalMaster.PvGet(k); rs.OK() {
-				hlog.Printf("debug", "gm.init.data skip %s", k)
-				continue
-			}
+			if _, ok := hflag.ValueOK("zm-init-data-force-rewrite"); ok {
+				if rs := data.GlobalMaster.PvPut(k, v, nil); !rs.OK() {
+					return fmt.Errorf("gm.initdata error on put key : %s", k)
+				} else {
+					hlog.Printf("info", "gm.init.data set %s", k)
+				}
 
-			if rs := data.GlobalMaster.PvNew(k, v, nil); !rs.OK() {
-				return fmt.Errorf("gm.initdata error on put key : %s", k)
 			} else {
-				hlog.Printf("info", "gm.init.data set %s", k)
+				if rs := data.GlobalMaster.PvGet(k); rs.OK() {
+					hlog.Printf("debug", "gm.init.data skip %s", k)
+					continue
+				}
+
+				if rs := data.GlobalMaster.PvNew(k, v, nil); !rs.OK() {
+					return fmt.Errorf("gm.initdata error on put key : %s", k)
+				} else {
+					hlog.Printf("info", "gm.init.data set %s", k)
+				}
 			}
 
 		} else {
 
-			if rs := data.ZoneMaster.PvGet(k); rs.OK() {
-				hlog.Printf("debug", "zm.init.data skip %s", k)
-				continue
-			}
+			if _, ok := hflag.ValueOK("zm-init-data-force-rewrite"); ok {
+				if rs := data.GlobalMaster.PvPut(k, v, nil); !rs.OK() {
+					return fmt.Errorf("gm.initdata error on put key : %s", k)
+				} else {
+					hlog.Printf("info", "gm.init.data set %s", k)
+				}
 
-			if rs := data.ZoneMaster.PvNew(k, v, nil); !rs.OK() {
-				return fmt.Errorf("zonemaster.initdata error on put key : %s", k)
 			} else {
-				hlog.Printf("info", "zm.init.data set %s", k)
+				if rs := data.ZoneMaster.PvGet(k); rs.OK() {
+					hlog.Printf("debug", "zm.init.data skip %s", k)
+					continue
+				}
+
+				if rs := data.ZoneMaster.PvNew(k, v, nil); !rs.OK() {
+					return fmt.Errorf("zonemaster.initdata error on put key : %s", k)
+				} else {
+					hlog.Printf("info", "zm.init.data set %s", k)
+				}
 			}
 		}
 	}
-
-	/*
-		rs := data.ZoneMaster.RawScan([]byte{}, []byte{}, 10000)
-		rs.KvEach(func(v *skv.ResultEntry) int {
-			key := strings.Replace(string(v.Key[1:]), "/", "_", -1)
-			fp, err := os.OpenFile("./var/dbexports/"+key, os.O_RDWR|os.O_CREATE, 0644)
-			if err != nil {
-				return 0
-			}
-			fp.Seek(0, 0)
-			fp.Truncate(0)
-			fp.Write(v.Value[1:])
-			fp.Close()
-			return 0
-		})
-	*/
 
 	return nil
 }

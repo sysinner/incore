@@ -20,6 +20,7 @@ type hostFit struct {
 	cpu_total int32 // 1 = .1 cores
 	mem_used  int32 // MB
 	mem_total int32 // MB
+	vol_name  string
 }
 
 // host_priority represents the priority of scheduling to a particular host, lower priority is better.

@@ -55,19 +55,17 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 		}
 	}
 
-	sysdir := napi.VolAgentSysDir(pod.Meta.ID, pod.Replica.RepId)
+	if pod.Replica.VolSysMnt == "" {
+		hlog.Printf("error", "hostlet/pod-pull no sys-mnt %s %s", pod.Meta.ID, err.Error())
+		return errors.New("no vol-sys-mnt")
+	}
+
+	sysdir := napi.VolAgentSysDir(pod.Replica.VolSysMnt, pod.Meta.ID, pod.Replica.RepId)
 
 	if prev == nil {
 
 		if len(nstatus.PodRepActives) > podRepCtrlNumMax {
 			return errors.New("no available host resources in this moment")
-		}
-
-		if _, err := os.Stat(sysdir); os.IsNotExist(err) {
-			if err := inutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
-				hlog.Printf("error", "hostlet/pod-pull %s %s", pod.Meta.ID, err.Error())
-				return err
-			}
 		}
 
 		prev = pod
@@ -102,16 +100,19 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 		return nil
 	}
 
-	if _, err := os.Stat(sysdir); os.IsNotExist(err) {
-		if err := inutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
+	if inapi.OpActionAllow(pod.Replica.Action, inapi.OpActionStart) {
+
+		if _, err := os.Stat(sysdir); os.IsNotExist(err) {
+			if err := inutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
+				hlog.Printf("error", "hostlet/pod-pull %s %s", prev.Meta.ID, err.Error())
+				return err
+			}
+		}
+
+		if err := json.EncodeToFile(prev, sysdir+"/pod_instance.json", "  "); err != nil {
 			hlog.Printf("error", "hostlet/pod-pull %s %s", prev.Meta.ID, err.Error())
 			return err
 		}
-	}
-
-	if err := json.EncodeToFile(prev, sysdir+"/pod_instance.json", "  "); err != nil {
-		hlog.Printf("error", "hostlet/pod-pull %s %s", prev.Meta.ID, err.Error())
-		return err
 	}
 
 	return nil
@@ -189,13 +190,6 @@ func podRepListCtrlRefresh() error {
 
 		if inapi.OpActionAllow(instAction.Replica.Action, inapi.OpActionMigrate) &&
 			!inapi.OpActionAllow(instAction.Replica.Action, inapi.OpActionDestroy) {
-
-			/**
-			hlog.Printf("info", "pod %s, rep %d, action %s",
-				instAction.PodID, instAction.Replica.RepId,
-				strings.Join(inapi.OpActionStrings(instAction.Replica.Action), ","),
-			)
-			*/
 
 			if podRepMigrate(instAction) {
 				continue
@@ -282,8 +276,8 @@ func podRepVolSetup(inst *napi.BoxInstance) error {
 	}
 
 	var (
-		dirOpt     = napi.VolPodPath(inst.PodID, inst.Replica.RepId, "/opt")
-		dirPodHome = napi.VolPodHomeDir(inst.PodID, inst.Replica.RepId)
+		dirOpt     = napi.VolPodPath(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId, "/opt")
+		dirPodHome = napi.VolPodHomeDir(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId)
 		initSrc    = inCfg.Prefix + "/bin/ininit"
 		initDst    = dirPodHome + "/.sysinner/ininit"
 		agentSrc   = inCfg.Prefix + "/bin/inagent"

@@ -170,62 +170,6 @@ func (c Host) ZoneSetAction() {
 		}
 	}
 
-	//
-	/*
-		if obj := data.GlobalMaster.PvGet(inapi.NsGlobalDataBucket(set.Meta.Id)); obj.OK() {
-
-			bucket_ns := btapi.BucketNameService{
-				Phase: 1,
-				Bound: []btapi.BucketBoundZone{
-					{
-						ZoneId:  set.Meta.Id,
-						PermSrv: btapi.OpAll,
-					},
-				},
-			}
-
-			bucket_instance := btapi.Bucket{
-				Meta: types.ObjectMeta{
-					Id:      set.Meta.Id,
-					Name:    set.Meta.Name,
-					Created: utilx.TimeNow("atom"),
-					Updated: utilx.TimeNow("atom"),
-				},
-				Phase:   bucket_ns.Phase,
-				Bound:   bucket_ns.Bound,
-				Summary: "",
-			}
-
-			data.ZoneMaster.PvSet("/ns/bt/buckets/"+set.Meta.Id, bucket_ns, nil)
-			data.ZoneMaster.PvSet("/global/bt/buckets/instances/"+set.Meta.Id, bucket_instance, nil)
-
-			zone_ns := inapi.ResZoneNameService{
-				Phase:     1,
-				Endpoints: set.WANEndpoints,
-			}
-			data.ZoneMaster.PvSet("/ns/bt/zones/"+set.Meta.Id, zone_ns, nil)
-		}
-	*/
-
-	/*
-		if rs := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(set.Meta.Id), "", "", 100); rs.OK() {
-
-			cell := btapi.HostCell{
-				Meta: types.ObjectMeta{
-					Id:      utils.StringNewRand(8),
-					Name:    "Default Cell",
-					Created: utilx.TimeNow("atom"),
-					Updated: utilx.TimeNow("atom"),
-				},
-				ZoneId:      set.Meta.Id,
-				Status:      1,
-				Description: "Default Cell",
-			}
-
-			data.ZoneMaster.PvSet(fmt.Sprintf("/global/bt/cells/%s/%s", set.Meta.Id, cell.Meta.Id), cell, nil)
-		}
-	*/
-
 	if set.Meta.Created == 0 {
 		set.Meta.Created = uint64(types.MetaTimeNow())
 	}

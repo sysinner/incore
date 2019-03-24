@@ -119,10 +119,6 @@ func (s *ApiZoneMaster) HostStatusSync(
 	}
 
 	tn := uint32(time.Now().Unix())
-	/**
-	hlog.Printf("debug", "zone-master/host %s, rep status %d updated",
-		opts.Meta.Id, len(opts.Prs))
-	*/
 
 	// PodReplica Status
 	for _, repStatus := range opts.Prs {
@@ -258,14 +254,6 @@ func (s *ApiZoneMaster) HostStatusSync(
 			podStatus.RepSync(repStatus)
 		}
 
-		/**
-		if rs := data.ZoneMaster.PvPut(podStatusKey, podStatus, nil); !rs.OK() {
-			hlog.Printf("error", "zone-master/pod StatusSync %s Failed",
-				podStatus.Id)
-			return nil, errors.New("Server Error")
-		}
-		*/
-
 		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)
 	}
 
@@ -325,37 +313,31 @@ func (s *ApiZoneMaster) HostStatusSync(
 				}
 
 				podRep.Replica = inapi.PodOperateReplica{
-					RepId:   ctrRep.RepId,
-					Node:    ctrRep.Next.Node,
-					Action:  ctrRep.Next.Action,
-					ResCpu:  ctrRep.Next.ResCpu,
-					ResMem:  ctrRep.Next.ResMem,
-					VolSys:  ctrRep.Next.VolSys,
-					Ports:   ctrRep.Next.Ports,
-					Options: ctrRep.Options,
-				}
-			} else {
-				podRep.Replica = inapi.PodOperateReplica{
-					RepId:   ctrRep.RepId,
-					Node:    ctrRep.Node,
-					Action:  ctrRep.Action,
-					ResCpu:  ctrRep.ResCpu,
-					ResMem:  ctrRep.ResMem,
-					VolSys:  ctrRep.VolSys,
-					Ports:   ctrRep.Ports,
-					Options: ctrRep.Options,
-					Next:    ctrRep.Next,
+					RepId:     ctrRep.RepId,
+					Node:      ctrRep.Next.Node,
+					Action:    ctrRep.Next.Action,
+					ResCpu:    ctrRep.Next.ResCpu,
+					ResMem:    ctrRep.Next.ResMem,
+					VolSys:    ctrRep.Next.VolSys,
+					VolSysMnt: ctrRep.Next.VolSysMnt,
+					Ports:     ctrRep.Next.Ports,
+					Options:   ctrRep.Options,
 				}
 
-				/**
-				// bugfix
-				if inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionMigrate) &&
-					!inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionStop) &&
-					!inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionDestroy) {
-					podRep.Replica.Action = podRep.Replica.Action | inapi.OpActionStop
-					ctrRep.Action = ctrRep.Action | inapi.OpActionStop
+			} else {
+
+				podRep.Replica = inapi.PodOperateReplica{
+					RepId:     ctrRep.RepId,
+					Node:      ctrRep.Node,
+					Action:    ctrRep.Action,
+					ResCpu:    ctrRep.ResCpu,
+					ResMem:    ctrRep.ResMem,
+					VolSys:    ctrRep.VolSys,
+					VolSysMnt: ctrRep.VolSysMnt,
+					Ports:     ctrRep.Ports,
+					Options:   ctrRep.Options,
+					Next:      ctrRep.Next,
 				}
-				*/
 			}
 
 			podRep.Replica.Updated = tn
@@ -456,16 +438,6 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 	}
 
 	//
-	/*
-		if host.Spec.PeerLanAddr != addr_prev {
-
-			data.ZoneMaster.PvPut(inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil)
-
-			hlog.Printf("warn", "ZoneMaster NsZoneSysHost %s->%s",
-				addr_prev, host.Spec.PeerLanAddr)
-		}
-	*/
-
 	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(status.ZoneId)); rs.OK() {
 
 		var zone inapi.ResZone

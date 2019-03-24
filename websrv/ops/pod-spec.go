@@ -428,11 +428,13 @@ func (c PodSpec) PlanSetAction() {
 			}
 			prev.ResVolumes = append(prev.ResVolumes, &inapi.PodSpecPlanResVolumeBound{
 				RefId:   item.Meta.ID,
+				RefName: item.Meta.Name,
 				Limit:   item.Limit,
 				Request: item.Request,
 				Step:    item.Step,
 				Default: item.Default,
 				Labels:  item.Labels,
+				Attrs:   item.Attrs,
 			})
 			break
 		}

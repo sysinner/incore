@@ -136,16 +136,10 @@ func (c Charge) PodEstimateAction() {
 		Spec: &inapi.PodSpecBound{
 			Zone: set.Zone,
 			Cell: set.Cell,
-			Volumes: []inapi.PodSpecResVolumeBound{
-				{
-					Ref: inapi.ObjectReference{
-						Id:   res_vol.RefId,
-						Name: res_vol.RefId,
-						// Version: res_vol.Meta.Version,
-					},
-					Name:      "system",
-					SizeLimit: set.ResVolumeSize,
-				},
+			VolSys: &inapi.ResVolBound{
+				RefId:   res_vol.RefId,
+				RefName: res_vol.RefName,
+				Size:    set.ResVolumeSize,
 			},
 		},
 		Operate: inapi.PodOperate{
@@ -187,10 +181,8 @@ func (c Charge) PodEstimateAction() {
 	)
 
 	// Volumes
-	for _, v := range pod.Spec.Volumes {
-		amount_vol += iamapi.AccountFloat64Round(
-			spec_plan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
-	}
+	amount_vol += iamapi.AccountFloat64Round(
+		spec_plan.VolCharge(pod.Spec.VolSys.RefId)*float64(pod.Spec.VolSys.Size), 4)
 
 	if pod.Spec.Box.Resources != nil {
 		// CPU

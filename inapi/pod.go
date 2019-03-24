@@ -15,6 +15,7 @@
 package inapi
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -25,12 +26,13 @@ import (
 )
 
 var (
-	podOpMu          sync.RWMutex
-	podItemsMu       sync.RWMutex
-	pod_st_mu        sync.RWMutex
-	PodIdReg         = regexp.MustCompile("^[a-f0-9]{16,24}$")
-	PodSpecPlanIdReg = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
-	PodDestroyTTL    = uint32(86400)
+	podOpMu            sync.RWMutex
+	podItemsMu         sync.RWMutex
+	pod_st_mu          sync.RWMutex
+	PodIdReg           = regexp.MustCompile("^[a-f0-9]{16,24}$")
+	PodSpecPlanIdReg   = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
+	PodDestroyTTL      = uint32(86400)
+	PodPlanChargeCycle = uint64(3600)
 )
 
 const (
@@ -175,9 +177,7 @@ func (pod *Pod) OpResScheduleFit() bool {
 
 	if OpActionAllow(pod.Operate.Action, OpActionStart) {
 
-		//
-		specVol := pod.Spec.Volume("system")
-		if specVol == nil {
+		if pod.Spec.VolSys == nil {
 			return false
 		}
 
@@ -274,20 +274,48 @@ type PodSpecBound struct {
 	Cell      string                  `json:"cell,omitempty"`
 	BoxDriver string                  `json:"box_driver,omitempty"`
 	Labels    types.Labels            `json:"labels,omitempty"`
-	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty"`
+	VolSys    *ResVolBound            `json:"vol_sys,omitempty"`
 	Box       PodSpecBoxBound         `json:"box,omitempty"`
+	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty"`
 }
 
-func (obj *PodSpecBound) Volume(name string) *PodSpecResVolumeBound {
+type jsonPodSpecBound PodSpecBound
 
-	for _, v := range obj.Volumes {
+// struct upgrade
+func (it *PodSpecBound) UnmarshalJSON(b []byte) error {
 
-		if v.Name == name {
-			return &v
+	var it2 jsonPodSpecBound
+	if err := json.Unmarshal(b, &it2); err != nil {
+		return err
+	}
+
+	if (it2.VolSys == nil || it2.VolSys.Size == 0) && len(it2.Volumes) > 0 {
+		it2.VolSys = &ResVolBound{
+			RefId:   it2.Volumes[0].Ref.Id,
+			RefName: it2.Volumes[0].Ref.Name,
+			Size:    it2.Volumes[0].SizeLimit,
+			Attrs:   it2.Volumes[0].Attrs,
 		}
 	}
 
+	*it = PodSpecBound(it2)
+
 	return nil
+}
+
+// struct upgrade
+func (it PodSpecBound) MarshalJSON() ([]byte, error) {
+
+	if (it.VolSys == nil || it.VolSys.Size == 0) && len(it.Volumes) > 0 {
+		it.VolSys = &ResVolBound{
+			RefId:   it.Volumes[0].Ref.Id,
+			RefName: it.Volumes[0].Ref.Name,
+			Size:    it.Volumes[0].SizeLimit,
+			Attrs:   it.Volumes[0].Attrs,
+		}
+	}
+
+	return json.Marshal(jsonPodSpecBound(it))
 }
 
 func (obj *PodSpecBound) ResComputeBound() *PodSpecBoxResComputeBound {
@@ -323,6 +351,7 @@ type PodSpecResVolumeBound struct {
 	Name      string          `json:"name"`
 	Labels    types.Labels    `json:"labels,omitempty"`
 	SizeLimit int32           `json:"size_limit,omitempty"` // in GiB
+	Attrs     uint32          `json:"attrs,omitempty"`
 }
 
 type PodSpecBoxBound struct {
@@ -492,10 +521,11 @@ type PodSpecResVolume struct {
 	Labels types.Labels `json:"labels,omitempty"`
 
 	// Volume size, in GiB.
-	Limit   int32 `json:"limit,omitempty"`   // max to 1000 GB
-	Request int32 `json:"request,omitempty"` // start from 1 GiB
-	Step    int32 `json:"step,omitempty"`    // every step by 1 GiB
-	Default int32 `json:"default,omitempty"` // default to 1 GiB
+	Limit   int32  `json:"limit,omitempty"`   // max to 1000 GB
+	Request int32  `json:"request,omitempty"` // start from 1 GiB
+	Step    int32  `json:"step,omitempty"`    // every step by 1 GiB
+	Default int32  `json:"default,omitempty"` // default to 1 GiB
+	Attrs   uint32 `json:"attrs,omitempty"`
 }
 
 type PodSpecResVolumeList struct {
@@ -504,9 +534,9 @@ type PodSpecResVolumeList struct {
 }
 
 type PodSpecResVolumeCharge struct {
-	Type    uint8   `json:"type"`
-	Cycle   uint64  `json:"cycle"`    // default to 3600 seconds
-	CapSize float64 `json:"cap_size"` // value in GiB
+	Type  uint8   `json:"type"`
+	Cycle uint64  `json:"cycle"` // default to 3600 seconds
+	Value float64 `json:"value"`
 }
 
 // TODO
@@ -541,12 +571,15 @@ type PodSpecPlanResComputeBound struct {
 }
 
 type PodSpecPlanResVolumeBound struct {
-	RefId   string       `json:"ref_id"`
-	Limit   int32        `json:"limit,omitempty"`   // max to 2000 GB
-	Request int32        `json:"request,omitempty"` // start from 1 GiB
-	Step    int32        `json:"step,omitempty"`    // every step by 1 GiB
-	Default int32        `json:"default,omitempty"` // default to 1 GiB
-	Labels  types.Labels `json:"labels,omitempty"`
+	RefId       string       `json:"ref_id"`
+	RefName     string       `json:"ref_name"`
+	Limit       int32        `json:"limit,omitempty"`   // max to 2000 GB
+	Request     int32        `json:"request,omitempty"` // start from 1 GiB
+	Step        int32        `json:"step,omitempty"`    // every step by 1 GiB
+	Default     int32        `json:"default,omitempty"` // default to 1 GiB
+	Labels      types.Labels `json:"labels,omitempty"`
+	Attrs       uint32       `json:"attrs,omitempty"`
+	ChargeValue float64      `json:"charge_value,omitempty"`
 }
 
 type PodSpecPlan struct {
@@ -576,10 +609,23 @@ type PodSpecPlan struct {
 
 // TODO
 func (s *PodSpecPlan) ChargeFix() {
-	s.ResourceCharge.Cycle = 3600
-	s.ResComputeCharge.Cpu = 0.1       // 0.07778
-	s.ResComputeCharge.Mem = 0.0001    // 0.00005
-	s.ResVolumeCharge.CapSize = 0.0005 // 0.0004
+	s.ResourceCharge.Cycle = PodPlanChargeCycle
+	s.ResComputeCharge.Cpu = 0.1     // 0.07778
+	s.ResComputeCharge.Mem = 0.0001  // 0.00005
+	s.ResVolumeCharge.Value = 0.0005 // 0.0004
+}
+
+func (s *PodSpecPlan) VolCharge(ref_id string) float64 {
+
+	for _, v := range s.ResVolumes {
+		if ref_id == v.RefId {
+			if v.ChargeValue > 0 {
+				return v.ChargeValue
+			}
+			break
+		}
+	}
+	return s.ResVolumeCharge.Value
 }
 
 func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {
@@ -754,17 +800,18 @@ var (
 )
 
 type PodOperateReplica struct {
-	RepId    uint32             `json:"rep_id"`
-	Node     string             `json:"node,omitempty"`
-	Action   uint32             `json:"action,omitempty"`
-	ResCpu   int32              `json:"res_cpu,omitempty"` // in 1 = .1 Cores
-	ResMem   int32              `json:"res_mem,omitempty"` // in MiB
-	VolSys   int32              `json:"vol_sys,omitempty"` // in GiB
-	Ports    ServicePorts       `json:"ports,omitempty"`
-	Options  types.Labels       `json:"options,omitempty"`
-	Next     *PodOperateReplica `json:"next,omitempty"`
-	PrevNode string             `json:"prev_node,omitempty"`
-	Updated  uint32             `json:"updated,omitempty"`
+	RepId     uint32             `json:"rep_id"`
+	Node      string             `json:"node,omitempty"`
+	Action    uint32             `json:"action,omitempty"`
+	ResCpu    int32              `json:"res_cpu,omitempty"`     // in 1 = .1 Cores
+	ResMem    int32              `json:"res_mem,omitempty"`     // in MiB
+	VolSys    int32              `json:"vol_sys,omitempty"`     // in GiB
+	VolSysMnt string             `json:"vol_sys_mnt,omitempty"` //
+	Ports     ServicePorts       `json:"ports,omitempty"`
+	Options   types.Labels       `json:"options,omitempty"`
+	Next      *PodOperateReplica `json:"next,omitempty"`
+	PrevNode  string             `json:"prev_node,omitempty"`
+	Updated   uint32             `json:"updated,omitempty"`
 }
 
 type PodOperateReplicas []*PodOperateReplica
@@ -785,6 +832,7 @@ func (ls *PodOperateReplicas) Set(set PodOperateReplica) error {
 			v.ResCpu = set.ResCpu
 			v.ResMem = set.ResMem
 			v.VolSys = set.VolSys
+			v.VolSysMnt = set.VolSysMnt
 
 			return nil
 		}
@@ -857,13 +905,14 @@ func (ls *PodRepStatuses) Sort() {
 // PodStatus represents information about the status of a pod. Status may trail the actual
 // state of a system.
 type PodStatus struct {
-	types.TypeMeta `json:",inline"`
-	PodId          string          `json:"pod_id,omitempty"`
-	Action         uint32          `json:"action,omitempty"`
-	ActionRunning  int             `json:"action_running"`
-	Replicas       PodRepStatuses  `json:"replicas,omitempty"`
-	Updated        uint32          `json:"updated,omitempty"`
-	OpLog          []*PbOpLogEntry `json:"op_log,omitempty"`
+	types.TypeMeta     `json:",inline"`
+	PodId              string          `json:"pod_id,omitempty"`
+	Action             uint32          `json:"action,omitempty"`
+	ActionRunning      int             `json:"action_running"`
+	Replicas           PodRepStatuses  `json:"replicas,omitempty"`
+	Updated            uint32          `json:"updated,omitempty"`
+	OpLog              []*PbOpLogEntry `json:"op_log,omitempty"`
+	PaymentCycleAmount float32         `json:"payment_cycle_amount,omitempty"`
 }
 
 func (it *PodStatus) RepSync(v *PbPodRepStatus) bool {

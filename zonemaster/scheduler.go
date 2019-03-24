@@ -45,21 +45,18 @@ var (
 	errServerError    = errors.New("server error")
 )
 
-const (
-	oplogZms     = "zone-master/scheduler/alloc"
-	oplogZmsFree = "zone-master/scheduler/destroy"
-)
-
 type destResReplica struct {
-	Ports  inapi.ServicePorts `json:"ports,omitempty"`
-	ResCpu int32              `json:"res_cpu,omitempty"` // 1 = .1 cores
-	ResMem int32              `json:"res_mem,omitempty"` // MB
-	VolSys int32              `json:"vol_sys,omitempty"` // GB
+	Ports       inapi.ServicePorts `json:"ports,omitempty"`
+	ResCpu      int32              `json:"res_cpu,omitempty"` // 1 = .1 cores
+	ResMem      int32              `json:"res_mem,omitempty"` // MB
+	VolSys      int32              `json:"vol_sys,omitempty"` // GB
+	VolSysAttrs uint32             `json:"vol_sys_attrs,omitempty"`
 }
 
 type hostUsageItem struct {
 	cpu   int32 // 1 = .1 cores
 	mem   int32 // MB
+	vols  typeScheduler.ScheduleHostVolumes
 	ports types.ArrayUint32
 	box   int32
 }
@@ -233,6 +230,11 @@ func schedulePodListRefresh() error {
 
 		specRes := pod.Spec.ResComputeBound()
 
+		if specRes == nil || pod.Spec.VolSys == nil {
+			hlog.Printf("warn", "zm/scheduler pod %s, Spec.ResCompute or Spec.Volume(system) not found", pod.Meta.ID)
+			continue
+		}
+
 		for _, rp := range pod.Operate.Replicas {
 
 			if rp.Node == "" {
@@ -255,6 +257,20 @@ func schedulePodListRefresh() error {
 				hostRes.mem += specRes.MemLimit
 				hostRes.box += 1
 			}
+
+			if rp.VolSysMnt == "" {
+				rp.VolSysMnt = "/opt"
+			}
+
+			hostResVol := hostRes.vols.Get(rp.VolSysMnt)
+			if hostResVol == nil {
+				hostResVol = &typeScheduler.ScheduleHostVolume{
+					Name: rp.VolSysMnt,
+				}
+				hostRes.vols.Sync(hostResVol)
+			}
+
+			hostResVol.Used += pod.Spec.VolSys.Size
 
 			for _, rpp := range rp.Ports {
 
@@ -351,16 +367,24 @@ func scheduleHostListRefresh() error {
 
 	scheduleHostList.Items = []*typeScheduler.ScheduleHostItem{}
 
-	cellStatuses := map[string]*inapi.ResCellStatus{}
-	tn := uint32(time.Now().Unix())
+	var (
+		cellStatuses = map[string]*inapi.ResCellStatus{}
+		tn           = uint32(time.Now().Unix())
+	)
 
 	//
 	for _, host := range status.ZoneHostList.Items {
+
+		if host.Operate == nil ||
+			host.Spec == nil || host.Spec.Capacity == nil {
+			continue
+		}
 
 		var (
 			res, ok         = hostResUsages[host.Meta.Id]
 			sync            = false
 			cellStatus, cok = cellStatuses[host.Operate.CellId]
+			vols            = typeScheduler.ScheduleHostVolumes{}
 		)
 		if !cok {
 			cellStatus = &inapi.ResCellStatus{
@@ -370,41 +394,91 @@ func scheduleHostListRefresh() error {
 		}
 
 		if !ok {
+			res = &hostUsageItem{}
+			hostResUsages[host.Meta.Id] = res
+		}
+
+		for _, scv := range host.Spec.Capacity.Vols {
+
+			cellStatus.VolCap += scv.Value
+
+			vol := &typeScheduler.ScheduleHostVolume{
+				Name:  scv.Name,
+				Total: scv.Value,
+				Attrs: scv.Attrs,
+			}
+
+			if res != nil {
+				if pv := res.vols.Get(scv.Name); pv != nil {
+					vol.Used = pv.Used
+				}
+			}
+
+			vols.Sync(vol)
+		}
+
+		if !ok {
+
 			if host.Operate.CpuUsed > 0 {
 				host.Operate.CpuUsed, sync = 0, true
 			}
+
 			if host.Operate.MemUsed > 0 {
 				host.Operate.MemUsed, sync = 0, true
 			}
+
+			if len(host.Operate.VolUsed) > 0 {
+				host.Operate.VolUsed, sync = []*inapi.ResVolValue{}, true
+			}
+
 			if len(host.Operate.PortUsed) > 0 {
 				host.Operate.PortUsed, sync = []uint32{}, true
 			}
+
 			if host.Operate.BoxNum > 0 {
 				host.Operate.BoxNum, sync = 0, true
 			}
+
 		} else {
+
 			if host.Operate.CpuUsed != res.cpu {
 				host.Operate.CpuUsed, sync = res.cpu, true
 			}
+
 			if host.Operate.MemUsed != int64(res.mem) {
 				host.Operate.MemUsed, sync = int64(res.mem), true
 			}
+
+			if !res.vols.Equal(vols) {
+				volNews := []*inapi.ResVolValue{}
+				for _, v := range res.vols {
+					volNews = append(volNews, &inapi.ResVolValue{
+						Name:  v.Name,
+						Value: v.Used,
+					})
+				}
+				host.Operate.VolUsed, sync = volNews, true
+			}
+
 			if !res.ports.Equal(host.Operate.PortUsed) {
 				host.Operate.PortUsed, sync = res.ports, true
 			}
+
 			if host.Operate.BoxNum != res.box {
 				host.Operate.BoxNum, sync = res.box, true
 			}
 		}
 
-		if host.Spec != nil && host.Spec.Capacity != nil {
-			cellStatus.CpuCap += int64(host.Spec.Capacity.Cpu)
-			cellStatus.MemCap += host.Spec.Capacity.Mem
-		}
+		// inapi.ObjPrint("AA", vols)
 
-		if host.Operate != nil {
-			cellStatus.CpuUsed += int64(host.Operate.CpuUsed)
-			cellStatus.MemUsed += host.Operate.MemUsed
+		cellStatus.CpuCap += int64(host.Spec.Capacity.Cpu)
+		cellStatus.MemCap += host.Spec.Capacity.Mem
+
+		cellStatus.CpuUsed += int64(host.Operate.CpuUsed)
+		cellStatus.MemUsed += host.Operate.MemUsed
+
+		for _, vol := range host.Operate.VolUsed {
+			cellStatus.VolUsed += vol.Value
 		}
 
 		cellStatus.HostCap += 1
@@ -423,19 +497,24 @@ func scheduleHostListRefresh() error {
 			}
 		}
 
-		if host.Spec != nil && host.Spec.Capacity != nil {
-			scheduleHostList.Items = append(scheduleHostList.Items, &typeScheduler.ScheduleHostItem{
-				Id:               host.Meta.Id,
-				CellId:           host.Operate.CellId,
-				OpAction:         host.Operate.Action,
-				CpuTotal:         host.Spec.Capacity.Cpu,
-				CpuUsed:          host.Operate.CpuUsed,
-				MemTotal:         int32(host.Spec.Capacity.Mem),
-				MemUsed:          int32(host.Operate.MemUsed),
-				BoxDockerVersion: host.Spec.ExpDockerVersion,
-				BoxPouchVersion:  host.Spec.ExpPouchVersion,
-			})
+		if pv := vols.Get("/opt"); pv != nil {
+			if vols.Get("/") != nil {
+				vols.Del("/")
+			}
 		}
+
+		scheduleHostList.Items = append(scheduleHostList.Items, &typeScheduler.ScheduleHostItem{
+			Id:               host.Meta.Id,
+			CellId:           host.Operate.CellId,
+			OpAction:         host.Operate.Action,
+			CpuTotal:         host.Spec.Capacity.Cpu,
+			CpuUsed:          host.Operate.CpuUsed,
+			MemTotal:         int32(host.Spec.Capacity.Mem),
+			MemUsed:          int32(host.Operate.MemUsed),
+			Volumes:          vols,
+			BoxDockerVersion: host.Spec.ExpDockerVersion,
+			BoxPouchVersion:  host.Spec.ExpPouchVersion,
+		})
 	}
 
 	for id, v := range cellStatuses {
@@ -463,16 +542,11 @@ func schedulePodListQueue(cellId string) {
 		offset = inapi.NsKvGlobalSetQueuePod(status.ZoneId, cellId, "")
 		cutset = inapi.NsKvGlobalSetQueuePod(status.ZoneId, cellId, "")
 	)
+
 	rss := data.GlobalMaster.KvScan(offset, cutset, 10000).KvList()
 	if len(rss) == 0 {
 		return
 	}
-
-	/**
-	if len(rss) > 0 {
-		hlog.Printf("info", "zone/pod/queue %d", len(rss))
-	}
-	*/
 
 	for _, v := range rss {
 
@@ -653,13 +727,12 @@ func schedulePodItem(podq *inapi.Pod) error {
 	// hlog.Printf("error", "exec podq %s instance", podq.Meta.ID)
 
 	if podq.Spec == nil {
-		return errors.New("No PodSpec Found")
+		return errors.New("No PodSpec Setup")
 	}
 
 	//
-	specVol := podq.Spec.Volume("system")
-	if specVol == nil {
-		return errors.New("No Spec/Volume(system) Found")
+	if podq.Spec.VolSys == nil {
+		return errors.New("No Spec/VolSys Setup")
 	}
 
 	for _, app := range podq.Apps {
@@ -694,61 +767,6 @@ func schedulePodItem(podq *inapi.Pod) error {
 
 			ports.Set(sp.Port)
 		}
-
-		/**
-		for _, appOpt := range app.Operate.Options {
-
-			if appOpt.Ref == nil ||
-				appOpt.Ref.PodId == "" ||
-				(len(appOpt.Ref.Ports) == 0 && len(app.Operate.Services) == 0) {
-				continue
-			}
-
-			zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, appOpt.Ref.PodId)
-			if zmPodService == nil {
-				continue
-			}
-
-			for _, appOptPort := range appOpt.Ref.Ports {
-
-				srvPort := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(appOptPort.BoxPort))
-				if srvPort == nil {
-
-					hlog.Printf("info", "pod %s, app/ref-spec %s, port %d, service port init",
-						podq.Meta.ID, appOpt.Ref.SpecId, appOptPort.BoxPort)
-
-					app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, &inapi.AppServicePort{
-						Spec: appOpt.Ref.SpecId,
-						Port: uint32(appOptPort.BoxPort),
-						Name: appOptPort.Name,
-					})
-
-				} else if srvPort.Name != appOptPort.Name {
-					srvPort.Name = appOptPort.Name
-				}
-
-				ports.Set(uint32(appOptPort.BoxPort))
-			}
-
-			//
-			for _, appOpService := range app.Operate.Services {
-
-				srvPort := inapi.AppServicePortSliceGet(zmPodService.Ports, appOpService.Port)
-				if srvPort == nil || srvPort.Updated <= appOpService.Updated {
-					continue
-				}
-
-				// inapi.ObjPrint("name 1", appOpService)
-
-				chg := false
-				if appOpService.Endpoints, chg = inapi.AppServiceReplicaSliceSyncSlice(appOpService.Endpoints, srvPort.Endpoints); chg {
-					hlog.Printf("info", "pod %s, app %s, port %d, service endpoints refreshed ",
-						podq.Meta.ID, app.Meta.ID, appOpService.Port)
-				}
-				appOpService.Updated = srvPort.Updated
-			}
-		}
-		*/
 
 		//
 		zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, podq.Meta.ID)
@@ -806,9 +824,6 @@ func schedulePodItem(podq *inapi.Pod) error {
 				continue
 			}
 
-			// inapi.ObjPrint("name 1", appOpService)
-			// inapi.ObjPrint("name 2", srvPort)
-
 			chg := false
 			if appOpService.Endpoints, chg = inapi.AppServiceReplicaSliceSyncSlice(appOpService.Endpoints, srvPort.Endpoints); chg {
 				hlog.Printf("info", "pod %s, app %s, port %d, service endpoints refreshed ",
@@ -854,15 +869,6 @@ func schedulePodItem(podq *inapi.Pod) error {
 		return nil
 	}
 
-	/**
-	for _, v := range podq.Operate.Replicas {
-		hlog.Printf("info", "pod %s, rep %d, action %s to %s",
-			podq.Meta.ID, v.RepId,
-			strings.Join(inapi.OpActionStrings(podq.Operate.Action), "|"),
-			strings.Join(inapi.OpActionStrings(v.Action), "|"))
-	}
-	*/
-
 	var (
 		tnStart   = time.Now()
 		destRes   *destResReplica
@@ -879,9 +885,10 @@ func schedulePodItem(podq *inapi.Pod) error {
 
 		specRes := podq.Spec.ResComputeBound()
 		destRes = &destResReplica{
-			ResCpu: specRes.CpuLimit,
-			ResMem: specRes.MemLimit,
-			VolSys: specVol.SizeLimit,
+			ResCpu:      specRes.CpuLimit,
+			ResMem:      specRes.MemLimit,
+			VolSys:      podq.Spec.VolSys.Size,
+			VolSysAttrs: podq.Spec.VolSys.Attrs,
 		}
 
 	} else {
@@ -889,7 +896,7 @@ func schedulePodItem(podq *inapi.Pod) error {
 		destRes = &destResReplica{}
 
 		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStop) {
-			destRes.VolSys = specVol.SizeLimit
+			destRes.VolSys = podq.Spec.VolSys.Size
 		}
 	}
 
@@ -996,36 +1003,40 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 			VolSys: destRes.VolSys,
 		}
 
-		hostFit, err := Scheduler.ScheduleHost(
+		hit, err := Scheduler.ScheduleHost(
 			&typeScheduler.SchedulePodSpec{
 				CellId:    podq.Spec.Cell,
 				BoxDriver: podq.Spec.Box.Image.Driver,
 			},
 			&typeScheduler.SchedulePodReplica{
-				RepId:  opRep.RepId,
-				Cpu:    opRep.ResCpu,
-				Mem:    opRep.ResMem,
-				VolSys: opRep.VolSys,
+				RepId:       opRep.RepId,
+				Cpu:         opRep.ResCpu,
+				Mem:         opRep.ResMem,
+				VolSys:      opRep.VolSys,
+				VolSysAttrs: destRes.VolSysAttrs,
 			},
 			&scheduleHostList,
 			nil,
 		)
 
-		if err != nil {
+		if err != nil || hit.Host == nil || len(hit.Volumes) < 1 {
 			// TODO error log
 			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
 				"no available resources, waiting for allocation")
 		}
 
-		host = status.ZoneHostList.Item(hostFit.Id)
+		host = status.ZoneHostList.Item(hit.HostId)
 		if host == nil {
 			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
 				"no available resources, waiting for allocation")
 		}
 
-		opRep.Node = hostFit.Id
+		opRep.Node = hit.HostId
+
+		// TODO
+		opRep.VolSysMnt = hit.Volumes[0].Name
 
 		podq.Operate.Replicas.Set(*opRep)
 		podq.Operate.Replicas.Sort()
@@ -1033,8 +1044,17 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 		host.SyncOpCpu(destRes.ResCpu)
 		host.SyncOpMem(destRes.ResMem)
 
-		hostFit.CpuUsed += destRes.ResCpu
-		hostFit.MemUsed += destRes.ResMem
+		hit.Host.CpuUsed += destRes.ResCpu
+		hit.Host.MemUsed += destRes.ResMem
+
+		for _, hitVol := range hit.Volumes {
+			if pv := inapi.ResVolValueSliceGet(host.Operate.VolUsed, hitVol.Name); pv != nil {
+				pv.Value += hitVol.Size
+			}
+			if pv := hit.Host.Volumes.Get(hitVol.Name); pv != nil {
+				pv.Used += hitVol.Size
+			}
+		}
 
 		hostChanged = true
 
@@ -1045,7 +1065,10 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 		}
 
 		hlog.Printf("info", "schedule rep %s:%d to host %s (new)",
-			podq.Meta.ID, opRep.RepId, hostFit.Id)
+			podq.Meta.ID, opRep.RepId, hit.HostId)
+
+		podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog, inapi.NewPbOpLogEntry(opLogKey,
+			inapi.PbOpLogOK, fmt.Sprintf("schedule rep %s:%d to host %s", podq.Meta.ID, opRep.RepId, hit.HostId)))
 
 	} else {
 
@@ -1083,8 +1106,6 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 		opRep.VolSys != destRes.VolSys {
 
 		hlog.Printf("info", "rep %s-%d spec change", podq.Meta.ID, opRep.RepId)
-		// inapi.ObjPrint(podq.Meta.ID, opRep)
-		// inapi.ObjPrint(podq.Meta.ID, destRes)
 
 		if inapi.OpActionAllow(opAction, inapi.OpActionStart) {
 
@@ -1098,9 +1119,10 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 					MemUsed:  int32(host.Operate.MemUsed),
 				},
 				&typeScheduler.SchedulePodReplica{
-					Cpu:    destRes.ResCpu - opRep.ResCpu,
-					Mem:    destRes.ResMem - opRep.ResMem,
-					VolSys: destRes.VolSys - opRep.VolSys,
+					Cpu:         destRes.ResCpu - opRep.ResCpu,
+					Mem:         destRes.ResMem - opRep.ResMem,
+					VolSys:      destRes.VolSys - opRep.VolSys,
+					VolSysAttrs: destRes.VolSysAttrs,
 				},
 			); err != nil {
 
@@ -1209,25 +1231,6 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			strings.Join(inapi.OpActionStrings(repStatus.Action), "|"),
 		)
 
-		/**
-		if inapi.OpActionAllow(rep.Action, inapi.OpActionMigrate) &&
-			inapi.OpActionAllow(repStatus.Action, inapi.OpActionStopped) == 0 {
-			continue
-		}
-		*/
-
-		/**
-		if !inapi.OpActionAllow(ctrRep.Action, inapi.OpActionMigrate) {
-			ctrRep.Action = inapi.OpActionStop | inapi.OpActionMigrate
-			ctrRep.Updated = tn
-
-			hlog.Printf("warn", "scheduler rep %s:%d, set OpAction to %s",
-				podq.Meta.ID, repId,
-				strings.Join(inapi.OpActionStrings(ctrRep.Action), "|"),
-			)
-		}
-		*/
-
 		if ctrRep.Next != nil &&
 			inapi.OpActionAllow(ctrRep.Next.Action, inapi.OpActionMigrated) {
 
@@ -1284,7 +1287,6 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 	}
 
 	podq.Operate.RepMigrates = mgs
-	// podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionHang)
 
 	// schedule new host
 	for _, repId := range podq.Operate.RepMigrates {
@@ -1308,12 +1310,6 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 				inapi.NsZonePodOpRepKey(repStatus.PodId, repStatus.RepId), 0)
 		}
 
-		/**
-		if !inapi.OpActionAllow(rep.Action, inapi.OpActionMigrate) {
-			continue
-		}
-		*/
-
 		// hlog.Printf("info", "pod %s", podq.Meta.ID)
 
 		if rep.Next != nil {
@@ -1328,7 +1324,9 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 		}
 		// hlog.Printf("info", "pod %s", podq.Meta.ID)
 
-		// prevHostPeerLan := inapi.HostNodeAddress(prevHost.Spec.PeerLanAddr)
+		if podq.Spec.VolSys == nil {
+			continue
+		}
 
 		repNext := &inapi.PodOperateReplica{
 			RepId:  rep.RepId,
@@ -1338,16 +1336,17 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			VolSys: rep.VolSys,
 		}
 
-		hostFit, err := Scheduler.ScheduleHost(
+		hit, err := Scheduler.ScheduleHost(
 			&typeScheduler.SchedulePodSpec{
 				CellId:    podq.Spec.Cell,
 				BoxDriver: podq.Spec.Box.Image.Driver,
 			},
 			&typeScheduler.SchedulePodReplica{
-				RepId:  repNext.RepId,
-				Cpu:    repNext.ResCpu,
-				Mem:    repNext.ResMem,
-				VolSys: repNext.VolSys,
+				RepId:       repNext.RepId,
+				Cpu:         repNext.ResCpu,
+				Mem:         repNext.ResMem,
+				VolSys:      repNext.VolSys,
+				VolSysAttrs: podq.Spec.VolSys.Attrs,
 			},
 			&scheduleHostList,
 			&typeScheduler.ScheduleOptions{
@@ -1355,7 +1354,7 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			},
 		)
 
-		if err != nil {
+		if err != nil || hit.Host == nil || len(hit.Volumes) < 1 {
 			repStatus.OpLog.LogSet(
 				podq.Operate.Version,
 				inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogWarn,
@@ -1365,11 +1364,13 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			continue
 		}
 
-		host := status.ZoneHostList.Item(hostFit.Id)
+		host := status.ZoneHostList.Item(hit.HostId)
 		if host == nil {
 			continue
 		}
-		repNext.Node = hostFit.Id
+		repNext.Node = hit.HostId
+
+		repNext.VolSysMnt = hit.Volumes[0].Name
 
 		if ports, chg := schedulePodRepNetPortAlloc(podq, repNext, host); chg {
 			repNext.Ports = ports
@@ -1389,8 +1390,17 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 		host.SyncOpCpu(repNext.ResCpu)
 		host.SyncOpMem(repNext.ResMem)
 
-		hostFit.CpuUsed += repNext.ResCpu
-		hostFit.MemUsed += repNext.ResMem
+		hit.Host.CpuUsed += repNext.ResCpu
+		hit.Host.MemUsed += repNext.ResMem
+
+		for _, hitVol := range hit.Volumes {
+			if pv := inapi.ResVolValueSliceGet(host.Operate.VolUsed, hitVol.Name); pv != nil {
+				pv.Value += hitVol.Size
+			}
+			if pv := hit.Host.Volumes.Get(hitVol.Name); pv != nil {
+				pv.Used += hitVol.Size
+			}
+		}
 
 		// hlog.Printf("info", "host %s sync changes", host.Meta.Id)
 
@@ -1402,7 +1412,7 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 		}
 
 		hlog.Printf("warn", "scheduler rep %s:%d, migrate from host %s to %s",
-			podq.Meta.ID, rep.RepId, prevHostId, hostFit.Id)
+			podq.Meta.ID, rep.RepId, prevHostId, hit.HostId)
 
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
 			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
@@ -1411,7 +1421,7 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 		repStatus.OpLog.LogSet(
 			podq.Operate.Version,
 			inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogOK,
-			fmt.Sprintf("migrate rep from host %s to %s", prevHostId, hostFit.Id),
+			fmt.Sprintf("migrate rep from host %s to %s", prevHostId, hit.HostId),
 		)
 	}
 
@@ -1514,13 +1524,13 @@ func schedulePodPreChargeValid(podq *inapi.Pod) error {
 		return fmt.Errorf("bad pod.Spec %s", podq.Meta.ID)
 	}
 
-	chargeAmount := float64(0)
+	if podq.Spec.VolSys == nil {
+		return fmt.Errorf("Pod %s : No PodSpec/VolSys Setup", podq.Meta.ID)
+	}
 
 	// Volumes
-	for _, v := range podq.Spec.Volumes {
-		chargeAmount += iamapi.AccountFloat64Round(
-			specPlan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
-	}
+	chargeAmount := iamapi.AccountFloat64Round(
+		specPlan.VolCharge(podq.Spec.VolSys.RefId)*float64(podq.Spec.VolSys.Size), 4)
 
 	if podq.Spec.Box.Resources != nil {
 		// CPU

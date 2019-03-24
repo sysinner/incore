@@ -147,10 +147,6 @@ func (c PodRep) SetAction() {
 		prev.Operate.RepMigrates = []uint32{
 			item.Replica.RepId,
 		}
-		/**
-		hlog.Printf("info", "Pod %s, Rep %d, Set Action:Migrate",
-			item.Meta.ID, item.Replica.RepId)
-		*/
 	}
 
 	if rs := data.GlobalMaster.KvPut(podQueueKey, prev, nil); !rs.OK() {

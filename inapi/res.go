@@ -30,6 +30,11 @@ const (
 	ResourceActionOK   = "ok"
 )
 
+var (
+	ResVolValueAttrOut uint32 = 1 << 4
+	ResVolValueAttrSSD uint32 = 1 << 5
+)
+
 type Resource struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`

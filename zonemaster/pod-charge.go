@@ -95,7 +95,9 @@ func podItemCharge(pod *inapi.Pod) bool {
 	}
 
 	//
-	if pod.Spec == nil || pod.Spec.Ref.Name == "" {
+	if pod.Spec == nil ||
+		pod.Spec.Ref.Name == "" ||
+		pod.Spec.VolSys == nil {
 		return false
 	}
 	var specPlan *inapi.PodSpecPlan
@@ -113,8 +115,10 @@ func podItemCharge(pod *inapi.Pod) bool {
 		cav    = float64(0)
 		cac    = float64(0)
 		cam    = float64(0)
+		volv   = specPlan.VolCharge(pod.Spec.VolSys.RefId)
 		repNum = 0
 	)
+
 	for _, v := range pod.Operate.Replicas {
 
 		if v.Node == "" ||
@@ -134,8 +138,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 		}
 
 		// Volume
-		cav += iamapi.AccountFloat64Round(
-			specPlan.ResVolumeCharge.CapSize*float64(v.VolSys), 4)
+		cav += iamapi.AccountFloat64Round(volv*float64(v.VolSys), 4)
 
 		repNum += 1
 	}
@@ -150,31 +153,6 @@ func podItemCharge(pod *inapi.Pod) bool {
 		}
 		tn = uint32(time.Now().Unix())
 	)
-
-	/**
-	// Res Volumes
-	for _, v := range pod.Spec.Volumes {
-		// v.SizeLimit = 20 * inapi.ByteGB
-		cycleAmount += iamapi.AccountFloat64Round(
-			specPlan.ResVolumeCharge.CapSize*float64(v.SizeLimit), 4)
-	}
-
-	// Res Computes
-	if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) &&
-		!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) {
-
-		if pod.Spec.Box.Resources != nil {
-
-			// CPU v.Resources.CpuLimit = 1000
-			cycleAmount += iamapi.AccountFloat64Round(
-				specPlan.ResComputeCharge.Cpu*(float64(pod.Spec.Box.Resources.CpuLimit)/10), 4)
-
-			// MEM v.Resources.MemLimit = 1 * inapi.ByteGB
-			cycleAmount += iamapi.AccountFloat64Round(
-				specPlan.ResComputeCharge.Mem*float64(pod.Spec.Box.Resources.MemLimit), 4)
-		}
-	}
-	*/
 
 	if cycleAmount == 0 || repNum == 0 {
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
