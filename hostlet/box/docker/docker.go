@@ -111,6 +111,7 @@ type BoxDriver struct {
 	sets         types.ArrayString
 	createSets   types.KvPairs
 	lxcfsVols    []string
+	imageSets    types.ArrayString
 }
 
 func (tp *BoxDriver) Name() string {
@@ -256,6 +257,20 @@ func (tp *BoxDriver) statusRefresh() {
 	for _, v := range tp.createSets {
 		if !creates.Has(v.Key) {
 			tp.createSets.Del(v.Key)
+		}
+	}
+
+	// refresh current images
+	if !tp.inited {
+		if rsi, err := tp.client.ListImages(drvClient.ListImagesOptions{
+			All: false,
+		}); err == nil {
+			for _, v := range rsi {
+				for _, v2 := range v.RepoTags {
+					tp.imageSets.Set(v2)
+				}
+			}
+			hlog.Printf("info", "hostlet/box images %d", len(tp.imageSets))
 		}
 	}
 
@@ -623,6 +638,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 					"POD_ID=" + inst.PodID,
 				},
 				User: "action",
+				// User: "root",
 			},
 			HostConfig: &drvClient.HostConfig{
 				NetworkMode:      "bridge",
@@ -648,6 +664,10 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		})
 
 		if err != nil && !strings.Contains(err.Error(), "container already exists") {
+			if strings.Contains(err.Error(), "no such image") {
+				tp.imageSets.Del(imageName)
+			}
+
 			hlog.Printf("info", "hostlet/box Create %s, Err: %v", inst.Name, err)
 			inst.StatusActionSet(inapi.OpActionWarning)
 			return errors.New("BoxCreate Warning " + err.Error())
@@ -801,4 +821,38 @@ func (tp *BoxDriver) BoxRemove(inst *napi.BoxInstance) error {
 	}
 
 	return nil
+}
+
+func (tp *BoxDriver) ImageSetup(inst *napi.BoxInstance) error {
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
+	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
+		return nil
+	}
+
+	imageName := inst.Spec.Image.Ref.Id
+	if imageName != "" && strings.IndexByte(imageName, ':') < 0 {
+		imageName = inapi.BoxImageRepoDefault + ":" + inst.Spec.Image.Ref.Id
+	}
+
+	if tp.imageSets.Has(imageName) {
+		return nil
+	}
+
+	err := tp.client.PullImage(drvClient.PullImageOptions{
+		Repository: imageName,
+	}, drvClient.AuthConfiguration{})
+	if err != nil {
+		hlog.Printf("warn", "hostlet/box %s, pull image error %s", inst.Name, err.Error())
+	} else {
+		tp.imageSets.Set(imageName)
+		hlog.Printf("info", "hostlet/box %s, pull image ok", inst.Name)
+	}
+
+	return err
 }

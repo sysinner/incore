@@ -126,6 +126,7 @@ type BoxDriver interface {
 	Stop() error
 	StatusEntry() *BoxInstance
 	StatsEntry() *BoxInstanceStatsFeed
+	ImageSetup(box *BoxInstance) error
 	BoxCreate(box *BoxInstance) error
 	BoxStart(box *BoxInstance) error
 	BoxStop(box *BoxInstance) error

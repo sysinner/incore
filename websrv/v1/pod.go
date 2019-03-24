@@ -460,9 +460,12 @@ func (c Pod) NewAction() {
 				Id:   img.RefId,
 				Name: img.RefId,
 			},
-			Driver: img.Driver,
-			OsDist: img.OsDist,
-			Arch:   img.Arch,
+			RefName:  img.RefName,
+			RefTag:   img.RefTag,
+			RefTitle: img.RefTitle,
+			Driver:   img.Driver,
+			OsDist:   img.OsDist,
+			Arch:     img.Arch,
 			// Options: img.Options,
 		},
 		Resources: &inapi.PodSpecBoxResComputeBound{
@@ -1093,13 +1096,15 @@ func (c Pod) SpecSetAction() {
 		}
 
 		if set.Box.Image == "" {
-			set.Box.Image = prev.Spec.Box.Image.Ref.Name
+			set.Box.Image = prev.Spec.Box.Image.Ref.Id
 		}
 
+		/**
 		if set.Box.Image != prev.Spec.Box.Image.Ref.Name {
 			set.Error = types.NewErrorMeta("400", "invalid image name")
 			return
 		}
+		*/
 	}
 
 	//
@@ -1162,6 +1167,12 @@ func (c Pod) SpecSetAction() {
 		return
 	}
 
+	if prev.Spec.Box.Image.Ref != nil &&
+		prev.Spec.Box.Image.Driver != img.Driver {
+		set.Error = types.NewErrorMeta("400", "Invalid Image")
+		return
+	}
+
 	res := spec_plan.ResCompute(set.Box.ResCompute)
 	if res == nil {
 		set.Error = types.NewErrorMeta("400", "No ResCompute Found")
@@ -1176,9 +1187,12 @@ func (c Pod) SpecSetAction() {
 				Id:   img.RefId,
 				Name: img.RefId,
 			},
-			Driver: img.Driver,
-			OsDist: img.OsDist,
-			Arch:   img.Arch,
+			RefName:  img.RefName,
+			RefTag:   img.RefTag,
+			RefTitle: img.RefTitle,
+			Driver:   img.Driver,
+			OsDist:   img.OsDist,
+			Arch:     img.Arch,
 			// Options: img.Options,
 		},
 		Resources: &inapi.PodSpecBoxResComputeBound{

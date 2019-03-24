@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
@@ -124,6 +125,50 @@ func zoneMasterSync() error {
 				config.Config.Sync()
 				hlog.Printf("info", "hostlet/config/masters refreshed")
 			}
+		}
+	}
+
+	//
+	if !inapi.ResImageServiceSliceEqual(config.Config.ImageServices, zms.ImageServices) {
+
+		chg := false
+
+		for _, dv := range []string{"docker"} {
+
+			mirrors := types.ArrayString{}
+			for _, v := range zms.ImageServices {
+				if v.Driver == dv {
+					mirrors.Set(v.Url)
+				}
+			}
+			if len(mirrors) < 1 {
+				continue
+			}
+
+			var (
+				cfg   types.JsonTypelessItem
+				cfile = "/etc/docker/daemon.json"
+			)
+			if err := json.DecodeFile(cfile, &cfg); err != nil {
+				hlog.Printf("info", "hostlet/box/config %s refreshed err %s", dv, err.Error())
+				continue
+			}
+
+			cfg.Set("registry-mirrors", mirrors)
+			if err := json.EncodeToFile(cfg, cfile, "  "); err == nil {
+				if _, err := exec.Command("systemctl", "reload", "docker").Output(); err == nil {
+					chg = true
+					hlog.Printf("info", "hostlet/box/config %s refreshed", cfile)
+				}
+			} else {
+				hlog.Printf("info", "hostlet/box/config %s refreshed err %s", dv, err.Error())
+			}
+		}
+
+		if chg {
+			config.Config.ImageServices = zms.ImageServices
+			config.Config.Sync()
+			hlog.Printf("info", "hostlet/config refreshed, image-services %d", len(zms.ImageServices))
 		}
 	}
 

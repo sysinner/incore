@@ -224,13 +224,17 @@ func podRepListCtrlRefresh() error {
 				hlog.Printf("info", "host/pod %s, restart", inst.PodID)
 			}
 
-			if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) {
-				err = drv.BoxRemove(inst)
-			} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStop) {
-				err = drv.BoxStop(inst)
-			} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
-				if err = podRepVolSetup(inst); err == nil {
-					err = drv.BoxStart(inst)
+			err = drv.ImageSetup(inst)
+
+			if err == nil {
+				if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) {
+					err = drv.BoxRemove(inst)
+				} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStop) {
+					err = drv.BoxStop(inst)
+				} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
+					if err = podRepVolSetup(inst); err == nil {
+						err = drv.BoxStart(inst)
+					}
 				}
 			}
 

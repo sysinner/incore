@@ -16,6 +16,7 @@ package ops
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -155,6 +156,26 @@ func (c Host) ZoneSetAction() {
 				Code:    "400",
 				Message: fmt.Sprintf("Invalid Address (%s)", addr),
 			}
+			return
+		}
+	}
+
+	if len(set.ImageServices) > 5 {
+		set.Error = types.NewErrorMeta("400",
+			fmt.Sprintf("the number of Image Services cannot be greater than %d", 5))
+		return
+	}
+
+	for _, v := range set.ImageServices {
+
+		if v.Driver != inapi.PodSpecBoxImageDocker &&
+			v.Driver != inapi.PodSpecBoxImagePouch {
+			set.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid ImageService Driver (%s)", v.Driver))
+			return
+		}
+
+		if _, err := url.ParseRequestURI(v.Url); err != nil {
+			set.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid ImageService URL (%s)", v.Url))
 			return
 		}
 	}

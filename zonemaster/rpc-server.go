@@ -263,6 +263,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 		hostBound = &inapi.ResHostBound{
 			Masters:              &status.ZoneMasterList,
 			ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
+			ImageServices:        status.Zone.ImageServices,
 		}
 	)
 

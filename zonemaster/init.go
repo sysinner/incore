@@ -35,7 +35,29 @@ func InitData(items map[string]interface{}) error {
 
 	for k, v := range items {
 
-		if len(k) > 5 && (k[:5] == "/ing/" || k[:5] == "/iam/") {
+		if len(k) > 5 && (k[:4] == "ing:" || k[:4] == "inz:") {
+
+			if _, ok := hflag.ValueOK("zm-init-data-force-rewrite"); ok {
+				if rs := data.GlobalMaster.KvPut([]byte(k), v, nil); !rs.OK() {
+					return fmt.Errorf("gm.initdata error on put key : %s", k)
+				} else {
+					hlog.Printf("info", "gm.init.data set %s", k)
+				}
+
+			} else {
+				if rs := data.GlobalMaster.KvGet([]byte(k)); rs.OK() {
+					hlog.Printf("debug", "gm.init.data skip %s", k)
+					continue
+				}
+
+				if rs := data.GlobalMaster.KvNew([]byte(k), v, nil); !rs.OK() {
+					return fmt.Errorf("gm.initdata error on put key : %s", k)
+				} else {
+					hlog.Printf("info", "gm.init.data set %s", k)
+				}
+			}
+
+		} else if len(k) > 5 && (k[:5] == "/ing/" || k[:5] == "/iam/") {
 
 			if _, ok := hflag.ValueOK("zm-init-data-force-rewrite"); ok {
 				if rs := data.GlobalMaster.PvPut(k, v, nil); !rs.OK() {

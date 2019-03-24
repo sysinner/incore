@@ -26,19 +26,30 @@ import (
 )
 
 var (
-	podOpMu            sync.RWMutex
-	podItemsMu         sync.RWMutex
-	pod_st_mu          sync.RWMutex
-	PodIdReg           = regexp.MustCompile("^[a-f0-9]{16,24}$")
-	PodSpecPlanIdReg   = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
-	PodDestroyTTL      = uint32(86400)
-	PodPlanChargeCycle = uint64(3600)
+	podOpMu             sync.RWMutex
+	podItemsMu          sync.RWMutex
+	pod_st_mu           sync.RWMutex
+	PodIdReg            = regexp.MustCompile("^[a-f0-9]{16,24}$")
+	PodSpecPlanIdReg    = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
+	PodSpecImageNameReg = regexp.MustCompile("^[a-z][a-z0-9-_/]{1,50}$")
+	PodSpecImageTagReg  = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,20}$")
+	PodDestroyTTL       = uint32(86400)
+	PodPlanChargeCycle  = uint64(3600)
 )
 
 const (
 	PodSpecBoxImageDocker = "docker"
 	PodSpecBoxImageRkt    = "rkt"
 	PodSpecBoxImagePouch  = "pouch"
+)
+
+const (
+	PodSpecBoxImageActionEnable  uint32 = 1 << 1
+	PodSpecBoxImageActionDisable uint32 = 1 << 3
+)
+
+const (
+	SpecCpuArchAmd64 = "x64"
 )
 
 const (
@@ -367,6 +378,10 @@ type PodSpecBoxBound struct {
 type PodSpecBoxImageBound struct {
 	Ref *ObjectReference `json:"ref,omitempty"`
 
+	RefName  string `json:"ref_name"`
+	RefTag   string `json:"ref_tag"`
+	RefTitle string `json:"ref_title"`
+
 	Driver string `json:"driver,omitempty"`
 
 	// Options types.Labels `json:"options,omitempty"`
@@ -393,44 +408,49 @@ type PodSpecBoxImage struct {
 	types.TypeMeta `json:",inline"`
 	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
 
-	Status string `json:"status,omitempty"`
+	Name      string `json:"name"`
+	Tag       string `json:"tag"`
+	SortOrder int    `json:"sort_order"`
+	Action    uint32 `json:"action,omitempty"`
 
 	// Container type of the image.
-	//  ex: docker, rkt, pouch.
+	//  ex: docker, pouch, ...
 	Driver string `json:"driver,omitempty"`
 
+	// Status string `json:"status,omitempty"`
+
 	// TODO
-	AccessRoles string `json:"access_roles,omitempty"`
+	// AccessRoles string `json:"access_roles,omitempty"`
 
 	// Options are name value pairs that representing extensional information,
 	// usually be used in special system components, names must be unique within the list.
 	// ex:
 	//  {name: "docker/image/name", value: "centos/lastest"},
 	//  {name: "example.com/spec/name", value: "hello"}, ...
-	Options types.Labels `json:"options,omitempty"`
+	// Options types.Labels `json:"options,omitempty"`
 
 	// Annotations are name value pairs that representing additional information,
 	// any extra metadata you wish may be added to the list.
 	// ex:
 	//  {name: "homepage", value: "http://example.com"}, ...
-	Annotations types.Labels `json:"annotations,omitempty"`
+	// Annotations types.Labels `json:"annotations,omitempty"`
 
 	// Type name of the operating system.
 	//  ex: linux, freebsd, darwin, ...
-	OsType string `json:"os_type,omitempty"`
+	// OsType string `json:"os_type,omitempty"`
 
 	// Distribution short name of the operating system.
-	//  ex: el6, el7, deb7, ubu1404, ...
+	//  ex: el7, deb9, ubu1804, ...
 	OsDist string `json:"os_dist,omitempty"`
 
 	// Version of the operating system.
-	OsVersion string `json:"os_version,omitempty"`
+	// OsVersion string `json:"os_version,omitempty"`
 
 	// A human-readable description of the operating system.
-	OsName string `json:"os_name,omitempty"`
+	// OsName string `json:"os_name,omitempty"`
 
 	// Architecture indicates the type of hardware.
-	//  ex: amd64, armv6l, ...
+	//  ex: x64, armv6l, ...
 	Arch string `json:"arch,omitempty"`
 }
 
@@ -557,10 +577,14 @@ type PodSpecPlanResourceCharge struct {
 }
 
 type PodSpecPlanBoxImageBound struct {
-	RefId  string `json:"ref_id"`
-	Driver string `json:"driver,omitempty"`
-	OsDist string `json:"os_dist,omitempty"`
-	Arch   string `json:"arch,omitempty"`
+	RefId     string `json:"ref_id"`
+	RefName   string `json:"ref_name"`
+	RefTag    string `json:"ref_tag"`
+	RefTitle  string `json:"ref_title"`
+	Driver    string `json:"driver,omitempty"`
+	OsDist    string `json:"os_dist,omitempty"`
+	Arch      string `json:"arch,omitempty"`
+	SortOrder int    `json:"sort_order"`
 	// Options types.Labels `json:"options,omitempty"`
 }
 
@@ -626,6 +650,12 @@ func (s *PodSpecPlan) VolCharge(ref_id string) float64 {
 		}
 	}
 	return s.ResVolumeCharge.Value
+}
+
+func (it *PodSpecPlan) ImagesSort() {
+	sort.Slice(it.Images, func(i, j int) bool {
+		return it.Images[i].SortOrder < it.Images[j].SortOrder
+	})
 }
 
 func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {

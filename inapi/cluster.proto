@@ -35,6 +35,12 @@ message ResVolBound {
     uint32 attrs = 6;
 }
 
+// image
+message ResImageService {
+    string driver = 1;
+    string url = 2; // struct:object_slice_key
+}
+
 // host
 message ResHostOperate {
     uint32          action    = 1;
@@ -116,7 +122,9 @@ message ResHostBound {
     string zone_inpack_service_url = 7;
     repeated string exp_box_removes = 8;
     repeated string exp_box_stops = 9;
+    repeated ResImageService image_services = 10;
 }
+
 
 message ResZone {
     ObjectMeta       meta      = 2;
@@ -127,6 +135,7 @@ message ResZone {
     repeated ResCell cells     = 7;
     repeated Label   options   = 8;
     string           wan_api   = 9;
+    repeated ResImageService image_services = 10;
 }
 
 message ResCell {

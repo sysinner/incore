@@ -53,8 +53,11 @@ func NsGlobalPodSpec(stype, id string) string {
 	return fmt.Sprintf("/ing/ps/%s/%s", stype, id)
 }
 
-func NsGlobalBoxImage(name, tag string) string {
-	return fmt.Sprintf("/ing/bi/%s/%s", name, tag)
+func NsGlobalBoxImage(name, tag string) []byte {
+	if tag == "" {
+		return []byte(fmt.Sprintf("ing:box:image:%s", name))
+	}
+	return []byte(fmt.Sprintf("ing:box:image:%s:%s", name, tag))
 }
 
 func NsGlobalPodInstance(podId string) string {

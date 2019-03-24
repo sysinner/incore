@@ -775,3 +775,18 @@ func (tp *BoxDriver) BoxRemove(inst *napi.BoxInstance) error {
 
 	return nil
 }
+
+func (tp *BoxDriver) ImageSetup(inst *napi.BoxInstance) error {
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
+	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
+		return nil
+	}
+
+	return errors.New("noimp")
+}

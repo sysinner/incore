@@ -100,3 +100,97 @@ func ResVolValueSliceSyncSlice(ls, ls2 []*ResVolValue) ([]*ResVolValue, bool) {
 	}
 	return ls2, true
 }
+
+var object_slice_mu_ResImageService sync.RWMutex
+
+func (it *ResImageService) Equal(it2 *ResImageService) bool {
+	if it2 == nil ||
+		it.Driver != it2.Driver ||
+		it.Url != it2.Url {
+		return false
+	}
+	return true
+}
+
+func (it *ResImageService) Sync(it2 *ResImageService) bool {
+	if it2 == nil {
+		return false
+	}
+	if it.Equal(it2) {
+		return false
+	}
+	*it = *it2
+	return true
+}
+
+func ResImageServiceSliceGet(ls []*ResImageService, arg_url string) *ResImageService {
+	object_slice_mu_ResImageService.RLock()
+	defer object_slice_mu_ResImageService.RUnlock()
+
+	for _, v := range ls {
+		if v.Url == arg_url {
+			return v
+		}
+	}
+	return nil
+}
+
+func ResImageServiceSliceEqual(ls, ls2 []*ResImageService) bool {
+	object_slice_mu_ResImageService.RLock()
+	defer object_slice_mu_ResImageService.RUnlock()
+
+	if len(ls) != len(ls2) {
+		return false
+	}
+	hit := false
+	for _, v := range ls {
+		hit = false
+		for _, v2 := range ls2 {
+			if v.Url != v2.Url {
+				continue
+			}
+			if !v.Equal(v2) {
+				return false
+			}
+			hit = true
+			break
+		}
+		if !hit {
+			return false
+		}
+	}
+	return true
+}
+
+func ResImageServiceSliceSync(ls []*ResImageService, it2 *ResImageService) ([]*ResImageService, bool) {
+	if it2 == nil {
+		return ls, false
+	}
+	object_slice_mu_ResImageService.Lock()
+	defer object_slice_mu_ResImageService.Unlock()
+
+	hit := false
+	changed := false
+	for i, v := range ls {
+		if v.Url != it2.Url {
+			continue
+		}
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
+		}
+		hit = true
+		break
+	}
+	if !hit {
+		ls = append(ls, it2)
+		changed = true
+	}
+	return ls, changed
+}
+
+func ResImageServiceSliceSyncSlice(ls, ls2 []*ResImageService) ([]*ResImageService, bool) {
+	if ResImageServiceSliceEqual(ls, ls2) {
+		return ls, false
+	}
+	return ls2, true
+}

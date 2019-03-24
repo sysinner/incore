@@ -303,6 +303,13 @@ func zmWorkerGlobalZoneListRefresh() error {
 			if !found {
 				status.GlobalZones = append(status.GlobalZones, &o)
 			}
+
+			if status.Zone != nil && o.Meta.Id == status.Zone.Meta.Id {
+				if o.Meta.Updated > status.Zone.Meta.Updated {
+					status.Zone = &o
+					data.ZoneMaster.PvPut(inapi.NsZoneSysInfo(status.Host.Operate.ZoneId), status.Zone, nil)
+				}
+			}
 		}
 	}
 

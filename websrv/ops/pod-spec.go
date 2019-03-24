@@ -347,9 +347,12 @@ func (c PodSpec) PlanSetAction() {
 	}
 
 	//
-	prev.ImageDefault = ""
 	prev.Images = []*inapi.PodSpecPlanBoxImageBound{}
-	rss = data.GlobalMaster.PvScan(inapi.NsGlobalBoxImage(inapi.BoxImageRepoDefault, ""), "", "", 100).KvList()
+	var (
+		offset = inapi.NsGlobalBoxImage(inapi.BoxImageRepoDefault, "")
+		cutset = inapi.NsGlobalBoxImage(inapi.BoxImageRepoDefault, "")
+	)
+	rss = data.GlobalMaster.KvScan(offset, cutset, 100).KvList()
 	for _, v := range rss {
 
 		var item inapi.PodSpecBoxImage
@@ -361,14 +364,15 @@ func (c PodSpec) PlanSetAction() {
 			if v2.RefId != item.Meta.ID {
 				continue
 			}
-			if prev.ImageDefault == "" {
-				prev.ImageDefault = item.Meta.ID
-			}
 			prev.Images = append(prev.Images, &inapi.PodSpecPlanBoxImageBound{
-				RefId:  item.Meta.ID,
-				Driver: item.Driver,
-				OsDist: item.OsDist,
-				Arch:   item.Arch,
+				RefId:     item.Meta.ID,
+				RefName:   item.Name,
+				RefTag:    item.Tag,
+				RefTitle:  item.Meta.Name,
+				SortOrder: item.SortOrder,
+				Driver:    item.Driver,
+				OsDist:    item.OsDist,
+				Arch:      item.Arch,
 				// Options: item.Options,
 			})
 			break
@@ -378,6 +382,8 @@ func (c PodSpec) PlanSetAction() {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request 04")
 		return
 	}
+	prev.ImagesSort()
+	prev.ImageDefault = prev.Images[0].RefId
 
 	//
 	prev.ResComputes = inapi.PodSpecPlanResComputeBounds{}
@@ -482,11 +488,15 @@ func (c PodSpec) BoxImageListAction() {
 		repo = inapi.BoxImageRepoDefault
 	}
 
+	var (
+		offset = inapi.NsGlobalBoxImage(repo, "")
+		cutset = inapi.NsGlobalBoxImage(repo, "")
+	)
+
 	// TODO
-	rs := data.GlobalMaster.PvScan(inapi.NsGlobalBoxImage(repo, ""), "", "", 100)
+	rs := data.GlobalMaster.KvScan(offset, cutset, 100)
 	rss := rs.KvList()
 	for _, v := range rss {
-
 		var item inapi.PodSpecBoxImage
 		if err := v.Decode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
@@ -494,6 +504,75 @@ func (c PodSpec) BoxImageListAction() {
 	}
 
 	ls.Kind = "PodSpecBoxImageList"
+}
+
+func (c PodSpec) BoxImageSetAction() {
+
+	set := inapi.GeneralObject{}
+	defer c.RenderJson(&set)
+
+	var setItem inapi.PodSpecBoxImage
+	if err := c.Request.JsonDecode(&setItem); err != nil {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Bad Request")
+		return
+	}
+
+	if !inapi.PodSpecImageNameReg.MatchString(setItem.Name) {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Image Name")
+		return
+	}
+
+	if !inapi.PodSpecImageTagReg.MatchString(setItem.Tag) {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Image Tag")
+		return
+	}
+
+	if setItem.Driver != inapi.PodSpecBoxImageDocker &&
+		setItem.Driver != inapi.PodSpecBoxImagePouch {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Driver")
+		return
+	}
+
+	if setItem.SortOrder < 4 {
+		setItem.SortOrder = 4
+	} else if setItem.SortOrder > 20 {
+		setItem.SortOrder = 20
+	}
+
+	if setItem.Action != inapi.PodSpecBoxImageActionDisable {
+		setItem.Action = inapi.PodSpecBoxImageActionEnable
+	}
+
+	// TODO
+	setItem.Arch = inapi.SpecCpuArchAmd64
+	setItem.OsDist = "el7"
+
+	setItem.Meta.ID = setItem.Name + ":" + setItem.Tag
+
+	setItem.Meta.Name = strings.TrimSpace(setItem.Meta.Name)
+	if setItem.Meta.Name == "" {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Image Name")
+		return
+	}
+
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
+		return
+	}
+
+	if rs := data.GlobalMaster.KvGet(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag)); rs.OK() {
+		var prev inapi.PodSpecBoxImage
+		if err := rs.Decode(&prev); err == nil {
+			setItem.Meta.Created = prev.Meta.Created
+		}
+	}
+
+	if rs := data.GlobalMaster.KvPut(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag), setItem, nil); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		return
+	}
+
+	set.Kind = "PodSpecBoxImage"
 }
 
 func (c PodSpec) ResVolumeListAction() {

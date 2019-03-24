@@ -28,6 +28,9 @@ import (
 func Setup() error {
 	//
 	json.DecodeFile(config.Prefix+"/etc/hostlet-actives.json", &nstatus.BoxActives)
+	for _, v := range nstatus.BoxActives.Items {
+		v.Status.Action = 0
+	}
 
 	hlog.Printf("info", "hostlet setup, replicas %d", len(nstatus.BoxActives.Items))
 	return nil
