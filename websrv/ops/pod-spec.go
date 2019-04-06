@@ -349,8 +349,8 @@ func (c PodSpec) PlanSetAction() {
 	//
 	prev.Images = []*inapi.PodSpecPlanBoxImageBound{}
 	var (
-		offset = inapi.NsGlobalBoxImage(inapi.BoxImageRepoDefault, "")
-		cutset = inapi.NsGlobalBoxImage(inapi.BoxImageRepoDefault, "")
+		offset = inapi.NsGlobalBoxImage("", "")
+		cutset = inapi.NsGlobalBoxImage("", "")
 	)
 	rss = data.GlobalMaster.KvScan(offset, cutset, 100).KvList()
 	for _, v := range rss {
@@ -482,20 +482,13 @@ func (c PodSpec) BoxImageListAction() {
 	}
 
 	var (
-		repo = c.Params.Get("repo")
-	)
-	if repo == "" {
-		repo = inapi.BoxImageRepoDefault
-	}
-
-	var (
+		repo   = c.Params.Get("repo")
 		offset = inapi.NsGlobalBoxImage(repo, "")
 		cutset = inapi.NsGlobalBoxImage(repo, "")
 	)
 
 	// TODO
-	rs := data.GlobalMaster.KvScan(offset, cutset, 100)
-	rss := rs.KvList()
+	rss := data.GlobalMaster.KvScan(offset, cutset, 100).KvList()
 	for _, v := range rss {
 		var item inapi.PodSpecBoxImage
 		if err := v.Decode(&item); err == nil {

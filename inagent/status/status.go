@@ -20,9 +20,10 @@ import (
 )
 
 var (
-	Executors   = inapi.Executors{}
-	Statuses    = inapi.ExecutorStatuses{}
-	OpLog       inapi.PbOpLogSets
-	VcsRepos    inapi.VcsRepoItems
-	VcsStatuses agtapi.VcsStatusItems
+	Executors    = inapi.Executors{}
+	Statuses     = inapi.ExecutorStatuses{}
+	OpLog        inapi.PbOpLogSets
+	VcsRepos     inapi.VcsRepoItems
+	VcsStatuses  agtapi.VcsStatusItems
+	HealthStatus inapi.HealthStatus
 )

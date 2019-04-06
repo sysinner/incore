@@ -589,6 +589,21 @@ func (c AppSpec) SetAction() {
 		prev.ExpDeploy.SysState = inapi.AppSpecExpDeploySysStateful
 	}
 
+	//
+	if prev.ExpDeploy.FailoverTime < 300 {
+		prev.ExpDeploy.FailoverTime = 300
+	}
+	if prev.ExpDeploy.FailoverNumMax < 0 {
+		prev.ExpDeploy.FailoverNumMax = 0
+	} else if prev.ExpDeploy.FailoverNumMax > prev.ExpDeploy.RepMax {
+		prev.ExpDeploy.FailoverNumMax = prev.ExpDeploy.RepMax
+	}
+	if prev.ExpDeploy.FailoverRateMax < 0 {
+		prev.ExpDeploy.FailoverRateMax = 0
+	} else if prev.ExpDeploy.FailoverRateMax > 100 {
+		prev.ExpDeploy.FailoverRateMax = 100
+	}
+
 	// in GB
 	if prev.ExpRes.VolMin < 1 {
 		prev.ExpRes.VolMin = 1

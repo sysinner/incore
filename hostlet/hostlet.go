@@ -19,11 +19,13 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/net/httpclient"
 
 	"github.com/sysinner/incore/hostlet/box/docker"
 	"github.com/sysinner/incore/hostlet/box/pouch"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
@@ -104,9 +106,47 @@ func boxListRefresh() error {
 		}
 	}
 
+	tn := uint32(time.Now().Unix())
+	dels := []string{}
+	for _, inst := range nstatus.BoxActives.Items {
+
+		if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) &&
+			(inst.Status.Updated+864000) < tn &&
+			(inst.Replica.Updated+864000) < tn {
+			dels = append(dels, inst.Name)
+			continue
+		}
+
+		boxHealthStatusRefresh(inst)
+	}
+	for _, v := range dels {
+		nstatus.BoxActives.Del(v)
+	}
+
 	nstatus.BoxActives.Fix()
 
 	ConfigFlush()
 
 	return nil
+}
+
+func boxHealthStatusRefresh(inst *napi.BoxInstance) {
+
+	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) ||
+		!inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
+		return
+	}
+
+	hc := httpclient.Get("http://unix/in/v1/health/status")
+	defer hc.Close()
+
+	hc.SetUnixDomainSocket(
+		napi.VolAgentSysDir(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId) + "/inagent.sock")
+
+	var item inapi.HealthStatus
+	if err := hc.ReplyJson(&item); err != nil {
+		return
+	}
+
+	inst.HealthStatus = item
 }

@@ -80,6 +80,8 @@ func zoneMasterSync() error {
 
 	if zms.ExpPods != nil {
 
+		hlog.Printf("debug", "hostlet/zm/sync pods %d", len(zms.ExpPods))
+
 		for _, v := range zms.ExpPods {
 
 			var pod inapi.PodRep
@@ -471,6 +473,11 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 
 		if inapi.OpActionAllow(podRep.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 			repStatus.Action = repStatus.Action | inapi.OpActionUnbound
+		}
+
+		//
+		if boxInst.HealthStatus.Action > 0 {
+			repStatus.Health = &boxInst.HealthStatus
 		}
 
 		status.Host.Prs = append(status.Host.Prs, repStatus)

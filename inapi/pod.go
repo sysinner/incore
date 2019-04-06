@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/lessos/lessgo/types"
 )
@@ -32,7 +33,7 @@ var (
 	PodIdReg            = regexp.MustCompile("^[a-f0-9]{16,24}$")
 	PodSpecPlanIdReg    = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
 	PodSpecImageNameReg = regexp.MustCompile("^[a-z][a-z0-9-_/]{1,50}$")
-	PodSpecImageTagReg  = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,20}$")
+	PodSpecImageTagReg  = regexp.MustCompile("^[a-z0-9.-_]{1,30}$")
 	PodDestroyTTL       = uint32(86400)
 	PodPlanChargeCycle  = uint64(3600)
 )
@@ -174,6 +175,14 @@ func (pod *Pod) OpSysStateValid(state_new int) error {
 	return nil
 }
 
+func (pod *Pod) IsStateful() bool {
+	if !pod.Apps.SpecExpDeployIsStateful() &&
+		pod.Operate.ExpSysState != AppSpecExpDeploySysStateful {
+		return false
+	}
+	return true
+}
+
 func (pod *Pod) OpResScheduleFit() bool {
 
 	if pod.Spec == nil {
@@ -224,6 +233,34 @@ func (pod *Pod) PodRepClone(repId uint32) *PodRep {
 			Action: pod.Operate.Action,
 		},
 	}
+}
+
+func (pod *Pod) FailoverActive() (int32, int) {
+
+	if !pod.IsStateful() {
+		return HealthFailoverActiveTimeMin, pod.Operate.ReplicaCap
+	}
+
+	var (
+		ft  = int32(0)
+		fnm = pod.Operate.ReplicaCap
+	)
+
+	for _, v := range pod.Apps {
+		if v.Spec.ExpDeploy.FailoverTime > ft {
+			ft = v.Spec.ExpDeploy.FailoverTime
+		}
+		if v.Spec.ExpDeploy.FailoverNumMax < fnm {
+			fnm = v.Spec.ExpDeploy.FailoverNumMax
+		}
+		if v.Spec.ExpDeploy.FailoverRateMax > 0 {
+			if frm := (v.Spec.ExpDeploy.FailoverRateMax * pod.Operate.ReplicaCap) / 100; frm < fnm {
+				fnm = frm
+			}
+		}
+	}
+
+	return ft, fnm
 }
 
 type PodItems []*Pod
@@ -819,6 +856,7 @@ type PodOperate struct {
 	Access       *PodOperateAccess        `json:"access,omitempty"`
 	ExpSysState  int                      `json:"exp_sys_state,omitempty"`
 	BindServices []*AppServicePortPodBind `json:"bind_services,omitempty"`
+	Failover     *PodOperateFailover      `json:"failover,omitempty"`
 }
 
 var (
@@ -842,6 +880,7 @@ type PodOperateReplica struct {
 	Next      *PodOperateReplica `json:"next,omitempty"`
 	PrevNode  string             `json:"prev_node,omitempty"`
 	Updated   uint32             `json:"updated,omitempty"`
+	Scheduled uint32             `json:"scheduled,omitempty"`
 }
 
 type PodOperateReplicas []*PodOperateReplica
@@ -987,6 +1026,37 @@ func (it *PodStatus) RepActionAllow(repCap int, op uint32) bool {
 	}
 
 	return false
+}
+
+func (it *PodStatus) HealthFails(delayTime int32, statefull bool) []uint32 {
+
+	if delayTime < HealthFailoverActiveTimeMin {
+		delayTime = HealthFailoverActiveTimeMin
+	}
+
+	var (
+		repFails = []uint32{}
+		tn       = uint32(time.Now().Unix())
+		failTime = tn - uint32(delayTime)
+	)
+
+	for _, v := range it.Replicas {
+
+		if statefull {
+			if v.Health != nil &&
+				v.Health.Updated > 0 &&
+				v.Health.Updated < failTime {
+				// v.Health.Action != HealthStatusActionSetup {
+				repFails = append(repFails, v.RepId)
+			}
+		} else {
+			if v.Updated < failTime {
+				repFails = append(repFails, v.RepId)
+			}
+		}
+	}
+
+	return repFails
 }
 
 type PodStatusList struct {

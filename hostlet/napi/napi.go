@@ -131,6 +131,7 @@ type BoxDriver interface {
 	BoxStart(box *BoxInstance) error
 	BoxStop(box *BoxInstance) error
 	BoxRemove(box *BoxInstance) error
+	BoxExist(box *BoxInstance) (bool, error)
 }
 
 type BoxDriverList struct {
@@ -180,6 +181,7 @@ type BoxInstance struct {
 	Retry         int                      `json:"retry"`
 	Env           []inapi.EnvVar           `json:"env"`
 	Status        inapi.PbPodBoxStatus     `json:"status"`
+	HealthStatus  inapi.HealthStatus       `json:"health_status"`
 	Stats         *inapi.PbStatsSampleFeed `json:"-"`
 	SysVolSynced  int64                    `json:"sys_vol_synced"`
 	SpecCpuSets   []int32                  `json:"spec_cpu_sets"`

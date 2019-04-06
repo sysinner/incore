@@ -15,23 +15,42 @@
 package v1
 
 import (
+	"strings"
+	"time"
+
 	"github.com/hooto/httpsrv"
+
+	"github.com/sysinner/incore/inagent/status"
+	"github.com/sysinner/incore/inapi"
 )
 
-func NewModule() httpsrv.Module {
+type Health struct {
+	*httpsrv.Controller
+}
 
-	module := httpsrv.NewModule("lp-boxlet")
+func (c Health) SyncAction() {
 
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/podbound/:podid/:controller/:action",
-	})
+	var (
+		action = strings.ToLower(c.Params.Get("action"))
+	)
 
-	module.ControllerRegister(new(Fs))
-	module.ControllerRegister(new(App))
-	module.ControllerRegister(new(Terminal))
-	module.ControllerRegister(new(Pod))
-	module.ControllerRegister(new(Health))
+	switch action {
+	case "active":
+		status.HealthStatus.Action = inapi.HealthStatusActionActive
 
-	return module
+	case "setup":
+		status.HealthStatus.Action = inapi.HealthStatusActionSetup
+
+	default:
+		c.RenderString("ER")
+		return
+	}
+
+	status.HealthStatus.Updated = uint32(time.Now().Unix())
+
+	c.RenderString("OK")
+}
+
+func (c Health) StatusAction() {
+	c.RenderJson(status.HealthStatus)
 }

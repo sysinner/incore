@@ -88,12 +88,16 @@ func (ls *AppInstances) ExecutorSync(executor Executor, app_id string) {
 }
 
 func (ls *AppInstances) SpecExpDeployIsStateful() bool {
+	sl := 0
 	for _, v := range *ls {
-		if v.Spec.ExpDeploy.SysState == AppSpecExpDeploySysStateful {
-			return true
+		if v.Spec.ExpDeploy.SysState == AppSpecExpDeploySysStateless {
+			sl += 1
 		}
 	}
-	return false
+	if sl == len(*ls) {
+		return false
+	}
+	return true
 }
 
 func (it *AppSpecDepend) Valid() error {
@@ -141,6 +145,10 @@ type AppSpecExpDeployRequirements struct {
 	RepMin   int `json:"rep_min,omitempty"`
 	RepMax   int `json:"rep_max,omitempty"`
 	SysState int `json:"sys_state,omitempty"`
+	// High-Availability
+	FailoverTime    int32 `json:"failover_time,omitempty"`     // in seconds
+	FailoverNumMax  int   `json:"failover_num_max,omitempty"`  // [0, RepMax)
+	FailoverRateMax int   `json:"failover_rate_max,omitempty"` // [0, 100) in %
 }
 
 type AppSpecList struct {

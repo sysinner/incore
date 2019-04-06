@@ -715,6 +715,13 @@ func schedulePodListBound() {
 			}
 		}
 
+		if err == nil {
+			err = schedulePodFailover(podq)
+			if err != nil {
+				hlog.Printf("error", "Scheduler Pod/Failover %s, ER %s", podq.Meta.ID, err.Error())
+			}
+		}
+
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
 			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
 			continue
@@ -733,6 +740,30 @@ func schedulePodItem(podq *inapi.Pod) error {
 	//
 	if podq.Spec.VolSys == nil {
 		return errors.New("No Spec/VolSys Setup")
+	}
+
+	if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionDestroy) {
+		//
+	} else if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStart) {
+		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionStop)
+		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionStopped)
+	} else if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStop) {
+		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionStart)
+		podq.Operate.Action = inapi.OpActionRemove(podq.Operate.Action, inapi.OpActionRunning)
+	}
+
+	// bugfix
+	for _, ctrlRep := range podq.Operate.Replicas {
+
+		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionDestroy) {
+			//
+		} else if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStart) {
+			ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionStop)
+			ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionStopped)
+		} else if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStop) {
+			ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionStart)
+			ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionRunning)
+		}
 	}
 
 	for _, app := range podq.Apps {
@@ -1034,6 +1065,7 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 		}
 
 		opRep.Node = hit.HostId
+		opRep.Scheduled = uint32(time.Now().Unix())
 
 		// TODO
 		opRep.VolSysMnt = hit.Volumes[0].Name
@@ -1369,6 +1401,7 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			continue
 		}
 		repNext.Node = hit.HostId
+		repNext.Scheduled = uint32(time.Now().Unix())
 
 		repNext.VolSysMnt = hit.Volumes[0].Name
 
@@ -1577,6 +1610,158 @@ func schedulePodPreChargeValid(podq *inapi.Pod) error {
 	podq.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(podq.Operate.OpLog,
 		inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleCharge, inapi.PbOpLogOK, "PreValid OK"),
 	)
+
+	return nil
+}
+
+func schedulePodFailover(podq *inapi.Pod) error {
+
+	if !inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStart) {
+		return nil
+	}
+
+	podStatus := status.ZonePodStatusList.Get(podq.Meta.ID)
+	if podStatus == nil {
+		return nil
+	}
+
+	var (
+		ft, fnm = podq.FailoverActive()
+		fs      = podStatus.HealthFails(ft, podq.IsStateful())
+	)
+
+	if len(fs) == 0 {
+		return nil
+	}
+
+	if len(fs) > fnm {
+		hlog.Printf("info", "zm/pod %s, failover active Fails %d, Max %d", len(fs), fnm)
+		return nil
+	}
+
+	hlog.Printf("info", "zm/pod %s, failover active Time %d, Max %d, Fails %d",
+		podq.Meta.ID, ft, fnm, len(fs))
+
+	tn := uint32(time.Now().Unix())
+
+	for _, repId := range fs {
+
+		if repId >= uint32(podq.Operate.ReplicaCap) {
+			continue
+		}
+
+		rep := podq.Operate.Replicas.Get(repId)
+		if rep == nil {
+			continue
+		}
+
+		repStatus := podStatus.RepGet(repId)
+		if repStatus == nil {
+			continue
+		}
+
+		if inapi.OpActionAllow(rep.Action, inapi.OpActionMigrate) {
+			continue
+		}
+
+		if (rep.Scheduled + uint32(inapi.HealthFailoverScheduleTimeMin)) > tn {
+			hlog.Printf("debug", "zm/pod %s:%d, failover skip schudele time %d",
+				podq.Meta.ID, rep.RepId, rep.Scheduled)
+			continue
+		}
+
+		//
+		repNext := &inapi.PodOperateReplica{
+			RepId:  rep.RepId,
+			Action: inapi.OpActionMigrate,
+			ResCpu: rep.ResCpu,
+			ResMem: rep.ResMem,
+			VolSys: rep.VolSys,
+		}
+
+		prevHostId := rep.Node
+
+		hit, err := Scheduler.ScheduleHost(
+			&typeScheduler.SchedulePodSpec{
+				CellId:    podq.Spec.Cell,
+				BoxDriver: podq.Spec.Box.Image.Driver,
+			},
+			&typeScheduler.SchedulePodReplica{
+				RepId:       repNext.RepId,
+				Cpu:         repNext.ResCpu,
+				Mem:         repNext.ResMem,
+				VolSys:      repNext.VolSys,
+				VolSysAttrs: podq.Spec.VolSys.Attrs,
+			},
+			&scheduleHostList,
+			&typeScheduler.ScheduleOptions{
+				HostExcludes: []string{prevHostId},
+			},
+		)
+
+		if err != nil || hit.Host == nil || len(hit.Volumes) < 1 {
+			hlog.Printf("info", "zm/pod %s:%d, failover schudele unhit",
+				podq.Meta.ID, rep.RepId)
+			continue
+		}
+
+		host := status.ZoneHostList.Item(hit.HostId)
+		if host == nil {
+			continue
+		}
+
+		rep.Node = hit.HostId
+		rep.Scheduled = tn
+		rep.PrevNode = ""
+
+		rep.VolSysMnt = hit.Volumes[0].Name
+
+		hlog.Printf("info", "zm/pod %s:%d, failover schudele unhit",
+			podq.Meta.ID, rep.RepId)
+
+		if ports, chg := schedulePodRepNetPortAlloc(podq, repNext, host); chg {
+			rep.Ports = ports
+			host.OpPortSort()
+		}
+
+		rep.Action = inapi.OpActionStart
+		rep.Updated = tn
+
+		host.SyncOpCpu(repNext.ResCpu)
+		host.SyncOpMem(repNext.ResMem)
+
+		hit.Host.CpuUsed += rep.ResCpu
+		hit.Host.MemUsed += rep.ResMem
+
+		for _, hitVol := range hit.Volumes {
+			if pv := inapi.ResVolValueSliceGet(host.Operate.VolUsed, hitVol.Name); pv != nil {
+				pv.Value += hitVol.Size
+			}
+			if pv := hit.Host.Volumes.Get(hitVol.Name); pv != nil {
+				pv.Used += hitVol.Size
+			}
+		}
+
+		if rs := data.ZoneMaster.PvPut(
+			inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host, nil,
+		); !rs.OK() {
+			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, rs.Bytex().String())
+			continue
+		}
+
+		hlog.Printf("warn", "failover rep %s:%d, move from host %s to %s",
+			podq.Meta.ID, rep.RepId, prevHostId, hit.HostId)
+
+		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())
+		}
+
+		repStatus.OpLog.LogSet(
+			podq.Operate.Version,
+			inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogOK,
+			fmt.Sprintf("failover rep from host %s to %s", prevHostId, hit.HostId),
+		)
+	}
 
 	return nil
 }

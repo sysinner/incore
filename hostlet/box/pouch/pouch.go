@@ -776,6 +776,24 @@ func (tp *BoxDriver) BoxRemove(inst *napi.BoxInstance) error {
 	return nil
 }
 
+func (tp *BoxDriver) BoxExist(inst *napi.BoxInstance) (bool, error) {
+
+	defer func() {
+		if r := recover(); r != nil {
+			hlog.Printf("error", "hostlet panic %v", r)
+		}
+	}()
+
+	if !tp.inited {
+		return false, errors.New("un init")
+	}
+
+	if tp.createSets.Get(inst.Name) != nil {
+		return true, nil
+	}
+	return false, nil
+}
+
 func (tp *BoxDriver) ImageSetup(inst *napi.BoxInstance) error {
 
 	defer func() {

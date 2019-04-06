@@ -1,4 +1,4 @@
-// Copyright 2015 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
+// Copyright 2019 Eryx <evorui аt gmаil dοt cοm>, All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package v1
+package inapi
 
-import (
-	"github.com/hooto/httpsrv"
+const (
+	HealthStatusActionActive uint32 = 1 << 1
+	HealthStatusActionSetup  uint32 = 1 << 2
+
+	HealthFailoverActiveTimeMin   int32 = 600
+	HealthFailoverScheduleTimeMin int32 = 600
 )
-
-func NewModule() httpsrv.Module {
-
-	module := httpsrv.NewModule("lp-boxlet")
-
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/podbound/:podid/:controller/:action",
-	})
-
-	module.ControllerRegister(new(Fs))
-	module.ControllerRegister(new(App))
-	module.ControllerRegister(new(Terminal))
-	module.ControllerRegister(new(Pod))
-	module.ControllerRegister(new(Health))
-
-	return module
-}

@@ -20,6 +20,12 @@ import "inapi/base.proto";
 import "inapi/operator.proto";
 import "inapi/stats.proto";
 
+message HealthStatus {
+    uint32 part_id  = 1; // struct:object_slice_key
+    uint32 action  = 2;
+    uint32 updated  = 5;
+    uint32 message  = 6;
+}
 
 message PbPodRepStatus {
     string                  pod_id  = 1; // struct:object_slice_key
@@ -33,6 +39,7 @@ message PbPodRepStatus {
     repeated PbVolumeStatus volumes = 9;
     uint32                  started = 11; // unix time in seconds
     repeated PbServicePort  ports   = 12;
+    HealthStatus            health  = 13;
 }
 
 enum PbPodSpecBoxImageDriver {
@@ -86,3 +93,12 @@ message PbPodBoxStatus {
 	repeated int32                  cpu_sets      = 13;
 }
 
+
+message PodOperateFailoverReplica {
+	uint32 rep_id = 1; // struct:object_slice_key
+    uint32 updated = 4;
+}
+
+message PodOperateFailover {
+	repeated PodOperateFailoverReplica reps = 2;
+}

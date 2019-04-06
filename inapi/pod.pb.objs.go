@@ -6,6 +6,102 @@ package inapi
 
 import "sync"
 
+var object_slice_mu_HealthStatus sync.RWMutex
+
+func (it *HealthStatus) Equal(it2 *HealthStatus) bool {
+	if it2 == nil ||
+		it.PartId != it2.PartId ||
+		it.Action != it2.Action ||
+		it.Updated != it2.Updated ||
+		it.Message != it2.Message {
+		return false
+	}
+	return true
+}
+
+func (it *HealthStatus) Sync(it2 *HealthStatus) bool {
+	if it2 == nil {
+		return false
+	}
+	if it.Equal(it2) {
+		return false
+	}
+	*it = *it2
+	return true
+}
+
+func HealthStatusSliceGet(ls []*HealthStatus, arg_partid uint32) *HealthStatus {
+	object_slice_mu_HealthStatus.RLock()
+	defer object_slice_mu_HealthStatus.RUnlock()
+
+	for _, v := range ls {
+		if v.PartId == arg_partid {
+			return v
+		}
+	}
+	return nil
+}
+
+func HealthStatusSliceEqual(ls, ls2 []*HealthStatus) bool {
+	object_slice_mu_HealthStatus.RLock()
+	defer object_slice_mu_HealthStatus.RUnlock()
+
+	if len(ls) != len(ls2) {
+		return false
+	}
+	hit := false
+	for _, v := range ls {
+		hit = false
+		for _, v2 := range ls2 {
+			if v.PartId != v2.PartId {
+				continue
+			}
+			if !v.Equal(v2) {
+				return false
+			}
+			hit = true
+			break
+		}
+		if !hit {
+			return false
+		}
+	}
+	return true
+}
+
+func HealthStatusSliceSync(ls []*HealthStatus, it2 *HealthStatus) ([]*HealthStatus, bool) {
+	if it2 == nil {
+		return ls, false
+	}
+	object_slice_mu_HealthStatus.Lock()
+	defer object_slice_mu_HealthStatus.Unlock()
+
+	hit := false
+	changed := false
+	for i, v := range ls {
+		if v.PartId != it2.PartId {
+			continue
+		}
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
+		}
+		hit = true
+		break
+	}
+	if !hit {
+		ls = append(ls, it2)
+		changed = true
+	}
+	return ls, changed
+}
+
+func HealthStatusSliceSyncSlice(ls, ls2 []*HealthStatus) ([]*HealthStatus, bool) {
+	if HealthStatusSliceEqual(ls, ls2) {
+		return ls, false
+	}
+	return ls2, true
+}
+
 var object_slice_mu_PbPodRepStatus sync.RWMutex
 
 func (it *PbPodRepStatus) Equal(it2 *PbPodRepStatus) bool {
@@ -21,7 +117,9 @@ func (it *PbPodRepStatus) Equal(it2 *PbPodRepStatus) bool {
 		it.Updated != it2.Updated ||
 		!PbVolumeStatusSliceEqual(it.Volumes, it2.Volumes) ||
 		it.Started != it2.Started ||
-		!PbServicePortSliceEqual(it.Ports, it2.Ports) {
+		!PbServicePortSliceEqual(it.Ports, it2.Ports) ||
+		(it.Health == nil && it2.Health != nil) ||
+		(it.Health != nil && !it.Health.Equal(it2.Health)) {
 		return false
 	}
 	return true
@@ -590,6 +688,100 @@ func PbPodBoxStatusSliceSync(ls []*PbPodBoxStatus, it2 *PbPodBoxStatus) ([]*PbPo
 
 func PbPodBoxStatusSliceSyncSlice(ls, ls2 []*PbPodBoxStatus) ([]*PbPodBoxStatus, bool) {
 	if PbPodBoxStatusSliceEqual(ls, ls2) {
+		return ls, false
+	}
+	return ls2, true
+}
+
+var object_slice_mu_PodOperateFailoverReplica sync.RWMutex
+
+func (it *PodOperateFailoverReplica) Equal(it2 *PodOperateFailoverReplica) bool {
+	if it2 == nil ||
+		it.RepId != it2.RepId ||
+		it.Updated != it2.Updated {
+		return false
+	}
+	return true
+}
+
+func (it *PodOperateFailoverReplica) Sync(it2 *PodOperateFailoverReplica) bool {
+	if it2 == nil {
+		return false
+	}
+	if it.Equal(it2) {
+		return false
+	}
+	*it = *it2
+	return true
+}
+
+func PodOperateFailoverReplicaSliceGet(ls []*PodOperateFailoverReplica, arg_repid uint32) *PodOperateFailoverReplica {
+	object_slice_mu_PodOperateFailoverReplica.RLock()
+	defer object_slice_mu_PodOperateFailoverReplica.RUnlock()
+
+	for _, v := range ls {
+		if v.RepId == arg_repid {
+			return v
+		}
+	}
+	return nil
+}
+
+func PodOperateFailoverReplicaSliceEqual(ls, ls2 []*PodOperateFailoverReplica) bool {
+	object_slice_mu_PodOperateFailoverReplica.RLock()
+	defer object_slice_mu_PodOperateFailoverReplica.RUnlock()
+
+	if len(ls) != len(ls2) {
+		return false
+	}
+	hit := false
+	for _, v := range ls {
+		hit = false
+		for _, v2 := range ls2 {
+			if v.RepId != v2.RepId {
+				continue
+			}
+			if !v.Equal(v2) {
+				return false
+			}
+			hit = true
+			break
+		}
+		if !hit {
+			return false
+		}
+	}
+	return true
+}
+
+func PodOperateFailoverReplicaSliceSync(ls []*PodOperateFailoverReplica, it2 *PodOperateFailoverReplica) ([]*PodOperateFailoverReplica, bool) {
+	if it2 == nil {
+		return ls, false
+	}
+	object_slice_mu_PodOperateFailoverReplica.Lock()
+	defer object_slice_mu_PodOperateFailoverReplica.Unlock()
+
+	hit := false
+	changed := false
+	for i, v := range ls {
+		if v.RepId != it2.RepId {
+			continue
+		}
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
+		}
+		hit = true
+		break
+	}
+	if !hit {
+		ls = append(ls, it2)
+		changed = true
+	}
+	return ls, changed
+}
+
+func PodOperateFailoverReplicaSliceSyncSlice(ls, ls2 []*PodOperateFailoverReplica) ([]*PodOperateFailoverReplica, bool) {
+	if PodOperateFailoverReplicaSliceEqual(ls, ls2) {
 		return ls, false
 	}
 	return ls2, true

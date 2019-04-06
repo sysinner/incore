@@ -638,6 +638,16 @@ func zmWorkerPodListStatusRefresh() {
 					// merge rep status's action to control's action
 					ctrlRep.Action = ctrlRep.Action | opv
 
+					if inapi.OpActionAllow(ctrlRep.Action, inapi.OpActionDestroy) {
+						//
+					} else if inapi.OpActionAllow(ctrlRep.Action, inapi.OpActionStart) {
+						ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionStop)
+						ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionStopped)
+					} else if inapi.OpActionAllow(ctrlRep.Action, inapi.OpActionStop) {
+						ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionStart)
+						ctrlRep.Action = inapi.OpActionRemove(ctrlRep.Action, inapi.OpActionRunning)
+					}
+
 					ctrlRep.Updated = tn
 					podSync = true
 				}

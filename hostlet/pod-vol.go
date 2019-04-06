@@ -240,6 +240,12 @@ func QuotaKeeperInit() error {
 			continue
 		}
 
+		if strings.Contains(d.Mountpoint, "/opt/docker/") ||
+			strings.Contains(d.Mountpoint, "/opt/pouch/") ||
+			strings.Contains(d.Mountpoint, "devicemapper") {
+			continue
+		}
+
 		if d.Fstype != "xfs" {
 			hlog.Printf("warn", "invalid fstype (%s) to enable quota", d.Fstype)
 			continue
