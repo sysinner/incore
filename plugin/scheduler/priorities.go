@@ -48,6 +48,7 @@ func calculate_occupancy(host *hostFit) host_priority {
 	return host_priority{
 		id:    host.id,
 		score: (cpu_pused + mem_pused) / 2,
+		vol:   host.vol_name,
 	}
 }
 

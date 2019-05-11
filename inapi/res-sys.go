@@ -27,7 +27,7 @@ import (
 var (
 	res_sys_mu             sync.Mutex
 	res_sys_host_mu        sync.RWMutex
-	ResSysZoneIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{2,15}$")
+	ResSysZoneIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{1,15}$")
 	ResSysCellIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{1,15}$")
 	ResSysHostIdReg        = regexp.MustCompile("^[0-9a-f]{12,16}$")
 	ResSysHostSecretKeyReg = regexp.MustCompile("^[0-9a-zA-Z\\+\\/]{20,40}$")

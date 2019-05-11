@@ -661,7 +661,8 @@ func (c Pod) SetInfoAction() {
 	}
 
 	//
-	if config.Config.ZoneMaster.MultiReplicaEnable {
+	if config.Config.ZoneMaster != nil &&
+		config.Config.ZoneMaster.MultiReplicaEnable {
 
 		if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
 			set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())

@@ -27,6 +27,7 @@ type hostFit struct {
 type host_priority struct {
 	id    string
 	score int
+	vol   string
 }
 
 type host_priority_list []host_priority

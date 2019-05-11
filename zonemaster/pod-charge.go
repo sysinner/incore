@@ -232,7 +232,6 @@ func podItemCharge(pod *inapi.Pod) bool {
 				pod,
 				nil,
 			)
-			// hlog.Printf("info", "Pod %s AccountChargePrepay %f", pod.Meta.ID, pod.Payment.Prepay)
 		} else {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
@@ -272,7 +271,6 @@ func podItemCharge(pod *inapi.Pod) bool {
 				pod,
 				nil,
 			)
-			// hlog.Printf("info", "Pod %s AccountChargePayout %f", pod.Meta.ID, pod.Payment.Payout)
 		} else {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {

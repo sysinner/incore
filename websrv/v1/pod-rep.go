@@ -59,7 +59,8 @@ func (c PodRep) SetAction() {
 	set := types.TypeMeta{}
 	defer c.RenderJson(&set)
 
-	if !config.Config.ZoneMaster.MultiHostEnable ||
+	if config.Config.ZoneMaster == nil ||
+		!config.Config.ZoneMaster.MultiHostEnable ||
 		!config.Config.ZoneMaster.MultiReplicaEnable {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Access Denied")
 		return

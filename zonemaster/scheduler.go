@@ -1584,6 +1584,7 @@ func schedulePodPreChargeValid(podq *inapi.Pod) error {
 	}
 
 	tnu := uint32(time.Now().Unix())
+
 	if rsp := iamclient.AccountChargePreValid(iamapi.AccountChargePrepay{
 		User:      podq.Meta.User,
 		Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", podq.Meta.ID)),

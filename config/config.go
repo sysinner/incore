@@ -55,7 +55,7 @@ type ConfigCommon struct {
 	InstanceId                string                   `json:"instance_id"`
 	Host                      HostMember               `json:"host"`
 	Masters                   inapi.HostNodeAddresses  `json:"masters"`
-	ZoneMaster                ZoneMaster               `json:"zone_master,omitempty"`
+	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty"`
 	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty"`
 	IoConnectors              connect.MultiConnOptions `json:"io_connects"`
 	PodHomeDir                string                   `json:"pod_home_dir"`
@@ -69,7 +69,10 @@ type ConfigCommon struct {
 }
 
 func (cfg *ConfigCommon) Sync() error {
-	return json.EncodeToFile(cfg, cfg.filepath, "  ")
+	if cfg.filepath != "" {
+		return json.EncodeToFile(cfg, cfg.filepath, "  ")
+	}
+	return nil
 }
 
 var (
@@ -105,7 +108,7 @@ func Setup() error {
 	}
 	Config.filepath = Prefix + "/etc/config.json"
 
-	if err := setupHost(); err != nil {
+	if err := Config.SetupHost(); err != nil {
 		return err
 	}
 
@@ -128,14 +131,14 @@ func Setup() error {
 	}
 
 	//
-	if err := setupDataConnect(); err != nil {
+	if err := Config.setupDataConnect(); err != nil {
 		return err
 	}
 
 	return Config.Sync()
 }
 
-func setupHost() error {
+func (it *ConfigCommon) SetupHost() error {
 
 	if len(Config.Host.Id) < 16 {
 		Config.Host.Id = idhash.RandHexString(16)
@@ -194,7 +197,7 @@ func setupHost() error {
 
 //
 
-func setupDataConnect() error {
+func (it *ConfigCommon) setupDataConnect() error {
 
 	conns := []types.NameIdentifier{
 		"in_local_cache",

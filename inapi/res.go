@@ -31,8 +31,9 @@ const (
 )
 
 var (
-	ResVolValueAttrOut uint32 = 1 << 4
-	ResVolValueAttrSSD uint32 = 1 << 5
+	ResVolValueAttrOut     uint32 = 1 << 4
+	ResVolValueAttrTypeSSD uint32 = 1 << 5
+	ResVolValueAttrTypeStd uint32 = 1 << 6
 )
 
 type Resource struct {

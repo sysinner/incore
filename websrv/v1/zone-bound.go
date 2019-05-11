@@ -80,7 +80,7 @@ func (c Zonebound) IndexAction() {
 	} else {
 		url_path += "&"
 	}
-	url_path += iamapi.AccessTokenKey + "=" + c.us.FullToken()
+	url_path += iamapi.AccessTokenKey + "=" + c.us.AccessToken
 
 	proxy_url, err := url.Parse(url_path)
 	if err != nil {

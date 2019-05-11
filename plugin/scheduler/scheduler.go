@@ -65,18 +65,21 @@ func (*genericScheduler) ScheduleHost(
 	}
 
 	for _, v := range hostls.Items {
-		if v.Id == priorityList[0].id {
-			return &typeScheduler.ScheduleHitItem{
-				HostId: v.Id,
-				Host:   v,
-				Volumes: []*typeScheduler.ScheduleHitVol{
-					{
-						Name: v.Volumes[0].Name,
-						Size: rep.VolSys,
-					},
-				},
-			}, nil
+
+		if v.Id != priorityList[0].id {
+			continue
 		}
+
+		return &typeScheduler.ScheduleHitItem{
+			HostId: v.Id,
+			Host:   v,
+			Volumes: []*typeScheduler.ScheduleHitVol{
+				{
+					Name: priorityList[0].vol,
+					Size: rep.VolSys,
+				},
+			},
+		}, nil
 	}
 
 	return nil, errors.New("No Host Scheduled")
@@ -154,10 +157,13 @@ func findHostListThatFit(
 			if inapi.OpActionAllow(vp.Attrs, inapi.ResVolValueAttrOut) {
 				continue
 			}
-			if inapi.OpActionAllow(rep.VolSysAttrs, inapi.ResVolValueAttrSSD) &&
-				!inapi.OpActionAllow(vp.Attrs, inapi.ResVolValueAttrSSD) {
-				continue
+
+			if inapi.OpActionAllow(rep.VolSysAttrs, inapi.ResVolValueAttrTypeSSD) {
+				if !inapi.OpActionAllow(vp.Attrs, inapi.ResVolValueAttrTypeSSD) {
+					continue
+				}
 			}
+
 			if vp.Used+rep.VolSys < vp.Total {
 				volFit = vp.Name
 				break

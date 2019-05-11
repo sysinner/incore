@@ -124,7 +124,8 @@ func podRepMigrateIn(inst *napi.BoxInstance) error {
 
 	// hlog.Printf("info", "pod %s, rep %d, migrate in done", inst.PodID, inst.Replica.RepId)
 
-	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionMigrated) {
+	if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionDestroy) ||
+		inapi.OpActionAllow(inst.Status.Action, inapi.OpActionMigrated) {
 		// hlog.Printf("info", "pod %s, rep %d, migrate in done", inst.PodID, inst.Replica.RepId)
 		return nil
 	}

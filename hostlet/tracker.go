@@ -336,7 +336,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 					}
 
 					if strings.HasPrefix(dev.Mountpoint, "/data/ssd_") {
-						vv.Attrs = vv.Attrs | inapi.ResVolValueAttrSSD
+						vv.Attrs = vv.Attrs | inapi.ResVolValueAttrTypeSSD
 					}
 
 					status.Host.Spec.Capacity.Vols, _ = inapi.ResVolValueSliceSync(
