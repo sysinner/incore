@@ -163,10 +163,52 @@ func podRepListCtrlRefresh() error {
 			continue
 		}
 
+		// inapi.ObjPrint("A", pod)
+
 		drv := boxDrivers.Get(instAction.Spec.Image.Driver)
 		if drv == nil {
 			hlog.Printf("info", "hostlet rep %s:%d, driver %s not setup",
 				instAction.PodID, instAction.Replica.RepId, instAction.Spec.Image.Driver)
+			continue
+		}
+
+		if instAction.Status.ImageDriver > 0 &&
+			instAction.Status.ImageDriver != inapi.PodSpecBoxImageDriver(instAction.Spec.Image.Driver) {
+
+			drvPrev := boxDrivers.Get(inapi.PodSpecBoxImageDriverName(instAction.Status.ImageDriver))
+			if drvPrev == nil {
+				hlog.Printf("info", "hostlet rep %s:%d, driver %s not setup",
+					instAction.PodID, instAction.Replica.RepId, instAction.Status.ImageDriver)
+				continue
+			}
+
+			go func(drv napi.BoxDriver, inst *napi.BoxInstance) {
+
+				if !inst.OpLock() {
+					return
+				}
+
+				defer func(inst *napi.BoxInstance) {
+					if r := recover(); r != nil {
+						hlog.Printf("error", "host/driver panic %v", r)
+					}
+					inst.OpUnlock()
+				}(inst)
+
+				if inst.ID != "" {
+
+					if err := drv.BoxRemove(inst); err != nil {
+						return
+					}
+
+					time.Sleep(3e9)
+				}
+
+				inst.ID = ""
+				instAction.Status.ImageDriver = inapi.PbPodSpecBoxImageDriver_Unknown
+
+			}(drvPrev, instAction)
+
 			continue
 		}
 
@@ -232,8 +274,12 @@ func podRepListCtrlRefresh() error {
 				} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStop) {
 					err = drv.BoxStop(inst)
 				} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
-					if err = podRepVolSetup(inst); err == nil {
+
+					if err = podRepVolSetup(inst, false); err == nil {
 						err = drv.BoxStart(inst)
+						if err != nil && inst.ID == "" {
+							podRepVolSetup(inst, true)
+						}
 					}
 				}
 			}
@@ -268,15 +314,18 @@ func podRepListCtrlRefresh() error {
 	return nil
 }
 
-func podRepVolSetup(inst *napi.BoxInstance) error {
-
-	if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
-		return nil
-	}
+func podRepVolSetup(inst *napi.BoxInstance, force bool) error {
 
 	tn := time.Now().Unix()
-	if inst.SysVolSynced+86400 > tn {
-		return nil
+
+	if !force {
+		if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
+			return nil
+		}
+
+		if inst.SysVolSynced+86400 > tn {
+			return nil
+		}
 	}
 
 	var (

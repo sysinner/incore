@@ -660,6 +660,13 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
+	if prev.Operate.Deploy == nil {
+		prev.Operate.Deploy = &inapi.PodOperateDeploy{}
+	}
+	if set.Operate.Deploy == nil {
+		set.Operate.Deploy = &inapi.PodOperateDeploy{}
+	}
+
 	//
 	if config.Config.ZoneMaster != nil &&
 		config.Config.ZoneMaster.MultiReplicaEnable {
@@ -670,7 +677,10 @@ func (c Pod) SetInfoAction() {
 		}
 
 		if set.Operate.ReplicaCap > prev.Operate.ReplicaCap {
-			if cell := status.GlobalZoneCell(prev.Spec.Zone, prev.Spec.Cell); cell != nil {
+
+			if set.Operate.Deploy.AllocHostRepeatEnable {
+				//
+			} else if cell := status.GlobalZoneCell(prev.Spec.Zone, prev.Spec.Cell); cell != nil {
 				if int32(prev.Operate.ReplicaCap+1) > cell.NodeNum {
 					set.Error = types.NewErrorMeta("400",
 						"Not enough resources to Allocate to replicas, please set a smaller value")
@@ -688,7 +698,8 @@ func (c Pod) SetInfoAction() {
 		prev.Meta.Name == set.Meta.Name &&
 		prev.Operate.Action == set.Operate.Action &&
 		prev.Operate.ReplicaCap == set.Operate.ReplicaCap &&
-		prev.Operate.ExpSysState == set.Operate.ExpSysState {
+		prev.Operate.ExpSysState == set.Operate.ExpSysState &&
+		prev.Operate.Deploy.AllocHostRepeatEnable == set.Operate.Deploy.AllocHostRepeatEnable {
 		set.Kind = "PodInstance"
 		return
 	}
@@ -724,6 +735,13 @@ func (c Pod) SetInfoAction() {
 	prev.Operate.ExpSysState = set.Operate.ExpSysState
 	if config.Config.ZoneMaster.MultiReplicaEnable {
 		prev.Operate.ReplicaCap = set.Operate.ReplicaCap
+
+		if set.Operate.Deploy != nil {
+			if prev.Operate.Deploy == nil {
+				prev.Operate.Deploy = &inapi.PodOperateDeploy{}
+			}
+			prev.Operate.Deploy.AllocHostRepeatEnable = set.Operate.Deploy.AllocHostRepeatEnable
+		}
 	}
 
 	//
@@ -1168,11 +1186,13 @@ func (c Pod) SpecSetAction() {
 		return
 	}
 
+	/**
 	if prev.Spec.Box.Image.Ref != nil &&
 		prev.Spec.Box.Image.Driver != img.Driver {
 		set.Error = types.NewErrorMeta("400", "Invalid Image")
 		return
 	}
+	*/
 
 	res := spec_plan.ResCompute(set.Box.ResCompute)
 	if res == nil {

@@ -268,6 +268,7 @@ func (tp *BoxDriver) statusRefresh() {
 			for _, v := range rsi {
 				for _, v2 := range v.RepoTags {
 					tp.imageSets.Set(v2)
+					hlog.Printf("info", "hostlet/box images tag %s", v2)
 				}
 			}
 			hlog.Printf("info", "hostlet/box images %d", len(tp.imageSets))
@@ -327,9 +328,14 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 					Value: boxInspect.Config.Image,
 				},
 			},
-			Command: boxInspect.Config.Cmd,
-			CpuSets: cpuSets,
+			Command:     boxInspect.Config.Cmd,
+			CpuSets:     cpuSets,
+			NetworkMode: inapi.AppSpecExpDeployNetworkModeBridge,
 		},
+	}
+
+	if boxInspect.HostConfig.NetworkMode == "host" {
+		inst.Status.NetworkMode = inapi.AppSpecExpDeployNetworkModeHost
 	}
 
 	//
@@ -603,6 +609,9 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			}
 
 			portKey := drvClient.Port(strconv.Itoa(int(port.BoxPort)) + "/tcp")
+			if strings.HasSuffix(port.Name, "/auto") {
+				portKey = drvClient.Port(strconv.Itoa(int(port.HostPort)) + "/tcp")
+			}
 
 			expPorts[portKey] = struct{}{} // TODO TCP,UDP...
 
@@ -627,6 +636,17 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			return err
 		}
 
+		var (
+			netMode  = "bridge"
+			extHosts = inst.ExtHosts(false)
+		)
+
+		if inst.Apps.NetworkModeHost() {
+			netMode = "host"
+		}
+
+		// hlog.Printf("info", "hostlet/box Create %s, hosts %s", inst.Name, strings.Join(extHosts, ","))
+
 		boxInspect, err := tp.client.CreateContainer(drvClient.CreateContainerOptions{
 			Name: inst.Name,
 			Config: &drvClient.Config{
@@ -638,10 +658,10 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 					"POD_ID=" + inst.PodID,
 				},
 				User: "action",
-				// User: "root",
 			},
 			HostConfig: &drvClient.HostConfig{
-				NetworkMode:      "bridge",
+				NetworkMode:      netMode,
+				ExtraHosts:       extHosts,
 				PortBindings:     bindPorts,
 				Binds:            append(inst.VolumeMountsExport(), tp.lxcfsVols...),
 				Memory:           int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
@@ -694,8 +714,10 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		// hlog.Printf("info", "hostlet/box Start %s", inst.Name)
 
 		if err := tp.client.StartContainer(inst.ID, nil); err != nil {
+
 			hlog.Printf("info", "hostlet/box Start %s, Error %v", inst.Name, err)
-			if strings.Contains(err.Error(), "No such container") {
+			if strings.Contains(err.Error(), "No such container") ||
+				strings.Contains(err.Error(), "no such file or directory") {
 				inst.ID = ""
 			}
 			inst.StatusActionSet(inapi.OpActionWarning)

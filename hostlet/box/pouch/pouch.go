@@ -31,6 +31,7 @@ import (
 	"github.com/lessos/lessgo/net/portutil"
 	"github.com/lessos/lessgo/types"
 
+	drvClientFilters "github.com/alibaba/pouch/apis/filters"
 	drvClientTypes "github.com/alibaba/pouch/apis/types"
 	drvClient "github.com/alibaba/pouch/client"
 
@@ -88,6 +89,7 @@ type BoxDriver struct {
 	statsSets    chan *napi.BoxInstanceStatsFeed
 	sets         types.ArrayString
 	createSets   types.KvPairs
+	imageSets    types.ArrayString
 }
 
 func (tp *BoxDriver) Name() string {
@@ -219,6 +221,20 @@ func (tp *BoxDriver) statusRefresh() {
 	for _, v := range tp.createSets {
 		if !creates.Has(v.Key) {
 			tp.createSets.Del(v.Key)
+		}
+	}
+
+	// refresh current images
+	if !tp.inited {
+		if rsi, err := tp.client.ImageList(context.Background(),
+			drvClientFilters.NewArgs()); err == nil {
+			for _, v := range rsi {
+				for _, v2 := range v.RepoTags {
+					tp.imageSets.Set(v2)
+					hlog.Printf("info", "hostlet/box images tag %s", v2)
+				}
+			}
+			hlog.Printf("info", "hostlet/box images %d", len(tp.imageSets))
 		}
 	}
 
@@ -803,6 +819,15 @@ func (tp *BoxDriver) ImageSetup(inst *napi.BoxInstance) error {
 	}()
 
 	if !inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
+		return nil
+	}
+
+	imageName := inst.Spec.Image.Ref.Id
+	if imageName != "" && strings.IndexByte(imageName, ':') < 0 {
+		imageName = inapi.BoxImageRepoDefault + ":" + inst.Spec.Image.Ref.Id
+	}
+
+	if tp.imageSets.Has(imageName) {
 		return nil
 	}
 

@@ -590,6 +590,19 @@ func (c AppSpec) SetAction() {
 	}
 
 	//
+
+	if prev.ExpDeploy.NetworkMode == inapi.AppSpecExpDeployNetworkModeHost {
+
+		if c.us.UserName != "sysadmin" {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied,
+				"AccessDenied: Only SysAdmin can setting network mode to HOST")
+			return
+		}
+	} else {
+		prev.ExpDeploy.NetworkMode = inapi.AppSpecExpDeployNetworkModeBridge
+	}
+
+	//
 	if prev.ExpDeploy.FailoverTime < 300 {
 		prev.ExpDeploy.FailoverTime = 300
 	}

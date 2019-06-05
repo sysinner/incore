@@ -604,7 +604,8 @@ func (it *PbPodBoxStatus) Equal(it2 *PbPodBoxStatus) bool {
 		it.Action != it2.Action ||
 		it.Started != it2.Started ||
 		it.Updated != it2.Updated ||
-		!PbInt32SliceEqual(it.CpuSets, it2.CpuSets) {
+		!PbInt32SliceEqual(it.CpuSets, it2.CpuSets) ||
+		it.NetworkMode != it2.NetworkMode {
 		return false
 	}
 	return true

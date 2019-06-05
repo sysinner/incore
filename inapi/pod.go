@@ -67,6 +67,30 @@ const (
 	OpStatusUnknown   = "unknown"
 )
 
+func PodSpecBoxImageDriverName(v PbPodSpecBoxImageDriver) string {
+
+	switch v {
+	case PbPodSpecBoxImageDriver_Docker:
+		return PodSpecBoxImageDocker
+
+	case PbPodSpecBoxImageDriver_Pouch:
+		return PodSpecBoxImagePouch
+	}
+
+	return ""
+}
+
+func PodSpecBoxImageDriver(name string) PbPodSpecBoxImageDriver {
+	switch name {
+	case PodSpecBoxImageDocker:
+		return PbPodSpecBoxImageDriver_Docker
+
+	case PodSpecBoxImagePouch:
+		return PbPodSpecBoxImageDriver_Pouch
+	}
+	return PbPodSpecBoxImageDriver_Unknown
+}
+
 // Pod is a collection of containers, used as either input (create, update) or as output (list, get).
 type Pod struct {
 	types.TypeMeta `json:",inline"`
@@ -238,7 +262,7 @@ func (pod *Pod) PodRepClone(repId uint32) *PodRep {
 func (pod *Pod) FailoverActive() (int32, int) {
 
 	if !pod.IsStateful() {
-		return HealthFailoverActiveTimeMin, pod.Operate.ReplicaCap
+		return HealthFailoverActiveTimeDef, pod.Operate.ReplicaCap
 	}
 
 	var (
@@ -857,6 +881,7 @@ type PodOperate struct {
 	ExpSysState  int                      `json:"exp_sys_state,omitempty"`
 	BindServices []*AppServicePortPodBind `json:"bind_services,omitempty"`
 	Failover     *PodOperateFailover      `json:"failover,omitempty"`
+	Deploy       *PodOperateDeploy        `json:"deploy,omitempty"`
 }
 
 var (
@@ -881,6 +906,10 @@ type PodOperateReplica struct {
 	PrevNode  string             `json:"prev_node,omitempty"`
 	Updated   uint32             `json:"updated,omitempty"`
 	Scheduled uint32             `json:"scheduled,omitempty"`
+}
+
+func (it *PodOperateReplica) HostAddress(podId string) string {
+	return PodRepInstanceName(podId, it.RepId)
 }
 
 type PodOperateReplicas []*PodOperateReplica

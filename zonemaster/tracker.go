@@ -79,6 +79,7 @@ func zoneTracker() {
 
 	// is zone-master leader
 	if !status.IsZoneMasterLeader() {
+		status.ZoneLeaded = 0
 		return
 	}
 
@@ -164,6 +165,7 @@ func zmWorkerMasterLeaderActive() (bool, bool) {
 			status.ZoneMasterList.Leader = status.Host.Meta.Id
 			forceRefresh = true
 			hlog.Printf("warn", "zm/zone-master/leader new %s", status.Host.Meta.Id)
+			status.ZoneLeaded = time.Now().Unix()
 		} else {
 			hlog.Printf("info", "status.Host.Operate")
 			return false, forceRefresh

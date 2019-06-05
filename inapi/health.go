@@ -18,6 +18,7 @@ const (
 	HealthStatusActionActive uint32 = 1 << 1
 	HealthStatusActionSetup  uint32 = 1 << 2
 
+	HealthFailoverActiveTimeDef   int32 = 36000
 	HealthFailoverActiveTimeMin   int32 = 600
 	HealthFailoverScheduleTimeMin int32 = 600
 )

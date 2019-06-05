@@ -91,6 +91,7 @@ message PbPodBoxStatus {
     uint32                          started       = 11; // unix time in seconds
     uint32                          updated       = 12; // unix time in seconds
 	repeated int32                  cpu_sets      = 13;
+	int32 network_mode = 14;
 }
 
 
@@ -101,4 +102,8 @@ message PodOperateFailoverReplica {
 
 message PodOperateFailover {
 	repeated PodOperateFailoverReplica reps = 2;
+}
+
+message PodOperateDeploy {
+  bool alloc_host_repeat_enable = 3; 
 }

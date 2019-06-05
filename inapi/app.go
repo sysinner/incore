@@ -100,6 +100,19 @@ func (ls *AppInstances) SpecExpDeployIsStateful() bool {
 	return true
 }
 
+func (ls *AppInstances) NetworkModeHost() bool {
+	hostN := 0
+	for _, v := range *ls {
+		if v.Spec.ExpDeploy.NetworkMode == AppSpecExpDeployNetworkModeHost {
+			hostN += 1
+		}
+	}
+	if hostN > 0 && hostN == len(*ls) {
+		return true
+	}
+	return false
+}
+
 func (it *AppSpecDepend) Valid() error {
 	if !AppSpecIdReg.MatchString(it.Id) {
 		return errors.New("Invalid AppSpecDepend.ID")
@@ -135,10 +148,12 @@ type AppSpecResRequirements struct {
 }
 
 const (
-	AppSpecExpDeployRepNumMin    = 1
-	AppSpecExpDeployRepNumMax    = 32
-	AppSpecExpDeploySysStateful  = 1
-	AppSpecExpDeploySysStateless = 2
+	AppSpecExpDeployRepNumMin         = 1 // default
+	AppSpecExpDeployRepNumMax         = 32
+	AppSpecExpDeploySysStateful       = 1 // default
+	AppSpecExpDeploySysStateless      = 2
+	AppSpecExpDeployNetworkModeBridge = 1 // default
+	AppSpecExpDeployNetworkModeHost   = 2
 )
 
 type AppSpecExpDeployRequirements struct {
@@ -149,6 +164,7 @@ type AppSpecExpDeployRequirements struct {
 	FailoverTime    int32 `json:"failover_time,omitempty"`     // in seconds
 	FailoverNumMax  int   `json:"failover_num_max,omitempty"`  // [0, RepMax)
 	FailoverRateMax int   `json:"failover_rate_max,omitempty"` // [0, 100) in %
+	NetworkMode     int32 `json:"network_mode"`
 }
 
 type AppSpecList struct {

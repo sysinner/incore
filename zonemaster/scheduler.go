@@ -644,6 +644,7 @@ func schedulePodListQueue(cellId string) {
 			pod.Operate.OpLog = podq.Operate.OpLog
 			pod.Operate.BindServices = podq.Operate.BindServices
 			pod.Operate.ExpSysState = podq.Operate.ExpSysState
+			pod.Operate.Deploy = podq.Operate.Deploy
 
 			if len(podq.Operate.RepMigrates) > 0 {
 				migrates := types.ArrayUint32{}
@@ -872,6 +873,22 @@ func schedulePodItem(podq *inapi.Pod) error {
 					Port:  appBindService.Port,
 					PodId: appBindService.PodId,
 				})
+			}
+		}
+	}
+
+	// bugfix
+	if zmPodService := inapi.AppServicePodSliceGet(status.ZonePodServices.Items, podq.Meta.ID); zmPodService != nil {
+		for _, v := range podq.Operate.Replicas {
+
+			for _, v2 := range v.Ports {
+
+				srvPort := inapi.AppServicePortSliceGet(zmPodService.Ports, uint32(v2.BoxPort))
+				if srvPort != nil && srvPort.Name != v2.Name {
+					hlog.Printf("info", "pod %s, port %d, name refresh from %s to %s",
+						podq.Meta.ID, v2.BoxPort, v2.Name, srvPort.Name)
+					v2.Name = srvPort.Name
+				}
 			}
 		}
 	}
@@ -1368,6 +1385,11 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			VolSys: rep.VolSys,
 		}
 
+		hostExcludes := []string{}
+		if podq.Operate.Deploy == nil || podq.Operate.Deploy.AllocHostRepeatEnable {
+			hostExcludes = []string{rep.Node}
+		}
+
 		hit, err := Scheduler.ScheduleHost(
 			&typeScheduler.SchedulePodSpec{
 				CellId:    podq.Spec.Cell,
@@ -1382,7 +1404,7 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			},
 			&scheduleHostList,
 			&typeScheduler.ScheduleOptions{
-				HostExcludes: []string{rep.Node},
+				HostExcludes: hostExcludes,
 			},
 		)
 
@@ -1616,6 +1638,10 @@ func schedulePodPreChargeValid(podq *inapi.Pod) error {
 }
 
 func schedulePodFailover(podq *inapi.Pod) error {
+
+	if status.ZoneMasterLeadSeconds() < int64(inapi.HealthFailoverActiveTimeMin) {
+		return nil
+	}
 
 	if !inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStart) {
 		return nil

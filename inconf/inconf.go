@@ -86,10 +86,11 @@ func (it *PodConfigurator) Update() bool {
 
 	if st, err := fp.Stat(); err == nil {
 		updated := st.ModTime().UnixNano() / 1e6
-		if updated > it.updated {
+		if updated != it.updated {
 			var inst inapi.PodRep
 			if err := json.DecodeFile(confFilePath, &inst); err == nil &&
 				inst.Spec != nil && inst.Spec.Box.Resources != nil {
+				it.Pod = &inst
 				it.updated = updated
 				return true
 			}

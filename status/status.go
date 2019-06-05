@@ -56,6 +56,8 @@ var (
 		User: "sysadmin",
 	}
 	ZoneSysConfigGroupList inapi.SysConfigGroupList
+	ZoneLeaded             int64 = 0
+	ZoneScheduled          int64 = 0
 
 	// local cell
 
@@ -63,6 +65,13 @@ var (
 	GlobalZones    []*inapi.ResZone
 	GlobalHostList inapi.ResHostList
 )
+
+func ZoneMasterLeadSeconds() int64 {
+	if IsZoneMasterLeader() {
+		return ZoneScheduled - ZoneLeaded
+	}
+	return -1
+}
 
 func GlobalZone(zoneId string) *inapi.ResZone {
 	for _, v := range GlobalZones {

@@ -3,6 +3,15 @@
 
 package inapi
 
+import "bytes"
+
+func PbBytesSliceEqual(ls, ls2 []byte) bool {
+	if len(ls) != len(ls2) {
+		return false
+	}
+	return bytes.Compare(ls, ls2) == 0
+}
+
 func PbStringSliceEqual(ls, ls2 []string) bool {
 	if len(ls) != len(ls2) {
 		return false

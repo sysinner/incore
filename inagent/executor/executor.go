@@ -163,7 +163,7 @@ if pidof sshd; then
     exit 0
 fi
 
-/usr/sbin/sshd -p 2022
+/usr/sbin/sshd -p %d
 `
 )
 
@@ -199,7 +199,17 @@ func executor_init_ssh(pod *inapi.PodRep) error {
 		}
 
 		//
-		if _, err := exec.Command("/bin/sh", "-c", ssh_init_start).Output(); err != nil {
+		port := 2022
+		if pod.Apps.NetworkModeHost() {
+			p := pod.Replica.Ports.Get(2022)
+			if p == nil || p.HostPort < 1024 {
+				return errors.New("no ssh/port found")
+			}
+			port = int(p.HostPort)
+		}
+
+		//
+		if _, err := exec.Command("/bin/sh", "-c", fmt.Sprintf(ssh_init_start, port)).Output(); err != nil {
 			return err
 		}
 

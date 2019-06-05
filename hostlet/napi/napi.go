@@ -272,9 +272,15 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return false
 	}
 
+	if inst.Apps.NetworkModeHost() &&
+		inst.Status.NetworkMode != inapi.AppSpecExpDeployNetworkModeHost {
+		return false
+	}
+
 	for _, v := range inst.Replica.Ports {
 
 		mat := false
+
 		for _, vd := range inst.Status.Ports {
 
 			if uint32(v.BoxPort) != vd.BoxPort {
@@ -350,6 +356,48 @@ func (inst *BoxInstance) OpActionDesired() bool {
 	}
 
 	return false
+}
+
+func (inst *BoxInstance) ExtHosts(excludeRep bool) []string {
+
+	hosts := []string{}
+	services := map[uint32]string{}
+
+	for _, v := range inst.Replica.Ports {
+
+		for _, app := range inst.Apps {
+
+			srvPort := app.Operate.Service(app.Spec.Meta.ID, uint32(v.BoxPort))
+			if srvPort == nil {
+				continue
+			}
+
+			for _, v2 := range srvPort.Endpoints {
+				services[v2.Rep] = v2.Ip
+			}
+
+			if len(services) > 0 {
+				break
+			}
+		}
+
+		if len(services) > 0 {
+			break
+		}
+	}
+
+	for rep := uint32(0); rep < uint32(len(services)); rep++ {
+		if excludeRep && rep == inst.Replica.RepId {
+			continue
+		}
+		ip, ok := services[rep]
+		if !ok {
+			continue
+		}
+		hosts = append(hosts, fmt.Sprintf("%s:%s", BoxInstanceName(inst.PodID, rep), ip))
+	}
+
+	return hosts
 }
 
 func (inst *BoxInstance) VolumeMountsRefresh() {

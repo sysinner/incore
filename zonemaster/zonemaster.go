@@ -58,6 +58,8 @@ func Start() error {
 					hlog.Printf("warn", "zm/pod/charge err:%s", err.Error())
 				}
 
+				status.ZoneScheduled = time.Now().Unix()
+
 				go iamWorker.AccountChargeCloseRefresh()
 			}
 		}
