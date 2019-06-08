@@ -209,7 +209,7 @@ func schedulePodListRefresh() error {
 
 		// TODO
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStop) &&
-			len(pod.Operate.RepMigrates) < 1 &&
+			len(pod.Operate.ExpMigrates) < 1 &&
 			!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionResFree) &&
 			(pod.Operate.Operated+podResFreeTimeMin) < tn {
 
@@ -646,15 +646,27 @@ func schedulePodListQueue(cellId string) {
 			pod.Operate.ExpSysState = podq.Operate.ExpSysState
 			pod.Operate.Deploy = podq.Operate.Deploy
 
-			if len(podq.Operate.RepMigrates) > 0 {
+			//
+			if len(podq.Operate.ExpMigrates) > 0 {
 				migrates := types.ArrayUint32{}
-				for _, v := range pod.Operate.RepMigrates {
+				for _, v := range pod.Operate.ExpMigrates {
 					migrates.Set(v)
 				}
-				for _, v := range podq.Operate.RepMigrates {
+				for _, v := range podq.Operate.ExpMigrates {
 					migrates.Set(v)
 				}
-				pod.Operate.RepMigrates = migrates
+				pod.Operate.ExpMigrates = migrates
+			}
+
+			//
+			if podq.Operate.Failover != nil && pod.Operate.Failover != nil {
+				hlog.Printf("info", "Scheduler Pod %s, Failover %d", pod.Meta.ID, len(podq.Operate.Failover.Reps))
+				for _, v := range podq.Operate.Failover.Reps {
+					p := inapi.PodOperateFailoverReplicaSliceGet(pod.Operate.Failover.Reps, v.RepId)
+					if p != nil {
+						p.ManualChecked = v.ManualChecked
+					}
+				}
 			}
 		}
 
@@ -688,7 +700,7 @@ func schedulePodListBound() {
 			continue
 		}
 
-		// hlog.Printf("info", "Scheduler Pod/Migrate N %d", len(podq.Operate.RepMigrates))
+		// hlog.Printf("info", "Scheduler Pod/Migrate N %d", len(podq.Operate.ExpMigrates))
 
 		if inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionHang) {
 			continue
@@ -920,8 +932,8 @@ func schedulePodItem(podq *inapi.Pod) error {
 	var (
 		tnStart   = time.Now()
 		destRes   *destResReplica
-		scaleup   = 0
-		scaledown = 0
+		scaleup   int32 = 0
+		scaledown int32 = 0
 	)
 
 	// PreChargeValid
@@ -1230,7 +1242,7 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 
 func schedulePodMigrate(podq *inapi.Pod) error {
 
-	if len(podq.Operate.RepMigrates) < 1 ||
+	if len(podq.Operate.ExpMigrates) < 1 ||
 		inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionDestroy) {
 		return nil
 	}
@@ -1242,10 +1254,10 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 
 	var (
 		tn  = uint32(time.Now().Unix())
-		mgs = types.ArrayUint32(podq.Operate.RepMigrates)
+		mgs = types.ArrayUint32(podq.Operate.ExpMigrates)
 	)
 
-	for _, repId := range podq.Operate.RepMigrates {
+	for _, repId := range podq.Operate.ExpMigrates {
 
 		if repId >= uint32(podq.Operate.ReplicaCap) {
 			mgs.Del(repId)
@@ -1335,10 +1347,10 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 		}
 	}
 
-	podq.Operate.RepMigrates = mgs
+	podq.Operate.ExpMigrates = mgs
 
 	// schedule new host
-	for _, repId := range podq.Operate.RepMigrates {
+	for _, repId := range podq.Operate.ExpMigrates {
 
 		if repId >= uint32(podq.Operate.ReplicaCap) {
 			continue
@@ -1637,13 +1649,95 @@ func schedulePodPreChargeValid(podq *inapi.Pod) error {
 	return nil
 }
 
+func podFailoverHit(pod *inapi.Pod, podStatus *inapi.PodStatus) types.ArrayUint32 {
+
+	if pod.FailoverEnable() {
+
+		delaySeconds, numMax, rateMax := pod.Apps.SpecExpDeployFailoverLimits()
+
+		if delaySeconds < inapi.HealthFailoverActiveTimeMin {
+			delaySeconds = inapi.HealthFailoverActiveTimeDef
+		}
+
+		//
+		if rateMax > 0 {
+			if n := (rateMax * pod.Operate.ReplicaCap) / 100; n > numMax {
+				numMax = n
+			}
+		}
+
+		repFails := podStatus.HealthFails(delaySeconds, pod.Stateless(), pod.Operate.ReplicaCap)
+
+		if n := len(repFails); n > 0 && n <= int(numMax) {
+			hlog.Printf("info", "zm/pod %s, failover active Fails %d, Delay %d, Max %d",
+				pod.Meta.ID, len(repFails), delaySeconds, numMax)
+			return repFails
+		}
+	}
+
+	return types.ArrayUint32{}
+}
+
 func schedulePodFailover(podq *inapi.Pod) error {
 
+	tn := uint32(time.Now().Unix())
+
+	// debug
+	if false {
+		for _, repId := range []uint32{0, 1} {
+			//
+			if podq.Operate.Failover == nil {
+				podq.Operate.Failover = &inapi.PodOperateFailover{}
+			}
+			foRep := inapi.PodOperateFailoverReplicaSliceGet(podq.Operate.Failover.Reps, repId)
+			if foRep == nil {
+				foRep = &inapi.PodOperateFailoverReplica{
+					RepId:   repId,
+					Created: tn,
+				}
+				podq.Operate.Failover.Reps, _ = inapi.PodOperateFailoverReplicaSliceSync(podq.Operate.Failover.Reps, foRep)
+			}
+			foRep.Updated = tn
+
+			if foRep.ManualChecked+600 < tn {
+				continue
+			}
+
+			hlog.Printf("info", "zm/pod %s, failover active Fails %d, rep %d, commit",
+				podq.Meta.ID, len(podq.Operate.Failover.Reps), repId)
+
+			foRep.ManualChecked = 0
+		}
+		return nil
+	}
+
+	//
+	if !inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStart) {
+		return nil
+	}
+
+	//
 	if status.ZoneMasterLeadSeconds() < int64(inapi.HealthFailoverActiveTimeMin) {
 		return nil
 	}
 
-	if !inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionStart) {
+	if podq.Operate.Failover != nil {
+		dels := []uint32{}
+		for _, rep := range podq.Operate.Failover.Reps {
+			if (rep.Updated + 3600) < tn {
+				dels = append(dels, rep.RepId)
+			}
+		}
+		for _, repId := range dels {
+			podq.Operate.Failover.Reps, _ = inapi.PodOperateFailoverReplicaSliceDel(
+				podq.Operate.Failover.Reps, repId)
+		}
+		if len(podq.Operate.Failover.Reps) < 1 {
+			podq.Operate.Failover = nil
+		}
+	}
+
+	if !podq.FailoverEnable() {
 		return nil
 	}
 
@@ -1652,30 +1746,13 @@ func schedulePodFailover(podq *inapi.Pod) error {
 		return nil
 	}
 
-	var (
-		ft, fnm = podq.FailoverActive()
-		fs      = podStatus.HealthFails(ft, podq.IsStateful())
-	)
-
-	if len(fs) == 0 {
+	repFails := podFailoverHit(podq, podStatus)
+	if len(repFails) < 1 {
+		podq.Operate.Failover = nil
 		return nil
 	}
 
-	if len(fs) > fnm {
-		hlog.Printf("info", "zm/pod %s, failover active Fails %d, Max %d", len(fs), fnm)
-		return nil
-	}
-
-	hlog.Printf("info", "zm/pod %s, failover active Time %d, Max %d, Fails %d",
-		podq.Meta.ID, ft, fnm, len(fs))
-
-	tn := uint32(time.Now().Unix())
-
-	for _, repId := range fs {
-
-		if repId >= uint32(podq.Operate.ReplicaCap) {
-			continue
-		}
+	for _, repId := range repFails {
 
 		rep := podq.Operate.Replicas.Get(repId)
 		if rep == nil {
@@ -1694,6 +1771,25 @@ func schedulePodFailover(podq *inapi.Pod) error {
 		if (rep.Scheduled + uint32(inapi.HealthFailoverScheduleTimeMin)) > tn {
 			hlog.Printf("debug", "zm/pod %s:%d, failover skip schudele time %d",
 				podq.Meta.ID, rep.RepId, rep.Scheduled)
+			continue
+		}
+
+		//
+		if podq.Operate.Failover == nil {
+			podq.Operate.Failover = &inapi.PodOperateFailover{}
+		}
+		foRep := inapi.PodOperateFailoverReplicaSliceGet(podq.Operate.Failover.Reps, repId)
+		if foRep == nil {
+			foRep = &inapi.PodOperateFailoverReplica{
+				RepId:   repId,
+				Created: tn,
+			}
+			podq.Operate.Failover.Reps, _ = inapi.PodOperateFailoverReplicaSliceSync(podq.Operate.Failover.Reps, foRep)
+		}
+		foRep.Updated = tn
+
+		if (foRep.ManualChecked + 600) < tn {
+			foRep.ManualChecked = 0
 			continue
 		}
 
@@ -1778,6 +1874,8 @@ func schedulePodFailover(podq *inapi.Pod) error {
 
 		hlog.Printf("warn", "failover rep %s:%d, move from host %s to %s",
 			podq.Meta.ID, rep.RepId, prevHostId, hit.HostId)
+
+		foRep.ManualChecked = 0
 
 		if rs := data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq, nil); !rs.OK() {
 			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Bytex().String())

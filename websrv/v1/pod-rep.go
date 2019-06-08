@@ -144,8 +144,17 @@ func (c PodRep) SetAction() {
 		return
 	}
 
-	if inapi.OpActionAllow(item.Replica.Action, inapi.OpActionMigrate) {
-		prev.Operate.RepMigrates = []uint32{
+	if inapi.OpActionAllow(item.Replica.Action, inapi.OpActionFailover) {
+		prev.Operate.Failover = &inapi.PodOperateFailover{
+			Reps: []*inapi.PodOperateFailoverReplica{
+				{
+					RepId:         item.Replica.RepId,
+					ManualChecked: tn,
+				},
+			},
+		}
+	} else if inapi.OpActionAllow(item.Replica.Action, inapi.OpActionMigrate) {
+		prev.Operate.ExpMigrates = []uint32{
 			item.Replica.RepId,
 		}
 	}

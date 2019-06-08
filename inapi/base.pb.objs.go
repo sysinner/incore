@@ -40,6 +40,18 @@ func LabelSliceGet(ls []*Label, arg_name string) *Label {
 	return nil
 }
 
+func LabelSliceDel(ls []*Label, arg_name string) ([]*Label, bool) {
+	object_slice_mu_Label.Lock()
+	defer object_slice_mu_Label.Unlock()
+	for i, v := range ls {
+		if v.Name == arg_name {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func LabelSliceEqual(ls, ls2 []*Label) bool {
 	object_slice_mu_Label.RLock()
 	defer object_slice_mu_Label.RUnlock()

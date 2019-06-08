@@ -29,6 +29,7 @@ var (
 	OpActionDestroyed uint32 = 1 << 6
 	OpActionMigrate   uint32 = 1 << 7
 	OpActionMigrated  uint32 = 1 << 8
+	OpActionFailover  uint32 = 1 << 9
 	OpActionPending   uint32 = 1 << 11
 	OpActionWarning   uint32 = 1 << 12
 	OpActionRestart   uint32 = 1 << 23
@@ -52,6 +53,7 @@ func OpActionValid(op uint32) bool {
 			OpActionStop|OpActionStopped|
 			OpActionDestroy|OpActionDestroyed|
 			OpActionMigrate|
+			OpActionFailover|
 			OpActionPending|OpActionWarning|
 			OpActionRestart,
 		op,
@@ -137,6 +139,10 @@ func OpActionStrings(action uint32) []string {
 
 	if OpActionAllow(action, OpActionMigrated) {
 		s = append(s, "migrated")
+	}
+
+	if OpActionAllow(action, OpActionFailover) {
+		s = append(s, "failover")
 	}
 
 	if OpActionAllow(action, OpActionPending) {

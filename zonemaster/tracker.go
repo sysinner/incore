@@ -550,7 +550,7 @@ func zmWorkerPodListStatusRefresh() {
 			podStatus.PodId = pod.Meta.ID
 		}
 
-		for _, repId := range pod.Operate.RepMigrates {
+		for _, repId := range pod.Operate.ExpMigrates {
 
 			if repId >= uint32(pod.Operate.ReplicaCap) {
 				continue

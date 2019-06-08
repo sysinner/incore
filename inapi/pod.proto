@@ -90,18 +90,19 @@ message PbPodBoxStatus {
     uint32                          action        = 10;
     uint32                          started       = 11; // unix time in seconds
     uint32                          updated       = 12; // unix time in seconds
-	repeated int32                  cpu_sets      = 13;
-	int32 network_mode = 14;
-}
-
-
-message PodOperateFailoverReplica {
-	uint32 rep_id = 1; // struct:object_slice_key
-    uint32 updated = 4;
+    repeated int32                  cpu_sets      = 13;
+    int32 network_mode = 14;
 }
 
 message PodOperateFailover {
-	repeated PodOperateFailoverReplica reps = 2;
+    repeated PodOperateFailoverReplica reps = 2;
+}
+
+message PodOperateFailoverReplica {
+    uint32 rep_id = 1; // struct:object_slice_key
+	uint32 manual_checked = 13;
+    uint32 created = 14;
+    uint32 updated = 15;
 }
 
 message PodOperateDeploy {

@@ -12,6 +12,18 @@ func PbBytesSliceEqual(ls, ls2 []byte) bool {
 	return bytes.Compare(ls, ls2) == 0
 }
 
+func PbArrayBytesSliceEqual(ls, ls2 [][]byte) bool {
+	if len(ls) != len(ls2) {
+		return false
+	}
+	for i, v := range ls {
+		if !PbBytesSliceEqual(v, ls2[i]) {
+			return false
+		}
+	}
+	return true
+}
+
 func PbStringSliceEqual(ls, ls2 []string) bool {
 	if len(ls) != len(ls2) {
 		return false

@@ -42,6 +42,18 @@ func PbOpLogEntrySliceGet(ls []*PbOpLogEntry, arg_name string) *PbOpLogEntry {
 	return nil
 }
 
+func PbOpLogEntrySliceDel(ls []*PbOpLogEntry, arg_name string) ([]*PbOpLogEntry, bool) {
+	object_slice_mu_PbOpLogEntry.Lock()
+	defer object_slice_mu_PbOpLogEntry.Unlock()
+	for i, v := range ls {
+		if v.Name == arg_name {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func PbOpLogEntrySliceEqual(ls, ls2 []*PbOpLogEntry) bool {
 	object_slice_mu_PbOpLogEntry.RLock()
 	defer object_slice_mu_PbOpLogEntry.RUnlock()
@@ -135,6 +147,18 @@ func PbOpLogSetsSliceGet(ls []*PbOpLogSets, arg_name string) *PbOpLogSets {
 		}
 	}
 	return nil
+}
+
+func PbOpLogSetsSliceDel(ls []*PbOpLogSets, arg_name string) ([]*PbOpLogSets, bool) {
+	object_slice_mu_PbOpLogSets.Lock()
+	defer object_slice_mu_PbOpLogSets.Unlock()
+	for i, v := range ls {
+		if v.Name == arg_name {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func PbOpLogSetsSliceEqual(ls, ls2 []*PbOpLogSets) bool {

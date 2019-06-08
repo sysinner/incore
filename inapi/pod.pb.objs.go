@@ -42,6 +42,18 @@ func HealthStatusSliceGet(ls []*HealthStatus, arg_partid uint32) *HealthStatus {
 	return nil
 }
 
+func HealthStatusSliceDel(ls []*HealthStatus, arg_partid uint32) ([]*HealthStatus, bool) {
+	object_slice_mu_HealthStatus.Lock()
+	defer object_slice_mu_HealthStatus.Unlock()
+	for i, v := range ls {
+		if v.PartId == arg_partid {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func HealthStatusSliceEqual(ls, ls2 []*HealthStatus) bool {
 	object_slice_mu_HealthStatus.RLock()
 	defer object_slice_mu_HealthStatus.RUnlock()
@@ -148,6 +160,18 @@ func PbPodRepStatusSliceGet(ls []*PbPodRepStatus, arg_podid string, arg_repid ui
 	return nil
 }
 
+func PbPodRepStatusSliceDel(ls []*PbPodRepStatus, arg_podid string, arg_repid uint32) ([]*PbPodRepStatus, bool) {
+	object_slice_mu_PbPodRepStatus.Lock()
+	defer object_slice_mu_PbPodRepStatus.Unlock()
+	for i, v := range ls {
+		if v.PodId == arg_podid && v.RepId == arg_repid {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func PbPodRepStatusSliceEqual(ls, ls2 []*PbPodRepStatus) bool {
 	object_slice_mu_PbPodRepStatus.RLock()
 	defer object_slice_mu_PbPodRepStatus.RUnlock()
@@ -241,6 +265,18 @@ func PbVolumeMountSliceGet(ls []*PbVolumeMount, arg_mountpath string) *PbVolumeM
 		}
 	}
 	return nil
+}
+
+func PbVolumeMountSliceDel(ls []*PbVolumeMount, arg_mountpath string) ([]*PbVolumeMount, bool) {
+	object_slice_mu_PbVolumeMount.Lock()
+	defer object_slice_mu_PbVolumeMount.Unlock()
+	for i, v := range ls {
+		if v.MountPath == arg_mountpath {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func PbVolumeMountSliceEqual(ls, ls2 []*PbVolumeMount) bool {
@@ -337,6 +373,18 @@ func PbVolumeStatusSliceGet(ls []*PbVolumeStatus, arg_mountpath string) *PbVolum
 	return nil
 }
 
+func PbVolumeStatusSliceDel(ls []*PbVolumeStatus, arg_mountpath string) ([]*PbVolumeStatus, bool) {
+	object_slice_mu_PbVolumeStatus.Lock()
+	defer object_slice_mu_PbVolumeStatus.Unlock()
+	for i, v := range ls {
+		if v.MountPath == arg_mountpath {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func PbVolumeStatusSliceEqual(ls, ls2 []*PbVolumeStatus) bool {
 	object_slice_mu_PbVolumeStatus.RLock()
 	defer object_slice_mu_PbVolumeStatus.RUnlock()
@@ -429,6 +477,18 @@ func PbServicePortSliceGet(ls []*PbServicePort, arg_boxport uint32) *PbServicePo
 		}
 	}
 	return nil
+}
+
+func PbServicePortSliceDel(ls []*PbServicePort, arg_boxport uint32) ([]*PbServicePort, bool) {
+	object_slice_mu_PbServicePort.Lock()
+	defer object_slice_mu_PbServicePort.Unlock()
+	for i, v := range ls {
+		if v.BoxPort == arg_boxport {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func PbServicePortSliceEqual(ls, ls2 []*PbServicePort) bool {
@@ -526,6 +586,18 @@ func PbPodBoxStatusExecutorSliceGet(ls []*PbPodBoxStatusExecutor, arg_name strin
 		}
 	}
 	return nil
+}
+
+func PbPodBoxStatusExecutorSliceDel(ls []*PbPodBoxStatusExecutor, arg_name string) ([]*PbPodBoxStatusExecutor, bool) {
+	object_slice_mu_PbPodBoxStatusExecutor.Lock()
+	defer object_slice_mu_PbPodBoxStatusExecutor.Unlock()
+	for i, v := range ls {
+		if v.Name == arg_name {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func PbPodBoxStatusExecutorSliceEqual(ls, ls2 []*PbPodBoxStatusExecutor) bool {
@@ -634,6 +706,18 @@ func PbPodBoxStatusSliceGet(ls []*PbPodBoxStatus, arg_name string) *PbPodBoxStat
 	return nil
 }
 
+func PbPodBoxStatusSliceDel(ls []*PbPodBoxStatus, arg_name string) ([]*PbPodBoxStatus, bool) {
+	object_slice_mu_PbPodBoxStatus.Lock()
+	defer object_slice_mu_PbPodBoxStatus.Unlock()
+	for i, v := range ls {
+		if v.Name == arg_name {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func PbPodBoxStatusSliceEqual(ls, ls2 []*PbPodBoxStatus) bool {
 	object_slice_mu_PbPodBoxStatus.RLock()
 	defer object_slice_mu_PbPodBoxStatus.RUnlock()
@@ -699,6 +783,8 @@ var object_slice_mu_PodOperateFailoverReplica sync.RWMutex
 func (it *PodOperateFailoverReplica) Equal(it2 *PodOperateFailoverReplica) bool {
 	if it2 == nil ||
 		it.RepId != it2.RepId ||
+		it.ManualChecked != it2.ManualChecked ||
+		it.Created != it2.Created ||
 		it.Updated != it2.Updated {
 		return false
 	}
@@ -726,6 +812,18 @@ func PodOperateFailoverReplicaSliceGet(ls []*PodOperateFailoverReplica, arg_repi
 		}
 	}
 	return nil
+}
+
+func PodOperateFailoverReplicaSliceDel(ls []*PodOperateFailoverReplica, arg_repid uint32) ([]*PodOperateFailoverReplica, bool) {
+	object_slice_mu_PodOperateFailoverReplica.Lock()
+	defer object_slice_mu_PodOperateFailoverReplica.Unlock()
+	for i, v := range ls {
+		if v.RepId == arg_repid {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func PodOperateFailoverReplicaSliceEqual(ls, ls2 []*PodOperateFailoverReplica) bool {

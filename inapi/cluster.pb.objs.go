@@ -41,6 +41,18 @@ func ResVolValueSliceGet(ls []*ResVolValue, arg_name string) *ResVolValue {
 	return nil
 }
 
+func ResVolValueSliceDel(ls []*ResVolValue, arg_name string) ([]*ResVolValue, bool) {
+	object_slice_mu_ResVolValue.Lock()
+	defer object_slice_mu_ResVolValue.Unlock()
+	for i, v := range ls {
+		if v.Name == arg_name {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func ResVolValueSliceEqual(ls, ls2 []*ResVolValue) bool {
 	object_slice_mu_ResVolValue.RLock()
 	defer object_slice_mu_ResVolValue.RUnlock()
@@ -133,6 +145,18 @@ func ResImageServiceSliceGet(ls []*ResImageService, arg_url string) *ResImageSer
 		}
 	}
 	return nil
+}
+
+func ResImageServiceSliceDel(ls []*ResImageService, arg_url string) ([]*ResImageService, bool) {
+	object_slice_mu_ResImageService.Lock()
+	defer object_slice_mu_ResImageService.Unlock()
+	for i, v := range ls {
+		if v.Url == arg_url {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func ResImageServiceSliceEqual(ls, ls2 []*ResImageService) bool {

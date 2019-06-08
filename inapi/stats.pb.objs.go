@@ -41,6 +41,18 @@ func PbStatsSampleFeedSliceGet(ls []*PbStatsSampleFeed, arg_cycle uint32) *PbSta
 	return nil
 }
 
+func PbStatsSampleFeedSliceDel(ls []*PbStatsSampleFeed, arg_cycle uint32) ([]*PbStatsSampleFeed, bool) {
+	object_slice_mu_PbStatsSampleFeed.Lock()
+	defer object_slice_mu_PbStatsSampleFeed.Unlock()
+	for i, v := range ls {
+		if v.Cycle == arg_cycle {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func PbStatsSampleFeedSliceEqual(ls, ls2 []*PbStatsSampleFeed) bool {
 	object_slice_mu_PbStatsSampleFeed.RLock()
 	defer object_slice_mu_PbStatsSampleFeed.RUnlock()
@@ -135,6 +147,18 @@ func PbStatsSampleEntrySliceGet(ls []*PbStatsSampleEntry, arg_name string) *PbSt
 	return nil
 }
 
+func PbStatsSampleEntrySliceDel(ls []*PbStatsSampleEntry, arg_name string) ([]*PbStatsSampleEntry, bool) {
+	object_slice_mu_PbStatsSampleEntry.Lock()
+	defer object_slice_mu_PbStatsSampleEntry.Unlock()
+	for i, v := range ls {
+		if v.Name == arg_name {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func PbStatsSampleEntrySliceEqual(ls, ls2 []*PbStatsSampleEntry) bool {
 	object_slice_mu_PbStatsSampleEntry.RLock()
 	defer object_slice_mu_PbStatsSampleEntry.RUnlock()
@@ -227,6 +251,18 @@ func PbStatsSampleValueSliceGet(ls []*PbStatsSampleValue, arg_time uint32) *PbSt
 		}
 	}
 	return nil
+}
+
+func PbStatsSampleValueSliceDel(ls []*PbStatsSampleValue, arg_time uint32) ([]*PbStatsSampleValue, bool) {
+	object_slice_mu_PbStatsSampleValue.Lock()
+	defer object_slice_mu_PbStatsSampleValue.Unlock()
+	for i, v := range ls {
+		if v.Time == arg_time {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func PbStatsSampleValueSliceEqual(ls, ls2 []*PbStatsSampleValue) bool {

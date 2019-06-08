@@ -158,7 +158,7 @@ func (pod *Pod) AppServicePorts() ServicePorts {
 	return ports
 }
 
-func (pod *Pod) OpRepCapValid(num_new int) error {
+func (pod *Pod) OpRepCapValid(num_new int32) error {
 
 	if num_new < AppSpecExpDeployRepNumMin {
 		return errors.New(fmt.Sprintf("RepNum %d conflict with Min Limit %d",
@@ -186,11 +186,11 @@ func (pod *Pod) OpRepCapValid(num_new int) error {
 	return nil
 }
 
-func (pod *Pod) OpSysStateValid(state_new int) error {
+func (pod *Pod) OpSysStateValid(state_new int32) error {
 
 	if state_new != pod.Operate.ExpSysState {
 		if pod.Apps != nil &&
-			pod.Apps.SpecExpDeployIsStateful() &&
+			!pod.Apps.SpecExpDeployStateless() &&
 			state_new == AppSpecExpDeploySysStateless {
 			return errors.New("State conflict with AppSpec")
 		}
@@ -199,12 +199,11 @@ func (pod *Pod) OpSysStateValid(state_new int) error {
 	return nil
 }
 
-func (pod *Pod) IsStateful() bool {
-	if !pod.Apps.SpecExpDeployIsStateful() &&
-		pod.Operate.ExpSysState != AppSpecExpDeploySysStateful {
-		return false
+func (it *Pod) OpSysStateless() bool {
+	if it.Operate.ExpSysState == AppSpecExpDeploySysStateless {
+		return true
 	}
-	return true
+	return false
 }
 
 func (pod *Pod) OpResScheduleFit() bool {
@@ -230,7 +229,7 @@ func (pod *Pod) OpResScheduleFit() bool {
 		cpu, mem = destRes.CpuLimit, destRes.MemLimit
 	}
 
-	destNum := 0
+	destNum := int32(0)
 
 	for _, v := range pod.Operate.Replicas {
 
@@ -259,32 +258,25 @@ func (pod *Pod) PodRepClone(repId uint32) *PodRep {
 	}
 }
 
-func (pod *Pod) FailoverActive() (int32, int) {
+func (it *Pod) Stateless() bool {
+	if it.OpSysStateless() &&
+		it.Apps.SpecExpDeployStateless() {
+		return true
+	}
+	return false
+}
 
-	if !pod.IsStateful() {
-		return HealthFailoverActiveTimeDef, pod.Operate.ReplicaCap
+func (pod *Pod) FailoverEnable() bool {
+
+	if pod.Apps.SpecExpDeployFailoverEnable() {
+		return true
 	}
 
-	var (
-		ft  = int32(0)
-		fnm = pod.Operate.ReplicaCap
-	)
-
-	for _, v := range pod.Apps {
-		if v.Spec.ExpDeploy.FailoverTime > ft {
-			ft = v.Spec.ExpDeploy.FailoverTime
-		}
-		if v.Spec.ExpDeploy.FailoverNumMax < fnm {
-			fnm = v.Spec.ExpDeploy.FailoverNumMax
-		}
-		if v.Spec.ExpDeploy.FailoverRateMax > 0 {
-			if frm := (v.Spec.ExpDeploy.FailoverRateMax * pod.Operate.ReplicaCap) / 100; frm < fnm {
-				fnm = frm
-			}
-		}
+	if pod.Stateless() {
+		return true
 	}
 
-	return ft, fnm
+	return false
 }
 
 type PodItems []*Pod
@@ -872,16 +864,16 @@ type PodOperate struct {
 	Action       uint32                   `json:"action,omitempty"`
 	Version      uint32                   `json:"version,omitempty"`
 	Priority     int                      `json:"priority,omitempty"` // TODO
-	ReplicaCap   int                      `json:"replica_cap,omitempty"`
+	ReplicaCap   int32                    `json:"replica_cap,omitempty"`
 	Replicas     PodOperateReplicas       `json:"replicas,omitempty"`
-	RepMigrates  []uint32                 `json:"rep_migrates,omitempty"`
 	OpLog        []*PbOpLogEntry          `json:"op_log,omitempty"`
 	Operated     uint32                   `json:"operated,omitempty"`
 	Access       *PodOperateAccess        `json:"access,omitempty"`
-	ExpSysState  int                      `json:"exp_sys_state,omitempty"`
 	BindServices []*AppServicePortPodBind `json:"bind_services,omitempty"`
 	Failover     *PodOperateFailover      `json:"failover,omitempty"`
 	Deploy       *PodOperateDeploy        `json:"deploy,omitempty"`
+	ExpSysState  int32                    `json:"exp_sys_state,omitempty"`
+	ExpMigrates  []uint32                 `json:"exp_migrates,omitempty"`
 }
 
 var (
@@ -1057,31 +1049,34 @@ func (it *PodStatus) RepActionAllow(repCap int, op uint32) bool {
 	return false
 }
 
-func (it *PodStatus) HealthFails(delayTime int32, statefull bool) []uint32 {
+func (it *PodStatus) HealthFails(delaySeconds int32, stateless bool, repCap int32) types.ArrayUint32 {
 
-	if delayTime < HealthFailoverActiveTimeMin {
-		delayTime = HealthFailoverActiveTimeMin
+	if delaySeconds < HealthFailoverActiveTimeMin {
+		delaySeconds = HealthFailoverActiveTimeMin
 	}
 
 	var (
-		repFails = []uint32{}
+		repFails = types.ArrayUint32{}
 		tn       = uint32(time.Now().Unix())
-		failTime = tn - uint32(delayTime)
+		failTime = tn - uint32(delaySeconds)
 	)
 
 	for _, v := range it.Replicas {
 
-		if statefull {
-			if v.Health != nil &&
-				v.Health.Updated > 0 &&
-				v.Health.Updated < failTime {
-				// v.Health.Action != HealthStatusActionSetup {
-				repFails = append(repFails, v.RepId)
-			}
-		} else {
+		if v.RepId >= uint32(repCap) {
+			continue
+		}
+
+		if stateless {
+
 			if v.Updated < failTime {
-				repFails = append(repFails, v.RepId)
+				repFails.Set(v.RepId)
 			}
+
+		} else if v.Health != nil &&
+			v.Health.Updated > 0 &&
+			v.Health.Updated < failTime {
+			repFails.Set(v.RepId)
 		}
 	}
 

@@ -87,17 +87,46 @@ func (ls *AppInstances) ExecutorSync(executor Executor, app_id string) {
 	}
 }
 
-func (ls *AppInstances) SpecExpDeployIsStateful() bool {
-	sl := 0
+func (ls *AppInstances) SpecExpDeployStateless() bool {
+	n := 0
 	for _, v := range *ls {
-		if v.Spec.ExpDeploy.SysState == AppSpecExpDeploySysStateless {
-			sl += 1
+		if v.Spec.ExpDeploy.Stateless() {
+			n += 1
 		}
 	}
-	if sl == len(*ls) {
-		return false
+	if n > 0 && n == len(*ls) {
+		return true
 	}
-	return true
+	return false
+
+}
+
+func (ls *AppInstances) SpecExpDeployFailoverLimits() (delaySeconds, numMax, rateMax int32) {
+	for _, v := range *ls {
+		if v.Spec.ExpDeploy.FailoverTime > delaySeconds {
+			delaySeconds = v.Spec.ExpDeploy.FailoverTime
+		}
+		if v.Spec.ExpDeploy.FailoverNumMax > numMax {
+			numMax = v.Spec.ExpDeploy.FailoverNumMax
+		}
+		if v.Spec.ExpDeploy.FailoverRateMax > rateMax {
+			rateMax = v.Spec.ExpDeploy.FailoverRateMax
+		}
+	}
+	return
+}
+
+func (ls *AppInstances) SpecExpDeployFailoverEnable() bool {
+	n := 0
+	for _, v := range *ls {
+		if v.Spec.ExpDeploy.FailoverEnable() {
+			n += 1
+		}
+	}
+	if n > 0 && n == len(*ls) {
+		return true
+	}
+	return false
 }
 
 func (ls *AppInstances) NetworkModeHost() bool {
@@ -148,23 +177,44 @@ type AppSpecResRequirements struct {
 }
 
 const (
-	AppSpecExpDeployRepNumMin         = 1 // default
-	AppSpecExpDeployRepNumMax         = 32
-	AppSpecExpDeploySysStateful       = 1 // default
-	AppSpecExpDeploySysStateless      = 2
-	AppSpecExpDeployNetworkModeBridge = 1 // default
-	AppSpecExpDeployNetworkModeHost   = 2
+	AppSpecExpDeployRepNumMin         int32 = 1 // default
+	AppSpecExpDeployRepNumMax         int32 = 32
+	AppSpecExpDeploySysStateful       int32 = 1 // default
+	AppSpecExpDeploySysStateless      int32 = 2
+	AppSpecExpDeployNetworkModeBridge int32 = 1 // default
+	AppSpecExpDeployNetworkModeHost   int32 = 2
 )
 
 type AppSpecExpDeployRequirements struct {
-	RepMin   int `json:"rep_min,omitempty"`
-	RepMax   int `json:"rep_max,omitempty"`
-	SysState int `json:"sys_state,omitempty"`
+	RepMin   int32 `json:"rep_min,omitempty"`
+	RepMax   int32 `json:"rep_max,omitempty"`
+	SysState int32 `json:"sys_state,omitempty"`
 	// High-Availability
 	FailoverTime    int32 `json:"failover_time,omitempty"`     // in seconds
-	FailoverNumMax  int   `json:"failover_num_max,omitempty"`  // [0, RepMax)
-	FailoverRateMax int   `json:"failover_rate_max,omitempty"` // [0, 100) in %
+	FailoverNumMax  int32 `json:"failover_num_max,omitempty"`  // [0, RepMax)
+	FailoverRateMax int32 `json:"failover_rate_max,omitempty"` // [0, 100) in %
 	NetworkMode     int32 `json:"network_mode"`
+}
+
+func (it *AppSpecExpDeployRequirements) FailoverEnable() bool {
+
+	if it.FailoverTime < HealthFailoverActiveTimeMin {
+		return false
+	}
+
+	if it.FailoverNumMax < 1 && it.FailoverRateMax < 1 {
+		return false
+	}
+
+	if it.FailoverRateMax >= 50 {
+		return false
+	}
+
+	return true
+}
+
+func (it *AppSpecExpDeployRequirements) Stateless() bool {
+	return it.SysState == AppSpecExpDeploySysStateless
 }
 
 type AppSpecList struct {

@@ -43,6 +43,18 @@ func AppSpecDependSliceGet(ls []*AppSpecDepend, arg_id string) *AppSpecDepend {
 	return nil
 }
 
+func AppSpecDependSliceDel(ls []*AppSpecDepend, arg_id string) ([]*AppSpecDepend, bool) {
+	object_slice_mu_AppSpecDepend.Lock()
+	defer object_slice_mu_AppSpecDepend.Unlock()
+	for i, v := range ls {
+		if v.Id == arg_id {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func AppSpecDependSliceEqual(ls, ls2 []*AppSpecDepend) bool {
 	object_slice_mu_AppSpecDepend.RLock()
 	defer object_slice_mu_AppSpecDepend.RUnlock()
@@ -136,6 +148,18 @@ func AppServiceReplicaSliceGet(ls []*AppServiceReplica, arg_rep uint32) *AppServ
 		}
 	}
 	return nil
+}
+
+func AppServiceReplicaSliceDel(ls []*AppServiceReplica, arg_rep uint32) ([]*AppServiceReplica, bool) {
+	object_slice_mu_AppServiceReplica.Lock()
+	defer object_slice_mu_AppServiceReplica.Unlock()
+	for i, v := range ls {
+		if v.Rep == arg_rep {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func AppServiceReplicaSliceEqual(ls, ls2 []*AppServiceReplica) bool {
@@ -236,6 +260,18 @@ func AppServicePortSliceGet(ls []*AppServicePort, arg_port uint32) *AppServicePo
 	return nil
 }
 
+func AppServicePortSliceDel(ls []*AppServicePort, arg_port uint32) ([]*AppServicePort, bool) {
+	object_slice_mu_AppServicePort.Lock()
+	defer object_slice_mu_AppServicePort.Unlock()
+	for i, v := range ls {
+		if v.Port == arg_port {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func AppServicePortSliceEqual(ls, ls2 []*AppServicePort) bool {
 	object_slice_mu_AppServicePort.RLock()
 	defer object_slice_mu_AppServicePort.RUnlock()
@@ -331,6 +367,18 @@ func AppServicePortPodBindSliceGet(ls []*AppServicePortPodBind, arg_port uint32,
 	return nil
 }
 
+func AppServicePortPodBindSliceDel(ls []*AppServicePortPodBind, arg_port uint32, arg_podid string) ([]*AppServicePortPodBind, bool) {
+	object_slice_mu_AppServicePortPodBind.Lock()
+	defer object_slice_mu_AppServicePortPodBind.Unlock()
+	for i, v := range ls {
+		if v.Port == arg_port && v.PodId == arg_podid {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
 func AppServicePortPodBindSliceEqual(ls, ls2 []*AppServicePortPodBind) bool {
 	object_slice_mu_AppServicePortPodBind.RLock()
 	defer object_slice_mu_AppServicePortPodBind.RUnlock()
@@ -423,6 +471,18 @@ func AppServicePodSliceGet(ls []*AppServicePod, arg_podid string) *AppServicePod
 		}
 	}
 	return nil
+}
+
+func AppServicePodSliceDel(ls []*AppServicePod, arg_podid string) ([]*AppServicePod, bool) {
+	object_slice_mu_AppServicePod.Lock()
+	defer object_slice_mu_AppServicePod.Unlock()
+	for i, v := range ls {
+		if v.PodId == arg_podid {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
 }
 
 func AppServicePodSliceEqual(ls, ls2 []*AppServicePod) bool {
