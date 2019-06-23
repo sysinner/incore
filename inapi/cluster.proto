@@ -31,7 +31,7 @@ message ResVolBound {
     string ref_id = 1;
     string ref_name = 2;
     string mnt = 4;
-	int32 size = 5;
+    int32 size = 5;
     uint32 attrs = 6;
 }
 
@@ -144,16 +144,16 @@ message ResCell {
     int32      phase       = 4;
     string     description = 5;
     int32      node_num    = 6;
-	ResCellStatus status = 7;
+    ResCellStatus status = 7;
 }
 
 message ResCellStatus {
     string id = 1;
-	uint32 updated = 2;
-	int64 cpu_cap = 5;
-	int64 cpu_used = 6;
-	int64 mem_cap = 7;
-	int64 mem_used = 8;
+    uint32 updated = 2;
+    int64 cpu_cap = 5;
+    int64 cpu_used = 6;
+    int64 mem_cap = 7;
+    int64 mem_used = 8;
     int32 host_cap = 10;
     int32 host_in = 11;
     int32 vol_cap = 12;

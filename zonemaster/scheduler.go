@@ -43,6 +43,13 @@ var (
 	hostResUsages     = map[string]*hostUsageItem{}
 	scheduleHostList  typeScheduler.ScheduleHostList
 	errServerError    = errors.New("server error")
+	haEmailTemplate   = `A availability issue was detected (Pod %s, Replica %d) by InnerStack. please login to the management console and manually confirm this issue and execute the failover task.
+
+Management Console: %s 
+
+====
+Please do not reply to this message. Mail sent to this address cannot be answered.
+`
 )
 
 type destResReplica struct {
@@ -1684,20 +1691,35 @@ func schedulePodFailover(podq *inapi.Pod) error {
 
 	// debug
 	if false {
-		for _, repId := range []uint32{0, 1} {
+		for _, repId := range []uint32{0} {
 			//
 			if podq.Operate.Failover == nil {
 				podq.Operate.Failover = &inapi.PodOperateFailover{}
 			}
 			foRep := inapi.PodOperateFailoverReplicaSliceGet(podq.Operate.Failover.Reps, repId)
-			if foRep == nil {
+			if foRep == nil || (foRep.Created+60) < tn {
 				foRep = &inapi.PodOperateFailoverReplica{
 					RepId:   repId,
 					Created: tn,
 				}
 				podq.Operate.Failover.Reps, _ = inapi.PodOperateFailoverReplicaSliceSync(podq.Operate.Failover.Reps, foRep)
 			}
+
 			foRep.Updated = tn
+
+			if !inapi.OpActionAllow(foRep.Action, inapi.HealthFailoverMsgSent) {
+
+				if err := iamclient.SysMsgPost(iamapi.MsgItem{
+					ToUser: podq.Meta.User,
+					Title:  "Availability Issue Alert",
+					Body:   fmt.Sprintf(haEmailTemplate, podq.Meta.ID, repId, inCfg.Config.InpanelServiceUrl),
+				}, pod_charge_iam_ak); err == nil {
+					foRep.Action = inapi.HealthFailoverMsgSent
+					hlog.Printf("info", "zm/scheduler msg/failover-event post ok")
+				} else {
+					hlog.Printf("info", "zm/scheduler msg/failover-event post err %s", err.Error())
+				}
+			}
 
 			if foRep.ManualChecked+600 < tn {
 				continue
@@ -1787,6 +1809,20 @@ func schedulePodFailover(podq *inapi.Pod) error {
 			podq.Operate.Failover.Reps, _ = inapi.PodOperateFailoverReplicaSliceSync(podq.Operate.Failover.Reps, foRep)
 		}
 		foRep.Updated = tn
+
+		if !inapi.OpActionAllow(foRep.Action, inapi.HealthFailoverMsgSent) {
+
+			if err := iamclient.SysMsgPost(iamapi.MsgItem{
+				ToUser: podq.Meta.User,
+				Title:  "Availability Issue Alert",
+				Body:   fmt.Sprintf(haEmailTemplate, podq.Meta.ID, repId, inCfg.Config.InpanelServiceUrl),
+			}, pod_charge_iam_ak); err == nil {
+				foRep.Action = inapi.HealthFailoverMsgSent
+				hlog.Printf("info", "zm/scheduler msg/failover-event post ok")
+			} else {
+				hlog.Printf("info", "zm/scheduler msg/failover-event post err %s", err.Error())
+			}
+		}
 
 		if (foRep.ManualChecked + 600) < tn {
 			foRep.ManualChecked = 0

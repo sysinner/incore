@@ -100,7 +100,8 @@ message PodOperateFailover {
 
 message PodOperateFailoverReplica {
     uint32 rep_id = 1; // struct:object_slice_key
-	uint32 manual_checked = 13;
+    uint32 action = 4;
+    uint32 manual_checked = 13;
     uint32 created = 14;
     uint32 updated = 15;
 }

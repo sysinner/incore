@@ -783,6 +783,7 @@ var object_slice_mu_PodOperateFailoverReplica sync.RWMutex
 func (it *PodOperateFailoverReplica) Equal(it2 *PodOperateFailoverReplica) bool {
 	if it2 == nil ||
 		it.RepId != it2.RepId ||
+		it.Action != it2.Action ||
 		it.ManualChecked != it2.ManualChecked ||
 		it.Created != it2.Created ||
 		it.Updated != it2.Updated {

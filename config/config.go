@@ -62,6 +62,7 @@ type ConfigCommon struct {
 	Options                   types.Labels             `json:"items,omitempty"`
 	PprofHttpPort             uint16                   `json:"pprof_http_port,omitempty"`
 	InpackServiceUrl          string                   `json:"inpack_service_url,omitempty"`
+	InpanelServiceUrl         string                   `json:"inpanel_service_url,omitempty"`
 	IamServiceUrlFrontend     string                   `json:"iam_service_url_frontend,omitempty"`
 	IamServiceUrlGlobal       string                   `json:"iam_service_url_global,omitempty"`
 	LxcFsEnable               bool                     `json:"lxc_fs_enable"`
@@ -124,6 +125,11 @@ func Setup() error {
 
 	if Config.IamServiceUrlFrontend != "" && !strings.HasPrefix(Config.IamServiceUrlFrontend, "http") {
 		return fmt.Errorf("Invalid iam_service_url_frontend")
+	}
+
+	if Config.InpanelServiceUrl == "" {
+		Config.InpanelServiceUrl = fmt.Sprintf("http://%s:%d/in",
+			Config.Host.LanAddr.IP(), Config.Host.HttpPort)
 	}
 
 	if err := setupUser(); err != nil {

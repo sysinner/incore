@@ -21,4 +21,6 @@ const (
 	HealthFailoverActiveTimeDef   int32 = 7200
 	HealthFailoverActiveTimeMin   int32 = 300
 	HealthFailoverScheduleTimeMin int32 = 36000
+
+	HealthFailoverMsgSent uint32 = 1 << 16
 )

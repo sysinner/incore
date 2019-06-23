@@ -43,7 +43,6 @@ func Start() error {
 	go func() {
 
 		for {
-
 			time.Sleep(3e9)
 
 			zoneTracker()
@@ -61,6 +60,7 @@ func Start() error {
 				status.ZoneScheduled = time.Now().Unix()
 
 				go iamWorker.AccountChargeCloseRefresh()
+				go iamWorker.MsgQueueRefresh()
 			}
 		}
 	}()

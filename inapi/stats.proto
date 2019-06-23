@@ -17,7 +17,7 @@ syntax = "proto3";
 package inapi;
 
 message PbStatsSampleFeed {
-	string                      kind  = 1;
+    string                      kind  = 1;
     uint32                      cycle = 2; // struct:object_slice_key
     repeated PbStatsSampleEntry items = 3;
 }
