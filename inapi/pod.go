@@ -114,14 +114,6 @@ type Pod struct {
 	Payment *PodPayment `json:"payment,omitempty"`
 }
 
-type PodPayment struct {
-	TimeStart   uint32  `json:"time_start"`
-	TimeClose   uint32  `json:"time_close"`
-	Prepay      float64 `json:"prepay"`
-	Payout      float64 `json:"payout"`
-	CycleAmount float64 `json:"cycle_amount"`
-}
-
 type PodEstimateList struct {
 	types.TypeMeta `json:",inline"`
 	Items          []*PodEstimateEntry `json:"items"`
@@ -328,7 +320,8 @@ func (ls *PodItems) Each(fn func(item *Pod)) {
 // PodList is a list of Pods.
 type PodList struct {
 	types.TypeMeta `json:",inline"`
-	Items          PodItems `json:"items"`
+	Items          PodItems           `json:"items"`
+	UserTransfers  []*PodUserTransfer `json:"user_transfers,omitempty"`
 }
 
 // PodSpecBound is a description of a bound spec based on PodSpecPlan

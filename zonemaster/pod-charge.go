@@ -24,16 +24,14 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
+	inCfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/status"
 )
 
 var (
-	pod_specPlans     = []*inapi.PodSpecPlan{}
-	pod_charge_iam_ak = iamapi.AccessKey{
-		User: "sysadmin",
-	}
+	pod_specPlans = []*inapi.PodSpecPlan{}
 )
 
 func podChargeRefresh() error {
@@ -44,17 +42,24 @@ func podChargeRefresh() error {
 		return nil
 	}
 
+	if inCfg.Config.ZoneIamAccessKey == nil {
+		hlog.Printf("warn", "charge AccessKey not found")
+		return nil
+	}
+
+	/**
 	if v, ok := status.Zone.OptionGet("iam/acc_charge/access_key"); !ok {
 		return nil
 	} else {
-		pod_charge_iam_ak.AccessKey = v
+		inCfg.Config.ZoneIamAccessKey.AccessKey = v
 	}
 
 	if v, ok := status.Zone.OptionGet("iam/acc_charge/secret_key"); !ok {
 		return nil
 	} else {
-		pod_charge_iam_ak.SecretKey = v
+		inCfg.Config.ZoneIamAccessKey.SecretKey = v
 	}
+	*/
 
 	// TODO
 	pod_specPlans = []*inapi.PodSpecPlan{}
@@ -201,6 +206,12 @@ func podItemCharge(pod *inapi.Pod) bool {
 			pod.Meta.ID, pod.Payment.CycleAmount, cycleAmount)
 	}
 
+	payUser := pod.Meta.User
+	if pod.Payment.User != "" && pod.Payment.User != payUser {
+		payUser = pod.Payment.User
+		pod.Payment.TimeClose = tn
+	}
+
 	payAmount := pod.Payment.CycleAmount * (float64(pod.Payment.TimeClose-pod.Payment.TimeStart) / 3600)
 	payAmount = iamapi.AccountFloat64Round(payAmount, 2)
 	if payAmount < 0.01 {
@@ -218,15 +229,16 @@ func podItemCharge(pod *inapi.Pod) bool {
 		// 	pod.Payment.TimeStart, pod.Payment.TimeClose)
 
 		if rsp := iamclient.AccountChargePrepay(iamapi.AccountChargePrepay{
-			User:      pod.Meta.User,
+			User:      payUser,
 			Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
 			Prepay:    payAmount,
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
 			Comment:   strings.Join(comments, ", "),
-		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePrepay" {
+		}, inCfg.Config.ZoneIamAccessKey); rsp.Kind == "AccountChargePrepay" {
 			pod.Payment.Prepay = payAmount
 			pod.Payment.CycleAmount = cycleAmount
+			pod.Payment.User = ""
 			data.ZoneMaster.PvPut(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
 				pod,
@@ -257,15 +269,16 @@ func podItemCharge(pod *inapi.Pod) bool {
 		// 	pod.Meta.ID, pod.Payment.Payout, pod.Payment.TimeStart, pod.Payment.TimeClose)
 
 		if rsp := iamclient.AccountChargePayout(iamapi.AccountChargePayout{
-			User:      pod.Meta.User,
+			User:      payUser,
 			Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
 			Payout:    payAmount,
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
 			Comment:   strings.Join(comments, ", "),
-		}, pod_charge_iam_ak); rsp.Kind == "AccountChargePayout" {
+		}, inCfg.Config.ZoneIamAccessKey); rsp.Kind == "AccountChargePayout" {
 			pod.Payment.Payout = payAmount
 			pod.Payment.CycleAmount = cycleAmount
+			pod.Payment.User = ""
 			data.ZoneMaster.PvPut(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
 				pod,

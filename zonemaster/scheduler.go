@@ -183,6 +183,8 @@ func schedulePodListRefresh() error {
 	rss := rs.KvList()
 	for _, v := range rss {
 
+		// hlog.Printf("info", "zm/pod raw key %s", string(v.Key))
+
 		var srcPod inapi.Pod
 		if err := v.Decode(&srcPod); err != nil {
 			hlog.Printf("warn", "zm/pod data/struct err %s", err.Error())
@@ -238,7 +240,12 @@ func schedulePodListRefresh() error {
 		specRes := pod.Spec.ResComputeBound()
 
 		if specRes == nil || pod.Spec.VolSys == nil {
-			hlog.Printf("warn", "zm/scheduler pod %s, Spec.ResCompute or Spec.Volume(system) not found", pod.Meta.ID)
+			/**
+			if pod.Meta.ID == "c0b195ff7ecda586" {
+				data.ZoneMaster.PvDel(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), nil)
+			}
+			*/
+			hlog.Printf("warn", "zm/scheduler pod %s, Spec.ResCompute or Spec.Volume(system) not found, raw %s", pod.Meta.ID, inapi.ObjSprint(pod, ""))
 			continue
 		}
 
@@ -602,6 +609,12 @@ func schedulePodListQueue(cellId string) {
 		}
 
 		if podq.Operate.Version > pod.Operate.Version {
+
+			// User Transfer
+			if podq.Meta.User != pod.Meta.User &&
+				pod.Payment != nil {
+				pod.Payment.User = pod.Meta.User
+			}
 
 			pod.Meta = podq.Meta
 			pod.Spec = podq.Spec
@@ -1713,7 +1726,7 @@ func schedulePodFailover(podq *inapi.Pod) error {
 					ToUser: podq.Meta.User,
 					Title:  "Availability Issue Alert",
 					Body:   fmt.Sprintf(haEmailTemplate, podq.Meta.ID, repId, inCfg.Config.InpanelServiceUrl),
-				}, pod_charge_iam_ak); err == nil {
+				}, inCfg.Config.ZoneIamAccessKey); err == nil {
 					foRep.Action = inapi.HealthFailoverMsgSent
 					hlog.Printf("info", "zm/scheduler msg/failover-event post ok")
 				} else {
@@ -1816,7 +1829,7 @@ func schedulePodFailover(podq *inapi.Pod) error {
 				ToUser: podq.Meta.User,
 				Title:  "Availability Issue Alert",
 				Body:   fmt.Sprintf(haEmailTemplate, podq.Meta.ID, repId, inCfg.Config.InpanelServiceUrl),
-			}, pod_charge_iam_ak); err == nil {
+			}, inCfg.Config.ZoneIamAccessKey); err == nil {
 				foRep.Action = inapi.HealthFailoverMsgSent
 				hlog.Printf("info", "zm/scheduler msg/failover-event post ok")
 			} else {

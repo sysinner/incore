@@ -52,7 +52,7 @@ var (
 	ZonePodServices      struct {
 		Items []*inapi.AppServicePod `json:"items"`
 	}
-	zonePodChargeIamAccessKey = iamapi.AccessKey{
+	zonePodChargeIamAccessKey = &iamapi.AccessKey{
 		User: "sysadmin",
 	}
 	ZoneSysConfigGroupList inapi.SysConfigGroupList
@@ -93,10 +93,15 @@ func GlobalZoneCell(zoneId, cellId string) *inapi.ResCell {
 	return nil
 }
 
-func ZonePodChargeAccessKey() iamapi.AccessKey {
+func ZonePodChargeAccessKey() *iamapi.AccessKey {
 
 	if Zone != nil && len(zonePodChargeIamAccessKey.AccessKey) < 8 {
 
+		if config.Config.ZoneIamAccessKey != nil {
+			zonePodChargeIamAccessKey = config.Config.ZoneIamAccessKey
+		}
+
+		/**
 		if v, ok := Zone.OptionGet("iam/acc_charge/access_key"); ok {
 			zonePodChargeIamAccessKey.AccessKey = v
 		}
@@ -104,6 +109,7 @@ func ZonePodChargeAccessKey() iamapi.AccessKey {
 		if v, ok := Zone.OptionGet("iam/acc_charge/secret_key"); ok {
 			zonePodChargeIamAccessKey.SecretKey = v
 		}
+		*/
 	}
 
 	return zonePodChargeIamAccessKey

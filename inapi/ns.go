@@ -64,6 +64,10 @@ func NsGlobalPodInstance(podId string) string {
 	return fmt.Sprintf("/ing/pi/%s", podId)
 }
 
+func NsKvGlobalPodUserTransfer(podId string) []byte {
+	return []byte(fmt.Sprintf("ing:pod:ut:%s", podId))
+}
+
 func NsKvGlobalPodInstanceDestroyed(podId string) []byte {
 	return []byte(fmt.Sprintf("ing:pod:rm:%s", podId))
 }

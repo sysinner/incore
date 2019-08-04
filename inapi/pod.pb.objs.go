@@ -886,3 +886,112 @@ func PodOperateFailoverReplicaSliceSyncSlice(ls, ls2 []*PodOperateFailoverReplic
 	}
 	return ls2, true
 }
+
+var object_slice_mu_PodUserTransfer sync.RWMutex
+
+func (it *PodUserTransfer) Equal(it2 *PodUserTransfer) bool {
+	if it2 == nil ||
+		it.Id != it2.Id ||
+		it.Name != it2.Name ||
+		it.UserFrom != it2.UserFrom ||
+		it.UserTo != it2.UserTo ||
+		it.Created != it2.Created {
+		return false
+	}
+	return true
+}
+
+func (it *PodUserTransfer) Sync(it2 *PodUserTransfer) bool {
+	if it2 == nil {
+		return false
+	}
+	if it.Equal(it2) {
+		return false
+	}
+	*it = *it2
+	return true
+}
+
+func PodUserTransferSliceGet(ls []*PodUserTransfer, arg_id string) *PodUserTransfer {
+	object_slice_mu_PodUserTransfer.RLock()
+	defer object_slice_mu_PodUserTransfer.RUnlock()
+
+	for _, v := range ls {
+		if v.Id == arg_id {
+			return v
+		}
+	}
+	return nil
+}
+
+func PodUserTransferSliceDel(ls []*PodUserTransfer, arg_id string) ([]*PodUserTransfer, bool) {
+	object_slice_mu_PodUserTransfer.Lock()
+	defer object_slice_mu_PodUserTransfer.Unlock()
+	for i, v := range ls {
+		if v.Id == arg_id {
+			ls = append(ls[:i], ls[i+1:]...)
+			return ls, true
+		}
+	}
+	return ls, false
+}
+
+func PodUserTransferSliceEqual(ls, ls2 []*PodUserTransfer) bool {
+	object_slice_mu_PodUserTransfer.RLock()
+	defer object_slice_mu_PodUserTransfer.RUnlock()
+
+	if len(ls) != len(ls2) {
+		return false
+	}
+	hit := false
+	for _, v := range ls {
+		hit = false
+		for _, v2 := range ls2 {
+			if v.Id != v2.Id {
+				continue
+			}
+			if !v.Equal(v2) {
+				return false
+			}
+			hit = true
+			break
+		}
+		if !hit {
+			return false
+		}
+	}
+	return true
+}
+
+func PodUserTransferSliceSync(ls []*PodUserTransfer, it2 *PodUserTransfer) ([]*PodUserTransfer, bool) {
+	if it2 == nil {
+		return ls, false
+	}
+	object_slice_mu_PodUserTransfer.Lock()
+	defer object_slice_mu_PodUserTransfer.Unlock()
+
+	hit := false
+	changed := false
+	for i, v := range ls {
+		if v.Id != it2.Id {
+			continue
+		}
+		if !v.Equal(it2) {
+			ls[i], changed = it2, true
+		}
+		hit = true
+		break
+	}
+	if !hit {
+		ls = append(ls, it2)
+		changed = true
+	}
+	return ls, changed
+}
+
+func PodUserTransferSliceSyncSlice(ls, ls2 []*PodUserTransfer) ([]*PodUserTransfer, bool) {
+	if PodUserTransferSliceEqual(ls, ls2) {
+		return ls, false
+	}
+	return ls2, true
+}

@@ -109,3 +109,20 @@ message PodOperateFailoverReplica {
 message PodOperateDeploy {
   bool alloc_host_repeat_enable = 3; 
 }
+
+message PodUserTransfer {
+  string id = 1; // struct:object_slice_key
+  string name = 2;
+  string user_from = 5;
+  string user_to = 6;
+  uint32 created = 14;
+}
+
+message PodPayment {
+  uint32 time_start = 2;
+  uint32 time_close = 3;
+  double prepay = 5;
+  double payout = 6;
+  double cycle_amount = 7;
+  string user = 9;
+}

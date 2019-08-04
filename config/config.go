@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
@@ -57,6 +58,7 @@ type ConfigCommon struct {
 	Masters                   inapi.HostNodeAddresses  `json:"masters"`
 	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty"`
 	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty"`
+	ZoneIamAccessKey          *iamapi.AccessKey        `json:"zone_iam_access_key,omitempty"`
 	IoConnectors              connect.MultiConnOptions `json:"io_connects"`
 	PodHomeDir                string                   `json:"pod_home_dir"`
 	Options                   types.Labels             `json:"items,omitempty"`

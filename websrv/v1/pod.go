@@ -36,7 +36,7 @@ import (
 
 var (
 	podActionSetTimeMin   uint32 = 60
-	podActionQueueTimeMin uint32 = 600
+	podActionQueueTimeMin uint32 = 60
 )
 
 type Pod struct {
@@ -116,145 +116,161 @@ func (c Pod) ListAction() {
 
 		var pod inapi.Pod
 
-		if err := v.Decode(&pod); err == nil {
+		if err := v.Decode(&pod); err != nil {
+			continue
+		}
 
-			// TOPO
-			if c.Params.Get("filter_meta_user") == "all" &&
-				iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
-				//
-			} else if pod.Meta.User != c.us.UserName {
+		// TOPO
+		if c.Params.Get("filter_meta_user") == "all" &&
+			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+			//
+		} else if pod.Meta.User != c.us.UserName {
+			continue
+		}
+
+		if c.Params.Int64("destroy_enable") != 1 &&
+			inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
+			continue
+		}
+
+		if exp_filter_host_id != "" {
+			hostHit := false
+			for _, rep := range pod.Operate.Replicas {
+				if rep.Node == exp_filter_host_id {
+					hostHit = true
+					break
+				}
+			}
+			if !hostHit {
 				continue
 			}
+		}
 
-			if c.Params.Int64("destroy_enable") != 1 &&
-				inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
+		if action > 0 && !inapi.OpActionAllow(pod.Operate.Action, action) {
+			continue
+		}
+
+		if len(exp_filter_app_notin) > 0 {
+			found := false
+			for _, vpa := range pod.Apps {
+				if exp_filter_app_notin.Has(vpa.Spec.Meta.ID) {
+					found = true
+					break
+				}
+			}
+			if found {
 				continue
 			}
+		}
 
-			if exp_filter_host_id != "" {
-				hostHit := false
-				for _, rep := range pod.Operate.Replicas {
-					if rep.Node == exp_filter_host_id {
-						hostHit = true
-						break
-					}
-				}
-				if !hostHit {
-					continue
-				}
-			}
-
-			if action > 0 && !inapi.OpActionAllow(pod.Operate.Action, action) {
+		if exp_filter_app_spec_res.CpuMin > 0 {
+			if err := appPodResCheck(&pod, &exp_filter_app_spec_res); err != nil {
 				continue
 			}
+		}
 
-			if len(exp_filter_app_notin) > 0 {
-				found := false
-				for _, vpa := range pod.Apps {
-					if exp_filter_app_notin.Has(vpa.Spec.Meta.ID) {
-						found = true
-						break
-					}
+		if len(fields) > 0 {
+
+			podfs := &inapi.Pod{
+				Meta: types.InnerObjectMeta{
+					ID: pod.Meta.ID,
+				},
+			}
+
+			if fields.Has("meta/name") {
+				podfs.Meta.Name = pod.Meta.Name
+			}
+
+			if fields.Has("meta/updated") {
+				podfs.Meta.Updated = pod.Meta.Updated
+			}
+
+			if fields.Has("meta/user") {
+				podfs.Meta.User = pod.Meta.User
+			}
+
+			if fields.Has("spec") && pod.Spec != nil {
+				podfs.Spec = &inapi.PodSpecBound{}
+
+				if fields.Has("spec/ref/id") {
+					podfs.Spec.Ref.Id = pod.Spec.Ref.Id
 				}
-				if found {
-					continue
+
+				if fields.Has("spec/ref/name") {
+					podfs.Spec.Ref.Name = pod.Spec.Ref.Name
+				}
+
+				if fields.Has("spec/zone") {
+					podfs.Spec.Zone = pod.Spec.Zone
+				}
+
+				if fields.Has("spec/cell") {
+					podfs.Spec.Cell = pod.Spec.Cell
+				}
+
+				if fields.Has("spec/vol_sys") {
+					podfs.Spec.VolSys = pod.Spec.VolSys
+				}
+
+				if fields.Has("spec/box") {
+					podfs.Spec.Box = pod.Spec.Box
 				}
 			}
 
-			if exp_filter_app_spec_res.CpuMin > 0 {
-				if err := appPodResCheck(&pod, &exp_filter_app_spec_res); err != nil {
-					continue
+			if fields.Has("apps") {
+
+				for _, a := range pod.Apps {
+
+					afs := inapi.AppInstance{}
+
+					if fields.Has("apps/meta/id") {
+						afs.Meta.ID = a.Meta.ID
+					}
+
+					if fields.Has("apps/meta/name") {
+						afs.Meta.Name = a.Meta.Name
+					}
+
+					podfs.Apps = append(podfs.Apps, &afs)
 				}
 			}
 
-			if len(fields) > 0 {
+			if fields.Has("operate") {
 
-				podfs := &inapi.Pod{
-					Meta: types.InnerObjectMeta{
-						ID: pod.Meta.ID,
-					},
+				if fields.Has("operate/action") {
+					podfs.Operate.Action = pod.Operate.Action
 				}
 
-				if fields.Has("meta/name") {
-					podfs.Meta.Name = pod.Meta.Name
+				if fields.Has("operate/version") {
+					podfs.Operate.Version = pod.Operate.Version
 				}
 
-				if fields.Has("meta/updated") {
-					podfs.Meta.Updated = pod.Meta.Updated
+				if fields.Has("operate/replica_cap") {
+					podfs.Operate.ReplicaCap = pod.Operate.ReplicaCap
 				}
 
-				if fields.Has("meta/user") {
-					podfs.Meta.User = pod.Meta.User
+				if fields.Has("operate/replicas") {
+					podfs.Operate.Replicas = pod.Operate.Replicas
 				}
+			}
 
-				if fields.Has("spec") && pod.Spec != nil {
-					podfs.Spec = &inapi.PodSpecBound{}
+			ls.Items = append(ls.Items, podfs)
+		} else {
+			ls.Items = append(ls.Items, &pod)
+		}
+	}
 
-					if fields.Has("spec/ref/id") {
-						podfs.Spec.Ref.Id = pod.Spec.Ref.Id
-					}
-
-					if fields.Has("spec/ref/name") {
-						podfs.Spec.Ref.Name = pod.Spec.Ref.Name
-					}
-
-					if fields.Has("spec/zone") {
-						podfs.Spec.Zone = pod.Spec.Zone
-					}
-
-					if fields.Has("spec/cell") {
-						podfs.Spec.Cell = pod.Spec.Cell
-					}
-
-					if fields.Has("spec/vol_sys") {
-						podfs.Spec.VolSys = pod.Spec.VolSys
-					}
-
-					if fields.Has("spec/box") {
-						podfs.Spec.Box = pod.Spec.Box
-					}
+	if rs := data.GlobalMaster.KvScan(
+		inapi.NsKvGlobalPodUserTransfer(""),
+		inapi.NsKvGlobalPodUserTransfer("zzzz"),
+		1000); rs.OK() {
+		rss := rs.KvList()
+		for _, v := range rss {
+			var it inapi.PodUserTransfer
+			if err := v.Decode(&it); err == nil {
+				if it.UserTo == c.us.UserName {
+					ls.UserTransfers = append(ls.UserTransfers, &it)
 				}
-
-				if fields.Has("apps") {
-
-					for _, a := range pod.Apps {
-
-						afs := inapi.AppInstance{}
-
-						if fields.Has("apps/meta/id") {
-							afs.Meta.ID = a.Meta.ID
-						}
-
-						if fields.Has("apps/meta/name") {
-							afs.Meta.Name = a.Meta.Name
-						}
-
-						podfs.Apps = append(podfs.Apps, &afs)
-					}
-				}
-
-				if fields.Has("operate") {
-
-					if fields.Has("operate/action") {
-						podfs.Operate.Action = pod.Operate.Action
-					}
-
-					if fields.Has("operate/version") {
-						podfs.Operate.Version = pod.Operate.Version
-					}
-
-					if fields.Has("operate/replica_cap") {
-						podfs.Operate.ReplicaCap = pod.Operate.ReplicaCap
-					}
-
-					if fields.Has("operate/replicas") {
-						podfs.Operate.Replicas = pod.Operate.Replicas
-					}
-				}
-
-				ls.Items = append(ls.Items, podfs)
-			} else {
-				ls.Items = append(ls.Items, &pod)
 			}
 		}
 	}
@@ -578,7 +594,7 @@ func (c Pod) OpActionSetAction() {
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < podActionQueueTimeMin {
+		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return
@@ -750,7 +766,7 @@ func (c Pod) SetInfoAction() {
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < podActionQueueTimeMin {
+		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
 		}
@@ -1041,7 +1057,7 @@ func (c Pod) AccessSetAction() {
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
-		if tn-prev.Operate.Operated < podActionQueueTimeMin {
+		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
 		return
@@ -1250,7 +1266,7 @@ func (c Pod) SpecSetAction() {
 
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
 	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
-		if prev.Operate.Operated+podActionQueueTimeMin < podActionQueueTimeMin {
+		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
 		}
