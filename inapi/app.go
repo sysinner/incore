@@ -363,9 +363,9 @@ type AppOperate struct {
 	ResBoundRoles types.ArrayUint32 `json:"res_bound_roles,omitempty"`
 }
 
-func (it *AppOperate) Service(spec string, port uint32) *AppServicePort {
+func (it *AppOperate) Service(spec string, port uint32, pod_id string) *AppServicePort {
 	if len(it.Services) > 0 {
-		return AppServicePortSliceGet(it.Services, port)
+		return AppServicePortSliceGet(it.Services, port, pod_id)
 	}
 	return nil
 }

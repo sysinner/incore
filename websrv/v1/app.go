@@ -1019,7 +1019,7 @@ func (c App) ConfigRepRemotesAction() {
 					PodId: refApp.Operate.PodId,
 					AppId: v.AppId,
 				}
-				if srv := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(vsp.BoxPort)); srv == nil {
+				if srv := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(vsp.BoxPort), refApp.Operate.PodId); srv == nil {
 					app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, spSet)
 				} else {
 					srv.Sync(spSet)

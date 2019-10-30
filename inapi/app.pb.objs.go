@@ -248,23 +248,23 @@ func (it *AppServicePort) Sync(it2 *AppServicePort) bool {
 	return true
 }
 
-func AppServicePortSliceGet(ls []*AppServicePort, arg_port uint32) *AppServicePort {
+func AppServicePortSliceGet(ls []*AppServicePort, arg_port uint32, arg_podid string) *AppServicePort {
 	object_slice_mu_AppServicePort.RLock()
 	defer object_slice_mu_AppServicePort.RUnlock()
 
 	for _, v := range ls {
-		if v.Port == arg_port {
+		if v.Port == arg_port && v.PodId == arg_podid {
 			return v
 		}
 	}
 	return nil
 }
 
-func AppServicePortSliceDel(ls []*AppServicePort, arg_port uint32) ([]*AppServicePort, bool) {
+func AppServicePortSliceDel(ls []*AppServicePort, arg_port uint32, arg_podid string) ([]*AppServicePort, bool) {
 	object_slice_mu_AppServicePort.Lock()
 	defer object_slice_mu_AppServicePort.Unlock()
 	for i, v := range ls {
-		if v.Port == arg_port {
+		if v.Port == arg_port && v.PodId == arg_podid {
 			ls = append(ls[:i], ls[i+1:]...)
 			return ls, true
 		}
@@ -283,7 +283,7 @@ func AppServicePortSliceEqual(ls, ls2 []*AppServicePort) bool {
 	for _, v := range ls {
 		hit = false
 		for _, v2 := range ls2 {
-			if v.Port != v2.Port {
+			if v.Port != v2.Port || v.PodId != v2.PodId {
 				continue
 			}
 			if !v.Equal(v2) {
@@ -309,7 +309,7 @@ func AppServicePortSliceSync(ls []*AppServicePort, it2 *AppServicePort) ([]*AppS
 	hit := false
 	changed := false
 	for i, v := range ls {
-		if v.Port != it2.Port {
+		if v.Port != it2.Port || v.PodId != it2.PodId {
 			continue
 		}
 		if !v.Equal(it2) {

@@ -37,7 +37,7 @@ message AppServicePort {
     int64 updated = 3; // struct:object_slice_equal_skip
     string name = 5;
     string spec = 6;
-    string pod_id = 7;
+    string pod_id = 7; // struct:object_slice_key
     string app_id = 8;
 }
 

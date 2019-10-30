@@ -34,7 +34,7 @@ func (m *AppSpecDepend) Reset()         { *m = AppSpecDepend{} }
 func (m *AppSpecDepend) String() string { return proto.CompactTextString(m) }
 func (*AppSpecDepend) ProtoMessage()    {}
 func (*AppSpecDepend) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_9fb4dcb78a41ae50, []int{0}
+	return fileDescriptor_app_a6d2baf93302db4b, []int{0}
 }
 func (m *AppSpecDepend) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppSpecDepend.Unmarshal(m, b)
@@ -102,7 +102,7 @@ func (m *AppServiceReplica) Reset()         { *m = AppServiceReplica{} }
 func (m *AppServiceReplica) String() string { return proto.CompactTextString(m) }
 func (*AppServiceReplica) ProtoMessage()    {}
 func (*AppServiceReplica) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_9fb4dcb78a41ae50, []int{1}
+	return fileDescriptor_app_a6d2baf93302db4b, []int{1}
 }
 func (m *AppServiceReplica) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServiceReplica.Unmarshal(m, b)
@@ -160,7 +160,7 @@ func (m *AppServicePort) Reset()         { *m = AppServicePort{} }
 func (m *AppServicePort) String() string { return proto.CompactTextString(m) }
 func (*AppServicePort) ProtoMessage()    {}
 func (*AppServicePort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_9fb4dcb78a41ae50, []int{2}
+	return fileDescriptor_app_a6d2baf93302db4b, []int{2}
 }
 func (m *AppServicePort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServicePort.Unmarshal(m, b)
@@ -243,7 +243,7 @@ func (m *AppServicePortPodBind) Reset()         { *m = AppServicePortPodBind{} }
 func (m *AppServicePortPodBind) String() string { return proto.CompactTextString(m) }
 func (*AppServicePortPodBind) ProtoMessage()    {}
 func (*AppServicePortPodBind) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_9fb4dcb78a41ae50, []int{3}
+	return fileDescriptor_app_a6d2baf93302db4b, []int{3}
 }
 func (m *AppServicePortPodBind) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServicePortPodBind.Unmarshal(m, b)
@@ -304,7 +304,7 @@ func (m *AppServicePod) Reset()         { *m = AppServicePod{} }
 func (m *AppServicePod) String() string { return proto.CompactTextString(m) }
 func (*AppServicePod) ProtoMessage()    {}
 func (*AppServicePod) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_9fb4dcb78a41ae50, []int{4}
+	return fileDescriptor_app_a6d2baf93302db4b, []int{4}
 }
 func (m *AppServicePod) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServicePod.Unmarshal(m, b)
@@ -353,9 +353,9 @@ func init() {
 	proto.RegisterType((*AppServicePod)(nil), "inapi.AppServicePod")
 }
 
-func init() { proto.RegisterFile("inapi/app.proto", fileDescriptor_app_9fb4dcb78a41ae50) }
+func init() { proto.RegisterFile("inapi/app.proto", fileDescriptor_app_a6d2baf93302db4b) }
 
-var fileDescriptor_app_9fb4dcb78a41ae50 = []byte{
+var fileDescriptor_app_a6d2baf93302db4b = []byte{
 	// 354 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x92, 0x4d, 0x4b, 0x3b, 0x31,
 	0x10, 0xc6, 0xc9, 0xbe, 0xf4, 0x25, 0x7f, 0xda, 0xbf, 0x06, 0x0a, 0xc1, 0xd3, 0xb2, 0xa7, 0x82,

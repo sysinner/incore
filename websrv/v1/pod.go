@@ -36,7 +36,7 @@ import (
 
 var (
 	podActionSetTimeMin   uint32 = 60
-	podActionQueueTimeMin uint32 = 60
+	podActionQueueTimeMin uint32 = 600
 )
 
 type Pod struct {

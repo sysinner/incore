@@ -367,7 +367,7 @@ func (inst *BoxInstance) ExtHosts(excludeRep bool) []string {
 
 		for _, app := range inst.Apps {
 
-			srvPort := app.Operate.Service(app.Spec.Meta.ID, uint32(v.BoxPort))
+			srvPort := app.Operate.Service(app.Spec.Meta.ID, uint32(v.BoxPort), "")
 			if srvPort == nil {
 				continue
 			}
