@@ -106,7 +106,7 @@ func Setup() error {
 	}
 
 	//
-	if err := json.DecodeFile(Prefix+"/etc/config.json", &Config); err != nil {
+	if err := json.DecodeFile(Prefix+"/etc/config.json", &Config); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	Config.filepath = Prefix + "/etc/config.json"
