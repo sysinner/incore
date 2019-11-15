@@ -59,7 +59,8 @@ func (c *Pod) Init() int {
 }
 
 func (c *Pod) owner_or_sysadmin_allow(user, privilege string) bool {
-	if user == c.us.UserName ||
+	if c.us.UserName == user ||
+		iamapi.ArrayStringHas(c.us.Groups, user) ||
 		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
 		return true
 	}
@@ -124,7 +125,8 @@ func (c Pod) ListAction() {
 		if c.Params.Get("filter_meta_user") == "all" &&
 			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
 			//
-		} else if pod.Meta.User != c.us.UserName {
+		} else if pod.Meta.User != c.us.UserName &&
+			!iamapi.ArrayStringHas(c.us.Groups, pod.Meta.User) {
 			continue
 		}
 
@@ -349,6 +351,7 @@ func (c Pod) NewAction() {
 	var (
 		set       inapi.PodCreate
 		spec_plan inapi.PodSpecPlan
+		owner     = c.us.UserName
 	)
 
 	defer c.RenderJson(&set)
@@ -356,6 +359,15 @@ func (c Pod) NewAction() {
 	if err := c.Request.JsonDecode(&set); err != nil {
 		set.Error = types.NewErrorMeta("400", err.Error())
 		return
+	}
+
+	if set.Owner != "" {
+		if !iamapi.ArrayStringHas(c.us.Groups, set.Owner) {
+			set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied,
+				"Access Denied to bind owner to "+set.Owner)
+			return
+		}
+		owner = set.Owner
 	}
 
 	set.Name = strings.TrimSpace(set.Name)
@@ -422,7 +434,7 @@ func (c Pod) NewAction() {
 		Meta: types.InnerObjectMeta{
 			ID:      id,
 			Name:    set.Name,
-			User:    c.us.UserName,
+			User:    owner,
 			Created: tn,
 			Updated: tn,
 		},

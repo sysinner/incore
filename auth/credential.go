@@ -82,7 +82,7 @@ const (
 
 func TokenValid(ctx context.Context) error {
 
-	md, ok := metadata.FromContext(ctx)
+	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok || len(md) < 4 {
 		return grpc.Errorf(codes.Unauthenticated, "No AuthToken Found")
 	}

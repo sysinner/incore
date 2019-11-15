@@ -47,7 +47,7 @@ func Setup() error {
 		}
 
 		var (
-			db  skv.Connector
+			db  interface{} // skv.Connector
 			err error
 		)
 
@@ -86,13 +86,13 @@ func Setup() error {
 
 		switch v.Name {
 		case "in_local_cache":
-			LocalDB = db
+			LocalDB = db.(skv.Connector)
 
 		case "in_zone_master":
-			ZoneMaster = db
+			ZoneMaster = db.(skv.Connector)
 
 		case "in_global_master":
-			GlobalMaster = db
+			GlobalMaster = db.(skv.Connector)
 
 		default:
 			continue

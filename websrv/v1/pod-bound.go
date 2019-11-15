@@ -69,7 +69,8 @@ func (c *Podbound) Init() int {
 }
 
 func (c *Podbound) owner_or_sysadmin_allow(user, privilege string) bool {
-	if user == c.us.UserName ||
+	if c.us.UserName == user ||
+		iamapi.ArrayStringHas(c.us.Groups, user) ||
 		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
 		return true
 	}

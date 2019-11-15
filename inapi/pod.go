@@ -767,6 +767,7 @@ type PodSpecPlanZoneBound struct {
 
 type PodCreate struct {
 	types.TypeMeta `json:",inline"`
+	Owner          string       `json:"owner,omitempty"`
 	Pod            string       `json:"pod,omitempty"`
 	Name           string       `json:"name"`
 	Plan           string       `json:"plan"`
