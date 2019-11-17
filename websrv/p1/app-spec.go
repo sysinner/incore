@@ -38,8 +38,9 @@ func (c AppSpec) ListAction() {
 	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.GlobalMaster.PvRevScan(inapi.NsGlobalAppSpec(""), "", "", 200)
-	rss := rs.KvList()
+	rs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).
+		KeyRangeSet(inapi.NsGlobalAppSpec("zzzzzzzz"), inapi.NsGlobalAppSpec("")).
+		LimitNumSet(200).Query()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Get("fields"); fns != "" {
@@ -47,7 +48,7 @@ func (c AppSpec) ListAction() {
 		fields.Sort()
 	}
 
-	for _, v := range rss {
+	for _, v := range rs.Items {
 
 		var spec inapi.AppSpec
 		if err := v.Decode(&spec); err != nil {
@@ -169,8 +170,8 @@ func (c AppSpec) EntryAction() {
 		return
 	}
 
-	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); obj.OK() {
-		obj.Decode(&set)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
+		rs.Decode(&set)
 	}
 
 	if set.Meta.ID != c.Params.Get("id") {

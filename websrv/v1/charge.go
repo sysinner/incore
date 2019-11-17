@@ -91,7 +91,7 @@ func (c Charge) PodEstimateAction() {
 	}
 
 	//
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Plan)).Query(); rs.OK() {
 		rs.Decode(&spec_plan)
 	}
 	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
@@ -108,7 +108,7 @@ func (c Charge) PodEstimateAction() {
 
 	//
 	var zone inapi.ResZone
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalSysZone(set.Zone)); rs.OK() {
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Zone)).Query(); rs.OK() {
 		rs.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
@@ -118,7 +118,7 @@ func (c Charge) PodEstimateAction() {
 
 	//
 	var cell inapi.ResCell
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalSysCell(set.Zone, set.Cell)); rs.OK() {
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysCell(set.Zone, set.Cell)).Query(); rs.OK() {
 		rs.Decode(&cell)
 	}
 	if cell.Meta.Id == "" {

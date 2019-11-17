@@ -106,7 +106,7 @@ func (c PodStats) FeedAction() {
 		return
 	}
 
-	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(podId)); obj.OK() {
+	if obj := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(podId)).Query(); obj.OK() {
 		obj.Decode(&pod)
 		if pod.Meta.ID == "" || !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 			c.RenderJson(types.NewTypeErrorMeta("400", "Pod Not Found"))
@@ -137,18 +137,16 @@ func (c PodStats) FeedAction() {
 
 	for _, repId := range reps {
 
-		if rs := data.ZoneMaster.KvScan(
+		if rs := data.DataZone.NewReader(nil).KeyRangeSet(
 			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeStart-fq.TimeCycle-600),
-			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeCutset+600),
-			50000,
-		); rs.OK() {
+			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeCutset+600)).
+			LimitNumSet(50000).Query(); rs.OK() {
 
 			var (
-				ls    = rs.KvList()
 				ifeed inapi.PbStatsIndexFeed
 				jfeed = inapi.NewPbStatsSampleFeed(fq.TimeCycle)
 			)
-			for _, v := range ls {
+			for _, v := range rs.Items {
 
 				if err := v.Decode(&ifeed); err != nil {
 					continue

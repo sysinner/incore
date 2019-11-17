@@ -23,7 +23,6 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
-	"github.com/lynkdb/iomix/skv"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/auth"
@@ -84,7 +83,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 			pk := inapi.NsKvZoneSysHostStats(status.ZoneId, opts.Meta.Id, v.Time)
 
 			var statsIndex inapi.PbStatsIndexFeed
-			if rs := data.ZoneMaster.KvGet(pk); rs.OK() {
+			if rs := data.DataZone.NewReader(pk).Query(); rs.OK() {
 				rs.Decode(&statsIndex)
 				if statsIndex.Time < 1 {
 					continue
@@ -99,13 +98,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 			}
 
 			if len(statsIndex.Items) > 0 {
-				data.ZoneMaster.KvPut(
-					pk,
-					statsIndex,
-					&skv.KvWriteOptions{
-						Ttl: 30 * 86400000,
-					},
-				)
+				data.DataZone.NewWriter(pk, statsIndex).ExpireSet(30 * 86400 * 1000).Commit()
 			}
 		}
 		opts.Status.Stats = nil
@@ -114,7 +107,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 	//
 	if host.SyncStatus(*opts) {
 		host.Status.Updated = uint32(time.Now().Unix())
-		data.ZoneMaster.PvPut(inapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host, nil)
+		data.DataZone.NewWriter(inapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host).Commit()
 		// hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
 	}
 
@@ -158,7 +151,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 					status.ZoneId, repStatus.PodId, repStatus.RepId, "sys", iv.Time)
 
 				var statsIndex inapi.PbStatsIndexFeed
-				if rs := data.ZoneMaster.KvGet(repStatsKey); rs.OK() {
+				if rs := data.DataZone.NewReader(repStatsKey).Query(); rs.OK() {
 					rs.Decode(&statsIndex)
 					if statsIndex.Time < 1 {
 						continue
@@ -173,13 +166,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 				}
 
 				if len(statsIndex.Items) > 0 {
-					data.ZoneMaster.KvPut(
-						repStatsKey,
-						statsIndex,
-						&skv.KvWriteOptions{
-							Ttl: 30 * 86400 * 1000,
-						},
-					)
+					data.DataZone.NewWriter(repStatsKey, statsIndex).ExpireSet(30 * 86400 * 1000).Commit()
 				}
 			}
 		}
@@ -439,7 +426,7 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 	}
 
 	//
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(status.ZoneId)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(status.ZoneId)).Query(); rs.OK() {
 
 		var zone inapi.ResZone
 		if err := rs.Decode(&zone); err == nil {
@@ -454,8 +441,8 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 						addr_prev, host.Spec.PeerLanAddr)
 
 					// TOPO
-					if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysZone(status.ZoneId), zone, nil); rs.OK() {
-						data.ZoneMaster.PvPut(inapi.NsZoneSysInfo(status.ZoneId), zone, nil)
+					if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(status.ZoneId), zone).Commit(); rs.OK() {
+						data.DataZone.NewWriter(inapi.NsZoneSysInfo(status.ZoneId), zone).Commit()
 					}
 
 					break
@@ -464,18 +451,18 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 		}
 	}
 
-	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)); rs.OK() {
+	if rs := data.DataZone.NewReader(inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)).Query(); rs.OK() {
 
 		var obj inapi.ResZoneMasterNode
 		if err := rs.Decode(&obj); err == nil {
 
 			if obj.Addr == addr_prev {
 
-				data.ZoneMaster.PvPut(inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id), inapi.ResZoneMasterNode{
+				data.DataZone.NewWriter(inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id), inapi.ResZoneMasterNode{
 					Id:     host.Meta.Id,
 					Addr:   host.Spec.PeerLanAddr,
 					Action: 1,
-				}, nil)
+				}).Commit()
 
 				hlog.Printf("warn", "zm NsZoneSysMasterNode %s->%s",
 					addr_prev, host.Spec.PeerLanAddr)

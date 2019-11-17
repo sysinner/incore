@@ -55,8 +55,10 @@ func (c AppSpec) ListAction() {
 	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.GlobalMaster.PvRevScan(inapi.NsGlobalAppSpec(""), "", "", 200)
-	rss := rs.KvList()
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalAppSpec("zzzzzzzz"), inapi.NsGlobalAppSpec("")).
+		ModeRevRangeSet(true).
+		LimitNumSet(200).Query()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Get("fields"); fns != "" {
@@ -64,7 +66,7 @@ func (c AppSpec) ListAction() {
 		fields.Sort()
 	}
 
-	for _, v := range rss {
+	for _, v := range rs.Items {
 
 		var spec inapi.AppSpec
 		if err := v.Decode(&spec); err != nil {
@@ -72,8 +74,9 @@ func (c AppSpec) ListAction() {
 		}
 
 		//
-		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)); !rs.NotFound() {
-			data.GlobalMaster.KvPut(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version), spec, nil)
+		if rs := data.DataGlobal.NewReader(
+			inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)).Query(); !rs.NotFound() {
+			data.DataGlobal.NewWriter(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version), spec).Commit()
 		}
 
 		if spec.Meta.User != c.us.UserName &&
@@ -207,7 +210,7 @@ func (c AppSpec) VersionListAction() {
 	)
 
 	var spec inapi.AppSpec
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
 		rs.Decode(&spec)
 	}
 
@@ -218,17 +221,16 @@ func (c AppSpec) VersionListAction() {
 	}
 
 	// TODO
-	rs := data.GlobalMaster.KvRevScan(
+	rs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
-		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "0"),
-		1000)
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "0")).
+		LimitNumSet(1000).Query()
 	var (
-		rss         = rs.KvList()
 		prevVersion = ""
 		lastCount   = 0
 	)
 
-	for _, v := range rss {
+	for _, v := range rs.Items {
 
 		var spec inapi.AppSpec
 		if err := v.Decode(&spec); err != nil {
@@ -273,7 +275,7 @@ func (c AppSpec) ItemDelAction() {
 	}
 
 	var spec inapi.AppSpec
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
 		rs.Decode(&spec)
 	}
 
@@ -288,18 +290,17 @@ func (c AppSpec) ItemDelAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.KvScan(
+	if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, ""),
-		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, ""),
-		10000,
-	); rs.OK() {
-		rss := rs.KvList()
-		for _, v := range rss {
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "")).
+		LimitNumSet(10000).Query(); rs.OK() {
+		for _, v := range rs.Items {
 			var item inapi.AppSpec
 			if err := v.Decode(&item); err == nil {
-				if rs := data.GlobalMaster.KvDel(
-					inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, item.Meta.Version), nil); !rs.OK() {
-					set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.String())
+				if rs := data.DataGlobal.NewWriter(
+					inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, item.Meta.Version), nil).
+					ModeDeleteSet(true).Commit(); !rs.OK() {
+					set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.Message)
 					return
 				}
 			}
@@ -310,8 +311,9 @@ func (c AppSpec) ItemDelAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.PvDel(inapi.NsGlobalAppSpec(spec.Meta.ID), nil); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(spec.Meta.ID), nil).
+		ModeDeleteSet(true).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.Message)
 		return
 	}
 
@@ -337,13 +339,15 @@ func (c AppSpec) EntryAction() {
 
 	version := c.Params.Get("version")
 	if version != "" {
-		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(c.Params.Get("id"), version)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(
+			inapi.NsKvGlobalAppSpecVersion(c.Params.Get("id"), version)).Query(); rs.OK() {
 			rs.Decode(&set)
 		}
 	}
 
 	if set.Meta.ID != c.Params.Get("id") {
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(c.Params.Get("id"))); rs.OK() {
+		if rs := data.DataGlobal.NewReader(
+			inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
 			rs.Decode(&set)
 		}
 	}
@@ -354,8 +358,8 @@ func (c AppSpec) EntryAction() {
 
 		if inapi.AppIdRe2.MatchString(appId) {
 
-			if rs := data.GlobalMaster.PvGet(
-				inapi.NsGlobalAppInstance(appId)); rs.OK() {
+			if rs := data.DataGlobal.NewReader(
+				inapi.NsGlobalAppInstance(appId)).Query(); rs.OK() {
 				var app inapi.AppInstance
 				rs.Decode(&app)
 				if app.Meta.ID == appId && app.Spec.Meta.ID == c.Params.Get("id") {
@@ -384,7 +388,8 @@ func (c AppSpec) EntryAction() {
 	}
 
 	if version != "" && c.Params.Get("last_version") == "true" {
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(set.Meta.ID)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(
+			inapi.NsGlobalAppSpec(set.Meta.ID)).Query(); rs.OK() {
 			var last_spec inapi.AppSpec
 			rs.Decode(&last_spec)
 			if inapi.NewAppSpecVersion(last_spec.Meta.Version).Compare(inapi.NewAppSpecVersion(set.Meta.Version)) == 1 {
@@ -424,7 +429,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	var prev inapi.AppSpec
-	rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID))
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Query()
 	if !rs.OK() {
 		if !rs.NotFound() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
@@ -635,7 +640,7 @@ func (c AppSpec) SetAction() {
 		}
 		appSpecSets.Set(v.Id)
 
-		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)).Query(); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Internally dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -651,7 +656,8 @@ func (c AppSpec) SetAction() {
 		}
 		appSpecSets.Set(v.Id)
 
-		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)); !rs.OK() {
+		if rs := data.DataGlobal.NewReader(
+			inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)).Query(); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Remotely dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -670,7 +676,7 @@ func (c AppSpec) SetAction() {
 			return
 		}
 		id := ipapi.PackageFilenameKey(v.Name, version)
-		if rs := data.InpackData.KvGet(ipapi.DataPackKey(id)); !rs.OK() {
+		if rs := data.InpackData.NewReader(ipapi.DataPackKey(id)).Query(); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
 				ipapi.PackageFilename(v.Name, version)+") Not Found")
 			return
@@ -697,19 +703,21 @@ func (c AppSpec) SetAction() {
 
 	//
 	if setNew {
-		rs = data.GlobalMaster.PvNew(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
+		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).
+			ModeCreateSet(true).Commit()
 	} else {
-		rs = data.GlobalMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil)
+		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit()
 	}
 
 	if !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 
-	rs = data.GlobalMaster.KvPut(inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev, nil)
+	rs = data.DataGlobal.NewWriter(
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Commit()
 	if !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 	} else {
 		set.Kind = "AppSpec"
 	}
@@ -749,7 +757,7 @@ func (c AppSpec) CfgSetAction() {
 	}
 
 	var prev inapi.AppSpec
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Query(); rs.OK() {
 		rs.Decode(&prev)
 	}
 
@@ -806,14 +814,14 @@ func (c AppSpec) CfgSetAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 
-	if rs := data.GlobalMaster.KvPut(
-		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 
@@ -855,7 +863,7 @@ func (c AppSpec) CfgFieldDelAction() {
 	}
 
 	var prev inapi.AppSpec
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(req.Meta.ID)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Query(); rs.OK() {
 		rs.Decode(&prev)
 	}
 
@@ -887,14 +895,14 @@ func (c AppSpec) CfgFieldDelAction() {
 	resVersion++
 	prev.Meta.Version = strconv.Itoa(resVersion)
 
-	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalAppSpec(prev.Meta.ID), prev, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 
-	if rs := data.GlobalMaster.KvPut(
-		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 

@@ -62,16 +62,14 @@ func (c Host) NodeStatsFeedAction() {
 
 	feed := inapi.NewPbStatsSampleFeed(fq.TimeCycle)
 
-	if rs := data.ZoneMaster.KvScan(
+	if rs := data.DataZone.NewReader(nil).KeyRangeSet(
 		inapi.NsKvZoneSysHostStats(status.ZoneId, host_id, fq.TimeStart),
-		inapi.NsKvZoneSysHostStats(status.ZoneId, host_id, fq.TimeCutset+600),
-		10000,
-	); rs.OK() {
+		inapi.NsKvZoneSysHostStats(status.ZoneId, host_id, fq.TimeCutset+600)).
+		LimitNumSet(10000).Query(); rs.OK() {
 
-		ls := rs.KvList()
-		var ifeed inapi.PbStatsIndexFeed
-		for _, v := range ls {
+		for _, v := range rs.Items {
 
+			var ifeed inapi.PbStatsIndexFeed
 			if err := v.Decode(&ifeed); err != nil {
 				continue
 			}

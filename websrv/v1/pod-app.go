@@ -22,7 +22,7 @@ import (
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/config"
-	in_db "github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
 
@@ -42,7 +42,7 @@ func (c Pod) AppSyncAction() {
 		app      inapi.AppInstance
 		app_sync = false
 	)
-	rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(app_id))
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(app_id)).Query()
 	if rs.OK() {
 		rs.Decode(&app)
 	}
@@ -85,8 +85,8 @@ func (c Pod) AppSyncAction() {
 
 	if app_sync {
 		app.Meta.Updated = types.MetaTimeNow()
-		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app_id), app, nil); !rs.OK() {
-			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app_id), app).Commit(); !rs.OK() {
+			set.Error = types.NewErrorMeta("500", rs.Message)
 			return
 		}
 	}
@@ -96,9 +96,9 @@ func (c Pod) AppSyncAction() {
 	for _, dv := range app.Spec.Depends {
 
 		var dep_spec inapi.AppSpec
-		if rs := in_db.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(dv.Id, dv.Version)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalAppSpecVersion(dv.Id, dv.Version)).Query(); rs.OK() {
 			rs.Decode(&dep_spec)
-		} else if rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(dv.Id)); rs.OK() { // TODO
+		} else if rs = data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(dv.Id)).Query(); rs.OK() { // TODO
 			rs.Decode(&dep_spec)
 		}
 
@@ -167,7 +167,7 @@ func (c Pod) AppSyncAction() {
 	//
 	var pod inapi.Pod
 
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(app.Operate.PodId)).Query(); rs.OK() {
 		rs.Decode(&pod)
 	}
 	if pod.Meta.ID == "" ||
@@ -186,16 +186,16 @@ func (c Pod) AppSyncAction() {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
 	// Pod Map to Cell Queue
 	// pod.OpLogNew("app/"+app.Meta.ID, "info", "deploy sync")
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.GlobalMaster.KvPut(sqkey, pod, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(sqkey, pod).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
@@ -220,7 +220,7 @@ func (c Pod) AppSetAction() {
 
 	//
 	var pod inapi.Pod
-	obj := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId))
+	obj := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(app.Operate.PodId)).Query()
 	if obj.OK() {
 		obj.Decode(&pod)
 	}
@@ -257,15 +257,15 @@ func (c Pod) AppSetAction() {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
-		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).Commit(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.GlobalMaster.KvPut(sqkey, pod, nil); !rs.OK() {
-		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(sqkey, pod).Commit(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
@@ -300,7 +300,7 @@ func (c Pod) AppExecutorSetAction() {
 	var (
 		pod inapi.Pod
 	)
-	if obj := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.PodId)); !obj.OK() {
+	if obj := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(set.PodId)).Query(); !obj.OK() {
 
 		set.Error = types.NewErrorMeta("400", "Pod Not Found")
 		return
@@ -332,7 +332,7 @@ func (c Pod) AppExecutorSetAction() {
 
 		var spec inapi.SpecExecutor
 
-		if obj := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("executor", spec_id)); !obj.OK() {
+		if obj := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("executor", spec_id)).Query(); !obj.OK() {
 			set.Error = types.NewErrorMeta("400", "Spec Not Found")
 			return
 		} else {
@@ -360,14 +360,14 @@ func (c Pod) AppExecutorSetAction() {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(set.PodId), pod, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(set.PodId), pod).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.GlobalMaster.KvPut(sqkey, pod, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(sqkey, pod).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 

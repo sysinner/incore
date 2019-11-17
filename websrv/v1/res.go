@@ -65,8 +65,9 @@ func (c Resource) ListAction() {
 		return
 	}
 
-	rs := data.GlobalMaster.PvScan(inapi.NsGlobalResInstance(c.Params.Get("type")), "", "", 1000)
-	rss := rs.KvList()
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalResInstance(c.Params.Get("type")), inapi.NsGlobalResInstance(c.Params.Get("type"))).
+		LimitNumSet(1000).Query()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Get("fields"); fns != "" {
@@ -74,7 +75,7 @@ func (c Resource) ListAction() {
 		fields.Sort()
 	}
 
-	for _, v := range rss {
+	for _, v := range rs.Items {
 
 		var inst inapi.Resource
 

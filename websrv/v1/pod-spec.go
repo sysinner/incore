@@ -53,7 +53,7 @@ func (c PodSpec) PlanEntryAction() {
 	set := inapi.PodSpecPlan{}
 	defer c.RenderJson(&set)
 
-	rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", c.Params.Get("id")))
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Get("id"))).Query()
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta("404", "No Spec Found")
 		return
@@ -79,8 +79,10 @@ func (c PodSpec) PlanListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO
-	rss := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100).KvList()
-	for _, v := range rss {
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("plan", ""), inapi.NsGlobalPodSpec("plan", "")).
+		LimitNumSet(100).Query()
+	for _, v := range rs.Items {
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
 
@@ -103,7 +105,7 @@ func (c PodSpec) PlanListAction() {
 			}
 
 			if upgrade {
-				data.GlobalMaster.PvPut(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item, nil)
+				data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item).Commit()
 				hlog.Printf("warn", "v1 pod/spec/image upgrade %s", item.Meta.ID)
 			}
 
@@ -127,9 +129,10 @@ func (c PodSpec) ResVolumeListAction() {
 	ls := inapi.PodSpecResVolumeList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 1000)
-	rss := rs.KvList()
-	for _, v := range rss {
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("res/volume", ""), inapi.NsGlobalPodSpec("res/volume", "")).
+		LimitNumSet(1000).Query()
+	for _, v := range rs.Items {
 
 		var item inapi.PodSpecResVolume
 		if err := v.Decode(&item); err == nil {

@@ -68,17 +68,19 @@ func (c PodSpec) ResComputeListAction() {
 	}
 
 	// TODO
-	rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("res/compute", ""), "", "", 100)
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("res/compute", ""), inapi.NsGlobalPodSpec("res/compute", "")).
+		LimitNumSet(100).Query()
 	if rs.OK() {
-		rss := rs.KvList()
-		for _, v := range rss {
+		for _, v := range rs.Items {
 
 			var item inapi.PodSpecResCompute
 			if err := v.Decode(&item); err == nil {
 
 				// datafix
 				if item.Meta.ID != fmt.Sprintf("c%dm%d", item.CpuLimit, item.MemLimit) {
-					data.GlobalMaster.PvDel(inapi.NsGlobalPodSpec("res/compute", item.Meta.ID), nil)
+					data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", item.Meta.ID), nil).
+						ModeDeleteSet(true).Commit()
 					continue
 				}
 
@@ -138,17 +140,17 @@ func (c PodSpec) ResComputeNewAction() {
 	}
 	set.Status = inapi.SpecStatusActive
 
-	rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID))
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID)).Query()
 	if rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Spec Already Exists")
 		return
 	}
 
-	rs = data.GlobalMaster.PvPut(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID), set, nil)
+	rs = data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID), set).Commit()
 	if rs.OK() {
 		set.Kind = "PodSpecResCompute"
 	} else {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		set.Error = types.NewErrorMeta("500", rs.Message)
 	}
 }
 
@@ -171,7 +173,7 @@ func (c PodSpec) ResComputeSetAction() {
 	}
 
 	var prev inapi.PodSpecResCompute
-	rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID))
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID)).Query()
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Spec Not Found")
 		return
@@ -186,11 +188,11 @@ func (c PodSpec) ResComputeSetAction() {
 	prev.Status = set.Status
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	rs = data.GlobalMaster.PvPut(inapi.NsGlobalPodSpec("res/compute", prev.Meta.ID), set, nil)
+	rs = data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", prev.Meta.ID), set).Commit()
 	if !rs.OK() {
 		set.Kind = "PodSpecResCompute"
 	} else {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		set.Error = types.NewErrorMeta("500", rs.Message)
 	}
 }
 
@@ -205,9 +207,10 @@ func (c PodSpec) PlanListAction() {
 	}
 
 	// TODO
-	rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100)
-	rss := rs.KvList()
-	for _, v := range rss {
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("plan", ""), inapi.NsGlobalPodSpec("plan", "")).
+		LimitNumSet(100).Query()
+	for _, v := range rs.Items {
 
 		var item inapi.PodSpecPlan
 		if err := v.Decode(&item); err == nil {
@@ -227,7 +230,7 @@ func (c PodSpec) PlanListAction() {
 			}
 
 			if upgrade {
-				data.GlobalMaster.PvPut(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item, nil)
+				data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item).Commit()
 				hlog.Printf("warn", "v1 pod/spec/image upgrade %s", item.Meta.ID)
 			}
 
@@ -255,7 +258,7 @@ func (c PodSpec) PlanEntryAction() {
 	}
 
 	// TODO
-	rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", c.Params.Get("id")))
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Get("id"))).Query()
 	if rs.OK() {
 		rs.Decode(&set)
 	}
@@ -289,7 +292,7 @@ func (c PodSpec) PlanSetAction() {
 
 	// TODO
 	var prev inapi.PodSpecPlan
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Meta.ID)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Meta.ID)).Query(); rs.OK() {
 		rs.Decode(&prev)
 	}
 	if prev.Meta.ID == "" || prev.Meta.ID != set.Meta.ID {
@@ -300,8 +303,10 @@ func (c PodSpec) PlanSetAction() {
 
 	//
 	prev.Zones = []*inapi.PodSpecPlanZoneBound{}
-	rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
-	for _, v := range rss {
+	rss := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalSysZone(""), inapi.NsGlobalSysZone("")).
+		LimitNumSet(100).Query()
+	for _, v := range rss.Items {
 
 		var zone inapi.ResZone
 		if err := v.Decode(&zone); err != nil || zone.Meta.Id == "" {
@@ -321,8 +326,10 @@ func (c PodSpec) PlanSetAction() {
 		}
 
 		var cells types.ArrayString
-		rss2 := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(zone.Meta.Id, ""), "", "", 100).KvList()
-		for _, v2 := range rss2 {
+		rss2 := data.DataGlobal.NewReader(nil).KeyRangeSet(
+			inapi.NsGlobalSysCell(zone.Meta.Id, ""), inapi.NsGlobalSysCell(zone.Meta.Id, "")).
+			LimitNumSet(100).Query()
+		for _, v2 := range rss2.Items {
 
 			var cell inapi.ResCell
 			if err := v2.Decode(&cell); err != nil || cell.Meta.Id == "" {
@@ -352,8 +359,9 @@ func (c PodSpec) PlanSetAction() {
 		offset = inapi.NsGlobalBoxImage("", "")
 		cutset = inapi.NsGlobalBoxImage("", "")
 	)
-	rss = data.GlobalMaster.KvScan(offset, cutset, 100).KvList()
-	for _, v := range rss {
+	rss = data.DataGlobal.NewReader(nil).KeyRangeSet(offset, cutset).
+		LimitNumSet(100).Query()
+	for _, v := range rss.Items {
 
 		var item inapi.PodSpecBoxImage
 		if err := v.Decode(&item); err != nil {
@@ -387,8 +395,10 @@ func (c PodSpec) PlanSetAction() {
 
 	//
 	prev.ResComputes = inapi.PodSpecPlanResComputeBounds{}
-	rss = data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("res/compute", ""), "", "", 100).KvList()
-	for _, v := range rss {
+	rss = data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("res/compute", ""), inapi.NsGlobalPodSpec("res/compute", "")).
+		LimitNumSet(100).Query()
+	for _, v := range rss.Items {
 
 		var item inapi.PodSpecResCompute
 		if err := v.Decode(&item); err != nil {
@@ -417,8 +427,10 @@ func (c PodSpec) PlanSetAction() {
 	//
 	prev.ResVolumeDefault = ""
 	prev.ResVolumes = []*inapi.PodSpecPlanResVolumeBound{}
-	rss = data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 100).KvList()
-	for _, v := range rss {
+	rss = data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("res/volume", ""), inapi.NsGlobalPodSpec("res/volume", "")).
+		LimitNumSet(100).Query()
+	for _, v := range rss.Items {
 
 		var item inapi.PodSpecResVolume
 		if err := v.Decode(&item); err != nil {
@@ -464,10 +476,10 @@ func (c PodSpec) PlanSetAction() {
 
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalPodSpec("plan", prev.Meta.ID), prev, nil); rs.OK() {
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", prev.Meta.ID), prev).Commit(); rs.OK() {
 		set.Kind = "PodSpecPlan"
 	} else {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		set.Error = types.NewErrorMeta("500", rs.Message)
 	}
 }
 
@@ -488,8 +500,9 @@ func (c PodSpec) BoxImageListAction() {
 	)
 
 	// TODO
-	rss := data.GlobalMaster.KvScan(offset, cutset, 100).KvList()
-	for _, v := range rss {
+	rss := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, cutset).
+		LimitNumSet(100).Query()
+	for _, v := range rss.Items {
 		var item inapi.PodSpecBoxImage
 		if err := v.Decode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
@@ -553,15 +566,15 @@ func (c PodSpec) BoxImageSetAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.KvGet(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag)).Query(); rs.OK() {
 		var prev inapi.PodSpecBoxImage
 		if err := rs.Decode(&prev); err == nil {
 			setItem.Meta.Created = prev.Meta.Created
 		}
 	}
 
-	if rs := data.GlobalMaster.KvPut(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag), setItem, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag), setItem).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
@@ -579,9 +592,10 @@ func (c PodSpec) ResVolumeListAction() {
 	}
 
 	// TODO
-	rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("res/volume", ""), "", "", 100)
-	rss := rs.KvList()
-	for _, v := range rss {
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("res/volume", ""), inapi.NsGlobalPodSpec("res/volume", "")).
+		LimitNumSet(100).Query()
+	for _, v := range rs.Items {
 
 		var item inapi.PodSpecResVolume
 		if err := v.Decode(&item); err == nil {

@@ -86,8 +86,8 @@ func (c Resource) DomainAction() {
 	obj_name := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, name)
 	var prev inapi.Resource
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(obj_name)).Query(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	} else if err := rs.Decode(&prev); err != nil {
 		set.Error = types.NewErrorMeta("400", err.Error())
@@ -133,7 +133,7 @@ func (c Resource) DomainNewAction() {
 
 		obj_name_main := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, strings.Join(ar[len(ar)-2:], "."))
 
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalResInstance(obj_name_main)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(obj_name_main)).Query(); rs.OK() {
 			var res inapi.Resource
 			if err := rs.Decode(&res); err != nil {
 				set.Error = types.NewErrorMeta(inapi.ErrCodeObjectExists, "Domain Exists")
@@ -159,13 +159,13 @@ func (c Resource) DomainNewAction() {
 		Action: inapi.ResourceActionOK,
 	}
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(obj_name)).Query(); rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectExists, "Domain Exists")
 		return
 	}
 
 	//
-	data.GlobalMaster.PvPut(inapi.NsGlobalResInstance(obj_name), inst, nil)
+	data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(obj_name), inst).Commit()
 
 	set.Kind = "Resource"
 }
@@ -202,8 +202,8 @@ func (c Resource) DomainSetAction() {
 		sync = false
 	)
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(obj_name)).Query(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	} else if err := rs.Decode(&prev); err != nil {
 		set.Error = types.NewErrorMeta("400", err.Error())
@@ -237,7 +237,7 @@ func (c Resource) DomainSetAction() {
 
 	if sync {
 		prev.Meta.Updated = types.MetaTimeNow()
-		data.GlobalMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(obj_name), prev).Commit()
 	}
 
 	set.Kind = "Resource"
@@ -270,8 +270,8 @@ func (c Resource) DomainBoundAction() {
 
 	var prev inapi.Resource
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalResInstance(obj_name)); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(obj_name)).Query(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	} else if err := rs.Decode(&prev); err != nil {
 		set.Error = types.NewErrorMeta("400", err.Error())
@@ -365,7 +365,7 @@ func (c Resource) DomainBoundAction() {
 
 		prev.Meta.Updated = types.MetaTimeNow()
 		//
-		data.GlobalMaster.PvPut(inapi.NsGlobalResInstance(obj_name), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(obj_name), prev).Commit()
 	}
 
 	set.Kind = "Resource"

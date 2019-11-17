@@ -81,7 +81,7 @@ func (c *Sys) CfgAction() {
 			}
 
 			//
-			if rs := in_db.GlobalMaster.KvGet(inapi.NsGlobalSysConfig(v.Name)); rs.OK() {
+			if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysConfig(v.Name)).Query(); rs.OK() {
 				var item inapi.SysConfigGroup
 				if err := rs.Decode(&item); err == nil {
 					sysCfg.SysConfigs = append(sysCfg.SysConfigs, &item)

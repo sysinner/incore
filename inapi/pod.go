@@ -34,7 +34,7 @@ var (
 	PodSpecPlanIdReg    = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
 	PodSpecImageNameReg = regexp.MustCompile("^[a-z][a-z0-9-_/]{1,50}$")
 	PodSpecImageTagReg  = regexp.MustCompile("^[a-z0-9.-_]{1,30}$")
-	PodDestroyTTL       = uint32(86400)
+	PodDestroyTTL       = int64(86400)
 	PodPlanChargeCycle  = uint64(3600)
 )
 

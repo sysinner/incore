@@ -17,7 +17,7 @@ package ops
 import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
+	"github.com/lynkdb/iomix/sko"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/config"
@@ -33,18 +33,21 @@ func (c Host) NodeListAction() {
 		zoneid = c.Params.Get("zoneid")
 		cellid = c.Params.Get("cellid")
 		sets   inapi.GeneralObjectList
-		rs     skv.Result
+		rs     *sko.ObjectResult
 	)
 	defer c.RenderJson(&sets)
 
 	if zoneid == status.ZoneId {
-		rs = data.ZoneMaster.PvScan(inapi.NsZoneSysHost(zoneid, ""), "", "", 1000)
+		rs = data.DataZone.NewReader(nil).KeyRangeSet(
+			inapi.NsZoneSysHost(zoneid, ""), inapi.NsZoneSysHost(zoneid, "")).
+			LimitNumSet(1000).Query()
 	} else {
-		rs = data.GlobalMaster.PvScan(inapi.NsGlobalSysHost(zoneid, ""), "", "", 1000)
+		rs = data.DataGlobal.NewReader(nil).KeyRangeSet(
+			inapi.NsGlobalSysHost(zoneid, ""), inapi.NsGlobalSysHost(zoneid, "")).
+			LimitNumSet(1000).Query()
 	}
-	rss := rs.KvList()
 
-	for _, v := range rss {
+	for _, v := range rs.Items {
 
 		var node inapi.ResHost
 
@@ -71,14 +74,14 @@ func (c Host) NodeEntryAction() {
 			inapi.GeneralObject
 			inapi.ResHost
 		}
-		rs skv.Result
+		rs *sko.ObjectResult
 	)
 	defer c.RenderJson(&node)
 
 	if zoneid == status.ZoneId {
-		rs = data.ZoneMaster.PvGet(inapi.NsZoneSysHost(zoneid, nodeid))
+		rs = data.DataZone.NewReader(inapi.NsZoneSysHost(zoneid, nodeid)).Query()
 	} else {
-		rs = data.GlobalMaster.PvGet(inapi.NsGlobalSysHost(zoneid, nodeid))
+		rs = data.DataGlobal.NewReader(inapi.NsGlobalSysHost(zoneid, nodeid)).Query()
 	}
 	if rs.OK() {
 		if err := rs.Decode(&node.ResHost); err != nil {
@@ -129,7 +132,7 @@ func (c Host) NodeNewAction() {
 	}
 
 	var cell inapi.ResCell
-	if rs := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(set.ZoneId, set.CellId)); !rs.OK() {
+	if rs := data.DataZone.NewReader(inapi.NsZoneSysCell(set.ZoneId, set.CellId)).Query(); !rs.OK() {
 		set.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
 		return
 	} else {
@@ -196,26 +199,26 @@ func (c Host) NodeNewAction() {
 
 	status.ZoneHostList.Sync(*node)
 
-	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
 	}
 
-	if rs := data.ZoneMaster.PvPut(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node, nil); !rs.OK() {
+	if rs := data.DataZone.NewWriter(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
 	}
 
-	data.ZoneMaster.PvPut(
-		inapi.NsZoneSysHostSecretKey(set.ZoneId, node.Meta.Id), set.SecretKey, nil)
+	data.DataZone.NewWriter(
+		inapi.NsZoneSysHostSecretKey(set.ZoneId, node.Meta.Id), set.SecretKey).Commit()
 
 	status.ZoneHostSecretKeys.Set(node.Meta.Id, set.SecretKey)
 
 	cell.NodeNum++
 
 	// TOPO
-	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell, nil); rs.OK() {
-		data.ZoneMaster.PvPut(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell, nil)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell).Commit(); rs.OK() {
+		data.DataZone.NewWriter(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell).Commit()
 	} else {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
@@ -280,12 +283,12 @@ func (c Host) NodeSetAction() {
 		prev.Operate.Pr = inapi.ResSysHostPriorityDefault
 	}
 
-	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
 	}
 
-	if rs := data.ZoneMaster.PvPut(inapi.NsZoneSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev, nil); !rs.OK() {
+	if rs := data.DataZone.NewWriter(inapi.NsZoneSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
 	}
@@ -324,8 +327,8 @@ func (c Host) NodeSecretKeySetAction() {
 		return
 	}
 
-	data.ZoneMaster.PvPut(
-		inapi.NsZoneSysHostSecretKey(prev.Operate.ZoneId, set.NodeId), set.SecretKey, nil)
+	data.DataZone.NewWriter(
+		inapi.NsZoneSysHostSecretKey(prev.Operate.ZoneId, set.NodeId), set.SecretKey).Commit()
 
 	status.ZoneHostSecretKeys.Set(set.NodeId, set.SecretKey)
 

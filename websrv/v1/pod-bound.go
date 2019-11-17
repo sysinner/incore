@@ -29,7 +29,6 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 	"github.com/yhat/wsutil"
 
 	"github.com/hooto/iam/iamapi"
@@ -90,7 +89,7 @@ func (c Podbound) IndexAction() {
 
 	var pod inapi.Pod
 
-	rs := data.LocalDB.KvGet(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id))
+	rs := data.LocalDB.NewReader(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id)).Query()
 	if rs.OK() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
@@ -98,9 +97,7 @@ func (c Podbound) IndexAction() {
 		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.KvPut(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvWriteOptions{
-				Ttl: 3600000,
-			})
+			data.LocalDB.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).ExpireSet(3600000).Commit()
 		}
 	}
 
@@ -185,7 +182,7 @@ func pbPodInstanceSpec(pod_id string, rep_id uint32) *inapi.Pod {
 
 	var pod inapi.Pod
 
-	rs := data.LocalDB.KvGet(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id))
+	rs := data.LocalDB.NewReader(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id)).Query()
 	if rs.OK() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
@@ -193,9 +190,7 @@ func pbPodInstanceSpec(pod_id string, rep_id uint32) *inapi.Pod {
 		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.LocalDB.KvPut(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod, &skv.KvWriteOptions{
-				Ttl: 3600000,
-			})
+			data.LocalDB.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).ExpireSet(3600000).Commit()
 		}
 	}
 

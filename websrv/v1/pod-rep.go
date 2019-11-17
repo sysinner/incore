@@ -92,7 +92,7 @@ func (c PodRep) SetAction() {
 		podGlobalKey = inapi.NsGlobalPodInstance(item.Meta.ID)
 		prev         inapi.Pod
 	)
-	if rs := data.GlobalMaster.PvGet(podGlobalKey); !rs.OK() {
+	if rs := data.DataGlobal.NewReader(podGlobalKey).Query(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Pod Not Found")
 		return
 	} else {
@@ -127,7 +127,7 @@ func (c PodRep) SetAction() {
 
 	// Pod Map to Cell Queue
 	podQueueKey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.KvGet(podQueueKey); rs.OK() {
+	if rs := data.DataGlobal.NewReader(podQueueKey).Query(); rs.OK() {
 		if tn-prev.Operate.Operated < podActionQueueTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"the previous operation is in processing, please try again later")
@@ -138,7 +138,7 @@ func (c PodRep) SetAction() {
 	prev.Operate.Version++
 	prev.Operate.Operated = tn
 
-	if rs := data.GlobalMaster.PvPut(podGlobalKey, prev, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(podGlobalKey, prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError,
 			"server error, please try again later")
 		return
@@ -159,7 +159,7 @@ func (c PodRep) SetAction() {
 		}
 	}
 
-	if rs := data.GlobalMaster.KvPut(podQueueKey, prev, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(podQueueKey, prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError,
 			"server error, please try again later")
 		return

@@ -29,15 +29,16 @@ func (c Host) CellListAction() {
 	zones := []string{}
 
 	if zoneid := c.Params.Get("zoneid"); zoneid != "" {
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(zoneid)).Query(); !rs.OK() {
 			sets.Error = types.NewErrorMeta("404", "Zone Not Found")
 			return
 		}
 		zones = append(zones, zoneid)
 	} else {
 
-		rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysZone(""), "", "", 100).KvList()
-		for _, v := range rss {
+		rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+			inapi.NsGlobalSysZone(""), inapi.NsGlobalSysZone("")).LimitNumSet(100).Query()
+		for _, v := range rs.Items {
 			var zone inapi.ResZone
 			if err := v.Decode(&zone); err == nil {
 				zones = append(zones, zone.Meta.Id)
@@ -47,8 +48,9 @@ func (c Host) CellListAction() {
 
 	//
 	for _, z := range zones {
-		rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(z, ""), "", "", 100).KvList()
-		for _, v := range rss {
+		rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+			inapi.NsGlobalSysCell(z, ""), inapi.NsGlobalSysCell(z, "")).LimitNumSet(100).Query()
+		for _, v := range rs.Items {
 			var cell inapi.ResCell
 			if err := v.Decode(&cell); err == nil {
 				sets.Items = append(sets.Items, cell)
@@ -67,7 +69,8 @@ func (c Host) CellEntryAction() {
 	}
 	defer c.RenderJson(&set)
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))); rs.OK() {
+	if rs := data.DataGlobal.NewReader(
+		inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))).Query(); rs.OK() {
 		rs.Decode(&set.ResCell)
 	}
 

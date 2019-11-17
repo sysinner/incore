@@ -63,9 +63,10 @@ func podChargeRefresh() error {
 
 	// TODO
 	pod_specPlans = []*inapi.PodSpecPlan{}
-	if rs := data.GlobalMaster.PvScan(inapi.NsGlobalPodSpec("plan", ""), "", "", 100); rs.OK() {
-		rss := rs.KvList()
-		for _, v := range rss {
+	if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalPodSpec("plan", ""), inapi.NsGlobalPodSpec("plan", "")).
+		LimitNumSet(100).Query(); rs.OK() {
+		for _, v := range rs.Items {
 			var item inapi.PodSpecPlan
 			if err := v.Decode(&item); err == nil {
 				item.ChargeFix()
@@ -162,11 +163,8 @@ func podItemCharge(pod *inapi.Pod) bool {
 	if cycleAmount == 0 || repNum == 0 {
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 			pod.Payment.TimeClose = tn
-			data.ZoneMaster.PvPut(
-				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
-				pod,
-				nil,
-			)
+			data.DataZone.NewWriter(
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
 		}
 		return false
 	}
@@ -239,11 +237,8 @@ func podItemCharge(pod *inapi.Pod) bool {
 			pod.Payment.Prepay = payAmount
 			pod.Payment.CycleAmount = cycleAmount
 			pod.Payment.User = ""
-			data.ZoneMaster.PvPut(
-				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
-				pod,
-				nil,
-			)
+			data.DataZone.NewWriter(
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
 		} else {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
@@ -252,11 +247,8 @@ func podItemCharge(pod *inapi.Pod) bool {
 					pod.Operate.OpLog, _ = inapi.PbOpLogEntrySliceSync(pod.Operate.OpLog,
 						inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleCharge, inapi.PbOpLogWarn, rsp.Error.Message))
 
-					data.ZoneMaster.PvPut(
-						inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
-						pod,
-						nil,
-					)
+					data.DataZone.NewWriter(
+						inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
 				}
 				hlog.Printf("error", "Pod %s AccountChargePrepay %f %s",
 					pod.Meta.ID, pod.Payment.Prepay, rsp.Error.Code+" : "+rsp.Error.Message)
@@ -279,11 +271,8 @@ func podItemCharge(pod *inapi.Pod) bool {
 			pod.Payment.Payout = payAmount
 			pod.Payment.CycleAmount = cycleAmount
 			pod.Payment.User = ""
-			data.ZoneMaster.PvPut(
-				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID),
-				pod,
-				nil,
-			)
+			data.DataZone.NewWriter(
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
 		} else {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
@@ -315,11 +304,11 @@ func podEntryChargeOut(pod_id string) {
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.ZoneMaster.PvPut(inapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev, nil)
+	data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev).Commit()
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	data.GlobalMaster.KvPut(sqkey, prev, nil)
+	data.DataGlobal.NewWriter(sqkey, prev).Commit()
 
 	hlog.Printf("info", "Pod %s AccountChargeOut", prev.Meta.ID)
 }

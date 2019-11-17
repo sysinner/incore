@@ -30,11 +30,11 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
+	"github.com/lynkdb/iomix/sko"
 	iox_utils "github.com/lynkdb/iomix/utils"
 
 	"github.com/sysinner/incore/config"
-	in_db "github.com/sysinner/incore/data"
+	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 )
 
@@ -71,8 +71,9 @@ func (c App) ListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	rs := in_db.GlobalMaster.PvRevScan(inapi.NsGlobalAppInstance(""), "", "", 10000)
-	rss := rs.KvList()
+	rs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).
+		KeyRangeSet(inapi.NsGlobalAppInstance("zzzzzzzz"), inapi.NsGlobalAppInstance("")).
+		LimitNumSet(10000).Query()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Get("fields"); fns != "" {
@@ -80,7 +81,7 @@ func (c App) ListAction() {
 		fields.Sort()
 	}
 
-	for _, v := range rss {
+	for _, v := range rs.Items {
 
 		var inst inapi.AppInstance
 
@@ -97,16 +98,17 @@ func (c App) ListAction() {
 		}
 
 		// UPGRADE 0.3.5 to 0.3.6
+		/**
 		if inapi.OpActionAllow(inst.Operate.Action, inapi.OpActionDestroy) {
 			if m := v.Meta(); m == nil || m.Expired == 0 {
-				if rs := in_db.GlobalMaster.KvPut(inapi.NsKvGlobalAppInstanceDestroyed(inst.Meta.ID), inst, nil); rs.OK() {
-					in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(inst.Meta.ID), inst, &skv.KvProgWriteOptions{
-						Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
-					})
+				if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(inst.Meta.ID), inst).Commit(); rs.OK() {
+					data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(inst.Meta.ID), inst).
+						ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
 				}
 			}
 			continue
 		}
+		*/
 
 		if c.Params.Get("spec_id") != "" {
 			if inst.Spec.Meta.ID != c.Params.Get("spec_id") {
@@ -191,7 +193,7 @@ func (c App) ListAction() {
 func (c App) EntryAction() {
 
 	var app inapi.AppInstance
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(c.Params.Get("id"))); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(c.Params.Get("id"))).Query(); rs.OK() {
 		rs.Decode(&app)
 	}
 
@@ -238,7 +240,7 @@ func (c App) SetAction() {
 
 	} else {
 
-		if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Meta.ID)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Meta.ID)).Query(); rs.OK() {
 			rs.Decode(&prev)
 		}
 
@@ -269,14 +271,15 @@ func (c App) SetAction() {
 
 	prev.Meta.Updated = tn
 
-	var rs skv.Result
+	var rs *sko.ObjectResult
 	if prev.Spec.Meta.Version != "" {
-		rs = in_db.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version))
+		rs = data.DataGlobal.NewReader(
+			inapi.NsKvGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version)).Query()
 		if !rs.OK() {
-			rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
+			rs = data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID)).Query()
 		}
 	} else {
-		rs = in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID))
+		rs = data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID)).Query()
 	}
 	var spec inapi.AppSpec
 	if rs.OK() {
@@ -304,7 +307,7 @@ func (c App) SetAction() {
 		}
 
 		var pod inapi.Pod
-		if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(prev.Operate.PodId)); !rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(prev.Operate.PodId)).Query(); !rs.OK() {
 			rsp.Error = types.NewErrorMeta("500", "Server Error")
 			return
 		} else {
@@ -326,14 +329,14 @@ func (c App) SetAction() {
 			return
 		}
 
-		rs = in_db.GlobalMaster.PvNew(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
+		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).ModeCreateSet(true).Commit()
 	} else {
 
-		rs = in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, nil)
+		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).Commit()
 	}
 
 	if !rs.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 
@@ -344,10 +347,9 @@ func (c App) SetAction() {
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		if rs := in_db.GlobalMaster.KvPut(inapi.NsKvGlobalAppInstanceDestroyed(prev.Meta.ID), prev, nil); rs.OK() {
-			rs = in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
-				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
-			})
+		if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(prev.Meta.ID), prev).Commit(); rs.OK() {
+			rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).
+				ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
 		}
 	}
 	rsp.Meta.ID = prev.Meta.ID
@@ -457,9 +459,10 @@ func (c App) ListOpResAction() {
 	}
 
 	// TODO pager
-	rs := in_db.GlobalMaster.PvScan(inapi.NsGlobalAppInstance(""), "", "", 1000)
-	rss := rs.KvList()
-	for _, v := range rss {
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalAppInstance(""), inapi.NsGlobalAppInstance("")).
+		LimitNumSet(1000).Query()
+	for _, v := range rs.Items {
 
 		var inst inapi.AppInstance
 
@@ -534,7 +537,7 @@ func (c App) OpActionSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(app_id)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(app_id)).Query(); rs.OK() {
 		rs.Decode(&app)
 	}
 	if app.Meta.ID != app_id ||
@@ -562,8 +565,8 @@ func (c App) OpActionSetAction() {
 		app.Operate.Action = op_action
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 			return
 		}
 	}
@@ -573,10 +576,9 @@ func (c App) OpActionSetAction() {
 	}
 
 	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
-		if rs := in_db.GlobalMaster.KvPut(inapi.NsKvGlobalAppInstanceDestroyed(app.Meta.ID), app, nil); rs.OK() {
-			in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, &skv.KvProgWriteOptions{
-				Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
-			})
+		if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(app.Meta.ID), app).Commit(); rs.OK() {
+			data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).
+				ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
 		}
 	}
 
@@ -590,8 +592,8 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	}
 
 	var pod inapi.Pod
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(app.Operate.PodId)); !rs.OK() {
-		return types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(app.Operate.PodId)).Query(); !rs.OK() {
+		return types.NewErrorMeta("500", rs.Message)
 	} else {
 		rs.Decode(&pod)
 	}
@@ -606,14 +608,14 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
-		return types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).Commit(); !rs.OK() {
+		return types.NewErrorMeta("500", rs.Message)
 	}
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := in_db.GlobalMaster.KvPut(sqkey, pod, nil); !rs.OK() {
-		return types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(sqkey, pod).Commit(); !rs.OK() {
+		return types.NewErrorMeta("500", rs.Message)
 	}
 
 	hlog.Printf("info", "deploy app/%s to pod/%s", app.Meta.ID, pod.Meta.ID)
@@ -635,8 +637,8 @@ func (c App) OpResSetAction() {
 
 	//
 	var res inapi.Resource
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalResInstance(set.Meta.Name)); !rs.OK() {
-		rsp.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(set.Meta.Name)).Query(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	} else if err := rs.Decode(&res); err != nil {
 		rsp.Error = types.NewErrorMeta("400", err.Error())
@@ -655,7 +657,7 @@ func (c App) OpResSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Operate.AppId)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Operate.AppId)).Query(); rs.OK() {
 		rs.Decode(&app)
 	}
 	if app.Meta.ID == "" ||
@@ -717,14 +719,14 @@ func (c App) OpResSetAction() {
 		res.Meta.Updated = types.MetaTime(opt.Updated)
 
 		//
-		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalResInstance(res.Meta.Name), res, nil); !rs.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(res.Meta.Name), res).Commit(); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 			return
 		}
 		// }
 
-		if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 			return
 		}
 
@@ -765,7 +767,7 @@ func (c App) ConfigAction() {
 	}
 
 	var app inapi.AppInstance
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Id)).Query(); rs.OK() {
 		rs.Decode(&app)
 	}
 
@@ -789,11 +791,11 @@ func (c App) ConfigAction() {
 			}
 
 			var app_spec inapi.AppSpec
-			if rs := in_db.GlobalMaster.KvGet(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)); rs.OK() {
+			if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)).Query(); rs.OK() {
 				rs.Decode(&app_spec)
 			}
 			if app_spec.Meta.ID != v.Id { // TODO
-				if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(v.Id)); rs.OK() {
+				if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v.Id)).Query(); rs.OK() {
 					rs.Decode(&app_spec)
 				}
 			}
@@ -887,8 +889,8 @@ func (c App) ConfigAction() {
 	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 
@@ -913,7 +915,7 @@ func (c App) ConfigRepRemotesAction() {
 	}
 
 	var app inapi.AppInstance
-	if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(set.Id)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Id)).Query(); rs.OK() {
 		rs.Decode(&app)
 	}
 
@@ -937,7 +939,7 @@ func (c App) ConfigRepRemotesAction() {
 
 			//
 			var refApp inapi.AppInstance
-			if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(v.AppId)); rs.OK() {
+			if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.AppId)).Query(); rs.OK() {
 				rs.Decode(&refApp)
 			}
 			if refApp.Meta.ID != v.AppId {
@@ -970,7 +972,7 @@ func (c App) ConfigRepRemotesAction() {
 				// clean prev settings
 				if optRefCfg != nil && optRefCfg.Ref != nil && optRefCfg.Ref.AppId != v.AppId {
 
-					if rs := in_db.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(optRefCfg.Ref.AppId)); rs.OK() {
+					if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(optRefCfg.Ref.AppId)).Query(); rs.OK() {
 
 						var refAppPrev inapi.AppInstance
 						rs.Decode(&refAppPrev)
@@ -982,8 +984,8 @@ func (c App) ConfigRepRemotesAction() {
 								refAppPrevOpt.Subs.Remove(app.Meta.ID)
 								refAppPrev.Operate.Options.Sync(*refAppPrevOpt)
 
-								if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev, nil); !rs.OK() {
-									rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+								if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev).Commit(); !rs.OK() {
+									rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 									return
 								}
 							}
@@ -994,8 +996,8 @@ func (c App) ConfigRepRemotesAction() {
 				//
 				refAppOpt.Subs.Insert(app.Meta.ID)
 				refApp.Operate.Options.Sync(*refAppOpt)
-				if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp, nil); !rs.OK() {
-					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+				if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp).Commit(); !rs.OK() {
+					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 					return
 				}
 
@@ -1030,8 +1032,8 @@ func (c App) ConfigRepRemotesAction() {
 
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if rs := in_db.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(app.Meta.ID), app, nil); !rs.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
 		return
 	}
 

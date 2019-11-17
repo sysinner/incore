@@ -48,7 +48,7 @@ func InitData(items map[string]interface{}) error {
 
 	for k, v := range items {
 
-		if rs := data.LocalDB.PvPut(k, v, nil); !rs.OK() {
+		if rs := data.LocalDB.NewWriter([]byte(k), v).Commit(); !rs.OK() {
 			return fmt.Errorf("hostlet.initdata error on put key : %s", k)
 		}
 

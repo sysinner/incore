@@ -208,10 +208,12 @@ func (it *ConfigCommon) SetupHost() error {
 func (it *ConfigCommon) setupDataConnect() error {
 
 	conns := []types.NameIdentifier{
-		"in_local_cache",
+		"db_local",
 	}
 	if IsZoneMaster() {
 		conns = append(conns, []types.NameIdentifier{
+			"db_zone",
+			"db_global",
 			"in_zone_master",
 			"in_global_master",
 		}...)
@@ -221,14 +223,16 @@ func (it *ConfigCommon) setupDataConnect() error {
 		opts := Config.IoConnectors.Options(opName)
 		if opts == nil {
 			opts = &connect.ConnOptions{
-				Name:         opName,
-				Connector:    "iomix/skv/connector",
-				Driver:       types.NewNameIdentifier("lynkdb/kvgo"),
-				DriverPlugin: types.NewNameIdentifier("lynkdb-kvgo.so"),
+				Name:      opName,
+				Connector: "iomix/skv/connector",
+				Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
 			}
 		}
 		if opts.Value("data_dir") == "" {
 			opts.SetValue("data_dir", Prefix+"/var/"+string(opName))
+			opts.SetValue("lynkdb/sskv/compaction_table_size", "8")
+			opts.SetValue("lynkdb/sskv/write_buffer", "4")
+			opts.SetValue("lynkdb/sskv/cache_capacity", "16")
 		}
 		Config.IoConnectors.SetOptions(*opts)
 	}
@@ -253,16 +257,6 @@ func setupUser() error {
 			return err
 		}
 	}
-
-	// if _, err := exec.Command(
-	// 	"/usr/sbin/usermod",
-	// 	"-a",
-	// 	"-G",
-	// 	User.Username,
-	// 	"nginx",
-	// ).Output(); err != nil {
-	// 	return err
-	// }
 
 	return nil
 }

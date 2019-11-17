@@ -20,27 +20,35 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lynkdb/iomix/connect"
+	"github.com/lynkdb/iomix/sko"
 	"github.com/lynkdb/iomix/skv"
 	"github.com/lynkdb/kvgo"
 
 	in_cfg "github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/version"
 )
 
 var (
-	LocalDB      skv.Connector
 	ZoneMaster   skv.Connector
 	GlobalMaster skv.Connector
-	InpackData   skv.Connector
+	LocalDB      sko.ClientConnector
+	InpackData   sko.ClientConnector
+	DataGlobal   sko.ClientConnector
+	DataZone     sko.ClientConnector
 )
 
 func Setup() error {
 
+	upgradeDriver := ""
+
 	for _, v := range in_cfg.Config.IoConnectors {
 
 		switch v.Name {
-		case "in_local_cache":
 		case "in_zone_master":
 		case "in_global_master":
+		case "db_local":
+		case "db_zone":
+		case "db_global":
 
 		default:
 			continue
@@ -54,8 +62,11 @@ func Setup() error {
 		if v.Driver == "lynkdb/kvgo" {
 
 			hlog.Printf("info", "DataConnector (%s) Open %s", v.Name, v.Driver)
-
-			db, err = kvgo.Open(*v)
+			if v.Name[:3] == "db_" {
+				db, err = kvgo.SkoOpen(*v)
+			} else {
+				db, err = kvgo.Open(*v)
+			}
 
 		} else {
 
@@ -77,16 +88,23 @@ func Setup() error {
 				return fmt.Errorf("No Plugin/Method (%s) Found", "NewConnector")
 			}
 
+			upgradeDriver = "lynkstorgo"
 			db, err = fn(v)
 		}
 
 		if err != nil {
-			return err
+			return fmt.Errorf("setup %s err %s", v.Name, err.Error())
 		}
 
 		switch v.Name {
-		case "in_local_cache":
-			LocalDB = db.(skv.Connector)
+		case "db_local":
+			LocalDB = db.(sko.ClientConnector)
+
+		case "db_zone":
+			DataZone = db.(sko.ClientConnector)
+
+		case "db_global":
+			DataGlobal = db.(sko.ClientConnector)
 
 		case "in_zone_master":
 			ZoneMaster = db.(skv.Connector)
@@ -102,16 +120,40 @@ func Setup() error {
 	}
 
 	if LocalDB == nil {
-		return fmt.Errorf("No DataConnector (%s) Setup", "in_local_cache")
+		return fmt.Errorf("No DataConnector (%s) Setup", "db_local")
 	}
 
 	if in_cfg.IsZoneMaster() {
 
-		if ZoneMaster == nil {
-			return fmt.Errorf("No DataConnector (%s) Setup", "in_zone_master")
-		}
 		if GlobalMaster == nil {
-			return fmt.Errorf("No DataConnector (%s) Setup", "in_global_master")
+			return fmt.Errorf("No DataConnector (%s) Setup", "global_master")
+		}
+		if ZoneMaster == nil {
+			return fmt.Errorf("No DataConnector (%s) Setup", "zone_master")
+		}
+
+		if DataZone == nil {
+			return fmt.Errorf("No DataConnector (%s) Setup", "db_zone")
+		}
+		if DataGlobal == nil {
+			return fmt.Errorf("No DataConnector (%s) Setup", "db_global")
+		}
+	}
+
+	if version.Version == "0.9.1" {
+
+		if GlobalMaster != nil {
+			if err := upgrade_v091(upgradeDriver, GlobalMaster, DataGlobal); err != nil {
+				return err
+			}
+			hlog.Printf("info", "Upgrade GlobalMaster Done")
+		}
+
+		if ZoneMaster != nil {
+			if err := upgrade_v091(upgradeDriver, ZoneMaster, DataZone); err != nil {
+				return err
+			}
+			hlog.Printf("info", "Upgrade ZoneMaster Done")
 		}
 	}
 

@@ -25,7 +25,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
+	"github.com/lynkdb/iomix/sko"
 	iox_utils "github.com/lynkdb/iomix/utils"
 
 	"github.com/sysinner/incore/config"
@@ -76,13 +76,16 @@ func (c Pod) ListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	var rs skv.Result
+	var rs *sko.ObjectResult
 	if zone_id := c.Params.Get("zone_id"); zone_id != "" {
-		rs = data.ZoneMaster.PvRevScan(inapi.NsZonePodInstance(zone_id, ""), "", "", 10000)
+		rs = data.DataZone.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
+			inapi.NsZonePodInstance(zone_id, "zzzz"), inapi.NsZonePodInstance(zone_id, "")).
+			LimitNumSet(10000).Query()
 	} else {
-		rs = data.GlobalMaster.PvRevScan(inapi.NsGlobalPodInstance(""), "", "", 10000)
+		rs = data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
+			inapi.NsGlobalPodInstance("zzzz"), inapi.NsGlobalPodInstance("")).
+			LimitNumSet(10000).Query()
 	}
-	rss := rs.KvList()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Get("fields"); fns != "" {
@@ -97,7 +100,7 @@ func (c Pod) ListAction() {
 
 	var exp_filter_app_spec_res inapi.AppSpecResRequirements
 	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v)).Query(); rs.OK() {
 			var spec inapi.AppSpec
 			rs.Decode(&spec)
 			if spec.Meta.ID == v {
@@ -113,7 +116,7 @@ func (c Pod) ListAction() {
 
 	action := uint32(c.Params.Uint64("operate_action"))
 
-	for _, v := range rss {
+	for _, v := range rs.Items {
 
 		var pod inapi.Pod
 
@@ -262,12 +265,11 @@ func (c Pod) ListAction() {
 		}
 	}
 
-	if rs := data.GlobalMaster.KvScan(
-		inapi.NsKvGlobalPodUserTransfer(""),
-		inapi.NsKvGlobalPodUserTransfer("zzzz"),
-		1000); rs.OK() {
-		rss := rs.KvList()
-		for _, v := range rss {
+	if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsKvGlobalPodUserTransfer(""), inapi.NsKvGlobalPodUserTransfer("")).
+		LimitNumSet(1000).Query(); rs.OK() {
+
+		for _, v := range rs.Items {
 			var it inapi.PodUserTransfer
 			if err := v.Decode(&it); err == nil {
 				if it.UserTo == c.us.UserName {
@@ -292,7 +294,7 @@ func (c Pod) EntryAction() {
 	defer c.RenderJson(&set)
 
 	if zone_id == "" {
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(id)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(id)).Query(); rs.OK() {
 			if err := rs.Decode(&set); err != nil {
 				set.Error = types.NewErrorMeta("404", "Pod Not Found "+err.Error())
 				return
@@ -310,7 +312,7 @@ func (c Pod) EntryAction() {
 
 	if zone_id != "" {
 
-		if rs := data.ZoneMaster.PvGet(inapi.NsZonePodInstance(zone_id, id)); rs.OK() {
+		if rs := data.DataZone.NewReader(inapi.NsZonePodInstance(zone_id, id)).Query(); rs.OK() {
 			if err := rs.Decode(&set); err != nil {
 				set.Error = types.NewErrorMeta("404", "Pod Not Found "+err.Error())
 				return
@@ -361,7 +363,7 @@ func (c Pod) NewAction() {
 		return
 	}
 
-	if set.Owner != "" {
+	if set.Owner != "" && set.Owner != c.us.UserName {
 		if !iamapi.ArrayStringHas(c.us.Groups, set.Owner) {
 			set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied,
 				"Access Denied to bind owner to "+set.Owner)
@@ -377,7 +379,7 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Plan)).Query(); rs.OK() {
 		rs.Decode(&spec_plan)
 	}
 	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
@@ -394,7 +396,7 @@ func (c Pod) NewAction() {
 
 	//
 	var zone inapi.ResZone
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(set.Zone)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Zone)).Query(); rs.OK() {
 		rs.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
@@ -404,7 +406,7 @@ func (c Pod) NewAction() {
 
 	//
 	var cell inapi.ResCell
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(set.Zone, set.Cell)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysCell(set.Zone, set.Cell)).Query(); rs.OK() {
 		rs.Decode(&cell)
 	}
 	if cell.Meta.Id == "" {
@@ -507,7 +509,7 @@ func (c Pod) NewAction() {
 	}
 
 	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(v)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v)).Query(); rs.OK() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
 			if app_spec.Meta.ID == v && app_spec.ExpRes.CpuMin > 0 {
@@ -524,14 +526,15 @@ func (c Pod) NewAction() {
 	}
 
 	//
-	if rs := data.GlobalMaster.PvNew(inapi.NsGlobalPodInstance(pod.Meta.ID), pod, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).
+		ModeCreateSet(true).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	data.GlobalMaster.KvNew(sqkey, pod, nil)
+	data.DataGlobal.NewWriter(sqkey, pod).Commit()
 
 	set.Pod = pod.Meta.ID
 	set.Kind = "PodInstance"
@@ -558,7 +561,7 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	var prev inapi.Pod
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(pod_id)).Query(); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Pod Not Found")
 		return
 	} else {
@@ -605,7 +608,7 @@ func (c Pod) OpActionSetAction() {
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
+	if rs := data.DataGlobal.NewReader(sqkey).Query(); rs.OK() {
 		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
@@ -617,18 +620,18 @@ func (c Pod) OpActionSetAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(sqkey, prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
-			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
-		})
-		data.GlobalMaster.KvPut(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).
+			ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
+		data.DataGlobal.NewWriter(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev).
+			Commit()
 	} else {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).Commit()
 	}
 
 	set.Kind = "PodInstance"
@@ -653,7 +656,7 @@ func (c Pod) SetInfoAction() {
 		return
 	}
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(set.Meta.ID)).Query(); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
@@ -777,7 +780,7 @@ func (c Pod) SetInfoAction() {
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
+	if rs := data.DataGlobal.NewReader(sqkey).Query(); rs.OK() {
 		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -785,18 +788,17 @@ func (c Pod) SetInfoAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(sqkey, prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
-			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
-		})
-		data.GlobalMaster.KvPut(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).
+			ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
+		data.DataGlobal.NewWriter(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev).Commit()
 	} else {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).Commit()
 	}
 
 	set.Kind = "PodInstance"
@@ -812,7 +814,7 @@ func (c Pod) DeleteAction() {
 
 	defer c.RenderJson(&set)
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); !rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(pod_id)).Query(); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
@@ -838,13 +840,13 @@ func (c Pod) DeleteAction() {
 
 		var app inapi.AppInstance
 
-		rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppInstance(v.Meta.ID))
+		rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.Meta.ID)).Query()
 		if rs.NotFound() {
 			continue
 		}
 
 		if !rs.OK() {
-			set.Error = types.NewErrorMeta("500", "server error "+rs.Bytex().String())
+			set.Error = types.NewErrorMeta("500", "server error "+rs.Message)
 			return
 		} else {
 			rs.Decode(&app)
@@ -862,8 +864,8 @@ func (c Pod) DeleteAction() {
 		app.Operate.Action = inapi.OpActionDestroy
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if rs := data.GlobalMaster.PvPut(inapi.NsGlobalAppInstance(v.Meta.ID), app, nil); !rs.OK() {
-			set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(v.Meta.ID), app).Commit(); !rs.OK() {
+			set.Error = types.NewErrorMeta("500", rs.Message)
 			return
 		}
 
@@ -880,7 +882,7 @@ func (c Pod) DeleteAction() {
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
+	if rs := data.DataGlobal.NewReader(sqkey).Query(); rs.OK() {
 		if tn-prev.Operate.Operated < podActionSetTimeMin {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -888,18 +890,17 @@ func (c Pod) DeleteAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(sqkey, prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, &skv.KvProgWriteOptions{
-			Expired: uint64(time.Now().Add(time.Duration(inapi.PodDestroyTTL) * time.Second).UnixNano()),
-		})
-		data.GlobalMaster.KvPut(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).
+			ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
+		data.DataGlobal.NewWriter(inapi.NsKvGlobalPodInstanceDestroyed(prev.Meta.ID), prev).Commit()
 	} else {
-		data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+		data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).Commit()
 	}
 
 	set.Kind = "PodInstance"
@@ -919,7 +920,7 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 	if pod.Meta.ID == "" {
 
 		//
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(pod_id)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(pod_id)).Query(); rs.OK() {
 			rs.Decode(&pod)
 		}
 
@@ -936,7 +937,7 @@ func (c *Pod) status(pod inapi.Pod, pod_id string) inapi.PodStatus {
 		}
 
 	} else {
-		if rs := data.GlobalMaster.KvGet(inapi.NsKvGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalPodStatus(pod.Spec.Zone, pod.Meta.ID)).Query(); rs.OK() {
 			rs.Decode(&podStatus)
 		}
 	}
@@ -1009,7 +1010,7 @@ func (c Pod) AccessSetAction() {
 		}
 	}
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.Meta.ID)); !rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(set.Meta.ID)).Query(); !rs.OK() {
 		set.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
@@ -1068,7 +1069,7 @@ func (c Pod) AccessSetAction() {
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
+	if rs := data.DataGlobal.NewReader(sqkey).Query(); rs.OK() {
 		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 		}
@@ -1076,11 +1077,11 @@ func (c Pod) AccessSetAction() {
 	}
 
 	prev.Operate.Operated = tn
-	if rs := data.GlobalMaster.KvPut(sqkey, prev, nil); !rs.OK() {
+	if rs := data.DataGlobal.NewWriter(sqkey, prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "server error, please try again later")
 		return
 	}
-	data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil)
+	data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).Commit()
 
 	set.Kind = "PodInstance"
 }
@@ -1105,7 +1106,7 @@ func (c Pod) SpecSetAction() {
 	}
 
 	//
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodInstance(set.Pod)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(set.Pod)).Query(); rs.OK() {
 		rs.Decode(&prev)
 	}
 	if prev.Meta.ID != set.Pod {
@@ -1155,7 +1156,7 @@ func (c Pod) SpecSetAction() {
 	}
 
 	//
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalPodSpec("plan", set.Plan)); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Plan)).Query(); rs.OK() {
 		rs.Decode(&spec_plan)
 	}
 	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
@@ -1256,7 +1257,7 @@ func (c Pod) SpecSetAction() {
 
 	for _, app := range prev.Apps {
 
-		if rs := data.GlobalMaster.PvGet(inapi.NsGlobalAppSpec(app.Spec.Meta.ID)); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(app.Spec.Meta.ID)).Query(); rs.OK() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
 			if app_spec.Meta.ID == app.Spec.Meta.ID && app_spec.ExpRes.CpuMin > 0 {
@@ -1277,7 +1278,7 @@ func (c Pod) SpecSetAction() {
 	prev.Meta.Updated = types.MetaTimeNow()
 
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	if rs := data.GlobalMaster.KvGet(sqkey); rs.OK() {
+	if rs := data.DataGlobal.NewReader(sqkey).Query(); rs.OK() {
 		if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "the previous operation is in processing, please try again later")
 			return
@@ -1287,13 +1288,13 @@ func (c Pod) SpecSetAction() {
 	prev.Operate.Operated = tn
 
 	//
-	if rs := data.GlobalMaster.PvPut(inapi.NsGlobalPodInstance(prev.Meta.ID), prev, nil); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Bytex().String())
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(prev.Meta.ID), prev).Commit(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.Message)
 		return
 	}
 
 	// Pod Map to Cell Queue
-	data.GlobalMaster.KvPut(sqkey, prev, nil)
+	data.DataGlobal.NewWriter(sqkey, prev).ModeCreateSet(true).Commit()
 
 	set.Pod = prev.Meta.ID
 	set.Kind = "PodInstance"

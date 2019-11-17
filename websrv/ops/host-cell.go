@@ -16,7 +16,6 @@ package ops
 
 import (
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/skv"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -30,7 +29,7 @@ func (c Host) CellListAction() {
 	zoneid := c.Params.Get("zoneid")
 
 	//
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(zoneid)); !rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(zoneid)).Query(); !rs.OK() {
 		sets.Error = &types.ErrorMeta{
 			Code:    "404",
 			Message: "Zone Not Found",
@@ -39,9 +38,10 @@ func (c Host) CellListAction() {
 	}
 
 	//
-	rss := data.GlobalMaster.PvScan(inapi.NsGlobalSysCell(zoneid, ""), "", "", 100).KvList()
-	for _, v := range rss {
-
+	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalSysCell(zoneid, ""), inapi.NsGlobalSysCell(zoneid, "")).
+		LimitNumSet(100).Query()
+	for _, v := range rs.Items {
 		var cell inapi.ResCell
 		if err := v.Decode(&cell); err == nil {
 			sets.Items = append(sets.Items, cell)
@@ -59,7 +59,7 @@ func (c Host) CellEntryAction() {
 	}
 	defer c.RenderJson(&set)
 
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))).Query(); rs.OK() {
 		rs.Decode(&set.ResCell)
 	}
 
@@ -86,8 +86,8 @@ func (c Host) CellSetAction() {
 		return
 	}
 
-	if obj := data.GlobalMaster.PvGet(inapi.NsGlobalSysZone(cell.ZoneId)); obj.OK() {
-		obj.Decode(&zone)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(cell.ZoneId)).Query(); rs.OK() {
+		rs.Decode(&zone)
 	}
 	if zone.Meta.Id == "" {
 		cell.Error = &types.ErrorMeta{"404", "Zone Not Found"}
@@ -102,7 +102,7 @@ func (c Host) CellSetAction() {
 	cell.Meta.Updated = uint64(types.MetaTimeNow())
 
 	// global
-	if rs := data.GlobalMaster.PvGet(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)); rs.NotFound() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)).Query(); rs.NotFound() {
 
 		cell.Meta.Created = uint64(types.MetaTimeNow())
 	} else if rs.OK() {
@@ -120,24 +120,20 @@ func (c Host) CellSetAction() {
 		return
 	}
 
-	data.GlobalMaster.PvPut(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id),
-		cell, &skv.KvProgWriteOptions{
-			// PrevVersion: prevVersion,
-		})
+	data.DataGlobal.NewWriter(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id), cell).Commit()
 
 	// zone
-	rsp := data.ZoneMaster.PvGet(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id))
-	if rsp.OK() {
-
+	if rs := data.DataZone.NewReader(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id)).
+		Query(); rs.OK() {
 		var prev inapi.ResCell
-		if err := rsp.Decode(&prev); err == nil {
+		if err := rs.Decode(&prev); err == nil {
 			if prev.Meta.Created != 0 {
 				cell.Meta.Created = prev.Meta.Created
 			}
 		}
 	}
 
-	data.ZoneMaster.PvPut(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell, nil)
+	data.DataZone.NewWriter(inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell).Commit()
 
 	cell.Kind = "HostCell"
 }
