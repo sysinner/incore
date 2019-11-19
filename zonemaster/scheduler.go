@@ -552,8 +552,13 @@ func scheduleHostListRefresh() error {
 		}
 
 		cell.Status = v
-		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysCell(status.Host.Operate.ZoneId, id), cell).Commit(); rs.OK() {
-			data.DataZone.NewWriter(inapi.NsZoneSysCell(status.Zone.Meta.Id, id), cell).Commit()
+		cell.Meta.Updated = uint64(types.MetaTimeNow())
+
+		if rs := data.DataGlobal.NewWriter(
+			inapi.NsGlobalSysCell(status.ZoneId, id), cell).Commit(); rs.OK() {
+			data.DataZone.NewWriter(
+				inapi.NsZoneSysCell(status.ZoneId, id), cell).Commit()
+			// hlog.Printf("info", "cell %s : %s", id, cell.Meta.Name)
 		}
 	}
 

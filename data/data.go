@@ -16,36 +16,26 @@ package data
 
 import (
 	"fmt"
-	"plugin"
 
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/lynkdb/iomix/connect"
 	"github.com/lynkdb/iomix/sko"
-	"github.com/lynkdb/iomix/skv"
 	"github.com/lynkdb/kvgo"
 
-	in_cfg "github.com/sysinner/incore/config"
-	"github.com/sysinner/incore/version"
+	"github.com/sysinner/incore/config"
 )
 
 var (
-	ZoneMaster   skv.Connector
-	GlobalMaster skv.Connector
-	LocalDB      sko.ClientConnector
-	InpackData   sko.ClientConnector
-	DataGlobal   sko.ClientConnector
-	DataZone     sko.ClientConnector
+	DataLocal  sko.ClientConnector
+	DataZone   sko.ClientConnector
+	DataGlobal sko.ClientConnector
+	DataInpack sko.ClientConnector
 )
 
 func Setup() error {
 
-	upgradeDriver := ""
-
-	for _, v := range in_cfg.Config.IoConnectors {
+	for _, v := range config.Config.IoConnectors {
 
 		switch v.Name {
-		case "in_zone_master":
-		case "in_global_master":
 		case "db_local":
 		case "db_zone":
 		case "db_global":
@@ -55,25 +45,21 @@ func Setup() error {
 		}
 
 		var (
-			db  interface{} // skv.Connector
+			db  interface{}
 			err error
 		)
 
 		if v.Driver == "lynkdb/kvgo" {
 
-			hlog.Printf("info", "DataConnector (%s) Open %s", v.Name, v.Driver)
-			if v.Name[:3] == "db_" {
-				db, err = kvgo.SkoOpen(*v)
-			} else {
-				db, err = kvgo.Open(*v)
-			}
+			db, err = kvgo.Open(*v)
 
 		} else {
 
+			/**
 			hlog.Printf("info", "DataConnector (%s) Plugin Open %s",
 				v.Name, string(v.DriverPlugin))
 
-			p, err := plugin.Open(in_cfg.Prefix + "/plugin/" + string(v.DriverPlugin))
+			p, err := plugin.Open(config.Prefix + "/plugin/" + string(v.DriverPlugin))
 			if err != nil {
 				return err
 			}
@@ -88,8 +74,8 @@ func Setup() error {
 				return fmt.Errorf("No Plugin/Method (%s) Found", "NewConnector")
 			}
 
-			upgradeDriver = "lynkstorgo"
 			db, err = fn(v)
+			*/
 		}
 
 		if err != nil {
@@ -98,19 +84,13 @@ func Setup() error {
 
 		switch v.Name {
 		case "db_local":
-			LocalDB = db.(sko.ClientConnector)
+			DataLocal = db.(sko.ClientConnector)
 
 		case "db_zone":
 			DataZone = db.(sko.ClientConnector)
 
 		case "db_global":
 			DataGlobal = db.(sko.ClientConnector)
-
-		case "in_zone_master":
-			ZoneMaster = db.(skv.Connector)
-
-		case "in_global_master":
-			GlobalMaster = db.(skv.Connector)
 
 		default:
 			continue
@@ -119,41 +99,18 @@ func Setup() error {
 		hlog.Printf("info", "DataConnector (%s) OK", v.Name)
 	}
 
-	if LocalDB == nil {
+	if DataLocal == nil {
 		return fmt.Errorf("No DataConnector (%s) Setup", "db_local")
 	}
 
-	if in_cfg.IsZoneMaster() {
-
-		if GlobalMaster == nil {
-			return fmt.Errorf("No DataConnector (%s) Setup", "global_master")
-		}
-		if ZoneMaster == nil {
-			return fmt.Errorf("No DataConnector (%s) Setup", "zone_master")
-		}
+	if config.IsZoneMaster() {
 
 		if DataZone == nil {
 			return fmt.Errorf("No DataConnector (%s) Setup", "db_zone")
 		}
+
 		if DataGlobal == nil {
 			return fmt.Errorf("No DataConnector (%s) Setup", "db_global")
-		}
-	}
-
-	if version.Version == "0.9.1" {
-
-		if GlobalMaster != nil {
-			if err := upgrade_v091(upgradeDriver, GlobalMaster, DataGlobal); err != nil {
-				return err
-			}
-			hlog.Printf("info", "Upgrade GlobalMaster Done")
-		}
-
-		if ZoneMaster != nil {
-			if err := upgrade_v091(upgradeDriver, ZoneMaster, DataZone); err != nil {
-				return err
-			}
-			hlog.Printf("info", "Upgrade ZoneMaster Done")
 		}
 	}
 

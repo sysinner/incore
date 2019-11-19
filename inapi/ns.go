@@ -150,7 +150,7 @@ func NsKvGlobalSetQueuePod(zoneId, cellId, podId string) []byte {
 }
 
 // t2
-func NsZoneSysInfo(zoneId string) []byte {
+func NsZoneSysZone(zoneId string) []byte {
 	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/zone/info", zoneId))
 }
 

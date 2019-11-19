@@ -17,8 +17,8 @@ package v1
 import (
 	"github.com/lessos/lessgo/types"
 
-	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 func (c Host) ZoneListAction() {
@@ -27,16 +27,8 @@ func (c Host) ZoneListAction() {
 	defer c.RenderJson(&ls)
 
 	//
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
-		inapi.NsGlobalSysZone(""), inapi.NsGlobalSysZone("")).LimitNumSet(100).Query()
+	for _, item := range status.GlobalZones {
 
-	for _, v := range rs.Items {
-
-		var item inapi.ResZone
-
-		if err := v.Decode(&item); err != nil || item.Meta.Id == "" {
-			continue
-		}
 		zone := inapi.ResZone{
 			Meta: &inapi.ObjectMeta{
 				Id: item.Meta.Id,
@@ -49,17 +41,8 @@ func (c Host) ZoneListAction() {
 
 		if c.Params.Get("fields") == "cells" {
 
-			rs2 := data.DataGlobal.NewReader(nil).KeyRangeSet(
-				inapi.NsGlobalSysCell(zone.Meta.Id, ""), inapi.NsGlobalSysCell(zone.Meta.Id, "")).
-				LimitNumSet(100).Query()
-
-			for _, v2 := range rs2.Items {
-
-				var cell inapi.ResCell
-
-				if err := v2.Decode(&cell); err == nil {
-					zone.Cells = append(zone.Cells, &cell)
-				}
+			for _, cell := range item.Cells {
+				zone.Cells = append(zone.Cells, cell)
 			}
 		}
 
@@ -78,34 +61,26 @@ func (c Host) ZoneEntryAction() {
 
 	defer c.RenderJson(&set)
 
-	if obj := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(c.Params.Get("id"))).Query(); obj.OK() {
+	item := status.GlobalZone(c.Params.Get("id"))
+	if item == nil {
+		set.Error = types.NewErrorMeta("400", "Zone Not Found")
+	}
 
-		if err := obj.Decode(&set.ResZone); err != nil {
-			set.Error = types.NewErrorMeta("400", err.Error())
-		} else {
+	set.ResZone = inapi.ResZone{
+		Meta: &inapi.ObjectMeta{
+			Id: item.Meta.Id,
+		},
+		Summary:  item.Summary,
+		LanAddrs: item.LanAddrs,
+		WanApi:   item.WanApi,
+		Phase:    item.Phase,
+	}
 
-			if c.Params.Get("fields") == "cells" {
-
-				rs2 := data.DataGlobal.NewReader(nil).KeyRangeSet(
-					inapi.NsGlobalSysCell(set.Meta.Id, ""), inapi.NsGlobalSysCell(set.Meta.Id, "")).
-					LimitNumSet(100).Query()
-
-				for _, v2 := range rs2.Items {
-
-					var cell inapi.ResCell
-
-					if err := v2.Decode(&cell); err == nil {
-						set.Cells = append(set.Cells, &cell)
-					}
-				}
-			}
-
+	if c.Params.Get("fields") == "cells" {
+		for _, cell := range item.Cells {
+			set.Cells = append(set.Cells, cell)
 		}
 	}
 
-	if set.Meta.Id != "" {
-		set.Kind = "HostZone"
-	} else {
-		set.Error = types.NewErrorMeta("404", "Item Not Found")
-	}
+	set.Kind = "HostZone"
 }

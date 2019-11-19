@@ -395,21 +395,15 @@ func (c Pod) NewAction() {
 	spec_plan.ChargeFix()
 
 	//
-	var zone inapi.ResZone
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Zone)).Query(); rs.OK() {
-		rs.Decode(&zone)
-	}
-	if zone.Meta.Id == "" {
+	zone := status.GlobalZone(set.Zone)
+	if zone == nil {
 		set.Error = types.NewErrorMeta("400", "Zone Not Found")
 		return
 	}
 
 	//
-	var cell inapi.ResCell
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysCell(set.Zone, set.Cell)).Query(); rs.OK() {
-		rs.Decode(&cell)
-	}
-	if cell.Meta.Id == "" {
+	cell := status.GlobalZoneCell(set.Zone, set.Cell)
+	if cell == nil {
 		set.Error = types.NewErrorMeta("400", "Cell Not Found")
 		return
 	}

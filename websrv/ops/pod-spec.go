@@ -28,6 +28,7 @@ import (
 	in_conf "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 type PodSpec struct {
@@ -303,15 +304,7 @@ func (c PodSpec) PlanSetAction() {
 
 	//
 	prev.Zones = []*inapi.PodSpecPlanZoneBound{}
-	rss := data.DataGlobal.NewReader(nil).KeyRangeSet(
-		inapi.NsGlobalSysZone(""), inapi.NsGlobalSysZone("")).
-		LimitNumSet(100).Query()
-	for _, v := range rss.Items {
-
-		var zone inapi.ResZone
-		if err := v.Decode(&zone); err != nil || zone.Meta.Id == "" {
-			continue
-		}
+	for _, zone := range status.GlobalZones {
 
 		var zone_item *inapi.PodSpecPlanZoneBound
 		for _, vb := range set.Zones {
@@ -326,16 +319,7 @@ func (c PodSpec) PlanSetAction() {
 		}
 
 		var cells types.ArrayString
-		rss2 := data.DataGlobal.NewReader(nil).KeyRangeSet(
-			inapi.NsGlobalSysCell(zone.Meta.Id, ""), inapi.NsGlobalSysCell(zone.Meta.Id, "")).
-			LimitNumSet(100).Query()
-		for _, v2 := range rss2.Items {
-
-			var cell inapi.ResCell
-			if err := v2.Decode(&cell); err != nil || cell.Meta.Id == "" {
-				continue
-			}
-
+		for _, cell := range zone.Cells {
 			if zone_item.Cells.Has(cell.Meta.Id) {
 				cells.Set(cell.Meta.Id)
 			}
@@ -359,7 +343,7 @@ func (c PodSpec) PlanSetAction() {
 		offset = inapi.NsGlobalBoxImage("", "")
 		cutset = inapi.NsGlobalBoxImage("", "")
 	)
-	rss = data.DataGlobal.NewReader(nil).KeyRangeSet(offset, cutset).
+	rss := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, cutset).
 		LimitNumSet(100).Query()
 	for _, v := range rss.Items {
 

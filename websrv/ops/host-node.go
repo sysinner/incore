@@ -131,16 +131,9 @@ func (c Host) NodeNewAction() {
 		return
 	}
 
-	var cell inapi.ResCell
-	if rs := data.DataZone.NewReader(inapi.NsZoneSysCell(set.ZoneId, set.CellId)).Query(); !rs.OK() {
+	cell := status.GlobalZoneCell(set.ZoneId, set.CellId)
+	if cell == nil {
 		set.Error = &types.ErrorMeta{"400", "Zone or Cell Not Setting"}
-		return
-	} else {
-		rs.Decode(&cell)
-	}
-
-	if cell.Meta.Id != set.CellId {
-		set.Error = &types.ErrorMeta{"400", "Cell Not Found"}
 		return
 	}
 
@@ -214,15 +207,16 @@ func (c Host) NodeNewAction() {
 
 	status.ZoneHostSecretKeys.Set(node.Meta.Id, set.SecretKey)
 
-	cell.NodeNum++
+	// cell.NodeNum++
 
-	// TOPO
+	/**
 	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell).Commit(); rs.OK() {
 		data.DataZone.NewWriter(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell).Commit()
 	} else {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
 	}
+	*/
 
 	set.Kind = "HostNode"
 }

@@ -15,6 +15,7 @@
 package zonemaster
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -23,7 +24,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
-	"golang.org/x/net/context"
+	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/auth"
 	"github.com/sysinner/incore/config"
@@ -426,32 +427,33 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 	}
 
 	//
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(status.ZoneId)).Query(); rs.OK() {
+	if status.Zone != nil {
 
-		var zone inapi.ResZone
-		if err := rs.Decode(&zone); err == nil {
+		for i, p := range status.Zone.LanAddrs {
 
-			for i, p := range zone.LanAddrs {
+			if addr_prev == p {
 
-				if addr_prev == p {
+				status.Zone.LanAddrs[i] = host.Spec.PeerLanAddr
 
-					zone.LanAddrs[i] = host.Spec.PeerLanAddr
+				hlog.Printf("warn", "zm GlobalSysZone2 %s->%s",
+					addr_prev, host.Spec.PeerLanAddr)
 
-					hlog.Printf("warn", "zm GlobalSysZone %s->%s",
-						addr_prev, host.Spec.PeerLanAddr)
+				status.Zone.Meta.Updated = uint64(types.MetaTimeNow())
 
-					// TOPO
-					if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(status.ZoneId), zone).Commit(); rs.OK() {
-						data.DataZone.NewWriter(inapi.NsZoneSysInfo(status.ZoneId), zone).Commit()
-					}
-
-					break
+				// TOPO
+				if rs := data.DataGlobal.NewWriter(
+					inapi.NsGlobalSysZone(status.ZoneId), status.Zone).Commit(); rs.OK() {
+					data.DataZone.NewWriter(
+						inapi.NsZoneSysZone(status.ZoneId), status.Zone).Commit()
 				}
+
+				break
 			}
 		}
 	}
 
-	if rs := data.DataZone.NewReader(inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)).Query(); rs.OK() {
+	if rs := data.DataZone.NewReader(
+		inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)).Query(); rs.OK() {
 
 		var obj inapi.ResZoneMasterNode
 		if err := rs.Decode(&obj); err == nil {

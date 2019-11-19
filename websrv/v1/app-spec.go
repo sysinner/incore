@@ -676,7 +676,7 @@ func (c AppSpec) SetAction() {
 			return
 		}
 		id := ipapi.PackageFilenameKey(v.Name, version)
-		if rs := data.InpackData.NewReader(ipapi.DataPackKey(id)).Query(); !rs.OK() {
+		if rs := data.DataInpack.NewReader(ipapi.DataPackKey(id)).Query(); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
 				ipapi.PackageFilename(v.Name, version)+") Not Found")
 			return

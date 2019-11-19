@@ -45,7 +45,13 @@ func Start() error {
 		for {
 			time.Sleep(3e9)
 
+			if !status.IsZoneMaster() {
+				continue
+			}
+
 			zoneTracker()
+
+			zmWorkerMasterLeaderRefresh()
 
 			if status.IsZoneMasterLeader() {
 

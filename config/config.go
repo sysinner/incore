@@ -214,8 +214,6 @@ func (it *ConfigCommon) setupDataConnect() error {
 		conns = append(conns, []types.NameIdentifier{
 			"db_zone",
 			"db_global",
-			"in_zone_master",
-			"in_global_master",
 		}...)
 	}
 
@@ -224,15 +222,15 @@ func (it *ConfigCommon) setupDataConnect() error {
 		if opts == nil {
 			opts = &connect.ConnOptions{
 				Name:      opName,
-				Connector: "iomix/skv/connector",
+				Connector: "iomix/sko/client-connector",
 				Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
 			}
 		}
 		if opts.Value("data_dir") == "" {
 			opts.SetValue("data_dir", Prefix+"/var/"+string(opName))
-			opts.SetValue("lynkdb/sskv/compaction_table_size", "8")
-			opts.SetValue("lynkdb/sskv/write_buffer", "4")
-			opts.SetValue("lynkdb/sskv/cache_capacity", "16")
+			opts.SetValue("lynkdb/sko/compaction_table_size", "8")
+			opts.SetValue("lynkdb/sko/write_buffer", "4")
+			opts.SetValue("lynkdb/sko/cache_capacity", "16")
 		}
 		Config.IoConnectors.SetOptions(*opts)
 	}

@@ -17,8 +17,8 @@ package v1
 import (
 	"github.com/lessos/lessgo/types"
 
-	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
 func (c Host) CellListAction() {
@@ -26,34 +26,20 @@ func (c Host) CellListAction() {
 	var sets inapi.GeneralObjectList
 	defer c.RenderJson(&sets)
 
-	zones := []string{}
-
 	if zoneid := c.Params.Get("zoneid"); zoneid != "" {
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(zoneid)).Query(); !rs.OK() {
+		if zone := status.GlobalZone(zoneid); zone == nil {
 			sets.Error = types.NewErrorMeta("404", "Zone Not Found")
 			return
-		}
-		zones = append(zones, zoneid)
-	} else {
-
-		rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
-			inapi.NsGlobalSysZone(""), inapi.NsGlobalSysZone("")).LimitNumSet(100).Query()
-		for _, v := range rs.Items {
-			var zone inapi.ResZone
-			if err := v.Decode(&zone); err == nil {
-				zones = append(zones, zone.Meta.Id)
+		} else {
+			for _, v := range zone.Cells {
+				sets.Items = append(sets.Items, v)
 			}
 		}
-	}
+	} else {
 
-	//
-	for _, z := range zones {
-		rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
-			inapi.NsGlobalSysCell(z, ""), inapi.NsGlobalSysCell(z, "")).LimitNumSet(100).Query()
-		for _, v := range rs.Items {
-			var cell inapi.ResCell
-			if err := v.Decode(&cell); err == nil {
-				sets.Items = append(sets.Items, cell)
+		for _, zone := range status.GlobalZones {
+			for _, v := range zone.Cells {
+				sets.Items = append(sets.Items, v)
 			}
 		}
 	}
@@ -69,14 +55,11 @@ func (c Host) CellEntryAction() {
 	}
 	defer c.RenderJson(&set)
 
-	if rs := data.DataGlobal.NewReader(
-		inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))).Query(); rs.OK() {
-		rs.Decode(&set.ResCell)
-	}
-
-	if set.Meta == nil || set.Meta.Id == "" {
+	cell := status.GlobalZoneCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))
+	if cell == nil {
 		set.Error = types.NewErrorMeta("404", "Cell Not Found")
 	} else {
+		set.ResCell = *cell
 		set.Kind = "HostCell"
 	}
 }

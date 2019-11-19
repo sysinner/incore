@@ -17,6 +17,7 @@ package status
 import (
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -59,9 +60,8 @@ var (
 	ZoneLeaded             int64 = 0
 	ZoneScheduled          int64 = 0
 
-	// local cell
-
 	// global cluster
+	gmu            sync.RWMutex
 	GlobalZones    []*inapi.ResZone
 	GlobalHostList inapi.ResHostList
 )
@@ -73,7 +73,30 @@ func ZoneMasterLeadSeconds() int64 {
 	return -1
 }
 
+func GlobalZoneSync(zone *inapi.ResZone) (*inapi.ResZone, bool) {
+
+	gmu.Lock()
+	defer gmu.Unlock()
+
+	for i, v := range GlobalZones {
+		if v.Meta.Id == zone.Meta.Id {
+			if zone.Meta.Updated > v.Meta.Updated {
+				zone.Cells = v.Cells
+				GlobalZones[i] = zone
+				return zone, true
+			}
+			return v, false
+		}
+	}
+	GlobalZones = append(GlobalZones, zone)
+	return zone, true
+}
+
 func GlobalZone(zoneId string) *inapi.ResZone {
+
+	gmu.RLock()
+	defer gmu.RUnlock()
+
 	for _, v := range GlobalZones {
 		if v.Meta.Id == zoneId {
 			return v
@@ -83,11 +106,13 @@ func GlobalZone(zoneId string) *inapi.ResZone {
 }
 
 func GlobalZoneCell(zoneId, cellId string) *inapi.ResCell {
-	if zone := GlobalZone(zoneId); zone != nil {
-		for _, v := range zone.Cells {
-			if v.Meta.Id == cellId {
-				return v
-			}
+
+	gmu.RLock()
+	defer gmu.RUnlock()
+
+	for _, v := range GlobalZones {
+		if v.Meta.Id == zoneId {
+			return v.Cell(cellId)
 		}
 	}
 	return nil
@@ -116,6 +141,9 @@ func ZonePodChargeAccessKey() *iamapi.AccessKey {
 }
 
 func IsZoneMaster() bool {
+	if ZoneId == "" || Host.Operate == nil {
+		return false
+	}
 	for _, v := range config.Config.Masters {
 		if v == config.Config.Host.LanAddr {
 			return true
@@ -125,7 +153,9 @@ func IsZoneMaster() bool {
 }
 
 func IsZoneMasterLeader() bool {
-	return ZoneMasterList.Leader == Host.Meta.Id
+	tn := uint64(time.Now().UnixNano() / 1e6)
+	return (ZoneMasterList.Leader == Host.Meta.Id &&
+		ZoneMasterList.Updated+12000 > tn)
 }
 
 func ZoneMasters() []string {

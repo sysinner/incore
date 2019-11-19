@@ -25,8 +25,8 @@ import (
 )
 
 var (
-	res_sys_mu             sync.Mutex
-	res_sys_host_mu        sync.RWMutex
+	resSysMu               sync.RWMutex
+	resSysHostMu           sync.RWMutex
 	ResSysZoneIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{1,15}$")
 	ResSysCellIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{1,15}$")
 	ResSysHostIdReg        = regexp.MustCompile("^[0-9a-f]{12,16}$")
@@ -47,8 +47,10 @@ var (
 
 func (obj *ResZone) Cell(id string) *ResCell {
 
-	for _, v := range obj.Cells {
+	resSysMu.RLock()
+	defer resSysMu.RUnlock()
 
+	for _, v := range obj.Cells {
 		if v.Meta.Id == id {
 			return v
 		}
@@ -57,28 +59,24 @@ func (obj *ResZone) Cell(id string) *ResCell {
 	return nil
 }
 
-func (obj *ResZone) SyncCell(item ResCell) (changed bool) {
+func (obj *ResZone) CellSync(item *ResCell) (*ResCell, bool) {
 
-	res_sys_mu.Lock()
-	defer res_sys_mu.Unlock()
+	resSysMu.Lock()
+	defer resSysMu.Unlock()
 
-	changed = false
-
-	if pv := obj.Cell(item.Meta.Id); pv != nil {
-
-		if pv.Phase != item.Phase {
-
-			pv.Phase = item.Phase
-
-			changed = true
+	for i, v := range obj.Cells {
+		if v.Meta.Id == item.Meta.Id {
+			if v.Meta.Updated < item.Meta.Updated {
+				obj.Cells[i] = item
+				return item, true
+			}
+			return v, false
 		}
-
-	} else {
-		obj.Cells = append(obj.Cells, &item)
-		changed = true
 	}
 
-	return changed
+	obj.Cells = append(obj.Cells, item)
+
+	return item, true
 }
 
 // Set create or update the res_label entry for "name" to "value".
@@ -175,8 +173,8 @@ func (obj *ResZoneMasterList) Item(id string) *ResZoneMasterNode {
 
 func (obj *ResZoneMasterList) Sync(item ResZoneMasterNode) (changed bool) {
 
-	res_sys_mu.Lock()
-	defer res_sys_mu.Unlock()
+	resSysMu.Lock()
+	defer resSysMu.Unlock()
 
 	changed = false
 
@@ -207,8 +205,8 @@ func (obj *ResZoneMasterList) SyncList(ls *ResZoneMasterList) (changed bool) {
 
 	changed = false
 
-	res_sys_mu.Lock()
-	defer res_sys_mu.Unlock()
+	resSysMu.Lock()
+	defer resSysMu.Unlock()
 
 	if len(ls.Leader) > 8 && obj.Leader != ls.Leader {
 		obj.Leader = ls.Leader
@@ -262,8 +260,8 @@ func (ls *ResHostList) Sync(item ResHost) (changed bool) {
 		return false
 	}
 
-	res_sys_mu.Lock()
-	defer res_sys_mu.Unlock()
+	resSysMu.Lock()
+	defer resSysMu.Unlock()
 
 	if pv := ls.Item(item.Meta.Id); pv != nil {
 		changed = pv.Sync(item)
@@ -338,8 +336,8 @@ const (
 
 func (obj *ResHost) OpPortHas(port uint16) bool {
 
-	res_sys_host_mu.RLock()
-	defer res_sys_host_mu.RUnlock()
+	resSysHostMu.RLock()
+	defer resSysHostMu.RUnlock()
 
 	if obj.Operate == nil {
 		return false
@@ -350,8 +348,8 @@ func (obj *ResHost) OpPortHas(port uint16) bool {
 
 func (obj *ResHost) OpPortAlloc(port uint16) uint16 {
 
-	res_sys_host_mu.Lock()
-	defer res_sys_host_mu.Unlock()
+	resSysHostMu.Lock()
+	defer resSysHostMu.Unlock()
 
 	if obj.Operate == nil {
 		obj.Operate = &ResHostOperate{}
@@ -427,8 +425,8 @@ func array_uint32_has(ls []uint32, has uint32) bool {
 
 func (obj *ResHost) OpPortFree(port uint16) {
 
-	res_sys_host_mu.Lock()
-	defer res_sys_host_mu.Unlock()
+	resSysHostMu.Lock()
+	defer resSysHostMu.Unlock()
 
 	if obj.Operate == nil {
 		return
@@ -445,8 +443,8 @@ func (obj *ResHost) OpPortFree(port uint16) {
 
 func (obj *ResHost) OpPortFreeAll() {
 
-	res_sys_host_mu.Lock()
-	defer res_sys_host_mu.Unlock()
+	resSysHostMu.Lock()
+	defer resSysHostMu.Unlock()
 
 	if obj.Operate == nil {
 		return
@@ -461,8 +459,8 @@ func (obj *ResHost) OpPortSort() {
 		return
 	}
 
-	res_sys_host_mu.Lock()
-	defer res_sys_host_mu.Unlock()
+	resSysHostMu.Lock()
+	defer resSysHostMu.Unlock()
 
 	sort.Slice(obj.Operate.PortUsed, func(i, j int) bool {
 		return obj.Operate.PortUsed[i] < obj.Operate.PortUsed[j]

@@ -42,13 +42,13 @@ func ConfigFlush() error {
 
 func InitData(items map[string]interface{}) error {
 
-	if data.LocalDB == nil {
-		return fmt.Errorf("data.LocalDB Not Init")
+	if data.DataLocal == nil {
+		return fmt.Errorf("data.DataLocal Not Init")
 	}
 
 	for k, v := range items {
 
-		if rs := data.LocalDB.NewWriter([]byte(k), v).Commit(); !rs.OK() {
+		if rs := data.DataLocal.NewWriter([]byte(k), v).Commit(); !rs.OK() {
 			return fmt.Errorf("hostlet.initdata error on put key : %s", k)
 		}
 
