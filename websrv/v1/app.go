@@ -58,7 +58,7 @@ func (c *App) Init() int {
 }
 
 func (c *App) owner_or_sysadmin_allow(user, privilege string) bool {
-	if user == c.us.UserName ||
+	if c.us.AccessAllow(user) ||
 		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
 		return true
 	}
@@ -93,7 +93,7 @@ func (c App) ListAction() {
 		if c.Params.Get("filter_meta_user") == "all" &&
 			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
 			//
-		} else if inst.Meta.User != c.us.UserName {
+		} else if !c.us.AccessAllow(inst.Meta.User) {
 			continue
 		}
 

@@ -78,9 +78,10 @@ func (c Pod) UserTransferAction() {
 	}
 
 	tn := uint32(time.Now().Unix())
-	if (prev.Operate.Operated + podActionQueueTimeMin) > tn {
+	tl := prev.Operate.Operated + podActionQueueTimeMin
+	if tl > tn {
 		rsp.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
-			"the previous operation is in processing, please try again later (1)")
+			fmt.Sprintf("the operations is too frequent, please try again later (%d seconds)", tl-tn))
 		return
 	}
 
@@ -152,7 +153,7 @@ func (c Pod) UserTransferPerformAction() {
 			continue
 		}
 
-		if it.UserTo != c.us.UserName {
+		if !c.us.AccessAllow(it.UserTo) {
 			rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 			return
 		}
@@ -207,6 +208,11 @@ func (c Pod) UserTransferPerformAction() {
 			return
 		}
 
+		if err := c.userTransferPerformApp(&pod); err != nil {
+			rsp.Error = types.NewErrorMeta("500", err.Error())
+			return
+		}
+
 		pod.Operate.Version += 1
 		pod.Meta.Updated = types.MetaTimeNow()
 		pod.Operate.Operated = tn
@@ -217,10 +223,85 @@ func (c Pod) UserTransferPerformAction() {
 			return
 		}
 
+		//
 		// Pod Map to Cell Queue
 		data.DataGlobal.NewWriter(sqkey, pod).Commit()
 		data.DataGlobal.NewWriter(utp, nil).ModeDeleteSet(true).Commit()
 	}
 
 	rsp.Kind = "PodInstance"
+}
+
+func (c Pod) userTransferPerformApp(set *inapi.Pod) error {
+
+	for i, v := range set.Apps {
+
+		if v.Meta.User == set.Meta.User {
+			continue
+		}
+
+		rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.Meta.ID)).Query()
+		if rs.NotFound() {
+			continue
+		} else if !rs.OK() {
+			return rs.Error()
+		}
+		//
+		var app inapi.AppInstance
+		if err := rs.Decode(&app); err != nil {
+			return err
+		}
+		if app.Meta.ID != v.Meta.ID {
+			continue
+		}
+
+		for _, v2 := range v.Operate.Services {
+
+			if v2.AppId == "" || v2.AppId == v.Meta.ID {
+				continue
+			}
+
+			rs2 := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v2.AppId)).Query()
+			if rs2.NotFound() {
+				continue
+			} else if !rs2.OK() {
+				return rs2.Error()
+			}
+
+			var app2 inapi.AppInstance
+			if err := rs2.Decode(&app2); err != nil {
+				return err
+			}
+			if app2.Meta.ID != v2.AppId ||
+				app2.Meta.User == set.Meta.User {
+				continue
+			}
+
+			hlog.Printf("warn", "App %s, transfer owner from %s to %s",
+				v2.AppId, app2.Meta.User, set.Meta.User)
+
+			app2.Meta.User = set.Meta.User
+			if rs2 = data.DataGlobal.NewWriter(
+				inapi.NsGlobalAppInstance(v2.AppId), app2).Commit(); !rs2.OK() {
+				return rs2.Error()
+			}
+		}
+
+		if app.Meta.User == set.Meta.User {
+			continue
+		}
+
+		hlog.Printf("warn", "App %s, transfer owner from %s to %s",
+			v.Meta.ID, app.Meta.User, set.Meta.User)
+
+		app.Meta.User = set.Meta.User
+		rs2 := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(v.Meta.ID), app).Commit()
+		if !rs2.OK() {
+			return rs2.Error()
+		}
+
+		set.Apps[i].Meta.User = set.Meta.User
+	}
+
+	return nil
 }

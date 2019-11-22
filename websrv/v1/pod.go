@@ -272,7 +272,7 @@ func (c Pod) ListAction() {
 		for _, v := range rs.Items {
 			var it inapi.PodUserTransfer
 			if err := v.Decode(&it); err == nil {
-				if it.UserTo == c.us.UserName {
+				if c.us.AccessAllow(it.UserTo) {
 					ls.UserTransfers = append(ls.UserTransfers, &it)
 				}
 			}

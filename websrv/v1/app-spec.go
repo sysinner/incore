@@ -324,16 +324,19 @@ func (c AppSpec) ItemDelAction() {
 
 func (c AppSpec) EntryAction() {
 
-	set := inapi.AppSpec{}
+	var (
+		rsp inapi.AppSpec
+		set inapi.AppSpec
+	)
 
 	if c.Params.Get("fmt_json_indent") == "true" {
-		defer c.RenderJsonIndent(&set, "  ")
+		defer c.RenderJsonIndent(&rsp, "  ")
 	} else {
-		defer c.RenderJson(&set)
+		defer c.RenderJson(&rsp)
 	}
 
 	if c.Params.Get("id") == "" {
-		set.Error = types.NewErrorMeta("400", "ID can not be null")
+		rsp.Error = types.NewErrorMeta("400", "ID can not be null")
 		return
 	}
 
@@ -375,7 +378,7 @@ func (c AppSpec) EntryAction() {
 			version = ", version " + version
 		}
 
-		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
 			fmt.Sprintf("AppSpec Not Found : %s%s", c.Params.Get("id"), version))
 
 		return
@@ -383,7 +386,7 @@ func (c AppSpec) EntryAction() {
 
 	if set.Meta.User != c.us.UserName &&
 		!set.Roles.MatchAny(c.us.Roles) {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
 
@@ -406,7 +409,8 @@ func (c AppSpec) EntryAction() {
 			fmt.Sprintf("attachment; filename=app_spec_%s.json", set.Meta.ID))
 	}
 
-	set.Kind = "AppSpec"
+	rsp = set
+	rsp.Kind = "AppSpec"
 }
 
 func (c AppSpec) SetAction() {
