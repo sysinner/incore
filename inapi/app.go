@@ -416,6 +416,12 @@ func (ls *AppOptions) Set(item AppOption) (changed bool) {
 
 		if v.Name == item.Name {
 
+			if item.Ref != nil && v.Ref != nil &&
+				item.Ref.SpecId == v.Ref.SpecId &&
+				item.Ref.AppId != v.Ref.AppId {
+				continue
+			}
+
 			if item.Updated > v.Updated {
 				(*ls)[i], changed = &item, true
 			}
@@ -437,6 +443,12 @@ func (ls *AppOptions) Sync(item AppOption) (changed bool) {
 	for _, prev := range *ls {
 
 		if prev.Name != item.Name {
+			continue
+		}
+
+		if item.Ref != nil && prev.Ref != nil &&
+			item.Ref.SpecId == prev.Ref.SpecId &&
+			item.Ref.AppId != prev.Ref.AppId {
 			continue
 		}
 
@@ -623,6 +635,7 @@ type AppConfigSetAppSpecRemoteBind struct {
 	SpecId  string   `json:"spec_id"`
 	AppId   string   `json:"app_id"`
 	Configs []string `json:"configs"`
+	Delete  bool     `json:"delete,omitempty"`
 }
 
 type AppStatus struct {

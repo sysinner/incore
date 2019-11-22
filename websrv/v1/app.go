@@ -919,113 +919,145 @@ func (c App) ConfigRepRemotesAction() {
 		rs.Decode(&app)
 	}
 
+	if len(set.DepRemotes) == 0 || len(app.Spec.DepRemotes) == 0 {
+		rsp.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
 	if app.Meta.ID != set.Id ||
 		!c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
 		rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
 
-	if len(set.DepRemotes) > 0 && len(app.Spec.DepRemotes) > 0 {
+	for _, v := range set.DepRemotes {
 
-		for _, v := range set.DepRemotes {
+		//
+		depRemote := inapi.AppSpecDependSliceGet(app.Spec.DepRemotes, v.SpecId)
+		if depRemote == nil {
+			rsp.Error = types.NewErrorMeta("400",
+				fmt.Sprintf("No AppSpec:%s Found", v.SpecId))
+			return
+		}
 
-			//
-			depRemote := inapi.AppSpecDependSliceGet(app.Spec.DepRemotes, v.SpecId)
-			if depRemote == nil {
-				rsp.Error = types.NewErrorMeta("400",
-					fmt.Sprintf("No AppSpec:%s Found", v.SpecId))
+		//
+		var refApp inapi.AppInstance
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.AppId)).Query(); rs.OK() {
+			rs.Decode(&refApp)
+		}
+		if refApp.Meta.ID != v.AppId {
+			rsp.Error = types.NewErrorMeta("400",
+				fmt.Sprintf("No AppInstance %s Found", v.AppId))
+			return
+		}
+		if !c.owner_or_sysadmin_allow(refApp.Meta.User, "sysinner.admin") {
+			rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
+			return
+		}
+		if len(refApp.Operate.PodId) < 16 {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectPending,
+				fmt.Sprintf("AppInstance %s is not ready, try again later", v.AppId))
+			return
+		}
+		if len(refApp.Spec.ServicePorts) < 1 {
+			rsp.Error = types.NewErrorMeta("400",
+				fmt.Sprintf("No Service Found in App %s", v.AppId))
+			return
+		}
+
+		//
+		for _, cfgName := range depRemote.Configs {
+
+			refAppOpt := refApp.Operate.Options.Get(cfgName)
+			if refAppOpt == nil {
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
+					fmt.Sprintf("AppInstance %s, Option %s Not Found", v.AppId, cfgName))
 				return
 			}
 
-			//
-			var refApp inapi.AppInstance
-			if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.AppId)).Query(); rs.OK() {
-				rs.Decode(&refApp)
-			}
-			if refApp.Meta.ID != v.AppId {
-				rsp.Error = types.NewErrorMeta("400",
-					fmt.Sprintf("No AppInstance %s Found", v.AppId))
-				return
-			}
-			if !c.owner_or_sysadmin_allow(refApp.Meta.User, "sysinner.admin") {
-				rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "AccessDenied")
-				return
-			}
-			if len(refApp.Operate.PodId) < 16 {
-				rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectPending,
-					fmt.Sprintf("AppInstance %s is not ready, try again later", v.AppId))
-				return
-			}
+			optRefCfg := app.Operate.Options.Get(cfgName)
 
-			//
-			for _, cfgName := range depRemote.Configs {
+			// clean prev settings
+			if optRefCfg != nil && optRefCfg.Ref != nil && (optRefCfg.Ref.AppId != v.AppId || v.Delete) {
 
-				refAppOpt := refApp.Operate.Options.Get(cfgName)
-				if refAppOpt == nil {
-					rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
-						fmt.Sprintf("AppInstance %s, Option %s Not Found", v.AppId, cfgName))
-					return
-				}
+				if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(optRefCfg.Ref.AppId)).Query(); rs.OK() {
 
-				optRefCfg := app.Operate.Options.Get(cfgName)
+					var refAppPrev inapi.AppInstance
+					rs.Decode(&refAppPrev)
 
-				// clean prev settings
-				if optRefCfg != nil && optRefCfg.Ref != nil && optRefCfg.Ref.AppId != v.AppId {
+					if refAppPrev.Meta.ID == optRefCfg.Ref.AppId {
 
-					if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(optRefCfg.Ref.AppId)).Query(); rs.OK() {
+						if refAppPrevOpt := refAppPrev.Operate.Options.Get(cfgName); refAppPrevOpt != nil {
 
-						var refAppPrev inapi.AppInstance
-						rs.Decode(&refAppPrev)
+							refAppPrevOpt.Subs.Remove(app.Meta.ID)
+							refAppPrev.Operate.Options.Sync(*refAppPrevOpt)
 
-						if refAppPrev.Meta.ID == optRefCfg.Ref.AppId {
-
-							if refAppPrevOpt := refAppPrev.Operate.Options.Get(cfgName); refAppPrevOpt != nil {
-
-								refAppPrevOpt.Subs.Remove(app.Meta.ID)
-								refAppPrev.Operate.Options.Sync(*refAppPrevOpt)
-
-								if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev).Commit(); !rs.OK() {
-									rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
-									return
-								}
+							if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev).Commit(); !rs.OK() {
+								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+								return
 							}
 						}
 					}
 				}
+			}
 
-				//
-				refAppOpt.Subs.Insert(app.Meta.ID)
-				refApp.Operate.Options.Sync(*refAppOpt)
-				if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp).Commit(); !rs.OK() {
-					rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
-					return
-				}
+			if v.Delete {
 
-				//
-				refAppOpt.Subs = []string{}
-				refAppOpt.Ref = &inapi.AppOptionRef{
-					SpecId: depRemote.Id,
-					AppId:  refApp.Meta.ID,
-					PodId:  refApp.Operate.PodId,
-					// Ports:  refApp.Spec.ServicePorts, // TORM
+				ls := inapi.AppOptions{}
+				for _, v2 := range app.Operate.Options {
+					if v2.Ref == nil || v2.Ref.SpecId != v.SpecId || v2.Ref.AppId != v.AppId {
+						ls = append(ls, v2)
+					}
 				}
-				app.Operate.Options.Sync(*refAppOpt)
+				if len(ls) < len(app.Operate.Options) {
+					app.Operate.Options = ls
+				}
+				continue
 			}
 
 			//
-			for _, vsp := range refApp.Spec.ServicePorts {
-				spSet := &inapi.AppServicePort{
-					Spec:  refApp.Spec.Meta.ID,
-					Port:  uint32(vsp.BoxPort),
-					Name:  vsp.Name,
-					PodId: refApp.Operate.PodId,
-					AppId: v.AppId,
+			refAppOpt.Subs.Insert(app.Meta.ID)
+			refApp.Operate.Options.Sync(*refAppOpt)
+			if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp).Commit(); !rs.OK() {
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+				return
+			}
+
+			//
+			refAppOpt.Subs = []string{}
+			refAppOpt.Ref = &inapi.AppOptionRef{
+				SpecId: depRemote.Id,
+				AppId:  refApp.Meta.ID,
+				PodId:  refApp.Operate.PodId,
+			}
+			app.Operate.Options.Sync(*refAppOpt)
+		}
+
+		// TODO clean refApp*
+		if v.Delete {
+			for i2, v2 := range app.Operate.Services {
+				if v.AppId == v2.AppId && v.SpecId == v2.Spec {
+					fmt.Println("delete", v2.AppId)
+					app.Operate.Services = append(app.Operate.Services[:i2], app.Operate.Services[i2+1:]...)
+					break
 				}
-				if srv := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(vsp.BoxPort), refApp.Operate.PodId); srv == nil {
-					app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, spSet)
-				} else {
-					srv.Sync(spSet)
-				}
+			}
+			continue
+		}
+
+		//
+		for _, vsp := range refApp.Spec.ServicePorts {
+			spSet := &inapi.AppServicePort{
+				Spec:  refApp.Spec.Meta.ID,
+				Port:  uint32(vsp.BoxPort),
+				Name:  vsp.Name,
+				PodId: refApp.Operate.PodId,
+				AppId: v.AppId,
+			}
+			if srv := inapi.AppServicePortSliceGet(app.Operate.Services, uint32(vsp.BoxPort), refApp.Operate.PodId); srv == nil {
+				app.Operate.Services, _ = inapi.AppServicePortSliceSync(app.Operate.Services, spSet)
+			} else {
+				srv.Sync(spSet)
 			}
 		}
 	}
