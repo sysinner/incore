@@ -46,7 +46,7 @@ func (c *PodStats) Init() int {
 }
 
 func (c *PodStats) owner_or_sysadmin_allow(user, privilege string) bool {
-	if user == c.us.UserName ||
+	if c.us.AccessAllow(user) ||
 		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
 		return true
 	}

@@ -23,7 +23,7 @@ import (
 
 var (
 	VcsRepoGitUrlReg = regexp.MustCompile(`^(https?:\/\/)([\w\-_\.\/]+)(\.git)$`)
-	VcsCloneDirReg   = regexp.MustCompile(`^[a-zA-Z0-9\.\/\-_]{1,50}$`)
+	VcsCloneDirReg   = regexp.MustCompile(`^[a-zA-Z0-9\.\/\-_]{1,100}$`)
 	VcsGitVerReg     = regexp.MustCompile(`^[a-f0-9]{30,50}$`)
 )
 

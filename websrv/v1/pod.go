@@ -59,8 +59,7 @@ func (c *Pod) Init() int {
 }
 
 func (c *Pod) owner_or_sysadmin_allow(user, privilege string) bool {
-	if c.us.UserName == user ||
-		iamapi.ArrayStringHas(c.us.Groups, user) ||
+	if c.us.AccessAllow(user) ||
 		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
 		return true
 	}

@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/hooto/iam/iamapi"
-	"github.com/hooto/iam/iamclient"
+	iamdata "github.com/hooto/iam/store"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	"golang.org/x/net/publicsuffix"
@@ -222,8 +222,8 @@ func (c Resource) DomainSetAction() {
 			return
 		}
 
-		ue := iamclient.PublicUserEntry(set.Meta.User)
-		if ue.Error != nil {
+		pu := iamdata.UserGet(set.Meta.User)
+		if pu == nil {
 			set.Error = types.NewErrorMeta("400", "User Not Found")
 			return
 		}

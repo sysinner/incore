@@ -31,7 +31,7 @@ type Resource struct {
 }
 
 func (c *Resource) owner_or_sysadmin_allow(user, privilege string) bool {
-	if user == c.us.UserName ||
+	if c.us.AccessAllow(user) ||
 		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
 		return true
 	}
@@ -65,11 +65,13 @@ func (c Resource) ListAction() {
 		return
 	}
 
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
-		inapi.NsGlobalResInstance(c.Params.Get("type")), inapi.NsGlobalResInstance(c.Params.Get("type"))).
-		LimitNumSet(1000).Query()
+	var (
+		offset = inapi.NsGlobalResInstance(c.Params.Get("type") + "/")
+		rs     = data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
+			LimitNumSet(1000).Query()
+		fields types.ArrayPathTree
+	)
 
-	var fields types.ArrayPathTree
 	if fns := c.Params.Get("fields"); fns != "" {
 		fields.Set(fns)
 		fields.Sort()
@@ -79,63 +81,64 @@ func (c Resource) ListAction() {
 
 		var inst inapi.Resource
 
-		if err := v.Decode(&inst); err == nil {
+		if err := v.Decode(&inst); err != nil {
+			continue
+		}
 
-			// TOPO
-			if c.Params.Get("filter_meta_user") == "all" &&
-				iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
-				//
-			} else if inst.Meta.User != c.us.UserName {
-				continue
+		// TOPO
+		if c.Params.Get("filter_meta_user") == "all" &&
+			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+			//
+		} else if !c.us.AccessAllow(inst.Meta.User) {
+			continue
+		}
+
+		if len(fields) > 0 {
+
+			instf := inapi.Resource{
+				Meta: types.InnerObjectMeta{
+					ID: inst.Meta.ID,
+				},
 			}
 
-			if len(fields) > 0 {
+			if fields.Has("meta/name") {
+				instf.Meta.Name = inst.Meta.Name
+			}
+			if fields.Has("meta/user") {
+				instf.Meta.User = inst.Meta.User
+			}
+			if fields.Has("meta/created") {
+				instf.Meta.Created = inst.Meta.Created
+			}
+			if fields.Has("meta/updated") {
+				instf.Meta.Updated = inst.Meta.Updated
+			}
 
-				instf := inapi.Resource{
-					Meta: types.InnerObjectMeta{
-						ID: inst.Meta.ID,
-					},
-				}
+			if fields.Has("operate/app_id") {
+				instf.Operate.AppId = inst.Operate.AppId
+			}
 
-				if fields.Has("meta/name") {
-					instf.Meta.Name = inst.Meta.Name
-				}
-				if fields.Has("meta/user") {
-					instf.Meta.User = inst.Meta.User
-				}
-				if fields.Has("meta/created") {
-					instf.Meta.Created = inst.Meta.Created
-				}
-				if fields.Has("meta/updated") {
-					instf.Meta.Updated = inst.Meta.Updated
-				}
+			if fields.Has("action") {
+				instf.Action = inst.Action
+			}
 
-				if fields.Has("operate/app_id") {
-					instf.Operate.AppId = inst.Operate.AppId
-				}
+			if fields.Has("description") {
+				instf.Description = inst.Description
+			}
 
-				if fields.Has("action") {
-					instf.Action = inst.Action
-				}
-
-				if fields.Has("description") {
-					instf.Description = inst.Description
-				}
-
-				if fields.Has("bounds") {
-					for _, bd := range inst.Bounds {
-						bdf := &inapi.ResourceBound{}
-						if fields.Has("bounds/name") {
-							bdf.Name = bd.Name
-						}
-						instf.Bounds = append(instf.Bounds, bdf)
+			if fields.Has("bounds") {
+				for _, bd := range inst.Bounds {
+					bdf := &inapi.ResourceBound{}
+					if fields.Has("bounds/name") {
+						bdf.Name = bd.Name
 					}
+					instf.Bounds = append(instf.Bounds, bdf)
 				}
-
-				ls.Items = append(ls.Items, instf)
-			} else {
-				ls.Items = append(ls.Items, inst)
 			}
+
+			ls.Items = append(ls.Items, instf)
+		} else {
+			ls.Items = append(ls.Items, inst)
 		}
 	}
 
