@@ -376,7 +376,7 @@ type AppOption struct {
 	Subs    types.ArrayString    `json:"subs,omitempty" toml:"subs,omitempty"`
 	Ref     *AppOptionRef        `json:"ref,omitempty" toml:"ref,omitempty"`
 	User    string               `json:"user,omitempty" toml:"user,omitempty"`
-	Updated uint64               `json:"updated,omitempty" toml:"updated,omitempty"`
+	Updated types.MetaTime       `json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
 func (it *AppOption) ValueOK(name string) (types.Bytex, bool) {

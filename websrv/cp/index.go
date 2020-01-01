@@ -82,7 +82,7 @@ func (c Index) IndexAction() {
     <div class="status status_dark" id="incp-well-status">loading</div>
   </div>
   <div class="footer">
-    <span class="copy">&copy;2019&nbsp;</span>
+    <span class="copy">&copy;2020&nbsp;</span>
     <span class="url-info">Powered by <a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
   </div>
 </div>

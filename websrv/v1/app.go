@@ -676,7 +676,7 @@ func (c App) OpResSetAction() {
 	opt := inapi.AppOption{
 		Name:    types.NewNameIdentifier("res/" + res.Meta.Name),
 		User:    res.Meta.User,
-		Updated: uint64(types.MetaTimeNow()),
+		Updated: types.MetaTimeNow(),
 	}
 	for _, v := range res.Bounds {
 		if v.Action != 1 {
