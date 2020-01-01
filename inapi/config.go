@@ -20,26 +20,26 @@ import (
 
 //
 type SysConfigurator struct {
-	Name      string            `json:"name"`
-	Title     string            `json:"title,omitempty"`
-	Fields    AppConfigFields   `json:"fields,omitempty"`
-	ReadRoles types.ArrayUint32 `json:"read_roles,omitempty"`
+	Name      string            `json:"name" toml:"name"`
+	Title     string            `json:"title,omitempty" toml:"title,omitempty"`
+	Fields    AppConfigFields   `json:"fields,omitempty" toml:"fields,omitempty"`
+	ReadRoles types.ArrayUint32 `json:"read_roles,omitempty" toml:"read_roles,omitempty"`
 }
 
 type SysConfiguratorList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []*SysConfigurator `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []*SysConfigurator `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type SysConfigGroup struct {
-	Name    string       `json:"name"`
-	Items   types.Labels `json:"items,omitempty"`
-	Updated uint32       `json:"updated,omitempty"`
+	Name    string       `json:"name" toml:"name"`
+	Items   types.Labels `json:"items,omitempty" toml:"items,omitempty"`
+	Updated uint32       `json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
 type SysConfigGroupList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []*SysConfigGroup `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []*SysConfigGroup `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 func (ls *SysConfigGroupList) Get(name string) *SysConfigGroup {
@@ -77,12 +77,12 @@ func (ls *SysConfigGroupList) Sync(vn *SysConfigGroup) {
 }
 
 type SysConfigWizard struct {
-	types.TypeMeta `json:",inline"`
-	Option         AppOption        `json:"option"`
-	Configurator   *SysConfigurator `json:"configurator,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Option         AppOption        `json:"option" toml:"option"`
+	Configurator   *SysConfigurator `json:"configurator,omitempty" toml:"configurator,omitempty"`
 }
 
 type SysConfigWizardList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []*SysConfigWizard `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []*SysConfigWizard `json:"items,omitempty" toml:"items,omitempty"`
 }

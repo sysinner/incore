@@ -70,29 +70,29 @@ const (
 )
 
 type GeneralObject struct {
-	Kind  string           `json:"kind,omitempty"`
-	Error *types.ErrorMeta `json:"error,omitempty"`
+	Kind  string           `json:"kind,omitempty" toml:"kind,omitempty"`
+	Error *types.ErrorMeta `json:"error,omitempty" toml:"error,omitempty"`
 }
 
 type GeneralObjectList struct {
-	Kind  string           `json:"kind,omitempty"`
-	Error *types.ErrorMeta `json:"error,omitempty"`
-	Items []interface{}    `json:"items,omitempty"`
+	Kind  string           `json:"kind,omitempty" toml:"kind,omitempty"`
+	Error *types.ErrorMeta `json:"error,omitempty" toml:"error,omitempty"`
+	Items []interface{}    `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 // Port represents a network port in a single container
 type Port struct {
 	// Optional: If specified, this must be a DNS_LABEL.  Each named port
 	// in a pod must have a unique name.
-	Name string `json:"name,omitempty"`
+	Name string `json:"name,omitempty" toml:"name,omitempty"`
 	// Optional: If specified, this must be a valid port number, 0 < x < 65536.
-	Protocol Protocol `json:"protocol,omitempty"`
+	Protocol Protocol `json:"protocol,omitempty" toml:"protocol,omitempty"`
 	// Required: This must be a valid port number, 0 < x < 65536.
-	BoxPort int `json:"box_port"`
+	BoxPort int `json:"box_port" toml:"box_port"`
 	// Optional: If specified, this must be a valid port number, 0 < x < 65536.
-	HostPort int `json:"host_port,omitempty"`
+	HostPort int `json:"host_port,omitempty" toml:"host_port,omitempty"`
 	// Optional: What host IP to bind the external port to.
-	HostIP string `json:"host_ip,omitempty"`
+	HostIP string `json:"host_ip,omitempty" toml:"host_ip,omitempty"`
 }
 
 type Ports []Port
@@ -171,48 +171,48 @@ func (ls *Ports) Equal(items Ports) bool {
 }
 
 type VolumeHostDir struct {
-	HostDir string `json:"hostDir"`
-	// BoxPath    string `json:"boxPath,omitempty"`
-	Path string `json:"path"`
+	HostDir string `json:"hostDir" toml:"hostDir"`
+	// BoxPath    string `json:"boxPath,omitempty" toml:"boxPath,omitempty"`
+	Path string `json:"path" toml:"path"`
 }
 
 // VolumePackage represents a volume that is pulled from lessos package service.
 type VolumePackage struct {
 	// Package Name form an identifier that is assumed to be completely unique
-	Name string `json:"name"`
+	Name string `json:"name" toml:"name"`
 	// Package Version
-	Version string `json:"version,omitempty"`
+	Version string `json:"version,omitempty" toml:"version,omitempty"`
 	// Package Release
-	Release string `json:"release,omitempty"`
+	Release string `json:"release,omitempty" toml:"release,omitempty"`
 	// Distribution indicates the type of operating system.
-	Dist string `json:"dist,omitempty"`
+	Dist string `json:"dist,omitempty" toml:"dist,omitempty"`
 	// Architecture indicates the type of hardware.
-	Arch string `json:"arch,omitempty"`
+	Arch string `json:"arch,omitempty" toml:"arch,omitempty"`
 
 	//
-	HostDir string `json:"hostDir,omitempty"`
+	HostDir string `json:"hostDir,omitempty" toml:"hostDir,omitempty"`
 }
 
 // VolumeGitRepo represents a volume that is pulled from git when the pod is created.
 type VolumeGitRepo struct {
 	// Repository URL
-	Repository string `json:"repository"`
+	Repository string `json:"repository" toml:"repository"`
 	// Commit hash, this is optional
-	Revision string `json:"revision"`
+	Revision string `json:"revision" toml:"revision"`
 	//
-	BoxPath string `json:"boxPath,omitempty"`
+	BoxPath string `json:"boxPath,omitempty" toml:"boxPath,omitempty"`
 }
 
 // VolumeMount describes a mounting of a Volume within a container.
 type VolumeMount struct {
 	// Required: This must match the Name of a Volume [above].
-	Name string `json:"name,omitempty"`
+	Name string `json:"name,omitempty" toml:"name,omitempty"`
 	// Optional: Defaults to false (read-write).
-	ReadOnly bool `json:"readOnly,omitempty"`
+	ReadOnly bool `json:"readOnly,omitempty" toml:"readOnly,omitempty"`
 	// Required.
-	MountPath string `json:"mountPath"`
+	MountPath string `json:"mountPath" toml:"mountPath"`
 	// //
-	HostDir string `json:"hostDir,omitempty"`
+	HostDir string `json:"hostDir,omitempty" toml:"hostDir,omitempty"`
 }
 
 type VolumeMounts []VolumeMount
@@ -303,8 +303,8 @@ func (ls *VolumeMounts) DiffSync(items VolumeMounts) {
 
 // EnvVar represents an environment variable present in a Box.
 type EnvVar struct {
-	Name  string `json:"name"`
-	Value string `json:"value,omitempty"`
+	Name  string `json:"name" toml:"name"`
+	Value string `json:"value,omitempty" toml:"value,omitempty"`
 }
 
 func ObjPrint(name string, v interface{}) {

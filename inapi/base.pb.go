@@ -19,11 +19,11 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type ErrorMeta struct {
-	Code                 string   `protobuf:"bytes,1,opt,name=code" json:"code,omitempty"`
-	Message              string   `protobuf:"bytes,2,opt,name=message" json:"message,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Code                 string   `protobuf:"bytes,1,opt,name=code" json:"code,omitempty" toml:"code,omitempty"`
+	Message              string   `protobuf:"bytes,2,opt,name=message" json:"message,omitempty" toml:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ErrorMeta) Reset()         { *m = ErrorMeta{} }
@@ -65,11 +65,11 @@ func (m *ErrorMeta) GetMessage() string {
 }
 
 type TypeMeta struct {
-	Kind                 string     `protobuf:"bytes,1,opt,name=kind" json:"kind,omitempty"`
-	Error                *ErrorMeta `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+	Kind                 string     `protobuf:"bytes,1,opt,name=kind" json:"kind,omitempty" toml:"kind,omitempty"`
+	Error                *ErrorMeta `protobuf:"bytes,2,opt,name=error" json:"error,omitempty" toml:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-" toml:"-"`
+	XXX_unrecognized     []byte     `json:"-" toml:"-"`
+	XXX_sizecache        int32      `json:"-" toml:"-"`
 }
 
 func (m *TypeMeta) Reset()         { *m = TypeMeta{} }
@@ -111,13 +111,13 @@ func (m *TypeMeta) GetError() *ErrorMeta {
 }
 
 type ObjectMeta struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
-	Created              uint64   `protobuf:"varint,3,opt,name=created" json:"created,omitempty"`
-	Updated              uint64   `protobuf:"varint,4,opt,name=updated" json:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty" toml:"id,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
+	Created              uint64   `protobuf:"varint,3,opt,name=created" json:"created,omitempty" toml:"created,omitempty"`
+	Updated              uint64   `protobuf:"varint,4,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ObjectMeta) Reset()         { *m = ObjectMeta{} }
@@ -173,11 +173,11 @@ func (m *ObjectMeta) GetUpdated() uint64 {
 }
 
 type Label struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Value                string   `protobuf:"bytes,2,opt,name=value" json:"value,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
+	Value                string   `protobuf:"bytes,2,opt,name=value" json:"value,omitempty" toml:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *Label) Reset()         { *m = Label{} }

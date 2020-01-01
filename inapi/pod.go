@@ -93,36 +93,36 @@ func PodSpecBoxImageDriver(name string) PbPodSpecBoxImageDriver {
 
 // Pod is a collection of containers, used as either input (create, update) or as output (list, get).
 type Pod struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 
 	// Spec defines the behavior of a pod.
-	Spec *PodSpecBound `json:"spec,omitempty"`
+	Spec *PodSpecBound `json:"spec,omitempty" toml:"spec,omitempty"`
 
 	// Apps represents the information about a collection of applications to deploy.
 	// this is a module for App Engine
-	Apps AppInstances `json:"apps,omitempty"`
+	Apps AppInstances `json:"apps,omitempty" toml:"apps,omitempty"`
 
 	//
-	Operate PodOperate `json:"operate,omitempty"`
+	Operate PodOperate `json:"operate,omitempty" toml:"operate,omitempty"`
 
 	// Status represents the current information about a pod. This data may not be up
 	// to date.
-	Status *PodStatus `json:"status,omitempty"`
+	Status *PodStatus `json:"status,omitempty" toml:"status,omitempty"`
 
 	//
-	Payment *PodPayment `json:"payment,omitempty"`
+	Payment *PodPayment `json:"payment,omitempty" toml:"payment,omitempty"`
 }
 
 type PodEstimateList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []*PodEstimateEntry `json:"items"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []*PodEstimateEntry `json:"items" toml:"items"`
 }
 
 type PodEstimateEntry struct {
-	Name        string  `json:"name"`
-	CycleAmount float64 `json:"cycle_amount"`
-	CycleTime   uint64  `json:"cycle_time"`
+	Name        string  `json:"name" toml:"name"`
+	CycleAmount float64 `json:"cycle_amount" toml:"cycle_amount"`
+	CycleTime   uint64  `json:"cycle_time" toml:"cycle_time"`
 }
 
 func (pod *Pod) AppServicePorts() ServicePorts {
@@ -319,21 +319,21 @@ func (ls *PodItems) Each(fn func(item *Pod)) {
 
 // PodList is a list of Pods.
 type PodList struct {
-	types.TypeMeta `json:",inline"`
-	Items          PodItems           `json:"items"`
-	UserTransfers  []*PodUserTransfer `json:"user_transfers,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          PodItems           `json:"items" toml:"items"`
+	UserTransfers  []*PodUserTransfer `json:"user_transfers,omitempty" toml:"user_transfers,omitempty"`
 }
 
 // PodSpecBound is a description of a bound spec based on PodSpecPlan
 type PodSpecBound struct {
-	Ref       ObjectReference         `json:"ref,omitempty"`
-	Zone      string                  `json:"zone,omitempty"`
-	Cell      string                  `json:"cell,omitempty"`
-	BoxDriver string                  `json:"box_driver,omitempty"`
-	Labels    types.Labels            `json:"labels,omitempty"`
-	VolSys    *ResVolBound            `json:"vol_sys,omitempty"`
-	Box       PodSpecBoxBound         `json:"box,omitempty"`
-	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty"`
+	Ref       ObjectReference         `json:"ref,omitempty" toml:"ref,omitempty"`
+	Zone      string                  `json:"zone,omitempty" toml:"zone,omitempty"`
+	Cell      string                  `json:"cell,omitempty" toml:"cell,omitempty"`
+	BoxDriver string                  `json:"box_driver,omitempty" toml:"box_driver,omitempty"`
+	Labels    types.Labels            `json:"labels,omitempty" toml:"labels,omitempty"`
+	VolSys    *ResVolBound            `json:"vol_sys,omitempty" toml:"vol_sys,omitempty"`
+	Box       PodSpecBoxBound         `json:"box,omitempty" toml:"box,omitempty"`
+	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty" toml:"volumes,omitempty"`
 }
 
 type jsonPodSpecBound PodSpecBound
@@ -391,137 +391,137 @@ func (obj *PodSpecBound) ResComputeBound() *PodSpecBoxResComputeBound {
 }
 
 type PodSpecBoundList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []PodSpecBound `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []PodSpecBound `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 // ObjectReference contains enough information to let you inspect or modify the referred object
 type ObjectReference struct {
-	Id      string `json:"id,omitempty"`
-	Name    string `json:"name,omitempty"`
-	Version string `json:"version,omitempty"`
-	Title   string `json:"title,omitempty"`
+	Id      string `json:"id,omitempty" toml:"id,omitempty"`
+	Name    string `json:"name,omitempty" toml:"name,omitempty"`
+	Version string `json:"version,omitempty" toml:"version,omitempty"`
+	Title   string `json:"title,omitempty" toml:"title,omitempty"`
 }
 
 type PodSpecResVolumeBound struct {
-	Ref       ObjectReference `json:"ref,omitempty"`
-	Name      string          `json:"name"`
-	Labels    types.Labels    `json:"labels,omitempty"`
-	SizeLimit int32           `json:"size_limit,omitempty"` // in GiB
-	Attrs     uint32          `json:"attrs,omitempty"`
+	Ref       ObjectReference `json:"ref,omitempty" toml:"ref,omitempty"`
+	Name      string          `json:"name" toml:"name"`
+	Labels    types.Labels    `json:"labels,omitempty" toml:"labels,omitempty"`
+	SizeLimit int32           `json:"size_limit,omitempty" toml:"size_limit,omitempty"` // in GiB
+	Attrs     uint32          `json:"attrs,omitempty" toml:"attrs,omitempty"`
 }
 
 type PodSpecBoxBound struct {
-	Name      string                     `json:"name,omitempty"`
-	Image     PodSpecBoxImageBound       `json:"image,omitempty"`
-	Resources *PodSpecBoxResComputeBound `json:"resources,omitempty"`
-	Mounts    []*PbVolumeMount           `json:"mounts,omitempty"`
-	Ports     Ports                      `json:"ports,omitempty"`
-	Command   []string                   `json:"command,omitempty"`
-	Updated   types.MetaTime             `json:"updated,omitempty"`
+	Name      string                     `json:"name,omitempty" toml:"name,omitempty"`
+	Image     PodSpecBoxImageBound       `json:"image,omitempty" toml:"image,omitempty"`
+	Resources *PodSpecBoxResComputeBound `json:"resources,omitempty" toml:"resources,omitempty"`
+	Mounts    []*PbVolumeMount           `json:"mounts,omitempty" toml:"mounts,omitempty"`
+	Ports     Ports                      `json:"ports,omitempty" toml:"ports,omitempty"`
+	Command   []string                   `json:"command,omitempty" toml:"command,omitempty"`
+	Updated   types.MetaTime             `json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
 type PodSpecBoxImageBound struct {
-	Ref *ObjectReference `json:"ref,omitempty"`
+	Ref *ObjectReference `json:"ref,omitempty" toml:"ref,omitempty"`
 
-	RefName  string `json:"ref_name"`
-	RefTag   string `json:"ref_tag"`
-	RefTitle string `json:"ref_title"`
+	RefName  string `json:"ref_name" toml:"ref_name"`
+	RefTag   string `json:"ref_tag" toml:"ref_tag"`
+	RefTitle string `json:"ref_title" toml:"ref_title"`
 
-	Driver string `json:"driver,omitempty"`
+	Driver string `json:"driver,omitempty" toml:"driver,omitempty"`
 
-	// Options types.Labels `json:"options,omitempty"`
+	// Options types.Labels `json:"options,omitempty" toml:"options,omitempty"`
 
 	// Distribution short name of the operating system.
 	//  ex: el6, el7, deb7, ubu1404, ...
-	OsDist string `json:"os_dist,omitempty"`
+	OsDist string `json:"os_dist,omitempty" toml:"os_dist,omitempty"`
 
 	// A human-readable description of the operating system.
-	// OsName string `json:"os_name,omitempty"`
+	// OsName string `json:"os_name,omitempty" toml:"os_name,omitempty"`
 
 	// Architecture indicates the type of hardware.
 	//  ex: amd64, armv6l, ...
-	Arch string `json:"arch,omitempty"`
+	Arch string `json:"arch,omitempty" toml:"arch,omitempty"`
 }
 
 type PodSpecBoxResComputeBound struct {
-	Ref      *ObjectReference `json:"ref,omitempty"`
-	CpuLimit int32            `json:"cpu_limit,omitempty"` // in .1 Cores
-	MemLimit int32            `json:"mem_limit,omitempty"` // in MiB
+	Ref      *ObjectReference `json:"ref,omitempty" toml:"ref,omitempty"`
+	CpuLimit int32            `json:"cpu_limit,omitempty" toml:"cpu_limit,omitempty"` // in .1 Cores
+	MemLimit int32            `json:"mem_limit,omitempty" toml:"mem_limit,omitempty"` // in MiB
 }
 
 type PodSpecBoxImage struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 
-	Name      string `json:"name"`
-	Tag       string `json:"tag"`
-	SortOrder int    `json:"sort_order"`
-	Action    uint32 `json:"action,omitempty"`
+	Name      string `json:"name" toml:"name"`
+	Tag       string `json:"tag" toml:"tag"`
+	SortOrder int    `json:"sort_order" toml:"sort_order"`
+	Action    uint32 `json:"action,omitempty" toml:"action,omitempty"`
 
 	// Container type of the image.
 	//  ex: docker, pouch, ...
-	Driver string `json:"driver,omitempty"`
+	Driver string `json:"driver,omitempty" toml:"driver,omitempty"`
 
-	// Status string `json:"status,omitempty"`
+	// Status string `json:"status,omitempty" toml:"status,omitempty"`
 
 	// TODO
-	// AccessRoles string `json:"access_roles,omitempty"`
+	// AccessRoles string `json:"access_roles,omitempty" toml:"access_roles,omitempty"`
 
 	// Options are name value pairs that representing extensional information,
 	// usually be used in special system components, names must be unique within the list.
 	// ex:
 	//  {name: "docker/image/name", value: "centos/lastest"},
 	//  {name: "example.com/spec/name", value: "hello"}, ...
-	// Options types.Labels `json:"options,omitempty"`
+	// Options types.Labels `json:"options,omitempty" toml:"options,omitempty"`
 
 	// Annotations are name value pairs that representing additional information,
 	// any extra metadata you wish may be added to the list.
 	// ex:
 	//  {name: "homepage", value: "http://example.com"}, ...
-	// Annotations types.Labels `json:"annotations,omitempty"`
+	// Annotations types.Labels `json:"annotations,omitempty" toml:"annotations,omitempty"`
 
 	// Type name of the operating system.
 	//  ex: linux, freebsd, darwin, ...
-	// OsType string `json:"os_type,omitempty"`
+	// OsType string `json:"os_type,omitempty" toml:"os_type,omitempty"`
 
 	// Distribution short name of the operating system.
 	//  ex: el7, deb9, ubu1804, ...
-	OsDist string `json:"os_dist,omitempty"`
+	OsDist string `json:"os_dist,omitempty" toml:"os_dist,omitempty"`
 
 	// Version of the operating system.
-	// OsVersion string `json:"os_version,omitempty"`
+	// OsVersion string `json:"os_version,omitempty" toml:"os_version,omitempty"`
 
 	// A human-readable description of the operating system.
-	// OsName string `json:"os_name,omitempty"`
+	// OsName string `json:"os_name,omitempty" toml:"os_name,omitempty"`
 
 	// Architecture indicates the type of hardware.
 	//  ex: x64, armv6l, ...
-	Arch string `json:"arch,omitempty"`
+	Arch string `json:"arch,omitempty" toml:"arch,omitempty"`
 }
 
 type PodSpecBoxImageList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []PodSpecBoxImage `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []PodSpecBoxImage `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type PodSpecResCompute struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 
-	Status string `json:"status,omitempty"`
+	Status string `json:"status,omitempty" toml:"status,omitempty"`
 
 	// Labels are name value pairs that representing extensional information,
 	// usually be used in special system components, names must be unique within the list.
 	// ex:
 	//  {name: "plan/name", value: "general"}, ...
-	Labels types.Labels `json:"labels,omitempty"`
+	Labels types.Labels `json:"labels,omitempty" toml:"labels,omitempty"`
 
 	// CPU, in Cores. (1 = .1 Cores)
-	CpuLimit int32 `json:"cpu_limit,omitempty"`
+	CpuLimit int32 `json:"cpu_limit,omitempty" toml:"cpu_limit,omitempty"`
 
 	// Memory, in MiB
-	MemLimit int32 `json:"mem_limit,omitempty"`
+	MemLimit int32 `json:"mem_limit,omitempty" toml:"mem_limit,omitempty"`
 }
 
 type PodSpecPlanResComputeBounds []*PodSpecPlanResComputeBound
@@ -545,8 +545,8 @@ func (s PodSpecPlanResComputeBounds) Swap(i, j int) {
 type PodSpecResComputes []*PodSpecResCompute
 
 type PodSpecResComputeList struct {
-	types.TypeMeta `json:",inline"`
-	Items          PodSpecResComputes `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          PodSpecResComputes `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 func (s PodSpecResComputes) Len() int {
@@ -568,113 +568,113 @@ func (s PodSpecResComputes) Swap(i, j int) {
 }
 
 type PodSpecResComputeCharge struct {
-	Type  uint8   `json:"type"`
-	Cycle uint64  `json:"cycle"` // default to 3600 seconds
-	Cpu   float64 `json:"cpu"`   // value in Cores
-	Mem   float64 `json:"mem"`   // value in MiB
+	Type  uint8   `json:"type" toml:"type"`
+	Cycle uint64  `json:"cycle" toml:"cycle"` // default to 3600 seconds
+	Cpu   float64 `json:"cpu" toml:"cpu"`     // value in Cores
+	Mem   float64 `json:"mem" toml:"mem"`     // value in MiB
 }
 
 type PodSpecResVolume struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 
-	Status string `json:"status,omitempty"`
+	Status string `json:"status,omitempty" toml:"status,omitempty"`
 
 	// Labels are name value pairs that representing extensional information,
 	// usually be used in special system components, names must be unique within the list.
 	// ex:
 	//  {name: "plan/name", value: "general"}, ...
-	Labels types.Labels `json:"labels,omitempty"`
+	Labels types.Labels `json:"labels,omitempty" toml:"labels,omitempty"`
 
 	// Volume size, in GiB.
-	Limit   int32  `json:"limit,omitempty"`   // max to 1000 GB
-	Request int32  `json:"request,omitempty"` // start from 1 GiB
-	Step    int32  `json:"step,omitempty"`    // every step by 1 GiB
-	Default int32  `json:"default,omitempty"` // default to 1 GiB
-	Attrs   uint32 `json:"attrs,omitempty"`
+	Limit   int32  `json:"limit,omitempty" toml:"limit,omitempty"`     // max to 1000 GB
+	Request int32  `json:"request,omitempty" toml:"request,omitempty"` // start from 1 GiB
+	Step    int32  `json:"step,omitempty" toml:"step,omitempty"`       // every step by 1 GiB
+	Default int32  `json:"default,omitempty" toml:"default,omitempty"` // default to 1 GiB
+	Attrs   uint32 `json:"attrs,omitempty" toml:"attrs,omitempty"`
 }
 
 type PodSpecResVolumeList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []PodSpecResVolume `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []PodSpecResVolume `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type PodSpecResVolumeCharge struct {
-	Type  uint8   `json:"type"`
-	Cycle uint64  `json:"cycle"` // default to 3600 seconds
-	Value float64 `json:"value"`
+	Type  uint8   `json:"type" toml:"type"`
+	Cycle uint64  `json:"cycle" toml:"cycle"` // default to 3600 seconds
+	Value float64 `json:"value" toml:"value"`
 }
 
 // TODO
 type PodSpecResourceNetwork struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 }
 
 // TODO
 type PodSpecResourceNetworkList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []PodSpecResourceNetwork `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []PodSpecResourceNetwork `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type PodSpecPlanResourceCharge struct {
-	Type  uint8  `json:"type"`
-	Cycle uint64 `json:"cycle"` // default to 3600 seconds
+	Type  uint8  `json:"type" toml:"type"`
+	Cycle uint64 `json:"cycle" toml:"cycle"` // default to 3600 seconds
 }
 
 type PodSpecPlanBoxImageBound struct {
-	RefId     string `json:"ref_id"`
-	RefName   string `json:"ref_name"`
-	RefTag    string `json:"ref_tag"`
-	RefTitle  string `json:"ref_title"`
-	Driver    string `json:"driver,omitempty"`
-	OsDist    string `json:"os_dist,omitempty"`
-	Arch      string `json:"arch,omitempty"`
-	SortOrder int    `json:"sort_order"`
-	// Options types.Labels `json:"options,omitempty"`
+	RefId     string `json:"ref_id" toml:"ref_id"`
+	RefName   string `json:"ref_name" toml:"ref_name"`
+	RefTag    string `json:"ref_tag" toml:"ref_tag"`
+	RefTitle  string `json:"ref_title" toml:"ref_title"`
+	Driver    string `json:"driver,omitempty" toml:"driver,omitempty"`
+	OsDist    string `json:"os_dist,omitempty" toml:"os_dist,omitempty"`
+	Arch      string `json:"arch,omitempty" toml:"arch,omitempty"`
+	SortOrder int    `json:"sort_order" toml:"sort_order"`
+	// Options types.Labels `json:"options,omitempty" toml:"options,omitempty"`
 }
 
 type PodSpecPlanResComputeBound struct {
-	RefId    string `json:"ref_id"`
-	CpuLimit int32  `json:"cpu_limit"` // in .1 Cores
-	MemLimit int32  `json:"mem_limit"` // in MiB
+	RefId    string `json:"ref_id" toml:"ref_id"`
+	CpuLimit int32  `json:"cpu_limit" toml:"cpu_limit"` // in .1 Cores
+	MemLimit int32  `json:"mem_limit" toml:"mem_limit"` // in MiB
 }
 
 type PodSpecPlanResVolumeBound struct {
-	RefId       string       `json:"ref_id"`
-	RefName     string       `json:"ref_name"`
-	Limit       int32        `json:"limit,omitempty"`   // max to 2000 GB
-	Request     int32        `json:"request,omitempty"` // start from 1 GiB
-	Step        int32        `json:"step,omitempty"`    // every step by 1 GiB
-	Default     int32        `json:"default,omitempty"` // default to 1 GiB
-	Labels      types.Labels `json:"labels,omitempty"`
-	Attrs       uint32       `json:"attrs,omitempty"`
-	ChargeValue float64      `json:"charge_value,omitempty"`
+	RefId       string       `json:"ref_id" toml:"ref_id"`
+	RefName     string       `json:"ref_name" toml:"ref_name"`
+	Limit       int32        `json:"limit,omitempty" toml:"limit,omitempty"`     // max to 2000 GB
+	Request     int32        `json:"request,omitempty" toml:"request,omitempty"` // start from 1 GiB
+	Step        int32        `json:"step,omitempty" toml:"step,omitempty"`       // every step by 1 GiB
+	Default     int32        `json:"default,omitempty" toml:"default,omitempty"` // default to 1 GiB
+	Labels      types.Labels `json:"labels,omitempty" toml:"labels,omitempty"`
+	Attrs       uint32       `json:"attrs,omitempty" toml:"attrs,omitempty"`
+	ChargeValue float64      `json:"charge_value,omitempty" toml:"charge_value,omitempty"`
 }
 
 type PodSpecPlan struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 
-	Status    string                  `json:"status,omitempty"`
-	Zones     []*PodSpecPlanZoneBound `json:"zones,omitempty"`
-	SortOrder int                     `json:"sort_order"`
+	Status    string                  `json:"status,omitempty" toml:"status,omitempty"`
+	Zones     []*PodSpecPlanZoneBound `json:"zones,omitempty" toml:"zones,omitempty"`
+	SortOrder int                     `json:"sort_order" toml:"sort_order"`
 
-	Labels      types.Labels `json:"labels,omitempty"`
-	Annotations types.Labels `json:"annotations,omitempty"`
+	Labels      types.Labels `json:"labels,omitempty" toml:"labels,omitempty"`
+	Annotations types.Labels `json:"annotations,omitempty" toml:"annotations,omitempty"`
 
-	Images       []*PodSpecPlanBoxImageBound `json:"images,omitempty"`
-	ImageDefault string                      `json:"image_default,omitempty"`
+	Images       []*PodSpecPlanBoxImageBound `json:"images,omitempty" toml:"images,omitempty"`
+	ImageDefault string                      `json:"image_default,omitempty" toml:"image_default,omitempty"`
 
-	ResComputes       PodSpecPlanResComputeBounds `json:"res_computes,omitempty"`
-	ResComputeDefault string                      `json:"res_compute_default,omitempty"`
-	ResComputeCharge  PodSpecResComputeCharge     `json:"res_compute_charge,omitempty"`
+	ResComputes       PodSpecPlanResComputeBounds `json:"res_computes,omitempty" toml:"res_computes,omitempty"`
+	ResComputeDefault string                      `json:"res_compute_default,omitempty" toml:"res_compute_default,omitempty"`
+	ResComputeCharge  PodSpecResComputeCharge     `json:"res_compute_charge,omitempty" toml:"res_compute_charge,omitempty"`
 
-	ResVolumes       []*PodSpecPlanResVolumeBound `json:"res_volumes,omitempty"`
-	ResVolumeDefault string                       `json:"res_volume_default,omitempty"`
-	ResVolumeCharge  PodSpecResVolumeCharge       `json:"res_volume_charge,omitempty"`
+	ResVolumes       []*PodSpecPlanResVolumeBound `json:"res_volumes,omitempty" toml:"res_volumes,omitempty"`
+	ResVolumeDefault string                       `json:"res_volume_default,omitempty" toml:"res_volume_default,omitempty"`
+	ResVolumeCharge  PodSpecResVolumeCharge       `json:"res_volume_charge,omitempty" toml:"res_volume_charge,omitempty"`
 
-	ResourceCharge PodSpecPlanResourceCharge `json:"res_charge"`
+	ResourceCharge PodSpecPlanResourceCharge `json:"res_charge" toml:"res_charge"`
 }
 
 // TODO
@@ -743,8 +743,8 @@ func (s PodSpecPlan) ResVolume(id string) *PodSpecPlanResVolumeBound {
 type PodSpecPlans []*PodSpecPlan
 
 type PodSpecPlanList struct {
-	types.TypeMeta `json:",inline"`
-	Items          PodSpecPlans `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          PodSpecPlans `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 func (ls *PodSpecPlans) Get(plan_id string) *PodSpecPlan {
@@ -761,29 +761,29 @@ func (ls *PodSpecPlanList) Get(plan_id string) *PodSpecPlan {
 }
 
 type PodSpecPlanZoneBound struct {
-	Name  string            `json:"name,omitempty"`
-	Cells types.ArrayString `json:"cells,omitempty"`
+	Name  string            `json:"name,omitempty" toml:"name,omitempty"`
+	Cells types.ArrayString `json:"cells,omitempty" toml:"cells,omitempty"`
 }
 
 type PodCreate struct {
-	types.TypeMeta `json:",inline"`
-	Owner          string       `json:"owner,omitempty"`
-	Pod            string       `json:"pod,omitempty"`
-	Name           string       `json:"name"`
-	Plan           string       `json:"plan"`
-	Zone           string       `json:"zone"`
-	Cell           string       `json:"cell"`
-	ResVolume      string       `json:"res_volume"`
-	ResVolumeSize  int32        `json:"res_volume_size"` // in GiB
-	Box            PodCreateBox `json:"box"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Owner          string       `json:"owner,omitempty" toml:"owner,omitempty"`
+	Pod            string       `json:"pod,omitempty" toml:"pod,omitempty"`
+	Name           string       `json:"name" toml:"name"`
+	Plan           string       `json:"plan" toml:"plan"`
+	Zone           string       `json:"zone" toml:"zone"`
+	Cell           string       `json:"cell" toml:"cell"`
+	ResVolume      string       `json:"res_volume" toml:"res_volume"`
+	ResVolumeSize  int32        `json:"res_volume_size" toml:"res_volume_size"` // in GiB
+	Box            PodCreateBox `json:"box" toml:"box"`
 }
 
 type PodCreateBox struct {
-	Name               string `json:"name"`
-	Image              string `json:"image"`
-	ResCompute         string `json:"res_compute"`
-	ResComputeCpuLimit int32  `json:"res_compute_cpu_limit,omitempty"` // in .1 Cores
-	ResComputeMemLimit int32  `json:"res_compute_mem_limit,omitempty"` // in MiB
+	Name               string `json:"name" toml:"name"`
+	Image              string `json:"image" toml:"image"`
+	ResCompute         string `json:"res_compute" toml:"res_compute"`
+	ResComputeCpuLimit int32  `json:"res_compute_cpu_limit,omitempty" toml:"res_compute_cpu_limit,omitempty"` // in .1 Cores
+	ResComputeMemLimit int32  `json:"res_compute_mem_limit,omitempty" toml:"res_compute_mem_limit,omitempty"` // in MiB
 }
 
 func (s *PodCreate) Valid(plan PodSpecPlan) error {
@@ -855,19 +855,19 @@ func (s *PodCreate) Valid(plan PodSpecPlan) error {
 }
 
 type PodOperate struct {
-	Action       uint32                   `json:"action,omitempty"`
-	Version      uint32                   `json:"version,omitempty"`
-	Priority     int                      `json:"priority,omitempty"` // TODO
-	ReplicaCap   int32                    `json:"replica_cap,omitempty"`
-	Replicas     PodOperateReplicas       `json:"replicas,omitempty"`
-	OpLog        []*PbOpLogEntry          `json:"op_log,omitempty"`
-	Operated     uint32                   `json:"operated,omitempty"`
-	Access       *PodOperateAccess        `json:"access,omitempty"`
-	BindServices []*AppServicePortPodBind `json:"bind_services,omitempty"`
-	Failover     *PodOperateFailover      `json:"failover,omitempty"`
-	Deploy       *PodOperateDeploy        `json:"deploy,omitempty"`
-	ExpSysState  int32                    `json:"exp_sys_state,omitempty"`
-	ExpMigrates  []uint32                 `json:"exp_migrates,omitempty"`
+	Action       uint32                   `json:"action,omitempty" toml:"action,omitempty"`
+	Version      uint32                   `json:"version,omitempty" toml:"version,omitempty"`
+	Priority     int                      `json:"priority,omitempty" toml:"priority,omitempty"` // TODO
+	ReplicaCap   int32                    `json:"replica_cap,omitempty" toml:"replica_cap,omitempty"`
+	Replicas     PodOperateReplicas       `json:"replicas,omitempty" toml:"replicas,omitempty"`
+	OpLog        []*PbOpLogEntry          `json:"op_log,omitempty" toml:"op_log,omitempty"`
+	Operated     uint32                   `json:"operated,omitempty" toml:"operated,omitempty"`
+	Access       *PodOperateAccess        `json:"access,omitempty" toml:"access,omitempty"`
+	BindServices []*AppServicePortPodBind `json:"bind_services,omitempty" toml:"bind_services,omitempty"`
+	Failover     *PodOperateFailover      `json:"failover,omitempty" toml:"failover,omitempty"`
+	Deploy       *PodOperateDeploy        `json:"deploy,omitempty" toml:"deploy,omitempty"`
+	ExpSysState  int32                    `json:"exp_sys_state,omitempty" toml:"exp_sys_state,omitempty"`
+	ExpMigrates  []uint32                 `json:"exp_migrates,omitempty" toml:"exp_migrates,omitempty"`
 }
 
 var (
@@ -879,19 +879,19 @@ var (
 )
 
 type PodOperateReplica struct {
-	RepId     uint32             `json:"rep_id"`
-	Node      string             `json:"node,omitempty"`
-	Action    uint32             `json:"action,omitempty"`
-	ResCpu    int32              `json:"res_cpu,omitempty"`     // in 1 = .1 Cores
-	ResMem    int32              `json:"res_mem,omitempty"`     // in MiB
-	VolSys    int32              `json:"vol_sys,omitempty"`     // in GiB
-	VolSysMnt string             `json:"vol_sys_mnt,omitempty"` //
-	Ports     ServicePorts       `json:"ports,omitempty"`
-	Options   types.Labels       `json:"options,omitempty"`
-	Next      *PodOperateReplica `json:"next,omitempty"`
-	PrevNode  string             `json:"prev_node,omitempty"`
-	Updated   uint32             `json:"updated,omitempty"`
-	Scheduled uint32             `json:"scheduled,omitempty"`
+	RepId     uint32             `json:"rep_id" toml:"rep_id"`
+	Node      string             `json:"node,omitempty" toml:"node,omitempty"`
+	Action    uint32             `json:"action,omitempty" toml:"action,omitempty"`
+	ResCpu    int32              `json:"res_cpu,omitempty" toml:"res_cpu,omitempty"`         // in 1 = .1 Cores
+	ResMem    int32              `json:"res_mem,omitempty" toml:"res_mem,omitempty"`         // in MiB
+	VolSys    int32              `json:"vol_sys,omitempty" toml:"vol_sys,omitempty"`         // in GiB
+	VolSysMnt string             `json:"vol_sys_mnt,omitempty" toml:"vol_sys_mnt,omitempty"` //
+	Ports     ServicePorts       `json:"ports,omitempty" toml:"ports,omitempty"`
+	Options   types.Labels       `json:"options,omitempty" toml:"options,omitempty"`
+	Next      *PodOperateReplica `json:"next,omitempty" toml:"next,omitempty"`
+	PrevNode  string             `json:"prev_node,omitempty" toml:"prev_node,omitempty"`
+	Updated   uint32             `json:"updated,omitempty" toml:"updated,omitempty"`
+	Scheduled uint32             `json:"scheduled,omitempty" toml:"scheduled,omitempty"`
 }
 
 func (it *PodOperateReplica) HostAddress(podId string) string {
@@ -967,14 +967,14 @@ func (ls *PodOperateReplicas) Sort() {
 }
 
 type PodOperateAccess struct {
-	SshOn  bool   `json:"ssh_on"`
-	SshKey string `json:"ssh_key,omitempty"`
-	SshPwd string `json:"ssh_pwd,omitempty"`
+	SshOn  bool   `json:"ssh_on" toml:"ssh_on"`
+	SshKey string `json:"ssh_key,omitempty" toml:"ssh_key,omitempty"`
+	SshPwd string `json:"ssh_pwd,omitempty" toml:"ssh_pwd,omitempty"`
 }
 
 type PodExecutorStatus struct {
-	types.TypeMeta `json:",inline"`
-	Items          ExecutorStatuses `json:"items"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          ExecutorStatuses `json:"items" toml:"items"`
 }
 
 // Pod Status
@@ -989,14 +989,14 @@ func (ls *PodRepStatuses) Sort() {
 // PodStatus represents information about the status of a pod. Status may trail the actual
 // state of a system.
 type PodStatus struct {
-	types.TypeMeta     `json:",inline"`
-	PodId              string          `json:"pod_id,omitempty"`
-	Action             uint32          `json:"action,omitempty"`
-	ActionRunning      int             `json:"action_running"`
-	Replicas           PodRepStatuses  `json:"replicas,omitempty"`
-	Updated            uint32          `json:"updated,omitempty"`
-	OpLog              []*PbOpLogEntry `json:"op_log,omitempty"`
-	PaymentCycleAmount float32         `json:"payment_cycle_amount,omitempty"`
+	types.TypeMeta     `json:",inline" toml:",inline"`
+	PodId              string          `json:"pod_id,omitempty" toml:"pod_id,omitempty"`
+	Action             uint32          `json:"action,omitempty" toml:"action,omitempty"`
+	ActionRunning      int             `json:"action_running" toml:"action_running"`
+	Replicas           PodRepStatuses  `json:"replicas,omitempty" toml:"replicas,omitempty"`
+	Updated            uint32          `json:"updated,omitempty" toml:"updated,omitempty"`
+	OpLog              []*PbOpLogEntry `json:"op_log,omitempty" toml:"op_log,omitempty"`
+	PaymentCycleAmount float32         `json:"payment_cycle_amount,omitempty" toml:"payment_cycle_amount,omitempty"`
 }
 
 func (it *PodStatus) RepSync(v *PbPodRepStatus) bool {
@@ -1079,7 +1079,7 @@ func (it *PodStatus) HealthFails(delaySeconds int32, stateless bool, repCap int3
 
 type PodStatusList struct {
 	mu    sync.RWMutex
-	Items []*PodStatus `json:"items"`
+	Items []*PodStatus `json:"items" toml:"items"`
 }
 
 func (ls *PodStatusList) Get(id string) *PodStatus {

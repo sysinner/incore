@@ -38,11 +38,11 @@ var (
 )
 
 type TimeStatsFeedQuerySet struct {
-	TimeCycle  uint32                    `json:"tc,omitempty"`
-	TimePast   uint32                    `json:"tp,omitempty"`
-	TimeStart  uint32                    `json:"ts,omitempty"`
-	TimeCutset uint32                    `json:"tcs,omitempty"`
-	Items      []*TimeStatsEntryQuerySet `json:"is,omitempty"`
+	TimeCycle  uint32                    `json:"tc,omitempty" toml:"tc,omitempty"`
+	TimePast   uint32                    `json:"tp,omitempty" toml:"tp,omitempty"`
+	TimeStart  uint32                    `json:"ts,omitempty" toml:"ts,omitempty"`
+	TimeCutset uint32                    `json:"tcs,omitempty" toml:"tcs,omitempty"`
+	Items      []*TimeStatsEntryQuerySet `json:"is,omitempty" toml:"is,omitempty"`
 }
 
 func (this *TimeStatsFeedQuerySet) Fix() {
@@ -63,8 +63,8 @@ func (this *TimeStatsFeedQuerySet) Fix() {
 }
 
 type TimeStatsEntryQuerySet struct {
-	Name  string `json:"n,omitempty"`
-	Delta bool   `json:"d,omitempty"`
+	Name  string `json:"n,omitempty" toml:"n,omitempty"`
+	Delta bool   `json:"d,omitempty" toml:"d,omitempty"`
 }
 
 func (this *TimeStatsFeedQuerySet) Get(name string) *TimeStatsEntryQuerySet {

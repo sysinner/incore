@@ -27,17 +27,17 @@ var (
 type ServicePort struct {
 	// Optional: If specified, this must be a DNS_LABEL.  Each named port
 	// in a pod must have a unique name.
-	Name string `json:"name,omitempty"`
+	Name string `json:"name,omitempty" toml:"name,omitempty"`
 	// Required: This must be a valid port number, 0 < x < 65536.
-	BoxPort uint16 `json:"box_port"`
+	BoxPort uint16 `json:"box_port" toml:"box_port"`
 	// Optional: If specified, this must be a valid port number, 0 < x < 65536.
-	HostPort uint16 `json:"host_port,omitempty"`
+	HostPort uint16 `json:"host_port,omitempty" toml:"host_port,omitempty"`
 	// Optional
-	LanAddr string `json:"lan_addr,omitempty"`
+	LanAddr string `json:"lan_addr,omitempty" toml:"lan_addr,omitempty"`
 	// Optional
-	WanAddr string `json:"wan_addr,omitempty"`
+	WanAddr string `json:"wan_addr,omitempty" toml:"wan_addr,omitempty"`
 	// Optional
-	AppSpec string `json:"app_spec,omitempty"`
+	AppSpec string `json:"app_spec,omitempty" toml:"app_spec,omitempty"`
 }
 
 type ServicePorts []*ServicePort

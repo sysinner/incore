@@ -42,23 +42,23 @@ const (
 )
 
 type AppInstance struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 
 	// Spec defines the behavior of a app.
-	Spec AppSpec `json:"spec,omitempty"`
+	Spec AppSpec `json:"spec,omitempty" toml:"spec,omitempty"`
 
 	//
-	Operate AppOperate `json:"operate,omitempty"`
+	Operate AppOperate `json:"operate,omitempty" toml:"operate,omitempty"`
 
 	// Status represents the current information about a app. This data may not be up
 	// to date.
-	Status *AppStatus `json:"status,omitempty"`
+	Status *AppStatus `json:"status,omitempty" toml:"status,omitempty"`
 }
 
 type AppInstanceList struct {
-	types.TypeMeta `json:",inline"`
-	Items          AppInstances `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          AppInstances `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type AppInstances []*AppInstance
@@ -151,29 +151,29 @@ func (it *AppSpecDepend) Valid() error {
 
 //
 type AppSpec struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta        `json:"meta"`
-	LastVersion    string                       `json:"last_version,omitempty"`
-	Roles          types.ArrayUint32            `json:"roles,omitempty"`
-	Vendor         string                       `json:"vendor,omitempty"`
-	Description    string                       `json:"description,omitempty"`
-	Depends        []*AppSpecDepend             `json:"depends,omitempty"`
-	DepRemotes     []*AppSpecDepend             `json:"dep_remotes,omitempty"`
-	Packages       AppPackages                  `json:"packages,omitempty"`
-	VcsRepos       VcsRepoItems                 `json:"vcs_repos,omitempty"`
-	Executors      Executors                    `json:"executors,omitempty"`
-	VolumeMounts   AppVolumeMounts              `json:"volume_mounts,omitempty"`
-	ServicePorts   ServicePorts                 `json:"service_ports,omitempty"`
-	Configurator   *AppConfigurator             `json:"configurator,omitempty"`
-	ExpRes         AppSpecResRequirements       `json:"exp_res,omitempty"`
-	ExpDeploy      AppSpecExpDeployRequirements `json:"exp_deploy,omitempty"`
-	Comment        string                       `json:"comment,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta        `json:"meta" toml:"meta"`
+	LastVersion    string                       `json:"last_version,omitempty" toml:"last_version,omitempty"`
+	Roles          types.ArrayUint32            `json:"roles,omitempty" toml:"roles,omitempty"`
+	Vendor         string                       `json:"vendor,omitempty" toml:"vendor,omitempty"`
+	Description    string                       `json:"description,omitempty" toml:"description,omitempty"`
+	Depends        []*AppSpecDepend             `json:"depends,omitempty" toml:"depends,omitempty"`
+	DepRemotes     []*AppSpecDepend             `json:"dep_remotes,omitempty" toml:"dep_remotes,omitempty"`
+	Packages       AppPackages                  `json:"packages,omitempty" toml:"packages,omitempty"`
+	VcsRepos       VcsRepoItems                 `json:"vcs_repos,omitempty" toml:"vcs_repos,omitempty"`
+	Executors      Executors                    `json:"executors,omitempty" toml:"executors,omitempty"`
+	VolumeMounts   AppVolumeMounts              `json:"volume_mounts,omitempty" toml:"volume_mounts,omitempty"`
+	ServicePorts   ServicePorts                 `json:"service_ports,omitempty" toml:"service_ports,omitempty"`
+	Configurator   *AppConfigurator             `json:"configurator,omitempty" toml:"configurator,omitempty"`
+	ExpRes         AppSpecResRequirements       `json:"exp_res,omitempty" toml:"exp_res,omitempty"`
+	ExpDeploy      AppSpecExpDeployRequirements `json:"exp_deploy,omitempty" toml:"exp_deploy,omitempty"`
+	Comment        string                       `json:"comment,omitempty" toml:"comment,omitempty"`
 }
 
 type AppSpecResRequirements struct {
-	CpuMin int32 `json:"cpu_min,omitempty"`
-	MemMin int32 `json:"mem_min,omitempty"`
-	VolMin int32 `json:"vol_min,omitempty"`
+	CpuMin int32 `json:"cpu_min,omitempty" toml:"cpu_min,omitempty"`
+	MemMin int32 `json:"mem_min,omitempty" toml:"mem_min,omitempty"`
+	VolMin int32 `json:"vol_min,omitempty" toml:"vol_min,omitempty"`
 }
 
 const (
@@ -186,14 +186,14 @@ const (
 )
 
 type AppSpecExpDeployRequirements struct {
-	RepMin   int32 `json:"rep_min,omitempty"`
-	RepMax   int32 `json:"rep_max,omitempty"`
-	SysState int32 `json:"sys_state,omitempty"`
+	RepMin   int32 `json:"rep_min,omitempty" toml:"rep_min,omitempty"`
+	RepMax   int32 `json:"rep_max,omitempty" toml:"rep_max,omitempty"`
+	SysState int32 `json:"sys_state,omitempty" toml:"sys_state,omitempty"`
 	// High-Availability
-	FailoverTime    int32 `json:"failover_time,omitempty"`     // in seconds
-	FailoverNumMax  int32 `json:"failover_num_max,omitempty"`  // [0, RepMax)
-	FailoverRateMax int32 `json:"failover_rate_max,omitempty"` // [0, 100) in %
-	NetworkMode     int32 `json:"network_mode"`
+	FailoverTime    int32 `json:"failover_time,omitempty" toml:"failover_time,omitempty"`         // in seconds
+	FailoverNumMax  int32 `json:"failover_num_max,omitempty" toml:"failover_num_max,omitempty"`   // [0, RepMax)
+	FailoverRateMax int32 `json:"failover_rate_max,omitempty" toml:"failover_rate_max,omitempty"` // [0, 100) in %
+	NetworkMode     int32 `json:"network_mode" toml:"network_mode"`
 }
 
 func (it *AppSpecExpDeployRequirements) FailoverEnable() bool {
@@ -218,19 +218,19 @@ func (it *AppSpecExpDeployRequirements) Stateless() bool {
 }
 
 type AppSpecList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []AppSpec `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []AppSpec `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type AppSpecVersionEntry struct {
-	Version string `json:"version"`
-	Created uint64 `json:"created"`
-	Comment string `json:"comment"`
+	Version string `json:"version" toml:"version"`
+	Created uint64 `json:"created" toml:"created"`
+	Comment string `json:"comment" toml:"comment"`
 }
 
 type AppSpecVersionList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []AppSpecVersionEntry `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []AppSpecVersionEntry `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type AppPackages []VolumePackage
@@ -261,17 +261,17 @@ func (ls *AppPackages) Remove(name string) {
 
 //
 type AppVolumeMount struct {
-	Name     string `json:"name"`
-	Path     string `json:"path"`
-	BoxBound string `json:"box_bound,omitempty"`
+	Name     string `json:"name" toml:"name"`
+	Path     string `json:"path" toml:"path"`
+	BoxBound string `json:"box_bound,omitempty" toml:"box_bound,omitempty"`
 }
 
 type AppVolumeMounts []AppVolumeMount
 
 //
 type AppConfigurator struct {
-	Name   types.NameIdentifier `json:"name"`
-	Fields AppConfigFields      `json:"fields,omitempty"`
+	Name   types.NameIdentifier `json:"name" toml:"name"`
+	Fields AppConfigFields      `json:"fields,omitempty" toml:"fields,omitempty"`
 }
 
 const (
@@ -299,21 +299,21 @@ func AppConfigFieldAutoFillValid(v string) bool {
 }
 
 type AppConfigField struct {
-	Name      string        `json:"name"`
-	Title     string        `json:"title,omitempty"`
-	Prompt    string        `json:"prompt,omitempty"`
-	Type      uint16        `json:"type,omitempty"`
-	Default   string        `json:"default,omitempty"`
-	AutoFill  string        `json:"auto_fill,omitempty"`
-	Enums     types.Labels  `json:"enums,omitempty"`
-	Validates types.KvPairs `json:"validates,omitempty"`
+	Name      string        `json:"name" toml:"name"`
+	Title     string        `json:"title,omitempty" toml:"title,omitempty"`
+	Prompt    string        `json:"prompt,omitempty" toml:"prompt,omitempty"`
+	Type      uint16        `json:"type,omitempty" toml:"type,omitempty"`
+	Default   string        `json:"default,omitempty" toml:"default,omitempty"`
+	AutoFill  string        `json:"auto_fill,omitempty" toml:"auto_fill,omitempty"`
+	Enums     types.Labels  `json:"enums,omitempty" toml:"enums,omitempty"`
+	Validates types.KvPairs `json:"validates,omitempty" toml:"validates,omitempty"`
 }
 
 type AppConfigFields []*AppConfigField
 
 type AppConfigDepend struct {
-	Name  types.NameIdentifier `json:"name"`
-	Title string               `json:"title,omitempty"`
+	Name  types.NameIdentifier `json:"name" toml:"name"`
+	Title string               `json:"title,omitempty" toml:"title,omitempty"`
 }
 
 type AppConfigDepends []*AppConfigDepend
@@ -354,13 +354,13 @@ func (ls *AppConfigFields) Del(name string) {
 
 //
 type AppOperate struct {
-	Action        uint32            `json:"action,omitempty"`
-	Zone          string            `json:"zone,omitempty"`
-	PodId         string            `json:"pod_id,omitempty"`
-	Options       AppOptions        `json:"options,omitempty"`
-	Services      []*AppServicePort `json:"services,omitempty"`
-	BindServices  []*AppServicePort `json:"bind_services,omitempty"`
-	ResBoundRoles types.ArrayUint32 `json:"res_bound_roles,omitempty"`
+	Action        uint32            `json:"action,omitempty" toml:"action,omitempty"`
+	Zone          string            `json:"zone,omitempty" toml:"zone,omitempty"`
+	PodId         string            `json:"pod_id,omitempty" toml:"pod_id,omitempty"`
+	Options       AppOptions        `json:"options,omitempty" toml:"options,omitempty"`
+	Services      []*AppServicePort `json:"services,omitempty" toml:"services,omitempty"`
+	BindServices  []*AppServicePort `json:"bind_services,omitempty" toml:"bind_services,omitempty"`
+	ResBoundRoles types.ArrayUint32 `json:"res_bound_roles,omitempty" toml:"res_bound_roles,omitempty"`
 }
 
 func (it *AppOperate) Service(spec string, port uint32, pod_id string) *AppServicePort {
@@ -371,12 +371,12 @@ func (it *AppOperate) Service(spec string, port uint32, pod_id string) *AppServi
 }
 
 type AppOption struct {
-	Name    types.NameIdentifier `json:"name"`
-	Items   types.Labels         `json:"items,omitempty"`
-	Subs    types.ArrayString    `json:"subs,omitempty"`
-	Ref     *AppOptionRef        `json:"ref,omitempty"`
-	User    string               `json:"user,omitempty"`
-	Updated uint64               `json:"updated,omitempty"`
+	Name    types.NameIdentifier `json:"name" toml:"name"`
+	Items   types.Labels         `json:"items,omitempty" toml:"items,omitempty"`
+	Subs    types.ArrayString    `json:"subs,omitempty" toml:"subs,omitempty"`
+	Ref     *AppOptionRef        `json:"ref,omitempty" toml:"ref,omitempty"`
+	User    string               `json:"user,omitempty" toml:"user,omitempty"`
+	Updated uint64               `json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
 func (it *AppOption) ValueOK(name string) (types.Bytex, bool) {
@@ -496,11 +496,11 @@ func (ls *AppOptions) Del(name string) {
 }
 
 type AppOptionRef struct {
-	SpecId  string       `json:"spec_id"`
-	AppId   string       `json:"app_id"`
-	PodId   string       `json:"pod_id"`
-	Ports   ServicePorts `json:"ports,omitempty"`
-	Updated int64        `json:"updated,omitempty"`
+	SpecId  string       `json:"spec_id" toml:"spec_id"`
+	AppId   string       `json:"app_id" toml:"app_id"`
+	PodId   string       `json:"pod_id" toml:"pod_id"`
+	Ports   ServicePorts `json:"ports,omitempty" toml:"ports,omitempty"`
+	Updated int64        `json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
 func (it *AppOptionRef) Equal(item *AppOptionRef) bool {
@@ -625,19 +625,19 @@ func (ls *AppOptionRefs) Equal(items AppOptionRefs) bool {
 }
 
 type AppConfigSet struct {
-	Id         string                           `json:"id"`
-	SpecId     string                           `json:"spec_id"`
-	Option     AppOption                        `json:"option"`
-	DepRemotes []*AppConfigSetAppSpecRemoteBind `json:"dep_remotes,omitempty"`
+	Id         string                           `json:"id" toml:"id"`
+	SpecId     string                           `json:"spec_id" toml:"spec_id"`
+	Option     AppOption                        `json:"option" toml:"option"`
+	DepRemotes []*AppConfigSetAppSpecRemoteBind `json:"dep_remotes,omitempty" toml:"dep_remotes,omitempty"`
 }
 
 type AppConfigSetAppSpecRemoteBind struct {
-	SpecId  string   `json:"spec_id"`
-	AppId   string   `json:"app_id"`
-	Configs []string `json:"configs"`
-	Delete  bool     `json:"delete,omitempty"`
+	SpecId  string   `json:"spec_id" toml:"spec_id"`
+	AppId   string   `json:"app_id" toml:"app_id"`
+	Configs []string `json:"configs" toml:"configs"`
+	Delete  bool     `json:"delete,omitempty" toml:"delete,omitempty"`
 }
 
 type AppStatus struct {
-	Phase AppPhase `json:"phase,omitempty"`
+	Phase AppPhase `json:"phase,omitempty" toml:"phase,omitempty"`
 }

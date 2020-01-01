@@ -39,8 +39,8 @@ type Scheduler interface {
 }
 
 type SchedulePodSpec struct {
-	BoxDriver string `json:"box_driver,omitempty"`
-	CellId    string `json:"cell_id,omitempty"`
+	BoxDriver string `json:"box_driver,omitempty" toml:"box_driver,omitempty"`
+	CellId    string `json:"cell_id,omitempty" toml:"cell_id,omitempty"`
 }
 
 type SchedulePodReplica struct {
@@ -52,29 +52,29 @@ type SchedulePodReplica struct {
 }
 
 type ScheduleHostList struct {
-	Items []*ScheduleHostItem `json:"items,omitempty"`
+	Items []*ScheduleHostItem `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type ScheduleHostVolume struct {
-	Name  string `json:"name"`
-	Total int32  `json:"total"` // GB
-	Used  int32  `json:"used"`  // GB
-	Attrs uint32 `json:"attrs"`
+	Name  string `json:"name" toml:"name"`
+	Total int32  `json:"total" toml:"total"` // GB
+	Used  int32  `json:"used" toml:"used"`   // GB
+	Attrs uint32 `json:"attrs" toml:"attrs"`
 }
 
 type ScheduleHostVolumes []*ScheduleHostVolume
 
 type ScheduleHostItem struct {
-	Id               string              `json:"id"`
-	OpAction         uint32              `json:"op_action,omitempty"`
-	CellId           string              `json:"cell_id,omitempty"`
-	CpuTotal         int32               `json:"cpu_total,omitempty"` // Cores (1 = .1 cores)
-	CpuUsed          int32               `json:"cpu_used,omitempty"`  // Cores (1 = .1 cores)
-	MemTotal         int32               `json:"mem_total,omitempty"` // MB
-	MemUsed          int32               `json:"mem_used,omitempty"`  // MB
-	Volumes          ScheduleHostVolumes `json:"volumes"`
-	BoxDockerVersion string              `json:"box_docker_version,omitempty"`
-	BoxPouchVersion  string              `json:"box_pouch_version,omitempty"`
+	Id               string              `json:"id" toml:"id"`
+	OpAction         uint32              `json:"op_action,omitempty" toml:"op_action,omitempty"`
+	CellId           string              `json:"cell_id,omitempty" toml:"cell_id,omitempty"`
+	CpuTotal         int32               `json:"cpu_total,omitempty" toml:"cpu_total,omitempty"` // Cores (1 = .1 cores)
+	CpuUsed          int32               `json:"cpu_used,omitempty" toml:"cpu_used,omitempty"`   // Cores (1 = .1 cores)
+	MemTotal         int32               `json:"mem_total,omitempty" toml:"mem_total,omitempty"` // MB
+	MemUsed          int32               `json:"mem_used,omitempty" toml:"mem_used,omitempty"`   // MB
+	Volumes          ScheduleHostVolumes `json:"volumes" toml:"volumes"`
+	BoxDockerVersion string              `json:"box_docker_version,omitempty" toml:"box_docker_version,omitempty"`
+	BoxPouchVersion  string              `json:"box_pouch_version,omitempty" toml:"box_pouch_version,omitempty"`
 }
 
 type ScheduleOptions struct {
@@ -82,8 +82,8 @@ type ScheduleOptions struct {
 }
 
 type ScheduleHitVol struct {
-	Name string `json:"name"`
-	Size int32  `json:"size"`
+	Name string `json:"name" toml:"name"`
+	Size int32  `json:"size" toml:"size"`
 }
 
 type ScheduleHitItem struct {

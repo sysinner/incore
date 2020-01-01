@@ -37,29 +37,29 @@ var (
 )
 
 type Resource struct {
-	types.TypeMeta `json:",inline"`
-	Meta           types.InnerObjectMeta `json:"meta,omitempty"`
-	Description    string                `json:"description,omitempty"`
-	Operate        ResOperate            `json:"operate,omitempty"`
-	Bounds         ResourceBounds        `json:"bounds,omitempty"`
-	Options        types.Labels          `json:"options,omitempty"`
-	Action         types.StringArray     `json:"action,omitempty"`
-	Updated        uint64                `json:"updated,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Meta           types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
+	Description    string                `json:"description,omitempty" toml:"description,omitempty"`
+	Operate        ResOperate            `json:"operate,omitempty" toml:"operate,omitempty"`
+	Bounds         ResourceBounds        `json:"bounds,omitempty" toml:"bounds,omitempty"`
+	Options        types.Labels          `json:"options,omitempty" toml:"options,omitempty"`
+	Action         types.StringArray     `json:"action,omitempty" toml:"action,omitempty"`
+	Updated        uint64                `json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
 type ResourceList struct {
-	types.TypeMeta `json:",inline"`
-	Items          []Resource `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Items          []Resource `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type ResOperate struct {
-	AppId string `json:"app_id,omitempty"`
+	AppId string `json:"app_id,omitempty" toml:"app_id,omitempty"`
 }
 
 type ResourceBound struct {
-	Name   string `json:"name"`
-	Value  string `json:"value,omitempty"`
-	Action uint8  `json:"action,omitempty"`
+	Name   string `json:"name" toml:"name"`
+	Value  string `json:"value,omitempty" toml:"value,omitempty"`
+	Action uint8  `json:"action,omitempty" toml:"action,omitempty"`
 }
 
 type ResourceBounds []*ResourceBound

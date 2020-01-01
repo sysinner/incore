@@ -19,22 +19,22 @@ import (
 )
 
 type FsFile struct {
-	types.TypeMeta `json:",inline"`
-	Path           string `json:"path,omitempty"`
-	PathSet        string `json:"pathset,omitempty"`
-	Name           string `json:"name,omitempty"`
-	Size           int64  `json:"size,omitempty"`
-	Mime           string `json:"mime,omitempty"`
-	Body           string `json:"body,omitempty"`
-	SumCheck       string `json:"sumcheck,omitempty"`
-	IsDir          bool   `json:"isdir,omitempty"`
-	ModTime        string `json:"modtime,omitempty"`
-	Encode         string `json:"encode,omitempty"`
-	// Mode     uint32    `json:"mode"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Path           string `json:"path,omitempty" toml:"path,omitempty"`
+	PathSet        string `json:"pathset,omitempty" toml:"pathset,omitempty"`
+	Name           string `json:"name,omitempty" toml:"name,omitempty"`
+	Size           int64  `json:"size,omitempty" toml:"size,omitempty"`
+	Mime           string `json:"mime,omitempty" toml:"mime,omitempty"`
+	Body           string `json:"body,omitempty" toml:"body,omitempty"`
+	SumCheck       string `json:"sumcheck,omitempty" toml:"sumcheck,omitempty"`
+	IsDir          bool   `json:"isdir,omitempty" toml:"isdir,omitempty"`
+	ModTime        string `json:"modtime,omitempty" toml:"modtime,omitempty"`
+	Encode         string `json:"encode,omitempty" toml:"encode,omitempty"`
+	// Mode     uint32    `json:"mode" toml:"mode"`
 }
 
 type FsFileList struct {
-	types.TypeMeta `json:",inline"`
-	Path           string   `json:"path,omitempty"`
-	Items          []FsFile `json:"items,omitempty"`
+	types.TypeMeta `json:",inline" toml:",inline"`
+	Path           string   `json:"path,omitempty" toml:"path,omitempty"`
+	Items          []FsFile `json:"items,omitempty" toml:"items,omitempty"`
 }

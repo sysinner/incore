@@ -19,12 +19,12 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type PbStatsSampleFeed struct {
-	Kind                 string                `protobuf:"bytes,1,opt,name=kind" json:"kind,omitempty"`
-	Cycle                uint32                `protobuf:"varint,2,opt,name=cycle" json:"cycle,omitempty"`
-	Items                []*PbStatsSampleEntry `protobuf:"bytes,3,rep,name=items" json:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
-	XXX_unrecognized     []byte                `json:"-"`
-	XXX_sizecache        int32                 `json:"-"`
+	Kind                 string                `protobuf:"bytes,1,opt,name=kind" json:"kind,omitempty" toml:"kind,omitempty"`
+	Cycle                uint32                `protobuf:"varint,2,opt,name=cycle" json:"cycle,omitempty" toml:"cycle,omitempty"`
+	Items                []*PbStatsSampleEntry `protobuf:"bytes,3,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-" toml:"-"`
+	XXX_unrecognized     []byte                `json:"-" toml:"-"`
+	XXX_sizecache        int32                 `json:"-" toml:"-"`
 }
 
 func (m *PbStatsSampleFeed) Reset()         { *m = PbStatsSampleFeed{} }
@@ -73,11 +73,11 @@ func (m *PbStatsSampleFeed) GetItems() []*PbStatsSampleEntry {
 }
 
 type PbStatsSampleEntry struct {
-	Name                 string                `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	Items                []*PbStatsSampleValue `protobuf:"bytes,2,rep,name=items" json:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
-	XXX_unrecognized     []byte                `json:"-"`
-	XXX_sizecache        int32                 `json:"-"`
+	Name                 string                `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
+	Items                []*PbStatsSampleValue `protobuf:"bytes,2,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-" toml:"-"`
+	XXX_unrecognized     []byte                `json:"-" toml:"-"`
+	XXX_sizecache        int32                 `json:"-" toml:"-"`
 }
 
 func (m *PbStatsSampleEntry) Reset()         { *m = PbStatsSampleEntry{} }
@@ -119,11 +119,11 @@ func (m *PbStatsSampleEntry) GetItems() []*PbStatsSampleValue {
 }
 
 type PbStatsSampleValue struct {
-	Time                 uint32   `protobuf:"varint,1,opt,name=time" json:"time,omitempty"`
-	Value                int64    `protobuf:"varint,2,opt,name=value" json:"value,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Time                 uint32   `protobuf:"varint,1,opt,name=time" json:"time,omitempty" toml:"time,omitempty"`
+	Value                int64    `protobuf:"varint,2,opt,name=value" json:"value,omitempty" toml:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *PbStatsSampleValue) Reset()         { *m = PbStatsSampleValue{} }
@@ -165,12 +165,12 @@ func (m *PbStatsSampleValue) GetValue() int64 {
 }
 
 type PbStatsIndexList struct {
-	IndexCycle           uint32              `protobuf:"varint,1,opt,name=index_cycle,json=indexCycle" json:"index_cycle,omitempty"`
-	SampleCycle          uint32              `protobuf:"varint,2,opt,name=sample_cycle,json=sampleCycle" json:"sample_cycle,omitempty"`
-	Items                []*PbStatsIndexFeed `protobuf:"bytes,3,rep,name=items" json:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_unrecognized     []byte              `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
+	IndexCycle           uint32              `protobuf:"varint,1,opt,name=index_cycle,json=indexCycle" json:"index_cycle,omitempty" toml:"index_cycle,omitempty"`
+	SampleCycle          uint32              `protobuf:"varint,2,opt,name=sample_cycle,json=sampleCycle" json:"sample_cycle,omitempty" toml:"sample_cycle,omitempty"`
+	Items                []*PbStatsIndexFeed `protobuf:"bytes,3,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-" toml:"-"`
+	XXX_unrecognized     []byte              `json:"-" toml:"-"`
+	XXX_sizecache        int32               `json:"-" toml:"-"`
 }
 
 func (m *PbStatsIndexList) Reset()         { *m = PbStatsIndexList{} }
@@ -219,11 +219,11 @@ func (m *PbStatsIndexList) GetItems() []*PbStatsIndexFeed {
 }
 
 type PbStatsIndexFeed struct {
-	Time                 uint32                `protobuf:"varint,1,opt,name=time" json:"time,omitempty"`
-	Items                []*PbStatsSampleEntry `protobuf:"bytes,2,rep,name=items" json:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
-	XXX_unrecognized     []byte                `json:"-"`
-	XXX_sizecache        int32                 `json:"-"`
+	Time                 uint32                `protobuf:"varint,1,opt,name=time" json:"time,omitempty" toml:"time,omitempty"`
+	Items                []*PbStatsSampleEntry `protobuf:"bytes,2,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-" toml:"-"`
+	XXX_unrecognized     []byte                `json:"-" toml:"-"`
+	XXX_sizecache        int32                 `json:"-" toml:"-"`
 }
 
 func (m *PbStatsIndexFeed) Reset()         { *m = PbStatsIndexFeed{} }

@@ -35,14 +35,14 @@ const (
 )
 
 type VcsRepoItem struct {
-	Dir             string `json:"dir"` // primary key
-	Url             string `json:"url"`
-	Branch          string `json:"branch"`
-	Plan            string `json:"plan"`
-	AuthUser        string `json:"auth_user,omitempty"`
-	AuthPass        string `json:"auth_pass,omitempty"`
-	HookExecRestart string `json:"hook_exec_restart,omitempty"`
-	HookPodRestart  bool   `json:"hook_pod_restart,omitempty"`
+	Dir             string `json:"dir" toml:"dir"` // primary key
+	Url             string `json:"url" toml:"url"`
+	Branch          string `json:"branch" toml:"branch"`
+	Plan            string `json:"plan" toml:"plan"`
+	AuthUser        string `json:"auth_user,omitempty" toml:"auth_user,omitempty"`
+	AuthPass        string `json:"auth_pass,omitempty" toml:"auth_pass,omitempty"`
+	HookExecRestart string `json:"hook_exec_restart,omitempty" toml:"hook_exec_restart,omitempty"`
+	HookPodRestart  bool   `json:"hook_pod_restart,omitempty" toml:"hook_pod_restart,omitempty"`
 }
 
 func (it *VcsRepoItem) Valid() error {

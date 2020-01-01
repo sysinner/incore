@@ -23,20 +23,20 @@ import (
 )
 
 type PodRep struct {
-	Meta types.InnerObjectMeta `json:"meta,omitempty"`
+	Meta types.InnerObjectMeta `json:"meta,omitempty" toml:"meta,omitempty"`
 
 	// Spec defines the behavior of a pod.
-	Spec *PodSpecBound `json:"spec,omitempty"`
+	Spec *PodSpecBound `json:"spec,omitempty" toml:"spec,omitempty"`
 
 	// Apps represents the information about a collection of applications to deploy.
 	// this is a module for App Engine
-	Apps AppInstances `json:"apps,omitempty"`
+	Apps AppInstances `json:"apps,omitempty" toml:"apps,omitempty"`
 
 	// Replica
-	Replica PodOperateReplica `json:"replica,omitempty"`
+	Replica PodOperateReplica `json:"replica,omitempty" toml:"replica,omitempty"`
 
 	//
-	Operate PodOperate `json:"operate,omitempty"`
+	Operate PodOperate `json:"operate,omitempty" toml:"operate,omitempty"`
 }
 
 type PodRepItems []*PodRep
