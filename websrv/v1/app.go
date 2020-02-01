@@ -97,10 +97,9 @@ func (c App) ListAction() {
 			continue
 		}
 
-		// UPGRADE 0.3.5 to 0.3.6
-		/**
+		// auto fix
 		if inapi.OpActionAllow(inst.Operate.Action, inapi.OpActionDestroy) {
-			if m := v.Meta(); m == nil || m.Expired == 0 {
+			if v.Meta == nil || v.Meta.Expired == 0 {
 				if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(inst.Meta.ID), inst).Commit(); rs.OK() {
 					data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(inst.Meta.ID), inst).
 						ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
@@ -108,7 +107,6 @@ func (c App) ListAction() {
 			}
 			continue
 		}
-		*/
 
 		if c.Params.Get("spec_id") != "" {
 			if inst.Spec.Meta.ID != c.Params.Get("spec_id") {
