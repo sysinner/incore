@@ -989,7 +989,7 @@ func (c App) ConfigRepRemotesAction() {
 
 						if refAppPrevOpt := refAppPrev.Operate.Options.Get(cfgName); refAppPrevOpt != nil {
 
-							refAppPrevOpt.Subs.Remove(app.Meta.ID)
+							refAppPrevOpt.Subs.Del(app.Meta.ID)
 							refAppPrev.Operate.Options.Sync(*refAppPrevOpt)
 
 							if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev).Commit(); !rs.OK() {
@@ -1016,7 +1016,7 @@ func (c App) ConfigRepRemotesAction() {
 			}
 
 			//
-			refAppOpt.Subs.Insert(app.Meta.ID)
+			refAppOpt.Subs.Set(app.Meta.ID)
 			refApp.Operate.Options.Sync(*refAppOpt)
 			if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp).Commit(); !rs.OK() {
 				rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)

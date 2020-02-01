@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hooto/hconf4g/hconf"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
@@ -329,7 +330,13 @@ func (c AppSpec) EntryAction() {
 		set inapi.AppSpec
 	)
 
-	if c.Params.Get("fmt_json_indent") == "true" {
+	if c.Params.Get("ct") == "toml" {
+		defer func() {
+			bs, _ := hconf.Encode(&rsp)
+			c.Response.Out.Header().Set("Content-Type", "application/toml")
+			c.RenderString(string(bs))
+		}()
+	} else if c.Params.Get("fmt_json_indent") == "true" {
 		defer c.RenderJsonIndent(&rsp, "  ")
 	} else {
 		defer c.RenderJson(&rsp)
@@ -405,8 +412,12 @@ func (c AppSpec) EntryAction() {
 		set.Meta.User = ""
 		set.Meta.Created = 0
 		set.Meta.Updated = 0
+		fileExt := "json"
+		if c.Params.Get("ct") == "toml" {
+			fileExt = "toml"
+		}
 		c.Response.Out.Header().Set("Content-Disposition",
-			fmt.Sprintf("attachment; filename=app_spec_%s.json", set.Meta.ID))
+			fmt.Sprintf("attachment; filename=app_spec_%s.%s", set.Meta.ID, fileExt))
 	}
 
 	rsp = set
@@ -419,9 +430,23 @@ func (c AppSpec) SetAction() {
 	defer c.RenderJson(&set)
 
 	//
-	var req inapi.AppSpec
+	var (
+		req inapi.AppSpec
+		err error
+	)
 
-	if err := c.Request.JsonDecode(&req); err != nil {
+	if len(c.Request.RawBody) < 10 {
+		set.Error = types.NewErrorMeta("400", "Bad Request")
+		return
+	}
+
+	if c.Request.RawBody[0] != '{' {
+		err = hconf.Decode(&req, c.Request.RawBody)
+	} else {
+		err = c.Request.JsonDecode(&req)
+	}
+
+	if err != nil {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}

@@ -101,7 +101,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 
 	defer func(tag_name string) {
 		ipm_mu.Lock()
-		ipm_sets.Remove(tag_name)
+		ipm_sets.Del(tag_name)
 		ipm_mu.Unlock()
 	}(tag_name)
 
