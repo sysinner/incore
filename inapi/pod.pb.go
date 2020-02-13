@@ -3,9 +3,11 @@
 
 package inapi
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,7 +18,7 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type PbPodSpecBoxImageDriver int32
 
@@ -33,6 +35,7 @@ var PbPodSpecBoxImageDriver_name = map[int32]string{
 	2: "Rkt",
 	3: "Pouch",
 }
+
 var PbPodSpecBoxImageDriver_value = map[string]int32{
 	"Unknown": 0,
 	"Docker":  1,
@@ -43,34 +46,36 @@ var PbPodSpecBoxImageDriver_value = map[string]int32{
 func (x PbPodSpecBoxImageDriver) String() string {
 	return proto.EnumName(PbPodSpecBoxImageDriver_name, int32(x))
 }
+
 func (PbPodSpecBoxImageDriver) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{0}
+	return fileDescriptor_fd3a21a750240a42, []int{0}
 }
 
 type HealthStatus struct {
-	PartId               uint32   `protobuf:"varint,1,opt,name=part_id,json=partId" json:"part_id,omitempty" toml:"part_id,omitempty"`
-	Action               uint32   `protobuf:"varint,2,opt,name=action" json:"action,omitempty" toml:"action,omitempty"`
-	Updated              uint32   `protobuf:"varint,5,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	Message              uint32   `protobuf:"varint,6,opt,name=message" json:"message,omitempty" toml:"message,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	PartId               uint32   `protobuf:"varint,1,opt,name=part_id,json=partId,proto3" json:"part_id,omitempty"`
+	Action               uint32   `protobuf:"varint,2,opt,name=action,proto3" json:"action,omitempty"`
+	Updated              uint32   `protobuf:"varint,5,opt,name=updated,proto3" json:"updated,omitempty"`
+	Message              uint32   `protobuf:"varint,6,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *HealthStatus) Reset()         { *m = HealthStatus{} }
 func (m *HealthStatus) String() string { return proto.CompactTextString(m) }
 func (*HealthStatus) ProtoMessage()    {}
 func (*HealthStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{0}
+	return fileDescriptor_fd3a21a750240a42, []int{0}
 }
+
 func (m *HealthStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HealthStatus.Unmarshal(m, b)
 }
 func (m *HealthStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_HealthStatus.Marshal(b, m, deterministic)
 }
-func (dst *HealthStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_HealthStatus.Merge(dst, src)
+func (m *HealthStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HealthStatus.Merge(m, src)
 }
 func (m *HealthStatus) XXX_Size() int {
 	return xxx_messageInfo_HealthStatus.Size(m)
@@ -110,37 +115,38 @@ func (m *HealthStatus) GetMessage() uint32 {
 }
 
 type PbPodRepStatus struct {
-	PodId  string `protobuf:"bytes,1,opt,name=pod_id,json=podId" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
-	RepId  uint32 `protobuf:"varint,2,opt,name=rep_id,json=repId" json:"rep_id,omitempty" toml:"rep_id,omitempty"`
-	Action uint32 `protobuf:"varint,3,opt,name=action" json:"action,omitempty" toml:"action,omitempty"`
-	Node   string `protobuf:"bytes,4,opt,name=node" json:"node,omitempty" toml:"node,omitempty"`
+	PodId  string `protobuf:"bytes,1,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
+	RepId  uint32 `protobuf:"varint,2,opt,name=rep_id,json=repId,proto3" json:"rep_id,omitempty"`
+	Action uint32 `protobuf:"varint,3,opt,name=action,proto3" json:"action,omitempty"`
+	Node   string `protobuf:"bytes,4,opt,name=node,proto3" json:"node,omitempty"`
 	// PbPodBoxStatus          box     = 10;
-	OpLog                *PbOpLogSets       `protobuf:"bytes,6,opt,name=op_log,json=opLog" json:"op_log,omitempty" toml:"op_log,omitempty"`
-	Stats                *PbStatsSampleFeed `protobuf:"bytes,7,opt,name=stats" json:"stats,omitempty" toml:"stats,omitempty"`
-	Updated              uint32             `protobuf:"varint,8,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	Volumes              []*PbVolumeStatus  `protobuf:"bytes,9,rep,name=volumes" json:"volumes,omitempty" toml:"volumes,omitempty"`
-	Started              uint32             `protobuf:"varint,11,opt,name=started" json:"started,omitempty" toml:"started,omitempty"`
-	Ports                []*PbServicePort   `protobuf:"bytes,12,rep,name=ports" json:"ports,omitempty" toml:"ports,omitempty"`
-	Health               *HealthStatus      `protobuf:"bytes,13,opt,name=health" json:"health,omitempty" toml:"health,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-" toml:"-"`
-	XXX_unrecognized     []byte             `json:"-" toml:"-"`
-	XXX_sizecache        int32              `json:"-" toml:"-"`
+	OpLog                *PbOpLogSets       `protobuf:"bytes,6,opt,name=op_log,json=opLog,proto3" json:"op_log,omitempty"`
+	Stats                *PbStatsSampleFeed `protobuf:"bytes,7,opt,name=stats,proto3" json:"stats,omitempty"`
+	Updated              uint32             `protobuf:"varint,8,opt,name=updated,proto3" json:"updated,omitempty"`
+	Volumes              []*PbVolumeStatus  `protobuf:"bytes,9,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	Started              uint32             `protobuf:"varint,11,opt,name=started,proto3" json:"started,omitempty"`
+	Ports                []*PbServicePort   `protobuf:"bytes,12,rep,name=ports,proto3" json:"ports,omitempty"`
+	Health               *HealthStatus      `protobuf:"bytes,13,opt,name=health,proto3" json:"health,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
 func (m *PbPodRepStatus) Reset()         { *m = PbPodRepStatus{} }
 func (m *PbPodRepStatus) String() string { return proto.CompactTextString(m) }
 func (*PbPodRepStatus) ProtoMessage()    {}
 func (*PbPodRepStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{1}
+	return fileDescriptor_fd3a21a750240a42, []int{1}
 }
+
 func (m *PbPodRepStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbPodRepStatus.Unmarshal(m, b)
 }
 func (m *PbPodRepStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbPodRepStatus.Marshal(b, m, deterministic)
 }
-func (dst *PbPodRepStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbPodRepStatus.Merge(dst, src)
+func (m *PbPodRepStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbPodRepStatus.Merge(m, src)
 }
 func (m *PbPodRepStatus) XXX_Size() int {
 	return xxx_messageInfo_PbPodRepStatus.Size(m)
@@ -229,29 +235,30 @@ func (m *PbPodRepStatus) GetHealth() *HealthStatus {
 }
 
 type PbVolumeMount struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	ReadOnly             bool     `protobuf:"varint,2,opt,name=read_only,json=readOnly" json:"read_only,omitempty" toml:"read_only,omitempty"`
-	MountPath            string   `protobuf:"bytes,3,opt,name=mount_path,json=mountPath" json:"mount_path,omitempty" toml:"mount_path,omitempty"`
-	HostDir              string   `protobuf:"bytes,4,opt,name=host_dir,json=hostDir" json:"host_dir,omitempty" toml:"host_dir,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ReadOnly             bool     `protobuf:"varint,2,opt,name=read_only,json=readOnly,proto3" json:"read_only,omitempty"`
+	MountPath            string   `protobuf:"bytes,3,opt,name=mount_path,json=mountPath,proto3" json:"mount_path,omitempty"`
+	HostDir              string   `protobuf:"bytes,4,opt,name=host_dir,json=hostDir,proto3" json:"host_dir,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PbVolumeMount) Reset()         { *m = PbVolumeMount{} }
 func (m *PbVolumeMount) String() string { return proto.CompactTextString(m) }
 func (*PbVolumeMount) ProtoMessage()    {}
 func (*PbVolumeMount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{2}
+	return fileDescriptor_fd3a21a750240a42, []int{2}
 }
+
 func (m *PbVolumeMount) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbVolumeMount.Unmarshal(m, b)
 }
 func (m *PbVolumeMount) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbVolumeMount.Marshal(b, m, deterministic)
 }
-func (dst *PbVolumeMount) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbVolumeMount.Merge(dst, src)
+func (m *PbVolumeMount) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbVolumeMount.Merge(m, src)
 }
 func (m *PbVolumeMount) XXX_Size() int {
 	return xxx_messageInfo_PbVolumeMount.Size(m)
@@ -291,27 +298,28 @@ func (m *PbVolumeMount) GetHostDir() string {
 }
 
 type PbVolumeStatus struct {
-	MountPath            string   `protobuf:"bytes,1,opt,name=mount_path,json=mountPath" json:"mount_path,omitempty" toml:"mount_path,omitempty"`
-	Used                 int64    `protobuf:"varint,2,opt,name=used" json:"used,omitempty" toml:"used,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	MountPath            string   `protobuf:"bytes,1,opt,name=mount_path,json=mountPath,proto3" json:"mount_path,omitempty"`
+	Used                 int64    `protobuf:"varint,2,opt,name=used,proto3" json:"used,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PbVolumeStatus) Reset()         { *m = PbVolumeStatus{} }
 func (m *PbVolumeStatus) String() string { return proto.CompactTextString(m) }
 func (*PbVolumeStatus) ProtoMessage()    {}
 func (*PbVolumeStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{3}
+	return fileDescriptor_fd3a21a750240a42, []int{3}
 }
+
 func (m *PbVolumeStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbVolumeStatus.Unmarshal(m, b)
 }
 func (m *PbVolumeStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbVolumeStatus.Marshal(b, m, deterministic)
 }
-func (dst *PbVolumeStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbVolumeStatus.Merge(dst, src)
+func (m *PbVolumeStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbVolumeStatus.Merge(m, src)
 }
 func (m *PbVolumeStatus) XXX_Size() int {
 	return xxx_messageInfo_PbVolumeStatus.Size(m)
@@ -337,28 +345,29 @@ func (m *PbVolumeStatus) GetUsed() int64 {
 }
 
 type PbServicePort struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	BoxPort              uint32   `protobuf:"varint,2,opt,name=box_port,json=boxPort" json:"box_port,omitempty" toml:"box_port,omitempty"`
-	HostPort             uint32   `protobuf:"varint,3,opt,name=host_port,json=hostPort" json:"host_port,omitempty" toml:"host_port,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	BoxPort              uint32   `protobuf:"varint,2,opt,name=box_port,json=boxPort,proto3" json:"box_port,omitempty"`
+	HostPort             uint32   `protobuf:"varint,3,opt,name=host_port,json=hostPort,proto3" json:"host_port,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PbServicePort) Reset()         { *m = PbServicePort{} }
 func (m *PbServicePort) String() string { return proto.CompactTextString(m) }
 func (*PbServicePort) ProtoMessage()    {}
 func (*PbServicePort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{4}
+	return fileDescriptor_fd3a21a750240a42, []int{4}
 }
+
 func (m *PbServicePort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbServicePort.Unmarshal(m, b)
 }
 func (m *PbServicePort) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbServicePort.Marshal(b, m, deterministic)
 }
-func (dst *PbServicePort) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbServicePort.Merge(dst, src)
+func (m *PbServicePort) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbServicePort.Merge(m, src)
 }
 func (m *PbServicePort) XXX_Size() int {
 	return xxx_messageInfo_PbServicePort.Size(m)
@@ -391,30 +400,31 @@ func (m *PbServicePort) GetHostPort() uint32 {
 }
 
 type PbPodBoxStatusExecutor struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Phase                string   `protobuf:"bytes,2,opt,name=phase" json:"phase,omitempty" toml:"phase,omitempty"`
-	Retry                uint32   `protobuf:"varint,3,opt,name=retry" json:"retry,omitempty" toml:"retry,omitempty"`
-	ErrorCode            uint32   `protobuf:"varint,4,opt,name=error_code,json=errorCode" json:"error_code,omitempty" toml:"error_code,omitempty"`
-	ErrorMessage         string   `protobuf:"bytes,5,opt,name=error_message,json=errorMessage" json:"error_message,omitempty" toml:"error_message,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Phase                string   `protobuf:"bytes,2,opt,name=phase,proto3" json:"phase,omitempty"`
+	Retry                uint32   `protobuf:"varint,3,opt,name=retry,proto3" json:"retry,omitempty"`
+	ErrorCode            uint32   `protobuf:"varint,4,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
+	ErrorMessage         string   `protobuf:"bytes,5,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PbPodBoxStatusExecutor) Reset()         { *m = PbPodBoxStatusExecutor{} }
 func (m *PbPodBoxStatusExecutor) String() string { return proto.CompactTextString(m) }
 func (*PbPodBoxStatusExecutor) ProtoMessage()    {}
 func (*PbPodBoxStatusExecutor) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{5}
+	return fileDescriptor_fd3a21a750240a42, []int{5}
 }
+
 func (m *PbPodBoxStatusExecutor) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbPodBoxStatusExecutor.Unmarshal(m, b)
 }
 func (m *PbPodBoxStatusExecutor) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbPodBoxStatusExecutor.Marshal(b, m, deterministic)
 }
-func (dst *PbPodBoxStatusExecutor) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbPodBoxStatusExecutor.Merge(dst, src)
+func (m *PbPodBoxStatusExecutor) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbPodBoxStatusExecutor.Merge(m, src)
 }
 func (m *PbPodBoxStatusExecutor) XXX_Size() int {
 	return xxx_messageInfo_PbPodBoxStatusExecutor.Size(m)
@@ -462,39 +472,40 @@ func (m *PbPodBoxStatusExecutor) GetErrorMessage() string {
 
 // PodBoxStatus represents the current information about a box
 type PbPodBoxStatus struct {
-	Name                 string                    `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	ImageDriver          PbPodSpecBoxImageDriver   `protobuf:"varint,2,opt,name=image_driver,json=imageDriver,enum=inapi.PbPodSpecBoxImageDriver" json:"image_driver,omitempty" toml:"image_driver,omitempty"`
-	ImageOptions         []*Label                  `protobuf:"bytes,3,rep,name=image_options,json=imageOptions" json:"image_options,omitempty" toml:"image_options,omitempty"`
-	ResCpuLimit          int32                     `protobuf:"varint,4,opt,name=res_cpu_limit,json=resCpuLimit" json:"res_cpu_limit,omitempty" toml:"res_cpu_limit,omitempty"`
-	ResMemLimit          int32                     `protobuf:"varint,5,opt,name=res_mem_limit,json=resMemLimit" json:"res_mem_limit,omitempty" toml:"res_mem_limit,omitempty"`
-	Mounts               []*PbVolumeMount          `protobuf:"bytes,6,rep,name=mounts" json:"mounts,omitempty" toml:"mounts,omitempty"`
-	Ports                []*PbServicePort          `protobuf:"bytes,7,rep,name=ports" json:"ports,omitempty" toml:"ports,omitempty"`
-	Command              []string                  `protobuf:"bytes,8,rep,name=command" json:"command,omitempty" toml:"command,omitempty"`
-	Executors            []*PbPodBoxStatusExecutor `protobuf:"bytes,9,rep,name=executors" json:"executors,omitempty" toml:"executors,omitempty"`
-	Action               uint32                    `protobuf:"varint,10,opt,name=action" json:"action,omitempty" toml:"action,omitempty"`
-	Started              uint32                    `protobuf:"varint,11,opt,name=started" json:"started,omitempty" toml:"started,omitempty"`
-	Updated              uint32                    `protobuf:"varint,12,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	CpuSets              []int32                   `protobuf:"varint,13,rep,packed,name=cpu_sets,json=cpuSets" json:"cpu_sets,omitempty" toml:"cpu_sets,omitempty"`
-	NetworkMode          int32                     `protobuf:"varint,14,opt,name=network_mode,json=networkMode" json:"network_mode,omitempty" toml:"network_mode,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                  `json:"-" toml:"-"`
-	XXX_unrecognized     []byte                    `json:"-" toml:"-"`
-	XXX_sizecache        int32                     `json:"-" toml:"-"`
+	Name                 string                    `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ImageDriver          PbPodSpecBoxImageDriver   `protobuf:"varint,2,opt,name=image_driver,json=imageDriver,proto3,enum=inapi.PbPodSpecBoxImageDriver" json:"image_driver,omitempty"`
+	ImageOptions         []*Label                  `protobuf:"bytes,3,rep,name=image_options,json=imageOptions,proto3" json:"image_options,omitempty"`
+	ResCpuLimit          int32                     `protobuf:"varint,4,opt,name=res_cpu_limit,json=resCpuLimit,proto3" json:"res_cpu_limit,omitempty"`
+	ResMemLimit          int32                     `protobuf:"varint,5,opt,name=res_mem_limit,json=resMemLimit,proto3" json:"res_mem_limit,omitempty"`
+	Mounts               []*PbVolumeMount          `protobuf:"bytes,6,rep,name=mounts,proto3" json:"mounts,omitempty"`
+	Ports                []*PbServicePort          `protobuf:"bytes,7,rep,name=ports,proto3" json:"ports,omitempty"`
+	Command              []string                  `protobuf:"bytes,8,rep,name=command,proto3" json:"command,omitempty"`
+	Executors            []*PbPodBoxStatusExecutor `protobuf:"bytes,9,rep,name=executors,proto3" json:"executors,omitempty"`
+	Action               uint32                    `protobuf:"varint,10,opt,name=action,proto3" json:"action,omitempty"`
+	Started              uint32                    `protobuf:"varint,11,opt,name=started,proto3" json:"started,omitempty"`
+	Updated              uint32                    `protobuf:"varint,12,opt,name=updated,proto3" json:"updated,omitempty"`
+	CpuSets              []int32                   `protobuf:"varint,13,rep,packed,name=cpu_sets,json=cpuSets,proto3" json:"cpu_sets,omitempty"`
+	NetworkMode          int32                     `protobuf:"varint,14,opt,name=network_mode,json=networkMode,proto3" json:"network_mode,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
+	XXX_unrecognized     []byte                    `json:"-"`
+	XXX_sizecache        int32                     `json:"-"`
 }
 
 func (m *PbPodBoxStatus) Reset()         { *m = PbPodBoxStatus{} }
 func (m *PbPodBoxStatus) String() string { return proto.CompactTextString(m) }
 func (*PbPodBoxStatus) ProtoMessage()    {}
 func (*PbPodBoxStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{6}
+	return fileDescriptor_fd3a21a750240a42, []int{6}
 }
+
 func (m *PbPodBoxStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbPodBoxStatus.Unmarshal(m, b)
 }
 func (m *PbPodBoxStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbPodBoxStatus.Marshal(b, m, deterministic)
 }
-func (dst *PbPodBoxStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbPodBoxStatus.Merge(dst, src)
+func (m *PbPodBoxStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbPodBoxStatus.Merge(m, src)
 }
 func (m *PbPodBoxStatus) XXX_Size() int {
 	return xxx_messageInfo_PbPodBoxStatus.Size(m)
@@ -604,26 +615,27 @@ func (m *PbPodBoxStatus) GetNetworkMode() int32 {
 }
 
 type PodOperateFailover struct {
-	Reps                 []*PodOperateFailoverReplica `protobuf:"bytes,2,rep,name=reps" json:"reps,omitempty" toml:"reps,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                     `json:"-" toml:"-"`
-	XXX_unrecognized     []byte                       `json:"-" toml:"-"`
-	XXX_sizecache        int32                        `json:"-" toml:"-"`
+	Reps                 []*PodOperateFailoverReplica `protobuf:"bytes,2,rep,name=reps,proto3" json:"reps,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                     `json:"-"`
+	XXX_unrecognized     []byte                       `json:"-"`
+	XXX_sizecache        int32                        `json:"-"`
 }
 
 func (m *PodOperateFailover) Reset()         { *m = PodOperateFailover{} }
 func (m *PodOperateFailover) String() string { return proto.CompactTextString(m) }
 func (*PodOperateFailover) ProtoMessage()    {}
 func (*PodOperateFailover) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{7}
+	return fileDescriptor_fd3a21a750240a42, []int{7}
 }
+
 func (m *PodOperateFailover) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PodOperateFailover.Unmarshal(m, b)
 }
 func (m *PodOperateFailover) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PodOperateFailover.Marshal(b, m, deterministic)
 }
-func (dst *PodOperateFailover) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PodOperateFailover.Merge(dst, src)
+func (m *PodOperateFailover) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodOperateFailover.Merge(m, src)
 }
 func (m *PodOperateFailover) XXX_Size() int {
 	return xxx_messageInfo_PodOperateFailover.Size(m)
@@ -642,30 +654,31 @@ func (m *PodOperateFailover) GetReps() []*PodOperateFailoverReplica {
 }
 
 type PodOperateFailoverReplica struct {
-	RepId                uint32   `protobuf:"varint,1,opt,name=rep_id,json=repId" json:"rep_id,omitempty" toml:"rep_id,omitempty"`
-	Action               uint32   `protobuf:"varint,4,opt,name=action" json:"action,omitempty" toml:"action,omitempty"`
-	ManualChecked        uint32   `protobuf:"varint,13,opt,name=manual_checked,json=manualChecked" json:"manual_checked,omitempty" toml:"manual_checked,omitempty"`
-	Created              uint32   `protobuf:"varint,14,opt,name=created" json:"created,omitempty" toml:"created,omitempty"`
-	Updated              uint32   `protobuf:"varint,15,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	RepId                uint32   `protobuf:"varint,1,opt,name=rep_id,json=repId,proto3" json:"rep_id,omitempty"`
+	Action               uint32   `protobuf:"varint,4,opt,name=action,proto3" json:"action,omitempty"`
+	ManualChecked        uint32   `protobuf:"varint,13,opt,name=manual_checked,json=manualChecked,proto3" json:"manual_checked,omitempty"`
+	Created              uint32   `protobuf:"varint,14,opt,name=created,proto3" json:"created,omitempty"`
+	Updated              uint32   `protobuf:"varint,15,opt,name=updated,proto3" json:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PodOperateFailoverReplica) Reset()         { *m = PodOperateFailoverReplica{} }
 func (m *PodOperateFailoverReplica) String() string { return proto.CompactTextString(m) }
 func (*PodOperateFailoverReplica) ProtoMessage()    {}
 func (*PodOperateFailoverReplica) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{8}
+	return fileDescriptor_fd3a21a750240a42, []int{8}
 }
+
 func (m *PodOperateFailoverReplica) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PodOperateFailoverReplica.Unmarshal(m, b)
 }
 func (m *PodOperateFailoverReplica) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PodOperateFailoverReplica.Marshal(b, m, deterministic)
 }
-func (dst *PodOperateFailoverReplica) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PodOperateFailoverReplica.Merge(dst, src)
+func (m *PodOperateFailoverReplica) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodOperateFailoverReplica.Merge(m, src)
 }
 func (m *PodOperateFailoverReplica) XXX_Size() int {
 	return xxx_messageInfo_PodOperateFailoverReplica.Size(m)
@@ -712,26 +725,27 @@ func (m *PodOperateFailoverReplica) GetUpdated() uint32 {
 }
 
 type PodOperateDeploy struct {
-	AllocHostRepeatEnable bool     `protobuf:"varint,3,opt,name=alloc_host_repeat_enable,json=allocHostRepeatEnable" json:"alloc_host_repeat_enable,omitempty" toml:"alloc_host_repeat_enable,omitempty"`
-	XXX_NoUnkeyedLiteral  struct{} `json:"-" toml:"-"`
-	XXX_unrecognized      []byte   `json:"-" toml:"-"`
-	XXX_sizecache         int32    `json:"-" toml:"-"`
+	AllocHostRepeatEnable bool     `protobuf:"varint,3,opt,name=alloc_host_repeat_enable,json=allocHostRepeatEnable,proto3" json:"alloc_host_repeat_enable,omitempty"`
+	XXX_NoUnkeyedLiteral  struct{} `json:"-"`
+	XXX_unrecognized      []byte   `json:"-"`
+	XXX_sizecache         int32    `json:"-"`
 }
 
 func (m *PodOperateDeploy) Reset()         { *m = PodOperateDeploy{} }
 func (m *PodOperateDeploy) String() string { return proto.CompactTextString(m) }
 func (*PodOperateDeploy) ProtoMessage()    {}
 func (*PodOperateDeploy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{9}
+	return fileDescriptor_fd3a21a750240a42, []int{9}
 }
+
 func (m *PodOperateDeploy) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PodOperateDeploy.Unmarshal(m, b)
 }
 func (m *PodOperateDeploy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PodOperateDeploy.Marshal(b, m, deterministic)
 }
-func (dst *PodOperateDeploy) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PodOperateDeploy.Merge(dst, src)
+func (m *PodOperateDeploy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodOperateDeploy.Merge(m, src)
 }
 func (m *PodOperateDeploy) XXX_Size() int {
 	return xxx_messageInfo_PodOperateDeploy.Size(m)
@@ -750,30 +764,31 @@ func (m *PodOperateDeploy) GetAllocHostRepeatEnable() bool {
 }
 
 type PodUserTransfer struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty" toml:"id,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	UserFrom             string   `protobuf:"bytes,5,opt,name=user_from,json=userFrom" json:"user_from,omitempty" toml:"user_from,omitempty"`
-	UserTo               string   `protobuf:"bytes,6,opt,name=user_to,json=userTo" json:"user_to,omitempty" toml:"user_to,omitempty"`
-	Created              uint32   `protobuf:"varint,14,opt,name=created" json:"created,omitempty" toml:"created,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	UserFrom             string   `protobuf:"bytes,5,opt,name=user_from,json=userFrom,proto3" json:"user_from,omitempty"`
+	UserTo               string   `protobuf:"bytes,6,opt,name=user_to,json=userTo,proto3" json:"user_to,omitempty"`
+	Created              uint32   `protobuf:"varint,14,opt,name=created,proto3" json:"created,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PodUserTransfer) Reset()         { *m = PodUserTransfer{} }
 func (m *PodUserTransfer) String() string { return proto.CompactTextString(m) }
 func (*PodUserTransfer) ProtoMessage()    {}
 func (*PodUserTransfer) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{10}
+	return fileDescriptor_fd3a21a750240a42, []int{10}
 }
+
 func (m *PodUserTransfer) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PodUserTransfer.Unmarshal(m, b)
 }
 func (m *PodUserTransfer) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PodUserTransfer.Marshal(b, m, deterministic)
 }
-func (dst *PodUserTransfer) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PodUserTransfer.Merge(dst, src)
+func (m *PodUserTransfer) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodUserTransfer.Merge(m, src)
 }
 func (m *PodUserTransfer) XXX_Size() int {
 	return xxx_messageInfo_PodUserTransfer.Size(m)
@@ -820,31 +835,32 @@ func (m *PodUserTransfer) GetCreated() uint32 {
 }
 
 type PodPayment struct {
-	TimeStart            uint32   `protobuf:"varint,2,opt,name=time_start,json=timeStart" json:"time_start,omitempty" toml:"time_start,omitempty"`
-	TimeClose            uint32   `protobuf:"varint,3,opt,name=time_close,json=timeClose" json:"time_close,omitempty" toml:"time_close,omitempty"`
-	Prepay               float64  `protobuf:"fixed64,5,opt,name=prepay" json:"prepay,omitempty" toml:"prepay,omitempty"`
-	Payout               float64  `protobuf:"fixed64,6,opt,name=payout" json:"payout,omitempty" toml:"payout,omitempty"`
-	CycleAmount          float64  `protobuf:"fixed64,7,opt,name=cycle_amount,json=cycleAmount" json:"cycle_amount,omitempty" toml:"cycle_amount,omitempty"`
-	User                 string   `protobuf:"bytes,9,opt,name=user" json:"user,omitempty" toml:"user,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	TimeStart            uint32   `protobuf:"varint,2,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
+	TimeClose            uint32   `protobuf:"varint,3,opt,name=time_close,json=timeClose,proto3" json:"time_close,omitempty"`
+	Prepay               float64  `protobuf:"fixed64,5,opt,name=prepay,proto3" json:"prepay,omitempty"`
+	Payout               float64  `protobuf:"fixed64,6,opt,name=payout,proto3" json:"payout,omitempty"`
+	CycleAmount          float64  `protobuf:"fixed64,7,opt,name=cycle_amount,json=cycleAmount,proto3" json:"cycle_amount,omitempty"`
+	User                 string   `protobuf:"bytes,9,opt,name=user,proto3" json:"user,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PodPayment) Reset()         { *m = PodPayment{} }
 func (m *PodPayment) String() string { return proto.CompactTextString(m) }
 func (*PodPayment) ProtoMessage()    {}
 func (*PodPayment) Descriptor() ([]byte, []int) {
-	return fileDescriptor_pod_d0f3a773a54413db, []int{11}
+	return fileDescriptor_fd3a21a750240a42, []int{11}
 }
+
 func (m *PodPayment) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PodPayment.Unmarshal(m, b)
 }
 func (m *PodPayment) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PodPayment.Marshal(b, m, deterministic)
 }
-func (dst *PodPayment) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PodPayment.Merge(dst, src)
+func (m *PodPayment) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PodPayment.Merge(m, src)
 }
 func (m *PodPayment) XXX_Size() int {
 	return xxx_messageInfo_PodPayment.Size(m)
@@ -898,6 +914,7 @@ func (m *PodPayment) GetUser() string {
 }
 
 func init() {
+	proto.RegisterEnum("inapi.PbPodSpecBoxImageDriver", PbPodSpecBoxImageDriver_name, PbPodSpecBoxImageDriver_value)
 	proto.RegisterType((*HealthStatus)(nil), "inapi.HealthStatus")
 	proto.RegisterType((*PbPodRepStatus)(nil), "inapi.PbPodRepStatus")
 	proto.RegisterType((*PbVolumeMount)(nil), "inapi.PbVolumeMount")
@@ -910,12 +927,11 @@ func init() {
 	proto.RegisterType((*PodOperateDeploy)(nil), "inapi.PodOperateDeploy")
 	proto.RegisterType((*PodUserTransfer)(nil), "inapi.PodUserTransfer")
 	proto.RegisterType((*PodPayment)(nil), "inapi.PodPayment")
-	proto.RegisterEnum("inapi.PbPodSpecBoxImageDriver", PbPodSpecBoxImageDriver_name, PbPodSpecBoxImageDriver_value)
 }
 
-func init() { proto.RegisterFile("inapi/pod.proto", fileDescriptor_pod_d0f3a773a54413db) }
+func init() { proto.RegisterFile("inapi/pod.proto", fileDescriptor_fd3a21a750240a42) }
 
-var fileDescriptor_pod_d0f3a773a54413db = []byte{
+var fileDescriptor_fd3a21a750240a42 = []byte{
 	// 1093 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x56, 0xcd, 0x6e, 0xdb, 0x46,
 	0x10, 0xae, 0x7e, 0x28, 0x89, 0xa3, 0x9f, 0xa8, 0xdb, 0xfc, 0xd0, 0x09, 0x52, 0xb8, 0x2c, 0x0a,

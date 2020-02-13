@@ -701,9 +701,8 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		}
 	}
 
-	hlog.Printf("info", "box pod %s, rep %d, inst %s, opAction %s, status %s",
+	hlog.Printf("info", "box pod %s, rep %d, opAction %s, status %s",
 		inst.PodID, inst.Replica.RepId,
-		inst.ID,
 		strings.Join(inapi.OpActionStrings(inst.Replica.Action), ","),
 		strings.Join(inapi.OpActionStrings(inst.Status.Action), ","),
 	)

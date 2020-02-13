@@ -26,14 +26,14 @@ import (
 
 var (
 	// Server         = grpc.NewServer(grpc.Creds(NewCredentialServer()))
-	grpc_msg_byte_max = 16 * 1024 * 1024
-	Server            = grpc.NewServer(
-		grpc.MaxMsgSize(grpc_msg_byte_max),
-		grpc.MaxSendMsgSize(grpc_msg_byte_max),
-		grpc.MaxRecvMsgSize(grpc_msg_byte_max),
+	grpcMsgByteMax = 16 * 1024 * 1024
+	Server         = grpc.NewServer(
+		grpc.MaxMsgSize(grpcMsgByteMax),
+		grpc.MaxSendMsgSize(grpcMsgByteMax),
+		grpc.MaxRecvMsgSize(grpcMsgByteMax),
 	)
-	client_conns   = map[string]*grpc.ClientConn{}
-	client_conn_mu sync.Mutex
+	clientConns  = map[string]*grpc.ClientConn{}
+	clientConnMu sync.Mutex
 )
 
 func Start(port uint16) error {
@@ -49,24 +49,24 @@ func Start(port uint16) error {
 
 func ClientConn(addr string) (*grpc.ClientConn, error) {
 
-	client_conn_mu.Lock()
-	defer client_conn_mu.Unlock()
+	clientConnMu.Lock()
+	defer clientConnMu.Unlock()
 
-	if c, ok := client_conns[addr]; ok {
+	if c, ok := clientConns[addr]; ok {
 		return c, nil
 	}
 
 	c, err := grpc.Dial(addr, grpc.WithInsecure(),
 		grpc.WithPerRPCCredentials(auth.NewCredentialToken()),
-		grpc.WithMaxMsgSize(grpc_msg_byte_max),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpc_msg_byte_max)),
-		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpc_msg_byte_max)),
+		grpc.WithMaxMsgSize(grpcMsgByteMax),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(grpcMsgByteMax)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(grpcMsgByteMax)),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	client_conns[addr] = c
+	clientConns[addr] = c
 
 	return c, nil
 }

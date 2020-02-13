@@ -331,6 +331,11 @@ func (c Pod) EntryAction() {
 		}
 	}
 
+	if set.Meta.ID == "" {
+		set.Error = types.NewErrorMeta("404", "Pod Not Found")
+		return
+	}
+
 	for _, v := range set.Operate.Replicas {
 		if host := status.GlobalHostList.Item(v.Node); host != nil {
 			for _, v2 := range v.Ports {

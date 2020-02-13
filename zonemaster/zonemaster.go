@@ -21,12 +21,16 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	iamWorker "github.com/hooto/iam/worker"
 
+	"github.com/sysinner/incore/inapi/job"
 	"github.com/sysinner/incore/status"
+	"github.com/sysinner/incore/zonemaster/zjob"
 )
 
 var (
 	worker_mu sync.Mutex
 	running   = false
+	jobDaemon *job.Daemon
+	err       error
 )
 
 func Start() error {
@@ -39,6 +43,16 @@ func Start() error {
 	}
 
 	hlog.Print("info", "zonemaster/worker started")
+
+	jobDaemon, err = job.NewDaemon(status.JobContextRefresh)
+	if err != nil {
+		return err
+	}
+
+	jobDaemon.Commit(zjob.NewPodStatusMailJobEntry())
+	jobDaemon.Commit(zjob.NewMailQueueJobEntry())
+
+	go jobDaemon.Start()
 
 	go func() {
 

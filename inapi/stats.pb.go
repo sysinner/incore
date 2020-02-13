@@ -3,9 +3,11 @@
 
 package inapi
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,31 +18,32 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type PbStatsSampleFeed struct {
-	Kind                 string                `protobuf:"bytes,1,opt,name=kind" json:"kind,omitempty" toml:"kind,omitempty"`
-	Cycle                uint32                `protobuf:"varint,2,opt,name=cycle" json:"cycle,omitempty" toml:"cycle,omitempty"`
-	Items                []*PbStatsSampleEntry `protobuf:"bytes,3,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-" toml:"-"`
-	XXX_unrecognized     []byte                `json:"-" toml:"-"`
-	XXX_sizecache        int32                 `json:"-" toml:"-"`
+	Kind                 string                `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Cycle                uint32                `protobuf:"varint,2,opt,name=cycle,proto3" json:"cycle,omitempty"`
+	Items                []*PbStatsSampleEntry `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
 func (m *PbStatsSampleFeed) Reset()         { *m = PbStatsSampleFeed{} }
 func (m *PbStatsSampleFeed) String() string { return proto.CompactTextString(m) }
 func (*PbStatsSampleFeed) ProtoMessage()    {}
 func (*PbStatsSampleFeed) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_45523e8914b1f127, []int{0}
+	return fileDescriptor_46f1f394ff918ee5, []int{0}
 }
+
 func (m *PbStatsSampleFeed) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbStatsSampleFeed.Unmarshal(m, b)
 }
 func (m *PbStatsSampleFeed) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbStatsSampleFeed.Marshal(b, m, deterministic)
 }
-func (dst *PbStatsSampleFeed) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbStatsSampleFeed.Merge(dst, src)
+func (m *PbStatsSampleFeed) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbStatsSampleFeed.Merge(m, src)
 }
 func (m *PbStatsSampleFeed) XXX_Size() int {
 	return xxx_messageInfo_PbStatsSampleFeed.Size(m)
@@ -73,27 +76,28 @@ func (m *PbStatsSampleFeed) GetItems() []*PbStatsSampleEntry {
 }
 
 type PbStatsSampleEntry struct {
-	Name                 string                `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Items                []*PbStatsSampleValue `protobuf:"bytes,2,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-" toml:"-"`
-	XXX_unrecognized     []byte                `json:"-" toml:"-"`
-	XXX_sizecache        int32                 `json:"-" toml:"-"`
+	Name                 string                `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Items                []*PbStatsSampleValue `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
 func (m *PbStatsSampleEntry) Reset()         { *m = PbStatsSampleEntry{} }
 func (m *PbStatsSampleEntry) String() string { return proto.CompactTextString(m) }
 func (*PbStatsSampleEntry) ProtoMessage()    {}
 func (*PbStatsSampleEntry) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_45523e8914b1f127, []int{1}
+	return fileDescriptor_46f1f394ff918ee5, []int{1}
 }
+
 func (m *PbStatsSampleEntry) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbStatsSampleEntry.Unmarshal(m, b)
 }
 func (m *PbStatsSampleEntry) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbStatsSampleEntry.Marshal(b, m, deterministic)
 }
-func (dst *PbStatsSampleEntry) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbStatsSampleEntry.Merge(dst, src)
+func (m *PbStatsSampleEntry) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbStatsSampleEntry.Merge(m, src)
 }
 func (m *PbStatsSampleEntry) XXX_Size() int {
 	return xxx_messageInfo_PbStatsSampleEntry.Size(m)
@@ -119,27 +123,28 @@ func (m *PbStatsSampleEntry) GetItems() []*PbStatsSampleValue {
 }
 
 type PbStatsSampleValue struct {
-	Time                 uint32   `protobuf:"varint,1,opt,name=time" json:"time,omitempty" toml:"time,omitempty"`
-	Value                int64    `protobuf:"varint,2,opt,name=value" json:"value,omitempty" toml:"value,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Time                 uint32   `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty"`
+	Value                int64    `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *PbStatsSampleValue) Reset()         { *m = PbStatsSampleValue{} }
 func (m *PbStatsSampleValue) String() string { return proto.CompactTextString(m) }
 func (*PbStatsSampleValue) ProtoMessage()    {}
 func (*PbStatsSampleValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_45523e8914b1f127, []int{2}
+	return fileDescriptor_46f1f394ff918ee5, []int{2}
 }
+
 func (m *PbStatsSampleValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbStatsSampleValue.Unmarshal(m, b)
 }
 func (m *PbStatsSampleValue) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbStatsSampleValue.Marshal(b, m, deterministic)
 }
-func (dst *PbStatsSampleValue) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbStatsSampleValue.Merge(dst, src)
+func (m *PbStatsSampleValue) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbStatsSampleValue.Merge(m, src)
 }
 func (m *PbStatsSampleValue) XXX_Size() int {
 	return xxx_messageInfo_PbStatsSampleValue.Size(m)
@@ -165,28 +170,29 @@ func (m *PbStatsSampleValue) GetValue() int64 {
 }
 
 type PbStatsIndexList struct {
-	IndexCycle           uint32              `protobuf:"varint,1,opt,name=index_cycle,json=indexCycle" json:"index_cycle,omitempty" toml:"index_cycle,omitempty"`
-	SampleCycle          uint32              `protobuf:"varint,2,opt,name=sample_cycle,json=sampleCycle" json:"sample_cycle,omitempty" toml:"sample_cycle,omitempty"`
-	Items                []*PbStatsIndexFeed `protobuf:"bytes,3,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-" toml:"-"`
-	XXX_unrecognized     []byte              `json:"-" toml:"-"`
-	XXX_sizecache        int32               `json:"-" toml:"-"`
+	IndexCycle           uint32              `protobuf:"varint,1,opt,name=index_cycle,json=indexCycle,proto3" json:"index_cycle,omitempty"`
+	SampleCycle          uint32              `protobuf:"varint,2,opt,name=sample_cycle,json=sampleCycle,proto3" json:"sample_cycle,omitempty"`
+	Items                []*PbStatsIndexFeed `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
 }
 
 func (m *PbStatsIndexList) Reset()         { *m = PbStatsIndexList{} }
 func (m *PbStatsIndexList) String() string { return proto.CompactTextString(m) }
 func (*PbStatsIndexList) ProtoMessage()    {}
 func (*PbStatsIndexList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_45523e8914b1f127, []int{3}
+	return fileDescriptor_46f1f394ff918ee5, []int{3}
 }
+
 func (m *PbStatsIndexList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbStatsIndexList.Unmarshal(m, b)
 }
 func (m *PbStatsIndexList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbStatsIndexList.Marshal(b, m, deterministic)
 }
-func (dst *PbStatsIndexList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbStatsIndexList.Merge(dst, src)
+func (m *PbStatsIndexList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbStatsIndexList.Merge(m, src)
 }
 func (m *PbStatsIndexList) XXX_Size() int {
 	return xxx_messageInfo_PbStatsIndexList.Size(m)
@@ -219,27 +225,28 @@ func (m *PbStatsIndexList) GetItems() []*PbStatsIndexFeed {
 }
 
 type PbStatsIndexFeed struct {
-	Time                 uint32                `protobuf:"varint,1,opt,name=time" json:"time,omitempty" toml:"time,omitempty"`
-	Items                []*PbStatsSampleEntry `protobuf:"bytes,2,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-" toml:"-"`
-	XXX_unrecognized     []byte                `json:"-" toml:"-"`
-	XXX_sizecache        int32                 `json:"-" toml:"-"`
+	Time                 uint32                `protobuf:"varint,1,opt,name=time,proto3" json:"time,omitempty"`
+	Items                []*PbStatsSampleEntry `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
 func (m *PbStatsIndexFeed) Reset()         { *m = PbStatsIndexFeed{} }
 func (m *PbStatsIndexFeed) String() string { return proto.CompactTextString(m) }
 func (*PbStatsIndexFeed) ProtoMessage()    {}
 func (*PbStatsIndexFeed) Descriptor() ([]byte, []int) {
-	return fileDescriptor_stats_45523e8914b1f127, []int{4}
+	return fileDescriptor_46f1f394ff918ee5, []int{4}
 }
+
 func (m *PbStatsIndexFeed) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PbStatsIndexFeed.Unmarshal(m, b)
 }
 func (m *PbStatsIndexFeed) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_PbStatsIndexFeed.Marshal(b, m, deterministic)
 }
-func (dst *PbStatsIndexFeed) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_PbStatsIndexFeed.Merge(dst, src)
+func (m *PbStatsIndexFeed) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PbStatsIndexFeed.Merge(m, src)
 }
 func (m *PbStatsIndexFeed) XXX_Size() int {
 	return xxx_messageInfo_PbStatsIndexFeed.Size(m)
@@ -272,9 +279,9 @@ func init() {
 	proto.RegisterType((*PbStatsIndexFeed)(nil), "inapi.PbStatsIndexFeed")
 }
 
-func init() { proto.RegisterFile("inapi/stats.proto", fileDescriptor_stats_45523e8914b1f127) }
+func init() { proto.RegisterFile("inapi/stats.proto", fileDescriptor_46f1f394ff918ee5) }
 
-var fileDescriptor_stats_45523e8914b1f127 = []byte{
+var fileDescriptor_46f1f394ff918ee5 = []byte{
 	// 268 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xcc, 0xcc, 0x4b, 0x2c,
 	0xc8, 0xd4, 0x2f, 0x2e, 0x49, 0x2c, 0x29, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05,

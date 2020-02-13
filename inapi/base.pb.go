@@ -3,9 +3,11 @@
 
 package inapi
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,30 +18,31 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type ErrorMeta struct {
-	Code                 string   `protobuf:"bytes,1,opt,name=code" json:"code,omitempty" toml:"code,omitempty"`
-	Message              string   `protobuf:"bytes,2,opt,name=message" json:"message,omitempty" toml:"message,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Code                 string   `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
+	Message              string   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ErrorMeta) Reset()         { *m = ErrorMeta{} }
 func (m *ErrorMeta) String() string { return proto.CompactTextString(m) }
 func (*ErrorMeta) ProtoMessage()    {}
 func (*ErrorMeta) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_95be600422d74650, []int{0}
+	return fileDescriptor_b61595a173c150d1, []int{0}
 }
+
 func (m *ErrorMeta) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ErrorMeta.Unmarshal(m, b)
 }
 func (m *ErrorMeta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ErrorMeta.Marshal(b, m, deterministic)
 }
-func (dst *ErrorMeta) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ErrorMeta.Merge(dst, src)
+func (m *ErrorMeta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ErrorMeta.Merge(m, src)
 }
 func (m *ErrorMeta) XXX_Size() int {
 	return xxx_messageInfo_ErrorMeta.Size(m)
@@ -65,27 +68,28 @@ func (m *ErrorMeta) GetMessage() string {
 }
 
 type TypeMeta struct {
-	Kind                 string     `protobuf:"bytes,1,opt,name=kind" json:"kind,omitempty" toml:"kind,omitempty"`
-	Error                *ErrorMeta `protobuf:"bytes,2,opt,name=error" json:"error,omitempty" toml:"error,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-" toml:"-"`
-	XXX_unrecognized     []byte     `json:"-" toml:"-"`
-	XXX_sizecache        int32      `json:"-" toml:"-"`
+	Kind                 string     `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Error                *ErrorMeta `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
 func (m *TypeMeta) Reset()         { *m = TypeMeta{} }
 func (m *TypeMeta) String() string { return proto.CompactTextString(m) }
 func (*TypeMeta) ProtoMessage()    {}
 func (*TypeMeta) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_95be600422d74650, []int{1}
+	return fileDescriptor_b61595a173c150d1, []int{1}
 }
+
 func (m *TypeMeta) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_TypeMeta.Unmarshal(m, b)
 }
 func (m *TypeMeta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_TypeMeta.Marshal(b, m, deterministic)
 }
-func (dst *TypeMeta) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_TypeMeta.Merge(dst, src)
+func (m *TypeMeta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TypeMeta.Merge(m, src)
 }
 func (m *TypeMeta) XXX_Size() int {
 	return xxx_messageInfo_TypeMeta.Size(m)
@@ -111,29 +115,30 @@ func (m *TypeMeta) GetError() *ErrorMeta {
 }
 
 type ObjectMeta struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty" toml:"id,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Created              uint64   `protobuf:"varint,3,opt,name=created" json:"created,omitempty" toml:"created,omitempty"`
-	Updated              uint64   `protobuf:"varint,4,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Created              uint64   `protobuf:"varint,3,opt,name=created,proto3" json:"created,omitempty"`
+	Updated              uint64   `protobuf:"varint,4,opt,name=updated,proto3" json:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ObjectMeta) Reset()         { *m = ObjectMeta{} }
 func (m *ObjectMeta) String() string { return proto.CompactTextString(m) }
 func (*ObjectMeta) ProtoMessage()    {}
 func (*ObjectMeta) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_95be600422d74650, []int{2}
+	return fileDescriptor_b61595a173c150d1, []int{2}
 }
+
 func (m *ObjectMeta) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ObjectMeta.Unmarshal(m, b)
 }
 func (m *ObjectMeta) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ObjectMeta.Marshal(b, m, deterministic)
 }
-func (dst *ObjectMeta) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ObjectMeta.Merge(dst, src)
+func (m *ObjectMeta) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ObjectMeta.Merge(m, src)
 }
 func (m *ObjectMeta) XXX_Size() int {
 	return xxx_messageInfo_ObjectMeta.Size(m)
@@ -173,27 +178,28 @@ func (m *ObjectMeta) GetUpdated() uint64 {
 }
 
 type Label struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Value                string   `protobuf:"bytes,2,opt,name=value" json:"value,omitempty" toml:"value,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value                string   `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *Label) Reset()         { *m = Label{} }
 func (m *Label) String() string { return proto.CompactTextString(m) }
 func (*Label) ProtoMessage()    {}
 func (*Label) Descriptor() ([]byte, []int) {
-	return fileDescriptor_base_95be600422d74650, []int{3}
+	return fileDescriptor_b61595a173c150d1, []int{3}
 }
+
 func (m *Label) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Label.Unmarshal(m, b)
 }
 func (m *Label) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_Label.Marshal(b, m, deterministic)
 }
-func (dst *Label) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Label.Merge(dst, src)
+func (m *Label) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Label.Merge(m, src)
 }
 func (m *Label) XXX_Size() int {
 	return xxx_messageInfo_Label.Size(m)
@@ -225,9 +231,9 @@ func init() {
 	proto.RegisterType((*Label)(nil), "inapi.Label")
 }
 
-func init() { proto.RegisterFile("inapi/base.proto", fileDescriptor_base_95be600422d74650) }
+func init() { proto.RegisterFile("inapi/base.proto", fileDescriptor_b61595a173c150d1) }
 
-var fileDescriptor_base_95be600422d74650 = []byte{
+var fileDescriptor_b61595a173c150d1 = []byte{
 	// 216 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4c, 0x90, 0x41, 0x4b, 0xc4, 0x30,
 	0x10, 0x85, 0x49, 0x6d, 0xd4, 0x1d, 0x41, 0x96, 0xe0, 0x21, 0xc7, 0x25, 0x07, 0xd9, 0x53, 0x45,

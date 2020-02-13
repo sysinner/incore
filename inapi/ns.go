@@ -234,6 +234,10 @@ func NsKvZonePodStatus(zoneId, podId string) []byte {
 	return []byte(fmt.Sprintf("inz:pod:status:%s:%s", zoneId, podId))
 }
 
+func NsZoneMailQueue(key string) []byte {
+	return []byte(fmt.Sprintf("inz:msg:queue:%s", key))
+}
+
 // t2
 func NsKvLocalCacheBoundPod(podId string, repId uint32) []byte {
 	if len(podId) < 8 {

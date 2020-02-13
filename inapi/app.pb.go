@@ -3,9 +3,11 @@
 
 package inapi
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
+import (
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
+	math "math"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -16,34 +18,35 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // host
 type AppSpecDepend struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty" toml:"id,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Version              string   `protobuf:"bytes,3,opt,name=version" json:"version,omitempty" toml:"version,omitempty"`
-	Priority             int32    `protobuf:"varint,4,opt,name=priority" json:"priority,omitempty" toml:"priority,omitempty"`
-	Configs              []string `protobuf:"bytes,5,rep,name=configs" json:"configs,omitempty" toml:"configs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Version              string   `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
+	Priority             int32    `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	Configs              []string `protobuf:"bytes,5,rep,name=configs,proto3" json:"configs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *AppSpecDepend) Reset()         { *m = AppSpecDepend{} }
 func (m *AppSpecDepend) String() string { return proto.CompactTextString(m) }
 func (*AppSpecDepend) ProtoMessage()    {}
 func (*AppSpecDepend) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_a6d2baf93302db4b, []int{0}
+	return fileDescriptor_cef5d2a6276eb81b, []int{0}
 }
+
 func (m *AppSpecDepend) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppSpecDepend.Unmarshal(m, b)
 }
 func (m *AppSpecDepend) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AppSpecDepend.Marshal(b, m, deterministic)
 }
-func (dst *AppSpecDepend) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppSpecDepend.Merge(dst, src)
+func (m *AppSpecDepend) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppSpecDepend.Merge(m, src)
 }
 func (m *AppSpecDepend) XXX_Size() int {
 	return xxx_messageInfo_AppSpecDepend.Size(m)
@@ -90,28 +93,29 @@ func (m *AppSpecDepend) GetConfigs() []string {
 }
 
 type AppServiceReplica struct {
-	Rep                  uint32   `protobuf:"varint,1,opt,name=rep" json:"rep,omitempty" toml:"rep,omitempty"`
-	Ip                   string   `protobuf:"bytes,2,opt,name=ip" json:"ip,omitempty" toml:"ip,omitempty"`
-	Port                 uint32   `protobuf:"varint,3,opt,name=port" json:"port,omitempty" toml:"port,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Rep                  uint32   `protobuf:"varint,1,opt,name=rep,proto3" json:"rep,omitempty"`
+	Ip                   string   `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
+	Port                 uint32   `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *AppServiceReplica) Reset()         { *m = AppServiceReplica{} }
 func (m *AppServiceReplica) String() string { return proto.CompactTextString(m) }
 func (*AppServiceReplica) ProtoMessage()    {}
 func (*AppServiceReplica) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_a6d2baf93302db4b, []int{1}
+	return fileDescriptor_cef5d2a6276eb81b, []int{1}
 }
+
 func (m *AppServiceReplica) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServiceReplica.Unmarshal(m, b)
 }
 func (m *AppServiceReplica) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AppServiceReplica.Marshal(b, m, deterministic)
 }
-func (dst *AppServiceReplica) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppServiceReplica.Merge(dst, src)
+func (m *AppServiceReplica) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppServiceReplica.Merge(m, src)
 }
 func (m *AppServiceReplica) XXX_Size() int {
 	return xxx_messageInfo_AppServiceReplica.Size(m)
@@ -144,32 +148,33 @@ func (m *AppServiceReplica) GetPort() uint32 {
 }
 
 type AppServicePort struct {
-	Port                 uint32               `protobuf:"varint,1,opt,name=port" json:"port,omitempty" toml:"port,omitempty"`
-	Endpoints            []*AppServiceReplica `protobuf:"bytes,2,rep,name=endpoints" json:"endpoints,omitempty" toml:"endpoints,omitempty"`
-	Updated              int64                `protobuf:"varint,3,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	Name                 string               `protobuf:"bytes,5,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Spec                 string               `protobuf:"bytes,6,opt,name=spec" json:"spec,omitempty" toml:"spec,omitempty"`
-	PodId                string               `protobuf:"bytes,7,opt,name=pod_id,json=podId" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
-	AppId                string               `protobuf:"bytes,8,opt,name=app_id,json=appId" json:"app_id,omitempty" toml:"app_id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-" toml:"-"`
-	XXX_unrecognized     []byte               `json:"-" toml:"-"`
-	XXX_sizecache        int32                `json:"-" toml:"-"`
+	Port                 uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
+	Endpoints            []*AppServiceReplica `protobuf:"bytes,2,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
+	Updated              int64                `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty"`
+	Name                 string               `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
+	Spec                 string               `protobuf:"bytes,6,opt,name=spec,proto3" json:"spec,omitempty"`
+	PodId                string               `protobuf:"bytes,7,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
+	AppId                string               `protobuf:"bytes,8,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *AppServicePort) Reset()         { *m = AppServicePort{} }
 func (m *AppServicePort) String() string { return proto.CompactTextString(m) }
 func (*AppServicePort) ProtoMessage()    {}
 func (*AppServicePort) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_a6d2baf93302db4b, []int{2}
+	return fileDescriptor_cef5d2a6276eb81b, []int{2}
 }
+
 func (m *AppServicePort) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServicePort.Unmarshal(m, b)
 }
 func (m *AppServicePort) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AppServicePort.Marshal(b, m, deterministic)
 }
-func (dst *AppServicePort) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppServicePort.Merge(dst, src)
+func (m *AppServicePort) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppServicePort.Merge(m, src)
 }
 func (m *AppServicePort) XXX_Size() int {
 	return xxx_messageInfo_AppServicePort.Size(m)
@@ -230,29 +235,30 @@ func (m *AppServicePort) GetAppId() string {
 }
 
 type AppServicePortPodBind struct {
-	Port                 uint32               `protobuf:"varint,1,opt,name=port" json:"port,omitempty" toml:"port,omitempty"`
-	PodId                string               `protobuf:"bytes,2,opt,name=pod_id,json=podId" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
-	Endpoints            []*AppServiceReplica `protobuf:"bytes,3,rep,name=endpoints" json:"endpoints,omitempty" toml:"endpoints,omitempty"`
-	Updated              int64                `protobuf:"varint,4,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-" toml:"-"`
-	XXX_unrecognized     []byte               `json:"-" toml:"-"`
-	XXX_sizecache        int32                `json:"-" toml:"-"`
+	Port                 uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
+	PodId                string               `protobuf:"bytes,2,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
+	Endpoints            []*AppServiceReplica `protobuf:"bytes,3,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
+	Updated              int64                `protobuf:"varint,4,opt,name=updated,proto3" json:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *AppServicePortPodBind) Reset()         { *m = AppServicePortPodBind{} }
 func (m *AppServicePortPodBind) String() string { return proto.CompactTextString(m) }
 func (*AppServicePortPodBind) ProtoMessage()    {}
 func (*AppServicePortPodBind) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_a6d2baf93302db4b, []int{3}
+	return fileDescriptor_cef5d2a6276eb81b, []int{3}
 }
+
 func (m *AppServicePortPodBind) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServicePortPodBind.Unmarshal(m, b)
 }
 func (m *AppServicePortPodBind) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AppServicePortPodBind.Marshal(b, m, deterministic)
 }
-func (dst *AppServicePortPodBind) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppServicePortPodBind.Merge(dst, src)
+func (m *AppServicePortPodBind) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppServicePortPodBind.Merge(m, src)
 }
 func (m *AppServicePortPodBind) XXX_Size() int {
 	return xxx_messageInfo_AppServicePortPodBind.Size(m)
@@ -292,28 +298,29 @@ func (m *AppServicePortPodBind) GetUpdated() int64 {
 }
 
 type AppServicePod struct {
-	PodId                string            `protobuf:"bytes,1,opt,name=pod_id,json=podId" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
-	Ports                []*AppServicePort `protobuf:"bytes,4,rep,name=ports" json:"ports,omitempty" toml:"ports,omitempty"`
-	Updated              int64             `protobuf:"varint,5,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-" toml:"-"`
-	XXX_unrecognized     []byte            `json:"-" toml:"-"`
-	XXX_sizecache        int32             `json:"-" toml:"-"`
+	PodId                string            `protobuf:"bytes,1,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
+	Ports                []*AppServicePort `protobuf:"bytes,4,rep,name=ports,proto3" json:"ports,omitempty"`
+	Updated              int64             `protobuf:"varint,5,opt,name=updated,proto3" json:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *AppServicePod) Reset()         { *m = AppServicePod{} }
 func (m *AppServicePod) String() string { return proto.CompactTextString(m) }
 func (*AppServicePod) ProtoMessage()    {}
 func (*AppServicePod) Descriptor() ([]byte, []int) {
-	return fileDescriptor_app_a6d2baf93302db4b, []int{4}
+	return fileDescriptor_cef5d2a6276eb81b, []int{4}
 }
+
 func (m *AppServicePod) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_AppServicePod.Unmarshal(m, b)
 }
 func (m *AppServicePod) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_AppServicePod.Marshal(b, m, deterministic)
 }
-func (dst *AppServicePod) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppServicePod.Merge(dst, src)
+func (m *AppServicePod) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AppServicePod.Merge(m, src)
 }
 func (m *AppServicePod) XXX_Size() int {
 	return xxx_messageInfo_AppServicePod.Size(m)
@@ -353,9 +360,9 @@ func init() {
 	proto.RegisterType((*AppServicePod)(nil), "inapi.AppServicePod")
 }
 
-func init() { proto.RegisterFile("inapi/app.proto", fileDescriptor_app_a6d2baf93302db4b) }
+func init() { proto.RegisterFile("inapi/app.proto", fileDescriptor_cef5d2a6276eb81b) }
 
-var fileDescriptor_app_a6d2baf93302db4b = []byte{
+var fileDescriptor_cef5d2a6276eb81b = []byte{
 	// 354 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x92, 0x4d, 0x4b, 0x3b, 0x31,
 	0x10, 0xc6, 0xc9, 0xbe, 0xf4, 0x25, 0x7f, 0xda, 0xbf, 0x06, 0x0a, 0xc1, 0xd3, 0xb2, 0xa7, 0x82,

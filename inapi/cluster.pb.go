@@ -3,13 +3,14 @@
 
 package inapi
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	codes "google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -21,32 +22,33 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // volume
 type ResVolValue struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Value                int32    `protobuf:"varint,2,opt,name=value" json:"value,omitempty" toml:"value,omitempty"`
-	Attrs                uint32   `protobuf:"varint,3,opt,name=attrs" json:"attrs,omitempty" toml:"attrs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Value                int32    `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty"`
+	Attrs                uint32   `protobuf:"varint,3,opt,name=attrs,proto3" json:"attrs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResVolValue) Reset()         { *m = ResVolValue{} }
 func (m *ResVolValue) String() string { return proto.CompactTextString(m) }
 func (*ResVolValue) ProtoMessage()    {}
 func (*ResVolValue) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{0}
+	return fileDescriptor_f4f35505c31f65dd, []int{0}
 }
+
 func (m *ResVolValue) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResVolValue.Unmarshal(m, b)
 }
 func (m *ResVolValue) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResVolValue.Marshal(b, m, deterministic)
 }
-func (dst *ResVolValue) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResVolValue.Merge(dst, src)
+func (m *ResVolValue) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResVolValue.Merge(m, src)
 }
 func (m *ResVolValue) XXX_Size() int {
 	return xxx_messageInfo_ResVolValue.Size(m)
@@ -79,30 +81,31 @@ func (m *ResVolValue) GetAttrs() uint32 {
 }
 
 type ResVolBound struct {
-	RefId                string   `protobuf:"bytes,1,opt,name=ref_id,json=refId" json:"ref_id,omitempty" toml:"ref_id,omitempty"`
-	RefName              string   `protobuf:"bytes,2,opt,name=ref_name,json=refName" json:"ref_name,omitempty" toml:"ref_name,omitempty"`
-	Mnt                  string   `protobuf:"bytes,4,opt,name=mnt" json:"mnt,omitempty" toml:"mnt,omitempty"`
-	Size                 int32    `protobuf:"varint,5,opt,name=size" json:"size,omitempty" toml:"size,omitempty"`
-	Attrs                uint32   `protobuf:"varint,6,opt,name=attrs" json:"attrs,omitempty" toml:"attrs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	RefId                string   `protobuf:"bytes,1,opt,name=ref_id,json=refId,proto3" json:"ref_id,omitempty"`
+	RefName              string   `protobuf:"bytes,2,opt,name=ref_name,json=refName,proto3" json:"ref_name,omitempty"`
+	Mnt                  string   `protobuf:"bytes,4,opt,name=mnt,proto3" json:"mnt,omitempty"`
+	Size                 int32    `protobuf:"varint,5,opt,name=size,proto3" json:"size,omitempty"`
+	Attrs                uint32   `protobuf:"varint,6,opt,name=attrs,proto3" json:"attrs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResVolBound) Reset()         { *m = ResVolBound{} }
 func (m *ResVolBound) String() string { return proto.CompactTextString(m) }
 func (*ResVolBound) ProtoMessage()    {}
 func (*ResVolBound) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{1}
+	return fileDescriptor_f4f35505c31f65dd, []int{1}
 }
+
 func (m *ResVolBound) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResVolBound.Unmarshal(m, b)
 }
 func (m *ResVolBound) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResVolBound.Marshal(b, m, deterministic)
 }
-func (dst *ResVolBound) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResVolBound.Merge(dst, src)
+func (m *ResVolBound) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResVolBound.Merge(m, src)
 }
 func (m *ResVolBound) XXX_Size() int {
 	return xxx_messageInfo_ResVolBound.Size(m)
@@ -150,27 +153,28 @@ func (m *ResVolBound) GetAttrs() uint32 {
 
 // image
 type ResImageService struct {
-	Driver               string   `protobuf:"bytes,1,opt,name=driver" json:"driver,omitempty" toml:"driver,omitempty"`
-	Url                  string   `protobuf:"bytes,2,opt,name=url" json:"url,omitempty" toml:"url,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Driver               string   `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
+	Url                  string   `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResImageService) Reset()         { *m = ResImageService{} }
 func (m *ResImageService) String() string { return proto.CompactTextString(m) }
 func (*ResImageService) ProtoMessage()    {}
 func (*ResImageService) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{2}
+	return fileDescriptor_f4f35505c31f65dd, []int{2}
 }
+
 func (m *ResImageService) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResImageService.Unmarshal(m, b)
 }
 func (m *ResImageService) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResImageService.Marshal(b, m, deterministic)
 }
-func (dst *ResImageService) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResImageService.Merge(dst, src)
+func (m *ResImageService) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResImageService.Merge(m, src)
 }
 func (m *ResImageService) XXX_Size() int {
 	return xxx_messageInfo_ResImageService.Size(m)
@@ -197,34 +201,35 @@ func (m *ResImageService) GetUrl() string {
 
 // host
 type ResHostOperate struct {
-	Action               uint32         `protobuf:"varint,1,opt,name=action" json:"action,omitempty" toml:"action,omitempty"`
-	CellId               string         `protobuf:"bytes,2,opt,name=cell_id,json=cellId" json:"cell_id,omitempty" toml:"cell_id,omitempty"`
-	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId" json:"zone_id,omitempty" toml:"zone_id,omitempty"`
-	CpuUsed              int32          `protobuf:"varint,4,opt,name=cpu_used,json=cpuUsed" json:"cpu_used,omitempty" toml:"cpu_used,omitempty"`
-	MemUsed              int64          `protobuf:"varint,5,opt,name=mem_used,json=memUsed" json:"mem_used,omitempty" toml:"mem_used,omitempty"`
-	VolUsed              []*ResVolValue `protobuf:"bytes,6,rep,name=vol_used,json=volUsed" json:"vol_used,omitempty" toml:"vol_used,omitempty"`
-	PortUsed             []uint32       `protobuf:"varint,7,rep,packed,name=port_used,json=portUsed" json:"port_used,omitempty" toml:"port_used,omitempty"`
-	BoxNum               int32          `protobuf:"varint,8,opt,name=box_num,json=boxNum" json:"box_num,omitempty" toml:"box_num,omitempty"`
-	Pr                   uint32         `protobuf:"varint,9,opt,name=pr" json:"pr,omitempty" toml:"pr,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-" toml:"-"`
-	XXX_unrecognized     []byte         `json:"-" toml:"-"`
-	XXX_sizecache        int32          `json:"-" toml:"-"`
+	Action               uint32         `protobuf:"varint,1,opt,name=action,proto3" json:"action,omitempty"`
+	CellId               string         `protobuf:"bytes,2,opt,name=cell_id,json=cellId,proto3" json:"cell_id,omitempty"`
+	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
+	CpuUsed              int32          `protobuf:"varint,4,opt,name=cpu_used,json=cpuUsed,proto3" json:"cpu_used,omitempty"`
+	MemUsed              int64          `protobuf:"varint,5,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty"`
+	VolUsed              []*ResVolValue `protobuf:"bytes,6,rep,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty"`
+	PortUsed             []uint32       `protobuf:"varint,7,rep,packed,name=port_used,json=portUsed,proto3" json:"port_used,omitempty"`
+	BoxNum               int32          `protobuf:"varint,8,opt,name=box_num,json=boxNum,proto3" json:"box_num,omitempty"`
+	Pr                   uint32         `protobuf:"varint,9,opt,name=pr,proto3" json:"pr,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *ResHostOperate) Reset()         { *m = ResHostOperate{} }
 func (m *ResHostOperate) String() string { return proto.CompactTextString(m) }
 func (*ResHostOperate) ProtoMessage()    {}
 func (*ResHostOperate) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{3}
+	return fileDescriptor_f4f35505c31f65dd, []int{3}
 }
+
 func (m *ResHostOperate) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostOperate.Unmarshal(m, b)
 }
 func (m *ResHostOperate) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostOperate.Marshal(b, m, deterministic)
 }
-func (dst *ResHostOperate) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostOperate.Merge(dst, src)
+func (m *ResHostOperate) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostOperate.Merge(m, src)
 }
 func (m *ResHostOperate) XXX_Size() int {
 	return xxx_messageInfo_ResHostOperate.Size(m)
@@ -299,30 +304,31 @@ func (m *ResHostOperate) GetPr() uint32 {
 }
 
 type ResHost struct {
-	Meta                 *ObjectMeta       `protobuf:"bytes,1,opt,name=meta" json:"meta,omitempty" toml:"meta,omitempty"`
-	Operate              *ResHostOperate   `protobuf:"bytes,2,opt,name=operate" json:"operate,omitempty" toml:"operate,omitempty"`
-	Spec                 *ResHostSpec      `protobuf:"bytes,3,opt,name=spec" json:"spec,omitempty" toml:"spec,omitempty"`
-	Status               *ResHostStatus    `protobuf:"bytes,4,opt,name=status" json:"status,omitempty" toml:"status,omitempty"`
-	Prs                  []*PbPodRepStatus `protobuf:"bytes,5,rep,name=prs" json:"prs,omitempty" toml:"prs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-" toml:"-"`
-	XXX_unrecognized     []byte            `json:"-" toml:"-"`
-	XXX_sizecache        int32             `json:"-" toml:"-"`
+	Meta                 *ObjectMeta       `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
+	Operate              *ResHostOperate   `protobuf:"bytes,2,opt,name=operate,proto3" json:"operate,omitempty"`
+	Spec                 *ResHostSpec      `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec,omitempty"`
+	Status               *ResHostStatus    `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Prs                  []*PbPodRepStatus `protobuf:"bytes,5,rep,name=prs,proto3" json:"prs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
 }
 
 func (m *ResHost) Reset()         { *m = ResHost{} }
 func (m *ResHost) String() string { return proto.CompactTextString(m) }
 func (*ResHost) ProtoMessage()    {}
 func (*ResHost) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{4}
+	return fileDescriptor_f4f35505c31f65dd, []int{4}
 }
+
 func (m *ResHost) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHost.Unmarshal(m, b)
 }
 func (m *ResHost) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHost.Marshal(b, m, deterministic)
 }
-func (dst *ResHost) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHost.Merge(dst, src)
+func (m *ResHost) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHost.Merge(m, src)
 }
 func (m *ResHost) XXX_Size() int {
 	return xxx_messageInfo_ResHost.Size(m)
@@ -369,34 +375,35 @@ func (m *ResHost) GetPrs() []*PbPodRepStatus {
 }
 
 type ResHostNew struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Action               uint32   `protobuf:"varint,2,opt,name=action" json:"action,omitempty" toml:"action,omitempty"`
-	ZoneId               string   `protobuf:"bytes,3,opt,name=zone_id,json=zoneId" json:"zone_id,omitempty" toml:"zone_id,omitempty"`
-	CellId               string   `protobuf:"bytes,4,opt,name=cell_id,json=cellId" json:"cell_id,omitempty" toml:"cell_id,omitempty"`
-	PeerLanAddr          string   `protobuf:"bytes,5,opt,name=peer_lan_addr,json=peerLanAddr" json:"peer_lan_addr,omitempty" toml:"peer_lan_addr,omitempty"`
-	SecretKey            string   `protobuf:"bytes,6,opt,name=secret_key,json=secretKey" json:"secret_key,omitempty" toml:"secret_key,omitempty"`
-	ZoneMasters          []string `protobuf:"bytes,7,rep,name=zone_masters,json=zoneMasters" json:"zone_masters,omitempty" toml:"zone_masters,omitempty"`
-	ZoneIamServiceUrl    string   `protobuf:"bytes,8,opt,name=zone_iam_service_url,json=zoneIamServiceUrl" json:"zone_iam_service_url,omitempty" toml:"zone_iam_service_url,omitempty"`
-	ZoneInpackServiceUrl string   `protobuf:"bytes,9,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl" json:"zone_inpack_service_url,omitempty" toml:"zone_inpack_service_url,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Action               uint32   `protobuf:"varint,2,opt,name=action,proto3" json:"action,omitempty"`
+	ZoneId               string   `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
+	CellId               string   `protobuf:"bytes,4,opt,name=cell_id,json=cellId,proto3" json:"cell_id,omitempty"`
+	PeerLanAddr          string   `protobuf:"bytes,5,opt,name=peer_lan_addr,json=peerLanAddr,proto3" json:"peer_lan_addr,omitempty"`
+	SecretKey            string   `protobuf:"bytes,6,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty"`
+	ZoneMasters          []string `protobuf:"bytes,7,rep,name=zone_masters,json=zoneMasters,proto3" json:"zone_masters,omitempty"`
+	ZoneIamServiceUrl    string   `protobuf:"bytes,8,opt,name=zone_iam_service_url,json=zoneIamServiceUrl,proto3" json:"zone_iam_service_url,omitempty"`
+	ZoneInpackServiceUrl string   `protobuf:"bytes,9,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl,proto3" json:"zone_inpack_service_url,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResHostNew) Reset()         { *m = ResHostNew{} }
 func (m *ResHostNew) String() string { return proto.CompactTextString(m) }
 func (*ResHostNew) ProtoMessage()    {}
 func (*ResHostNew) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{5}
+	return fileDescriptor_f4f35505c31f65dd, []int{5}
 }
+
 func (m *ResHostNew) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostNew.Unmarshal(m, b)
 }
 func (m *ResHostNew) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostNew.Marshal(b, m, deterministic)
 }
-func (dst *ResHostNew) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostNew.Merge(dst, src)
+func (m *ResHostNew) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostNew.Merge(m, src)
 }
 func (m *ResHostNew) XXX_Size() int {
 	return xxx_messageInfo_ResHostNew.Size(m)
@@ -471,26 +478,27 @@ func (m *ResHostNew) GetZoneInpackServiceUrl() string {
 }
 
 type ResHostList struct {
-	Items                []*ResHost `protobuf:"bytes,2,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-" toml:"-"`
-	XXX_unrecognized     []byte     `json:"-" toml:"-"`
-	XXX_sizecache        int32      `json:"-" toml:"-"`
+	Items                []*ResHost `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
 func (m *ResHostList) Reset()         { *m = ResHostList{} }
 func (m *ResHostList) String() string { return proto.CompactTextString(m) }
 func (*ResHostList) ProtoMessage()    {}
 func (*ResHostList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{6}
+	return fileDescriptor_f4f35505c31f65dd, []int{6}
 }
+
 func (m *ResHostList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostList.Unmarshal(m, b)
 }
 func (m *ResHostList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostList.Marshal(b, m, deterministic)
 }
-func (dst *ResHostList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostList.Merge(dst, src)
+func (m *ResHostList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostList.Merge(m, src)
 }
 func (m *ResHostList) XXX_Size() int {
 	return xxx_messageInfo_ResHostList.Size(m)
@@ -509,33 +517,34 @@ func (m *ResHostList) GetItems() []*ResHost {
 }
 
 type ResHostSpec struct {
-	Platform             *ResPlatform     `protobuf:"bytes,2,opt,name=platform" json:"platform,omitempty" toml:"platform,omitempty"`
-	Capacity             *ResHostResource `protobuf:"bytes,3,opt,name=capacity" json:"capacity,omitempty" toml:"capacity,omitempty"`
-	HttpPort             uint32           `protobuf:"varint,5,opt,name=http_port,json=httpPort" json:"http_port,omitempty" toml:"http_port,omitempty"`
-	PeerLanAddr          string           `protobuf:"bytes,6,opt,name=peer_lan_addr,json=peerLanAddr" json:"peer_lan_addr,omitempty" toml:"peer_lan_addr,omitempty"`
-	PeerWanAddr          string           `protobuf:"bytes,7,opt,name=peer_wan_addr,json=peerWanAddr" json:"peer_wan_addr,omitempty" toml:"peer_wan_addr,omitempty"`
-	ExpDockerVersion     string           `protobuf:"bytes,10,opt,name=exp_docker_version,json=expDockerVersion" json:"exp_docker_version,omitempty" toml:"exp_docker_version,omitempty"`
-	ExpRktVersion        string           `protobuf:"bytes,11,opt,name=exp_rkt_version,json=expRktVersion" json:"exp_rkt_version,omitempty" toml:"exp_rkt_version,omitempty"`
-	ExpPouchVersion      string           `protobuf:"bytes,12,opt,name=exp_pouch_version,json=expPouchVersion" json:"exp_pouch_version,omitempty" toml:"exp_pouch_version,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-" toml:"-"`
-	XXX_unrecognized     []byte           `json:"-" toml:"-"`
-	XXX_sizecache        int32            `json:"-" toml:"-"`
+	Platform             *ResPlatform     `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
+	Capacity             *ResHostResource `protobuf:"bytes,3,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	HttpPort             uint32           `protobuf:"varint,5,opt,name=http_port,json=httpPort,proto3" json:"http_port,omitempty"`
+	PeerLanAddr          string           `protobuf:"bytes,6,opt,name=peer_lan_addr,json=peerLanAddr,proto3" json:"peer_lan_addr,omitempty"`
+	PeerWanAddr          string           `protobuf:"bytes,7,opt,name=peer_wan_addr,json=peerWanAddr,proto3" json:"peer_wan_addr,omitempty"`
+	ExpDockerVersion     string           `protobuf:"bytes,10,opt,name=exp_docker_version,json=expDockerVersion,proto3" json:"exp_docker_version,omitempty"`
+	ExpRktVersion        string           `protobuf:"bytes,11,opt,name=exp_rkt_version,json=expRktVersion,proto3" json:"exp_rkt_version,omitempty"`
+	ExpPouchVersion      string           `protobuf:"bytes,12,opt,name=exp_pouch_version,json=expPouchVersion,proto3" json:"exp_pouch_version,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
 }
 
 func (m *ResHostSpec) Reset()         { *m = ResHostSpec{} }
 func (m *ResHostSpec) String() string { return proto.CompactTextString(m) }
 func (*ResHostSpec) ProtoMessage()    {}
 func (*ResHostSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{7}
+	return fileDescriptor_f4f35505c31f65dd, []int{7}
 }
+
 func (m *ResHostSpec) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostSpec.Unmarshal(m, b)
 }
 func (m *ResHostSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostSpec.Marshal(b, m, deterministic)
 }
-func (dst *ResHostSpec) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostSpec.Merge(dst, src)
+func (m *ResHostSpec) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostSpec.Merge(m, src)
 }
 func (m *ResHostSpec) XXX_Size() int {
 	return xxx_messageInfo_ResHostSpec.Size(m)
@@ -603,28 +612,29 @@ func (m *ResHostSpec) GetExpPouchVersion() string {
 }
 
 type ResPlatform struct {
-	Os                   string   `protobuf:"bytes,1,opt,name=os" json:"os,omitempty" toml:"os,omitempty"`
-	Kernel               string   `protobuf:"bytes,2,opt,name=kernel" json:"kernel,omitempty" toml:"kernel,omitempty"`
-	Arch                 string   `protobuf:"bytes,3,opt,name=arch" json:"arch,omitempty" toml:"arch,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Os                   string   `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
+	Kernel               string   `protobuf:"bytes,2,opt,name=kernel,proto3" json:"kernel,omitempty"`
+	Arch                 string   `protobuf:"bytes,3,opt,name=arch,proto3" json:"arch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResPlatform) Reset()         { *m = ResPlatform{} }
 func (m *ResPlatform) String() string { return proto.CompactTextString(m) }
 func (*ResPlatform) ProtoMessage()    {}
 func (*ResPlatform) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{8}
+	return fileDescriptor_f4f35505c31f65dd, []int{8}
 }
+
 func (m *ResPlatform) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResPlatform.Unmarshal(m, b)
 }
 func (m *ResPlatform) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResPlatform.Marshal(b, m, deterministic)
 }
-func (dst *ResPlatform) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResPlatform.Merge(dst, src)
+func (m *ResPlatform) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResPlatform.Merge(m, src)
 }
 func (m *ResPlatform) XXX_Size() int {
 	return xxx_messageInfo_ResPlatform.Size(m)
@@ -657,28 +667,29 @@ func (m *ResPlatform) GetArch() string {
 }
 
 type ResHostResource struct {
-	Mem                  int64          `protobuf:"varint,1,opt,name=mem" json:"mem,omitempty" toml:"mem,omitempty"`
-	Cpu                  int32          `protobuf:"varint,2,opt,name=cpu" json:"cpu,omitempty" toml:"cpu,omitempty"`
-	Vols                 []*ResVolValue `protobuf:"bytes,3,rep,name=vols" json:"vols,omitempty" toml:"vols,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-" toml:"-"`
-	XXX_unrecognized     []byte         `json:"-" toml:"-"`
-	XXX_sizecache        int32          `json:"-" toml:"-"`
+	Mem                  int64          `protobuf:"varint,1,opt,name=mem,proto3" json:"mem,omitempty"`
+	Cpu                  int32          `protobuf:"varint,2,opt,name=cpu,proto3" json:"cpu,omitempty"`
+	Vols                 []*ResVolValue `protobuf:"bytes,3,rep,name=vols,proto3" json:"vols,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *ResHostResource) Reset()         { *m = ResHostResource{} }
 func (m *ResHostResource) String() string { return proto.CompactTextString(m) }
 func (*ResHostResource) ProtoMessage()    {}
 func (*ResHostResource) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{9}
+	return fileDescriptor_f4f35505c31f65dd, []int{9}
 }
+
 func (m *ResHostResource) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostResource.Unmarshal(m, b)
 }
 func (m *ResHostResource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostResource.Marshal(b, m, deterministic)
 }
-func (dst *ResHostResource) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostResource.Merge(dst, src)
+func (m *ResHostResource) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostResource.Merge(m, src)
 }
 func (m *ResHostResource) XXX_Size() int {
 	return xxx_messageInfo_ResHostResource.Size(m)
@@ -711,28 +722,29 @@ func (m *ResHostResource) GetVols() []*ResVolValue {
 }
 
 type ResHostVolume struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty" toml:"name,omitempty"`
-	Total                uint64   `protobuf:"varint,2,opt,name=total" json:"total,omitempty" toml:"total,omitempty"`
-	Used                 uint64   `protobuf:"varint,3,opt,name=used" json:"used,omitempty" toml:"used,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Total                uint64   `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	Used                 uint64   `protobuf:"varint,3,opt,name=used,proto3" json:"used,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResHostVolume) Reset()         { *m = ResHostVolume{} }
 func (m *ResHostVolume) String() string { return proto.CompactTextString(m) }
 func (*ResHostVolume) ProtoMessage()    {}
 func (*ResHostVolume) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{10}
+	return fileDescriptor_f4f35505c31f65dd, []int{10}
 }
+
 func (m *ResHostVolume) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostVolume.Unmarshal(m, b)
 }
 func (m *ResHostVolume) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostVolume.Marshal(b, m, deterministic)
 }
-func (dst *ResHostVolume) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostVolume.Merge(dst, src)
+func (m *ResHostVolume) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostVolume.Merge(m, src)
 }
 func (m *ResHostVolume) XXX_Size() int {
 	return xxx_messageInfo_ResHostVolume.Size(m)
@@ -765,30 +777,31 @@ func (m *ResHostVolume) GetUsed() uint64 {
 }
 
 type ResHostStatus struct {
-	Phase                string             `protobuf:"bytes,1,opt,name=phase" json:"phase,omitempty" toml:"phase,omitempty"`
-	Uptime               uint32             `protobuf:"varint,2,opt,name=uptime" json:"uptime,omitempty" toml:"uptime,omitempty"`
-	Volumes              []*ResHostVolume   `protobuf:"bytes,3,rep,name=volumes" json:"volumes,omitempty" toml:"volumes,omitempty"`
-	Stats                *PbStatsSampleFeed `protobuf:"bytes,4,opt,name=stats" json:"stats,omitempty" toml:"stats,omitempty"`
-	Updated              uint32             `protobuf:"varint,5,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-" toml:"-"`
-	XXX_unrecognized     []byte             `json:"-" toml:"-"`
-	XXX_sizecache        int32              `json:"-" toml:"-"`
+	Phase                string             `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
+	Uptime               uint32             `protobuf:"varint,2,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	Volumes              []*ResHostVolume   `protobuf:"bytes,3,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	Stats                *PbStatsSampleFeed `protobuf:"bytes,4,opt,name=stats,proto3" json:"stats,omitempty"`
+	Updated              uint32             `protobuf:"varint,5,opt,name=updated,proto3" json:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
 func (m *ResHostStatus) Reset()         { *m = ResHostStatus{} }
 func (m *ResHostStatus) String() string { return proto.CompactTextString(m) }
 func (*ResHostStatus) ProtoMessage()    {}
 func (*ResHostStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{11}
+	return fileDescriptor_f4f35505c31f65dd, []int{11}
 }
+
 func (m *ResHostStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostStatus.Unmarshal(m, b)
 }
 func (m *ResHostStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostStatus.Marshal(b, m, deterministic)
 }
-func (dst *ResHostStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostStatus.Merge(dst, src)
+func (m *ResHostStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostStatus.Merge(m, src)
 }
 func (m *ResHostStatus) XXX_Size() int {
 	return xxx_messageInfo_ResHostStatus.Size(m)
@@ -835,31 +848,32 @@ func (m *ResHostStatus) GetUpdated() uint32 {
 }
 
 type ResHostBound struct {
-	Masters              *ResZoneMasterList `protobuf:"bytes,2,opt,name=masters" json:"masters,omitempty" toml:"masters,omitempty"`
-	ExpPods              []string           `protobuf:"bytes,5,rep,name=exp_pods,json=expPods" json:"exp_pods,omitempty" toml:"exp_pods,omitempty"`
-	ZoneInpackServiceUrl string             `protobuf:"bytes,7,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl" json:"zone_inpack_service_url,omitempty" toml:"zone_inpack_service_url,omitempty"`
-	ExpBoxRemoves        []string           `protobuf:"bytes,8,rep,name=exp_box_removes,json=expBoxRemoves" json:"exp_box_removes,omitempty" toml:"exp_box_removes,omitempty"`
-	ExpBoxStops          []string           `protobuf:"bytes,9,rep,name=exp_box_stops,json=expBoxStops" json:"exp_box_stops,omitempty" toml:"exp_box_stops,omitempty"`
-	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices" json:"image_services,omitempty" toml:"image_services,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-" toml:"-"`
-	XXX_unrecognized     []byte             `json:"-" toml:"-"`
-	XXX_sizecache        int32              `json:"-" toml:"-"`
+	Masters              *ResZoneMasterList `protobuf:"bytes,2,opt,name=masters,proto3" json:"masters,omitempty"`
+	ExpPods              []string           `protobuf:"bytes,5,rep,name=exp_pods,json=expPods,proto3" json:"exp_pods,omitempty"`
+	ZoneInpackServiceUrl string             `protobuf:"bytes,7,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl,proto3" json:"zone_inpack_service_url,omitempty"`
+	ExpBoxRemoves        []string           `protobuf:"bytes,8,rep,name=exp_box_removes,json=expBoxRemoves,proto3" json:"exp_box_removes,omitempty"`
+	ExpBoxStops          []string           `protobuf:"bytes,9,rep,name=exp_box_stops,json=expBoxStops,proto3" json:"exp_box_stops,omitempty"`
+	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices,proto3" json:"image_services,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
 func (m *ResHostBound) Reset()         { *m = ResHostBound{} }
 func (m *ResHostBound) String() string { return proto.CompactTextString(m) }
 func (*ResHostBound) ProtoMessage()    {}
 func (*ResHostBound) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{12}
+	return fileDescriptor_f4f35505c31f65dd, []int{12}
 }
+
 func (m *ResHostBound) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResHostBound.Unmarshal(m, b)
 }
 func (m *ResHostBound) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResHostBound.Marshal(b, m, deterministic)
 }
-func (dst *ResHostBound) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResHostBound.Merge(dst, src)
+func (m *ResHostBound) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResHostBound.Merge(m, src)
 }
 func (m *ResHostBound) XXX_Size() int {
 	return xxx_messageInfo_ResHostBound.Size(m)
@@ -913,34 +927,35 @@ func (m *ResHostBound) GetImageServices() []*ResImageService {
 }
 
 type ResZone struct {
-	Meta                 *ObjectMeta        `protobuf:"bytes,2,opt,name=meta" json:"meta,omitempty" toml:"meta,omitempty"`
-	Phase                int32              `protobuf:"varint,3,opt,name=phase" json:"phase,omitempty" toml:"phase,omitempty"`
-	Summary              string             `protobuf:"bytes,4,opt,name=summary" json:"summary,omitempty" toml:"summary,omitempty"`
-	WanAddrs             []string           `protobuf:"bytes,5,rep,name=wan_addrs,json=wanAddrs" json:"wan_addrs,omitempty" toml:"wan_addrs,omitempty"`
-	LanAddrs             []string           `protobuf:"bytes,6,rep,name=lan_addrs,json=lanAddrs" json:"lan_addrs,omitempty" toml:"lan_addrs,omitempty"`
-	Cells                []*ResCell         `protobuf:"bytes,7,rep,name=cells" json:"cells,omitempty" toml:"cells,omitempty"`
-	Options              []*Label           `protobuf:"bytes,8,rep,name=options" json:"options,omitempty" toml:"options,omitempty"`
-	WanApi               string             `protobuf:"bytes,9,opt,name=wan_api,json=wanApi" json:"wan_api,omitempty" toml:"wan_api,omitempty"`
-	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices" json:"image_services,omitempty" toml:"image_services,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-" toml:"-"`
-	XXX_unrecognized     []byte             `json:"-" toml:"-"`
-	XXX_sizecache        int32              `json:"-" toml:"-"`
+	Meta                 *ObjectMeta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
+	Phase                int32              `protobuf:"varint,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	Summary              string             `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	WanAddrs             []string           `protobuf:"bytes,5,rep,name=wan_addrs,json=wanAddrs,proto3" json:"wan_addrs,omitempty"`
+	LanAddrs             []string           `protobuf:"bytes,6,rep,name=lan_addrs,json=lanAddrs,proto3" json:"lan_addrs,omitempty"`
+	Cells                []*ResCell         `protobuf:"bytes,7,rep,name=cells,proto3" json:"cells,omitempty"`
+	Options              []*Label           `protobuf:"bytes,8,rep,name=options,proto3" json:"options,omitempty"`
+	WanApi               string             `protobuf:"bytes,9,opt,name=wan_api,json=wanApi,proto3" json:"wan_api,omitempty"`
+	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices,proto3" json:"image_services,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
 func (m *ResZone) Reset()         { *m = ResZone{} }
 func (m *ResZone) String() string { return proto.CompactTextString(m) }
 func (*ResZone) ProtoMessage()    {}
 func (*ResZone) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{13}
+	return fileDescriptor_f4f35505c31f65dd, []int{13}
 }
+
 func (m *ResZone) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResZone.Unmarshal(m, b)
 }
 func (m *ResZone) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResZone.Marshal(b, m, deterministic)
 }
-func (dst *ResZone) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResZone.Merge(dst, src)
+func (m *ResZone) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResZone.Merge(m, src)
 }
 func (m *ResZone) XXX_Size() int {
 	return xxx_messageInfo_ResZone.Size(m)
@@ -1015,31 +1030,32 @@ func (m *ResZone) GetImageServices() []*ResImageService {
 }
 
 type ResCell struct {
-	Meta                 *ObjectMeta    `protobuf:"bytes,2,opt,name=meta" json:"meta,omitempty" toml:"meta,omitempty"`
-	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId" json:"zone_id,omitempty" toml:"zone_id,omitempty"`
-	Phase                int32          `protobuf:"varint,4,opt,name=phase" json:"phase,omitempty" toml:"phase,omitempty"`
-	Description          string         `protobuf:"bytes,5,opt,name=description" json:"description,omitempty" toml:"description,omitempty"`
-	NodeNum              int32          `protobuf:"varint,6,opt,name=node_num,json=nodeNum" json:"node_num,omitempty" toml:"node_num,omitempty"`
-	Status               *ResCellStatus `protobuf:"bytes,7,opt,name=status" json:"status,omitempty" toml:"status,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-" toml:"-"`
-	XXX_unrecognized     []byte         `json:"-" toml:"-"`
-	XXX_sizecache        int32          `json:"-" toml:"-"`
+	Meta                 *ObjectMeta    `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
+	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
+	Phase                int32          `protobuf:"varint,4,opt,name=phase,proto3" json:"phase,omitempty"`
+	Description          string         `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
+	NodeNum              int32          `protobuf:"varint,6,opt,name=node_num,json=nodeNum,proto3" json:"node_num,omitempty"`
+	Status               *ResCellStatus `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *ResCell) Reset()         { *m = ResCell{} }
 func (m *ResCell) String() string { return proto.CompactTextString(m) }
 func (*ResCell) ProtoMessage()    {}
 func (*ResCell) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{14}
+	return fileDescriptor_f4f35505c31f65dd, []int{14}
 }
+
 func (m *ResCell) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResCell.Unmarshal(m, b)
 }
 func (m *ResCell) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResCell.Marshal(b, m, deterministic)
 }
-func (dst *ResCell) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResCell.Merge(dst, src)
+func (m *ResCell) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResCell.Merge(m, src)
 }
 func (m *ResCell) XXX_Size() int {
 	return xxx_messageInfo_ResCell.Size(m)
@@ -1093,35 +1109,36 @@ func (m *ResCell) GetStatus() *ResCellStatus {
 }
 
 type ResCellStatus struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty" toml:"id,omitempty"`
-	Updated              uint32   `protobuf:"varint,2,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	CpuCap               int64    `protobuf:"varint,5,opt,name=cpu_cap,json=cpuCap" json:"cpu_cap,omitempty" toml:"cpu_cap,omitempty"`
-	CpuUsed              int64    `protobuf:"varint,6,opt,name=cpu_used,json=cpuUsed" json:"cpu_used,omitempty" toml:"cpu_used,omitempty"`
-	MemCap               int64    `protobuf:"varint,7,opt,name=mem_cap,json=memCap" json:"mem_cap,omitempty" toml:"mem_cap,omitempty"`
-	MemUsed              int64    `protobuf:"varint,8,opt,name=mem_used,json=memUsed" json:"mem_used,omitempty" toml:"mem_used,omitempty"`
-	HostCap              int32    `protobuf:"varint,10,opt,name=host_cap,json=hostCap" json:"host_cap,omitempty" toml:"host_cap,omitempty"`
-	HostIn               int32    `protobuf:"varint,11,opt,name=host_in,json=hostIn" json:"host_in,omitempty" toml:"host_in,omitempty"`
-	VolCap               int32    `protobuf:"varint,12,opt,name=vol_cap,json=volCap" json:"vol_cap,omitempty" toml:"vol_cap,omitempty"`
-	VolUsed              int32    `protobuf:"varint,13,opt,name=vol_used,json=volUsed" json:"vol_used,omitempty" toml:"vol_used,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Updated              uint32   `protobuf:"varint,2,opt,name=updated,proto3" json:"updated,omitempty"`
+	CpuCap               int64    `protobuf:"varint,5,opt,name=cpu_cap,json=cpuCap,proto3" json:"cpu_cap,omitempty"`
+	CpuUsed              int64    `protobuf:"varint,6,opt,name=cpu_used,json=cpuUsed,proto3" json:"cpu_used,omitempty"`
+	MemCap               int64    `protobuf:"varint,7,opt,name=mem_cap,json=memCap,proto3" json:"mem_cap,omitempty"`
+	MemUsed              int64    `protobuf:"varint,8,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty"`
+	HostCap              int32    `protobuf:"varint,10,opt,name=host_cap,json=hostCap,proto3" json:"host_cap,omitempty"`
+	HostIn               int32    `protobuf:"varint,11,opt,name=host_in,json=hostIn,proto3" json:"host_in,omitempty"`
+	VolCap               int32    `protobuf:"varint,12,opt,name=vol_cap,json=volCap,proto3" json:"vol_cap,omitempty"`
+	VolUsed              int32    `protobuf:"varint,13,opt,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResCellStatus) Reset()         { *m = ResCellStatus{} }
 func (m *ResCellStatus) String() string { return proto.CompactTextString(m) }
 func (*ResCellStatus) ProtoMessage()    {}
 func (*ResCellStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{15}
+	return fileDescriptor_f4f35505c31f65dd, []int{15}
 }
+
 func (m *ResCellStatus) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResCellStatus.Unmarshal(m, b)
 }
 func (m *ResCellStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResCellStatus.Marshal(b, m, deterministic)
 }
-func (dst *ResCellStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResCellStatus.Merge(dst, src)
+func (m *ResCellStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResCellStatus.Merge(m, src)
 }
 func (m *ResCellStatus) XXX_Size() int {
 	return xxx_messageInfo_ResCellStatus.Size(m)
@@ -1203,28 +1220,29 @@ func (m *ResCellStatus) GetVolUsed() int32 {
 }
 
 type ResZoneMasterNode struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id" json:"id,omitempty" toml:"id,omitempty"`
-	Addr                 string   `protobuf:"bytes,2,opt,name=addr" json:"addr,omitempty" toml:"addr,omitempty"`
-	Action               uint32   `protobuf:"varint,3,opt,name=action" json:"action,omitempty" toml:"action,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
-	XXX_unrecognized     []byte   `json:"-" toml:"-"`
-	XXX_sizecache        int32    `json:"-" toml:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Addr                 string   `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
+	Action               uint32   `protobuf:"varint,3,opt,name=action,proto3" json:"action,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ResZoneMasterNode) Reset()         { *m = ResZoneMasterNode{} }
 func (m *ResZoneMasterNode) String() string { return proto.CompactTextString(m) }
 func (*ResZoneMasterNode) ProtoMessage()    {}
 func (*ResZoneMasterNode) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{16}
+	return fileDescriptor_f4f35505c31f65dd, []int{16}
 }
+
 func (m *ResZoneMasterNode) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResZoneMasterNode.Unmarshal(m, b)
 }
 func (m *ResZoneMasterNode) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResZoneMasterNode.Marshal(b, m, deterministic)
 }
-func (dst *ResZoneMasterNode) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResZoneMasterNode.Merge(dst, src)
+func (m *ResZoneMasterNode) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResZoneMasterNode.Merge(m, src)
 }
 func (m *ResZoneMasterNode) XXX_Size() int {
 	return xxx_messageInfo_ResZoneMasterNode.Size(m)
@@ -1257,29 +1275,30 @@ func (m *ResZoneMasterNode) GetAction() uint32 {
 }
 
 type ResZoneMasterList struct {
-	Version              uint64               `protobuf:"varint,1,opt,name=version" json:"version,omitempty" toml:"version,omitempty"`
-	Leader               string               `protobuf:"bytes,2,opt,name=leader" json:"leader,omitempty" toml:"leader,omitempty"`
-	Updated              uint64               `protobuf:"varint,3,opt,name=updated" json:"updated,omitempty" toml:"updated,omitempty"`
-	Items                []*ResZoneMasterNode `protobuf:"bytes,4,rep,name=items" json:"items,omitempty" toml:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-" toml:"-"`
-	XXX_unrecognized     []byte               `json:"-" toml:"-"`
-	XXX_sizecache        int32                `json:"-" toml:"-"`
+	Version              uint64               `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	Leader               string               `protobuf:"bytes,2,opt,name=leader,proto3" json:"leader,omitempty"`
+	Updated              uint64               `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty"`
+	Items                []*ResZoneMasterNode `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *ResZoneMasterList) Reset()         { *m = ResZoneMasterList{} }
 func (m *ResZoneMasterList) String() string { return proto.CompactTextString(m) }
 func (*ResZoneMasterList) ProtoMessage()    {}
 func (*ResZoneMasterList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_cluster_14b1b1a20cf145fb, []int{17}
+	return fileDescriptor_f4f35505c31f65dd, []int{17}
 }
+
 func (m *ResZoneMasterList) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ResZoneMasterList.Unmarshal(m, b)
 }
 func (m *ResZoneMasterList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ResZoneMasterList.Marshal(b, m, deterministic)
 }
-func (dst *ResZoneMasterList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ResZoneMasterList.Merge(dst, src)
+func (m *ResZoneMasterList) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ResZoneMasterList.Merge(m, src)
 }
 func (m *ResZoneMasterList) XXX_Size() int {
 	return xxx_messageInfo_ResZoneMasterList.Size(m)
@@ -1339,145 +1358,9 @@ func init() {
 	proto.RegisterType((*ResZoneMasterList)(nil), "inapi.ResZoneMasterList")
 }
 
-// Reference imports to suppress errors if they are not otherwise used.
-var _ context.Context
-var _ grpc.ClientConn
+func init() { proto.RegisterFile("inapi/cluster.proto", fileDescriptor_f4f35505c31f65dd) }
 
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
-
-// Client API for ApiHostMember service
-
-type ApiHostMemberClient interface {
-	HostJoin(ctx context.Context, in *ResHostNew, opts ...grpc.CallOption) (*ResHost, error)
-}
-
-type apiHostMemberClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewApiHostMemberClient(cc *grpc.ClientConn) ApiHostMemberClient {
-	return &apiHostMemberClient{cc}
-}
-
-func (c *apiHostMemberClient) HostJoin(ctx context.Context, in *ResHostNew, opts ...grpc.CallOption) (*ResHost, error) {
-	out := new(ResHost)
-	err := grpc.Invoke(ctx, "/inapi.ApiHostMember/HostJoin", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Server API for ApiHostMember service
-
-type ApiHostMemberServer interface {
-	HostJoin(context.Context, *ResHostNew) (*ResHost, error)
-}
-
-func RegisterApiHostMemberServer(s *grpc.Server, srv ApiHostMemberServer) {
-	s.RegisterService(&_ApiHostMember_serviceDesc, srv)
-}
-
-func _ApiHostMember_HostJoin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ResHostNew)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApiHostMemberServer).HostJoin(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inapi.ApiHostMember/HostJoin",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApiHostMemberServer).HostJoin(ctx, req.(*ResHostNew))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _ApiHostMember_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "inapi.ApiHostMember",
-	HandlerType: (*ApiHostMemberServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "HostJoin",
-			Handler:    _ApiHostMember_HostJoin_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "inapi/cluster.proto",
-}
-
-// Client API for ApiZoneMaster service
-
-type ApiZoneMasterClient interface {
-	HostStatusSync(ctx context.Context, in *ResHost, opts ...grpc.CallOption) (*ResHostBound, error)
-}
-
-type apiZoneMasterClient struct {
-	cc *grpc.ClientConn
-}
-
-func NewApiZoneMasterClient(cc *grpc.ClientConn) ApiZoneMasterClient {
-	return &apiZoneMasterClient{cc}
-}
-
-func (c *apiZoneMasterClient) HostStatusSync(ctx context.Context, in *ResHost, opts ...grpc.CallOption) (*ResHostBound, error) {
-	out := new(ResHostBound)
-	err := grpc.Invoke(ctx, "/inapi.ApiZoneMaster/HostStatusSync", in, out, c.cc, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// Server API for ApiZoneMaster service
-
-type ApiZoneMasterServer interface {
-	HostStatusSync(context.Context, *ResHost) (*ResHostBound, error)
-}
-
-func RegisterApiZoneMasterServer(s *grpc.Server, srv ApiZoneMasterServer) {
-	s.RegisterService(&_ApiZoneMaster_serviceDesc, srv)
-}
-
-func _ApiZoneMaster_HostStatusSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ResHost)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ApiZoneMasterServer).HostStatusSync(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/inapi.ApiZoneMaster/HostStatusSync",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ApiZoneMasterServer).HostStatusSync(ctx, req.(*ResHost))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-var _ApiZoneMaster_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "inapi.ApiZoneMaster",
-	HandlerType: (*ApiZoneMasterServer)(nil),
-	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "HostStatusSync",
-			Handler:    _ApiZoneMaster_HostStatusSync_Handler,
-		},
-	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "inapi/cluster.proto",
-}
-
-func init() { proto.RegisterFile("inapi/cluster.proto", fileDescriptor_cluster_14b1b1a20cf145fb) }
-
-var fileDescriptor_cluster_14b1b1a20cf145fb = []byte{
+var fileDescriptor_f4f35505c31f65dd = []byte{
 	// 1485 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x57, 0xcd, 0x6e, 0x1c, 0xc7,
 	0x11, 0xd6, 0xce, 0xfe, 0xcc, 0x6e, 0x2f, 0x97, 0x12, 0x5b, 0x3f, 0x1c, 0x31, 0x08, 0xc0, 0x0c,
@@ -1572,4 +1455,156 @@ var fileDescriptor_cluster_14b1b1a20cf145fb = []byte{
 	0x7e, 0x4d, 0x16, 0x16, 0xd6, 0xf9, 0xdf, 0xd8, 0xe6, 0x62, 0x52, 0x9c, 0xde, 0xcc, 0x12, 0xbe,
 	0xa6, 0xb4, 0x73, 0x7f, 0x95, 0xa6, 0xce, 0x1c, 0xdf, 0x99, 0xf6, 0xe8, 0x2f, 0xe9, 0xf9, 0x2f,
 	0x01, 0x00, 0x00, 0xff, 0xff, 0x25, 0xec, 0x17, 0xe0, 0x79, 0x0d, 0x00, 0x00,
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConnInterface
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion6
+
+// ApiHostMemberClient is the client API for ApiHostMember service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ApiHostMemberClient interface {
+	HostJoin(ctx context.Context, in *ResHostNew, opts ...grpc.CallOption) (*ResHost, error)
+}
+
+type apiHostMemberClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewApiHostMemberClient(cc grpc.ClientConnInterface) ApiHostMemberClient {
+	return &apiHostMemberClient{cc}
+}
+
+func (c *apiHostMemberClient) HostJoin(ctx context.Context, in *ResHostNew, opts ...grpc.CallOption) (*ResHost, error) {
+	out := new(ResHost)
+	err := c.cc.Invoke(ctx, "/inapi.ApiHostMember/HostJoin", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ApiHostMemberServer is the server API for ApiHostMember service.
+type ApiHostMemberServer interface {
+	HostJoin(context.Context, *ResHostNew) (*ResHost, error)
+}
+
+// UnimplementedApiHostMemberServer can be embedded to have forward compatible implementations.
+type UnimplementedApiHostMemberServer struct {
+}
+
+func (*UnimplementedApiHostMemberServer) HostJoin(ctx context.Context, req *ResHostNew) (*ResHost, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HostJoin not implemented")
+}
+
+func RegisterApiHostMemberServer(s *grpc.Server, srv ApiHostMemberServer) {
+	s.RegisterService(&_ApiHostMember_serviceDesc, srv)
+}
+
+func _ApiHostMember_HostJoin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResHostNew)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApiHostMemberServer).HostJoin(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inapi.ApiHostMember/HostJoin",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApiHostMemberServer).HostJoin(ctx, req.(*ResHostNew))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _ApiHostMember_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "inapi.ApiHostMember",
+	HandlerType: (*ApiHostMemberServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "HostJoin",
+			Handler:    _ApiHostMember_HostJoin_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "inapi/cluster.proto",
+}
+
+// ApiZoneMasterClient is the client API for ApiZoneMaster service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ApiZoneMasterClient interface {
+	HostStatusSync(ctx context.Context, in *ResHost, opts ...grpc.CallOption) (*ResHostBound, error)
+}
+
+type apiZoneMasterClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewApiZoneMasterClient(cc grpc.ClientConnInterface) ApiZoneMasterClient {
+	return &apiZoneMasterClient{cc}
+}
+
+func (c *apiZoneMasterClient) HostStatusSync(ctx context.Context, in *ResHost, opts ...grpc.CallOption) (*ResHostBound, error) {
+	out := new(ResHostBound)
+	err := c.cc.Invoke(ctx, "/inapi.ApiZoneMaster/HostStatusSync", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ApiZoneMasterServer is the server API for ApiZoneMaster service.
+type ApiZoneMasterServer interface {
+	HostStatusSync(context.Context, *ResHost) (*ResHostBound, error)
+}
+
+// UnimplementedApiZoneMasterServer can be embedded to have forward compatible implementations.
+type UnimplementedApiZoneMasterServer struct {
+}
+
+func (*UnimplementedApiZoneMasterServer) HostStatusSync(ctx context.Context, req *ResHost) (*ResHostBound, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HostStatusSync not implemented")
+}
+
+func RegisterApiZoneMasterServer(s *grpc.Server, srv ApiZoneMasterServer) {
+	s.RegisterService(&_ApiZoneMaster_serviceDesc, srv)
+}
+
+func _ApiZoneMaster_HostStatusSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResHost)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApiZoneMasterServer).HostStatusSync(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inapi.ApiZoneMaster/HostStatusSync",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApiZoneMasterServer).HostStatusSync(ctx, req.(*ResHost))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _ApiZoneMaster_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "inapi.ApiZoneMaster",
+	HandlerType: (*ApiZoneMasterServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "HostStatusSync",
+			Handler:    _ApiZoneMaster_HostStatusSync_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "inapi/cluster.proto",
 }

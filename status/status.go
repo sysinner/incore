@@ -27,6 +27,7 @@ import (
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inapi/job"
 )
 
 var (
@@ -44,12 +45,12 @@ var (
 	// local zone
 	ZoneId               string
 	Zone                 *inapi.ResZone
-	ZoneMasterList       inapi.ResZoneMasterList
-	ZoneHostList         inapi.ResHostList
+	ZoneMasterList       = inapi.ResZoneMasterList{}
+	ZoneHostList         = &inapi.ResHostList{}
 	ZoneHostListImported = false
 	ZoneHostSecretKeys   types.KvPairs
-	ZonePodList          = inapi.PodList{}
-	ZonePodStatusList    = inapi.PodStatusList{}
+	ZonePodList          = &inapi.PodList{}
+	ZonePodStatusList    = &inapi.PodStatusList{}
 	ZonePodServices      struct {
 		Items []*inapi.AppServicePod `json:"items"`
 	}
@@ -65,6 +66,16 @@ var (
 	GlobalZones    []*inapi.ResZone
 	GlobalHostList inapi.ResHostList
 )
+
+func JobContextRefresh() *job.Context {
+	return &job.Context{
+		Zone:              Zone,
+		ZoneHostList:      ZoneHostList,
+		ZonePodList:       ZonePodList,
+		ZonePodStatusList: ZonePodStatusList,
+		IsZoneLeader:      IsZoneMasterLeader(),
+	}
+}
 
 func ZoneMasterLeadSeconds() int64 {
 	if IsZoneMasterLeader() {
