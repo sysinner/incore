@@ -86,5 +86,5 @@ func (it *MailQueue) Run(ctx *job.Context) error {
 
 func NewMailQueueJobEntry() *job.JobEntry {
 	return job.NewJobEntry(&MailQueue{},
-		job.NewSchedule().EveryTime(job.Second, 10))
+		job.NewSchedule().EveryTimeCycle(job.Second, 10))
 }

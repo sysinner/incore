@@ -82,6 +82,58 @@ func (it *Schedule) EveryTime(opt ScheduleOption, in uint) *Schedule {
 			break
 		}
 
+		if it.times[i] == 0 {
+			it.times[i] = (1 << v.min)
+		}
+	}
+
+	if i < len(scheduleStdFields) {
+
+		v := scheduleStdFields[i]
+
+		if in < v.min {
+			in = v.min
+		} else if in > v.max {
+			in = v.max
+		}
+
+		it.times[i] = it.times[i] | (1 << in)
+		i++
+	}
+
+	for ; i < len(scheduleStdFields); i++ {
+
+		if it.times[i] == 0 {
+
+			v := scheduleStdFields[i]
+			fv := uint64(0)
+			for j := v.min; j <= v.max; j++ {
+				fv = fv | (1 << j)
+			}
+
+			it.times[i] = fv
+		}
+	}
+
+	return it
+}
+
+func (it *Schedule) EveryTimeCycle(opt ScheduleOption, in uint) *Schedule {
+
+	if opt == Dow {
+		return it.EveryTime(opt, in)
+	}
+
+	i := 0
+
+	for ; i < len(scheduleStdFields); i++ {
+
+		v := scheduleStdFields[i]
+
+		if v.typ == opt {
+			break
+		}
+
 		it.times[i] = (1 << v.min)
 	}
 
@@ -114,21 +166,6 @@ func (it *Schedule) EveryTime(opt ScheduleOption, in uint) *Schedule {
 		}
 
 		it.times[i] = fv
-	}
-
-	if opt == Dow {
-
-		for i, _ := range []int{3, 4} {
-
-			v := scheduleStdFields[i]
-
-			fv := uint64(0)
-			for j := v.min; j <= v.max; j++ {
-				fv = fv | (1 << j)
-			}
-
-			it.times[i] = fv
-		}
 	}
 
 	return it
