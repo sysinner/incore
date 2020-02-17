@@ -12,18 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package job
+package injob
 
-import (
-	"github.com/sysinner/incore/inapi"
-)
-
-type ContextRefresher func() *Context
-
-type Context struct {
-	Zone              *inapi.ResZone
-	ZoneHostList      *inapi.ResHostList
-	ZonePodList       *inapi.PodList
-	ZonePodStatusList *inapi.PodStatusList
-	IsZoneLeader      bool
+func u64Allow(opbase, op uint64) bool {
+	return (op & opbase) == op
 }

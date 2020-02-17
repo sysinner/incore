@@ -12,14 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package job
+package injob
 
-const (
-	StatusStop = 0
-	StatusOK   = 1
-	StatusERR  = 2
+import (
+	"github.com/sysinner/incore/inapi"
 )
 
-type Status struct {
-	//
+type ContextRefresher func() *Context
+
+type Context struct {
+	Zone              *inapi.ResZone
+	ZoneHostList      *inapi.ResHostList
+	ZonePodList       *inapi.PodList
+	ZonePodStatusList *inapi.PodStatusList
+	IsZoneLeader      bool
 }

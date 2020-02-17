@@ -12,33 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package job
+package injob
 
-import (
-	"fmt"
-	"time"
+const (
+	StatusStop = 0
+	StatusOK   = 1
+	StatusERR  = 2
 )
 
-func scheduleFields(min, max uint) uint64 {
-	fv := uint64(0)
-	for i := min; i <= max; i++ {
-		fv = fv | (1 << i)
-	}
-	return fv
-}
-
-func u64Allow(opbase, op uint64) bool {
-	return (op & opbase) == op
-}
-
-type DemoJob struct{}
-
-func (it *DemoJob) Name() string {
-	return "demo-job"
-}
-
-func (it *DemoJob) Run(ctx *Context) error {
-	time.Sleep(4e9)
-	fmt.Println("demojob run at", time.Now().Unix())
-	return nil
+type Status struct {
+	//
 }

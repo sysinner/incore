@@ -24,7 +24,7 @@ import (
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/inapi/job"
+	"github.com/sysinner/incore/injob"
 	"github.com/sysinner/incore/inutils/tplrender"
 )
 
@@ -34,7 +34,6 @@ var (
 		Title: "Pod Status of Week {{.WeekNum}}",
 		Body: `<html>
 <body>
-
 <h2>Pod Status of Week {{.WeekNum}}</h2>
 <div>
 <table cellpadding="5" align="left">
@@ -79,14 +78,14 @@ this message was auto created by InnerStack, please do not reply to this message
 )
 
 type PodStatusMail struct {
-	sch *job.Schedule
+	sch *injob.Schedule
 }
 
 func (it *PodStatusMail) Name() string {
 	return "zone/pod/status/mail"
 }
 
-func (it *PodStatusMail) Run(ctx *job.Context) error {
+func (it *PodStatusMail) Run(ctx *injob.Context) error {
 
 	if !ctx.IsZoneLeader {
 		return nil
@@ -204,7 +203,7 @@ func (it *PodStatusMail) Run(ctx *job.Context) error {
 	return nil
 }
 
-func NewPodStatusMailJobEntry() *job.JobEntry {
-	return job.NewJobEntry(&PodStatusMail{},
-		job.NewSchedule().EveryTime(job.Dow, 1))
+func NewPodStatusMailJobEntry() *injob.JobEntry {
+	return injob.NewJobEntry(&PodStatusMail{},
+		injob.NewSchedule().EveryTime(injob.Weekday, 1))
 }

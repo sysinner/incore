@@ -27,7 +27,7 @@ import (
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/inapi/job"
+	"github.com/sysinner/incore/injob"
 )
 
 var (
@@ -67,8 +67,8 @@ var (
 	GlobalHostList inapi.ResHostList
 )
 
-func JobContextRefresh() *job.Context {
-	return &job.Context{
+func JobContextRefresh() *injob.Context {
+	return &injob.Context{
 		Zone:              Zone,
 		ZoneHostList:      ZoneHostList,
 		ZonePodList:       ZonePodList,

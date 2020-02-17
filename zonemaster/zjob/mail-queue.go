@@ -24,11 +24,11 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/inapi/job"
+	"github.com/sysinner/incore/injob"
 )
 
 type MailQueue struct {
-	sch  *job.Schedule
+	sch  *injob.Schedule
 	done int64
 }
 
@@ -36,7 +36,7 @@ func (it *MailQueue) Name() string {
 	return "zone/mail/queue"
 }
 
-func (it *MailQueue) Run(ctx *job.Context) error {
+func (it *MailQueue) Run(ctx *injob.Context) error {
 
 	if !ctx.IsZoneLeader {
 		return nil
@@ -84,7 +84,7 @@ func (it *MailQueue) Run(ctx *job.Context) error {
 	return nil
 }
 
-func NewMailQueueJobEntry() *job.JobEntry {
-	return job.NewJobEntry(&MailQueue{},
-		job.NewSchedule().EveryTimeCycle(job.Second, 10))
+func NewMailQueueJobEntry() *injob.JobEntry {
+	return injob.NewJobEntry(&MailQueue{},
+		injob.NewSchedule().EveryTimeCycle(injob.Second, 10))
 }
