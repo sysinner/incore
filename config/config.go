@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hooto/hconf4g/hconf"
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
@@ -35,45 +36,45 @@ import (
 )
 
 type HostMember struct {
-	Id        string                `json:"id"`
-	ZoneId    string                `json:"zone_id"`
-	CellId    string                `json:"cell_id,omitempty"`
-	LanAddr   inapi.HostNodeAddress `json:"lan_addr"`
-	WanAddr   inapi.HostNodeAddress `json:"wan_addr"`
-	HttpPort  uint16                `json:"http_port"`
-	SecretKey string                `json:"secret_key"`
+	Id        string                `json:"id" toml:"id"`
+	ZoneId    string                `json:"zone_id" toml:"zone_id"`
+	CellId    string                `json:"cell_id,omitempty" toml:"cell_id,omitempty"`
+	LanAddr   inapi.HostNodeAddress `json:"lan_addr" toml:"lan_addr"`
+	WanAddr   inapi.HostNodeAddress `json:"wan_addr" toml:"wan_addr"`
+	HttpPort  uint16                `json:"http_port" toml:"http_port"`
+	SecretKey string                `json:"secret_key" toml:"secret_key"`
 }
 
 type ZoneMaster struct {
-	MultiZoneEnable    bool `json:"multi_zone_enable,omitempty"`
-	MultiCellEnable    bool `json:"multi_cell_enable"`
-	MultiHostEnable    bool `json:"multi_host_enable"`
-	MultiReplicaEnable bool `json:"multi_replica_enable"`
+	MultiZoneEnable    bool `json:"multi_zone_enable,omitempty" toml:"multi_zone_enable,omitempty"`
+	MultiCellEnable    bool `json:"multi_cell_enable" toml:"multi_cell_enable"`
+	MultiHostEnable    bool `json:"multi_host_enable" toml:"multi_host_enable"`
+	MultiReplicaEnable bool `json:"multi_replica_enable" toml:"multi_replica_enable"`
 }
 
 type ConfigCommon struct {
-	filepath                  string                   `json:"-"`
-	InstanceId                string                   `json:"instance_id"`
-	Host                      HostMember               `json:"host"`
-	Masters                   inapi.HostNodeAddresses  `json:"masters"`
-	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty"`
-	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty"`
-	ZoneIamAccessKey          *iamapi.AccessKey        `json:"zone_iam_access_key,omitempty"`
-	IoConnectors              connect.MultiConnOptions `json:"io_connects"`
-	PodHomeDir                string                   `json:"pod_home_dir"`
-	Options                   types.Labels             `json:"items,omitempty"`
-	PprofHttpPort             uint16                   `json:"pprof_http_port,omitempty"`
-	InpackServiceUrl          string                   `json:"inpack_service_url,omitempty"`
-	InpanelServiceUrl         string                   `json:"inpanel_service_url,omitempty"`
-	IamServiceUrlFrontend     string                   `json:"iam_service_url_frontend,omitempty"`
-	IamServiceUrlGlobal       string                   `json:"iam_service_url_global,omitempty"`
-	LxcFsEnable               bool                     `json:"lxc_fs_enable"`
-	ImageServices             []*inapi.ResImageService `json:"image_services,omitempty"`
+	filepath                  string                   `json:"-" toml:"-"`
+	InstanceId                string                   `json:"instance_id" toml:"instance_id"`
+	Host                      HostMember               `json:"host" toml:"host"`
+	Masters                   inapi.HostNodeAddresses  `json:"masters" toml:"masters"`
+	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
+	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty" toml:"zone_master_scheduler_plugin,omitempty"`
+	ZoneIamAccessKey          *iamapi.AccessKey        `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
+	IoConnectors              connect.MultiConnOptions `json:"io_connects" toml:"io_connects"`
+	PodHomeDir                string                   `json:"pod_home_dir" toml:"pod_home_dir"`
+	Options                   types.Labels             `json:"items,omitempty" toml:"items,omitempty"`
+	PprofHttpPort             uint16                   `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
+	InpackServiceUrl          string                   `json:"inpack_service_url,omitempty" toml:"inpack_service_url,omitempty"`
+	InpanelServiceUrl         string                   `json:"inpanel_service_url,omitempty" toml:"inpanel_service_url,omitempty"`
+	IamServiceUrlFrontend     string                   `json:"iam_service_url_frontend,omitempty" toml:"iam_service_url_frontend,omitempty"`
+	IamServiceUrlGlobal       string                   `json:"iam_service_url_global,omitempty" toml:"iam_service_url_global,omitempty"`
+	LxcFsEnable               bool                     `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
+	ImageServices             []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
 }
 
 func (cfg *ConfigCommon) Sync() error {
 	if cfg.filepath != "" {
-		return json.EncodeToFile(cfg, cfg.filepath, "  ")
+		return hconf.EncodeToFile(Config, cfg.filepath)
 	}
 	return nil
 }
@@ -105,11 +106,19 @@ func Setup() error {
 		Prefix = "/opt/sysinner"
 	}
 
-	//
-	if err := json.DecodeFile(Prefix+"/etc/config.json", &Config); err != nil && !os.IsNotExist(err) {
-		return err
+	if err := hconf.DecodeFromFile(&Config, Prefix+"/etc/main.conf"); err != nil {
+
+		if !os.IsNotExist(err) {
+			return err
+		}
+
+		//
+		if err := json.DecodeFile(Prefix+"/etc/config.json", &Config); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 	}
-	Config.filepath = Prefix + "/etc/config.json"
+
+	Config.filepath = Prefix + "/etc/main.conf"
 
 	if err := Config.SetupHost(); err != nil {
 		return err
