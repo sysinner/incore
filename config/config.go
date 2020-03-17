@@ -74,7 +74,7 @@ type ConfigCommon struct {
 
 func (cfg *ConfigCommon) Sync() error {
 	if cfg.filepath != "" {
-		return hconf.EncodeToFile(Config, cfg.filepath)
+		return hconf.EncodeToFile(Config, cfg.filepath, nil)
 	}
 	return nil
 }

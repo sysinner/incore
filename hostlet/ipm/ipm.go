@@ -58,11 +58,11 @@ func init() {
 	}
 }
 
-func ipm_filename(pkg ipapi.Package) string {
-	return ipapi.PackageFilename(pkg.Meta.Name, pkg.Version) + ".txz"
+func ipm_filename(pkg ipapi.Pack) string {
+	return ipapi.PackFilename(pkg.Meta.Name, pkg.Version) + ".txz"
 }
 
-func ipm_hostpath(pkg ipapi.Package) string {
+func ipm_hostpath(pkg ipapi.Pack) string {
 	return fmt.Sprintf("/opt/sysinner/ipm/.cache/%s/%s/%s",
 		pkg.Meta.Name, string(pkg.Version.Version), ipm_filename(pkg))
 }
@@ -119,7 +119,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 
 	var pkg struct {
 		types.TypeMeta
-		ipapi.Package
+		ipapi.Pack
 	}
 	if err := c.ReplyJson(&pkg); err != nil {
 		hlog.Printf("error", "hostlet/Package Sync %s", url)
@@ -131,8 +131,8 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 	}
 
 	var (
-		pfilename = ipm_filename(pkg.Package)
-		pfilepath = ipm_hostpath(pkg.Package)
+		pfilename = ipm_filename(pkg.Pack)
+		pfilepath = ipm_hostpath(pkg.Pack)
 	)
 
 	inutils.FsMakeDir(pHostDir, 2048, 2048, 0750)

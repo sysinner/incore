@@ -332,7 +332,7 @@ func (c AppSpec) EntryAction() {
 
 	if c.Params.Get("ct") == "toml" {
 		defer func() {
-			bs, _ := hconf.Encode(&rsp)
+			bs, _ := hconf.Encode(&rsp, nil)
 			c.Response.Out.Header().Set("Content-Type", "application/toml")
 			c.RenderString(string(bs))
 		}()
@@ -694,7 +694,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	for _, v := range prev.Packages {
-		version := ipapi.PackageVersion{
+		version := ipapi.PackVersion{
 			Version: types.Version(v.Version),
 			Release: types.Version(v.Release),
 			Dist:    v.Dist,
@@ -704,10 +704,10 @@ func (c AppSpec) SetAction() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, err.Error())
 			return
 		}
-		id := ipapi.PackageFilenameKey(v.Name, version)
+		id := ipapi.PackFilenameKey(v.Name, version)
 		if rs := data.DataInpack.NewReader(ipapi.DataPackKey(id)).Query(); !rs.OK() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
-				ipapi.PackageFilename(v.Name, version)+") Not Found")
+				ipapi.PackFilename(v.Name, version)+") Not Found")
 			return
 		}
 	}
