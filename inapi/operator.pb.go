@@ -21,13 +21,13 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 type PbOpLogEntry struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Status               string   `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	Updated              uint64   `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty"`
-	Message              string   `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Status               string   `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
+	Updated              uint64   `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	Message              string   `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty" toml:"message,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *PbOpLogEntry) Reset()         { *m = PbOpLogEntry{} }
@@ -84,12 +84,12 @@ func (m *PbOpLogEntry) GetMessage() string {
 }
 
 type PbOpLogSets struct {
-	Name                 string          `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Version              uint32          `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
-	Items                []*PbOpLogEntry `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	Name                 string          `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Version              uint32          `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	Items                []*PbOpLogEntry `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-" toml:"-"`
+	XXX_unrecognized     []byte          `json:"-" toml:"-"`
+	XXX_sizecache        int32           `json:"-" toml:"-"`
 }
 
 func (m *PbOpLogSets) Reset()         { *m = PbOpLogSets{} }

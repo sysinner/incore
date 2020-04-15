@@ -26,12 +26,12 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // volume
 type ResVolValue struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Value                int32    `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty"`
-	Attrs                uint32   `protobuf:"varint,3,opt,name=attrs,proto3" json:"attrs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Value                int32    `protobuf:"varint,2,opt,name=value,proto3" json:"value,omitempty" toml:"value,omitempty"`
+	Attrs                uint32   `protobuf:"varint,3,opt,name=attrs,proto3" json:"attrs,omitempty" toml:"attrs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResVolValue) Reset()         { *m = ResVolValue{} }
@@ -81,14 +81,14 @@ func (m *ResVolValue) GetAttrs() uint32 {
 }
 
 type ResVolBound struct {
-	RefId                string   `protobuf:"bytes,1,opt,name=ref_id,json=refId,proto3" json:"ref_id,omitempty"`
-	RefName              string   `protobuf:"bytes,2,opt,name=ref_name,json=refName,proto3" json:"ref_name,omitempty"`
-	Mnt                  string   `protobuf:"bytes,4,opt,name=mnt,proto3" json:"mnt,omitempty"`
-	Size                 int32    `protobuf:"varint,5,opt,name=size,proto3" json:"size,omitempty"`
-	Attrs                uint32   `protobuf:"varint,6,opt,name=attrs,proto3" json:"attrs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	RefId                string   `protobuf:"bytes,1,opt,name=ref_id,json=refId,proto3" json:"ref_id,omitempty" toml:"ref_id,omitempty"`
+	RefName              string   `protobuf:"bytes,2,opt,name=ref_name,json=refName,proto3" json:"ref_name,omitempty" toml:"ref_name,omitempty"`
+	Mnt                  string   `protobuf:"bytes,4,opt,name=mnt,proto3" json:"mnt,omitempty" toml:"mnt,omitempty"`
+	Size                 int32    `protobuf:"varint,5,opt,name=size,proto3" json:"size,omitempty" toml:"size,omitempty"`
+	Attrs                uint32   `protobuf:"varint,6,opt,name=attrs,proto3" json:"attrs,omitempty" toml:"attrs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResVolBound) Reset()         { *m = ResVolBound{} }
@@ -153,11 +153,11 @@ func (m *ResVolBound) GetAttrs() uint32 {
 
 // image
 type ResImageService struct {
-	Driver               string   `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
-	Url                  string   `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Driver               string   `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty" toml:"driver,omitempty"`
+	Url                  string   `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty" toml:"url,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResImageService) Reset()         { *m = ResImageService{} }
@@ -201,18 +201,18 @@ func (m *ResImageService) GetUrl() string {
 
 // host
 type ResHostOperate struct {
-	Action               uint32         `protobuf:"varint,1,opt,name=action,proto3" json:"action,omitempty"`
-	CellId               string         `protobuf:"bytes,2,opt,name=cell_id,json=cellId,proto3" json:"cell_id,omitempty"`
-	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
-	CpuUsed              int32          `protobuf:"varint,4,opt,name=cpu_used,json=cpuUsed,proto3" json:"cpu_used,omitempty"`
-	MemUsed              int64          `protobuf:"varint,5,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty"`
-	VolUsed              []*ResVolValue `protobuf:"bytes,6,rep,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty"`
-	PortUsed             []uint32       `protobuf:"varint,7,rep,packed,name=port_used,json=portUsed,proto3" json:"port_used,omitempty"`
-	BoxNum               int32          `protobuf:"varint,8,opt,name=box_num,json=boxNum,proto3" json:"box_num,omitempty"`
-	Pr                   uint32         `protobuf:"varint,9,opt,name=pr,proto3" json:"pr,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	Action               uint32         `protobuf:"varint,1,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
+	CellId               string         `protobuf:"bytes,2,opt,name=cell_id,json=cellId,proto3" json:"cell_id,omitempty" toml:"cell_id,omitempty"`
+	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty" toml:"zone_id,omitempty"`
+	CpuUsed              int32          `protobuf:"varint,4,opt,name=cpu_used,json=cpuUsed,proto3" json:"cpu_used,omitempty" toml:"cpu_used,omitempty"`
+	MemUsed              int64          `protobuf:"varint,5,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty" toml:"mem_used,omitempty"`
+	VolUsed              []*ResVolValue `protobuf:"bytes,6,rep,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty" toml:"vol_used,omitempty"`
+	PortUsed             []uint32       `protobuf:"varint,7,rep,packed,name=port_used,json=portUsed,proto3" json:"port_used,omitempty" toml:"port_used,omitempty"`
+	BoxNum               int32          `protobuf:"varint,8,opt,name=box_num,json=boxNum,proto3" json:"box_num,omitempty" toml:"box_num,omitempty"`
+	Pr                   uint32         `protobuf:"varint,9,opt,name=pr,proto3" json:"pr,omitempty" toml:"pr,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-" toml:"-"`
+	XXX_unrecognized     []byte         `json:"-" toml:"-"`
+	XXX_sizecache        int32          `json:"-" toml:"-"`
 }
 
 func (m *ResHostOperate) Reset()         { *m = ResHostOperate{} }
@@ -304,14 +304,14 @@ func (m *ResHostOperate) GetPr() uint32 {
 }
 
 type ResHost struct {
-	Meta                 *ObjectMeta       `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty"`
-	Operate              *ResHostOperate   `protobuf:"bytes,2,opt,name=operate,proto3" json:"operate,omitempty"`
-	Spec                 *ResHostSpec      `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec,omitempty"`
-	Status               *ResHostStatus    `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Prs                  []*PbPodRepStatus `protobuf:"bytes,5,rep,name=prs,proto3" json:"prs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
+	Meta                 *ObjectMeta       `protobuf:"bytes,1,opt,name=meta,proto3" json:"meta,omitempty" toml:"meta,omitempty"`
+	Operate              *ResHostOperate   `protobuf:"bytes,2,opt,name=operate,proto3" json:"operate,omitempty" toml:"operate,omitempty"`
+	Spec                 *ResHostSpec      `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec,omitempty" toml:"spec,omitempty"`
+	Status               *ResHostStatus    `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
+	Prs                  []*PbPodRepStatus `protobuf:"bytes,5,rep,name=prs,proto3" json:"prs,omitempty" toml:"prs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-" toml:"-"`
+	XXX_unrecognized     []byte            `json:"-" toml:"-"`
+	XXX_sizecache        int32             `json:"-" toml:"-"`
 }
 
 func (m *ResHost) Reset()         { *m = ResHost{} }
@@ -375,18 +375,18 @@ func (m *ResHost) GetPrs() []*PbPodRepStatus {
 }
 
 type ResHostNew struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Action               uint32   `protobuf:"varint,2,opt,name=action,proto3" json:"action,omitempty"`
-	ZoneId               string   `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
-	CellId               string   `protobuf:"bytes,4,opt,name=cell_id,json=cellId,proto3" json:"cell_id,omitempty"`
-	PeerLanAddr          string   `protobuf:"bytes,5,opt,name=peer_lan_addr,json=peerLanAddr,proto3" json:"peer_lan_addr,omitempty"`
-	SecretKey            string   `protobuf:"bytes,6,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty"`
-	ZoneMasters          []string `protobuf:"bytes,7,rep,name=zone_masters,json=zoneMasters,proto3" json:"zone_masters,omitempty"`
-	ZoneIamServiceUrl    string   `protobuf:"bytes,8,opt,name=zone_iam_service_url,json=zoneIamServiceUrl,proto3" json:"zone_iam_service_url,omitempty"`
-	ZoneInpackServiceUrl string   `protobuf:"bytes,9,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl,proto3" json:"zone_inpack_service_url,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Action               uint32   `protobuf:"varint,2,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
+	ZoneId               string   `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty" toml:"zone_id,omitempty"`
+	CellId               string   `protobuf:"bytes,4,opt,name=cell_id,json=cellId,proto3" json:"cell_id,omitempty" toml:"cell_id,omitempty"`
+	PeerLanAddr          string   `protobuf:"bytes,5,opt,name=peer_lan_addr,json=peerLanAddr,proto3" json:"peer_lan_addr,omitempty" toml:"peer_lan_addr,omitempty"`
+	SecretKey            string   `protobuf:"bytes,6,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty" toml:"secret_key,omitempty"`
+	ZoneMasters          []string `protobuf:"bytes,7,rep,name=zone_masters,json=zoneMasters,proto3" json:"zone_masters,omitempty" toml:"zone_masters,omitempty"`
+	ZoneIamServiceUrl    string   `protobuf:"bytes,8,opt,name=zone_iam_service_url,json=zoneIamServiceUrl,proto3" json:"zone_iam_service_url,omitempty" toml:"zone_iam_service_url,omitempty"`
+	ZoneInpackServiceUrl string   `protobuf:"bytes,9,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl,proto3" json:"zone_inpack_service_url,omitempty" toml:"zone_inpack_service_url,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResHostNew) Reset()         { *m = ResHostNew{} }
@@ -478,10 +478,10 @@ func (m *ResHostNew) GetZoneInpackServiceUrl() string {
 }
 
 type ResHostList struct {
-	Items                []*ResHost `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+	Items                []*ResHost `protobuf:"bytes,2,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-" toml:"-"`
+	XXX_unrecognized     []byte     `json:"-" toml:"-"`
+	XXX_sizecache        int32      `json:"-" toml:"-"`
 }
 
 func (m *ResHostList) Reset()         { *m = ResHostList{} }
@@ -517,17 +517,17 @@ func (m *ResHostList) GetItems() []*ResHost {
 }
 
 type ResHostSpec struct {
-	Platform             *ResPlatform     `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty"`
-	Capacity             *ResHostResource `protobuf:"bytes,3,opt,name=capacity,proto3" json:"capacity,omitempty"`
-	HttpPort             uint32           `protobuf:"varint,5,opt,name=http_port,json=httpPort,proto3" json:"http_port,omitempty"`
-	PeerLanAddr          string           `protobuf:"bytes,6,opt,name=peer_lan_addr,json=peerLanAddr,proto3" json:"peer_lan_addr,omitempty"`
-	PeerWanAddr          string           `protobuf:"bytes,7,opt,name=peer_wan_addr,json=peerWanAddr,proto3" json:"peer_wan_addr,omitempty"`
-	ExpDockerVersion     string           `protobuf:"bytes,10,opt,name=exp_docker_version,json=expDockerVersion,proto3" json:"exp_docker_version,omitempty"`
-	ExpRktVersion        string           `protobuf:"bytes,11,opt,name=exp_rkt_version,json=expRktVersion,proto3" json:"exp_rkt_version,omitempty"`
-	ExpPouchVersion      string           `protobuf:"bytes,12,opt,name=exp_pouch_version,json=expPouchVersion,proto3" json:"exp_pouch_version,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
-	XXX_unrecognized     []byte           `json:"-"`
-	XXX_sizecache        int32            `json:"-"`
+	Platform             *ResPlatform     `protobuf:"bytes,2,opt,name=platform,proto3" json:"platform,omitempty" toml:"platform,omitempty"`
+	Capacity             *ResHostResource `protobuf:"bytes,3,opt,name=capacity,proto3" json:"capacity,omitempty" toml:"capacity,omitempty"`
+	HttpPort             uint32           `protobuf:"varint,5,opt,name=http_port,json=httpPort,proto3" json:"http_port,omitempty" toml:"http_port,omitempty"`
+	PeerLanAddr          string           `protobuf:"bytes,6,opt,name=peer_lan_addr,json=peerLanAddr,proto3" json:"peer_lan_addr,omitempty" toml:"peer_lan_addr,omitempty"`
+	PeerWanAddr          string           `protobuf:"bytes,7,opt,name=peer_wan_addr,json=peerWanAddr,proto3" json:"peer_wan_addr,omitempty" toml:"peer_wan_addr,omitempty"`
+	ExpDockerVersion     string           `protobuf:"bytes,10,opt,name=exp_docker_version,json=expDockerVersion,proto3" json:"exp_docker_version,omitempty" toml:"exp_docker_version,omitempty"`
+	ExpRktVersion        string           `protobuf:"bytes,11,opt,name=exp_rkt_version,json=expRktVersion,proto3" json:"exp_rkt_version,omitempty" toml:"exp_rkt_version,omitempty"`
+	ExpPouchVersion      string           `protobuf:"bytes,12,opt,name=exp_pouch_version,json=expPouchVersion,proto3" json:"exp_pouch_version,omitempty" toml:"exp_pouch_version,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-" toml:"-"`
+	XXX_unrecognized     []byte           `json:"-" toml:"-"`
+	XXX_sizecache        int32            `json:"-" toml:"-"`
 }
 
 func (m *ResHostSpec) Reset()         { *m = ResHostSpec{} }
@@ -612,12 +612,12 @@ func (m *ResHostSpec) GetExpPouchVersion() string {
 }
 
 type ResPlatform struct {
-	Os                   string   `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
-	Kernel               string   `protobuf:"bytes,2,opt,name=kernel,proto3" json:"kernel,omitempty"`
-	Arch                 string   `protobuf:"bytes,3,opt,name=arch,proto3" json:"arch,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Os                   string   `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty" toml:"os,omitempty"`
+	Kernel               string   `protobuf:"bytes,2,opt,name=kernel,proto3" json:"kernel,omitempty" toml:"kernel,omitempty"`
+	Arch                 string   `protobuf:"bytes,3,opt,name=arch,proto3" json:"arch,omitempty" toml:"arch,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResPlatform) Reset()         { *m = ResPlatform{} }
@@ -667,12 +667,12 @@ func (m *ResPlatform) GetArch() string {
 }
 
 type ResHostResource struct {
-	Mem                  int64          `protobuf:"varint,1,opt,name=mem,proto3" json:"mem,omitempty"`
-	Cpu                  int32          `protobuf:"varint,2,opt,name=cpu,proto3" json:"cpu,omitempty"`
-	Vols                 []*ResVolValue `protobuf:"bytes,3,rep,name=vols,proto3" json:"vols,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	Mem                  int64          `protobuf:"varint,1,opt,name=mem,proto3" json:"mem,omitempty" toml:"mem,omitempty"`
+	Cpu                  int32          `protobuf:"varint,2,opt,name=cpu,proto3" json:"cpu,omitempty" toml:"cpu,omitempty"`
+	Vols                 []*ResVolValue `protobuf:"bytes,3,rep,name=vols,proto3" json:"vols,omitempty" toml:"vols,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-" toml:"-"`
+	XXX_unrecognized     []byte         `json:"-" toml:"-"`
+	XXX_sizecache        int32          `json:"-" toml:"-"`
 }
 
 func (m *ResHostResource) Reset()         { *m = ResHostResource{} }
@@ -722,12 +722,12 @@ func (m *ResHostResource) GetVols() []*ResVolValue {
 }
 
 type ResHostVolume struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Total                uint64   `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
-	Used                 uint64   `protobuf:"varint,3,opt,name=used,proto3" json:"used,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Total                uint64   `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty" toml:"total,omitempty"`
+	Used                 uint64   `protobuf:"varint,3,opt,name=used,proto3" json:"used,omitempty" toml:"used,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResHostVolume) Reset()         { *m = ResHostVolume{} }
@@ -777,14 +777,14 @@ func (m *ResHostVolume) GetUsed() uint64 {
 }
 
 type ResHostStatus struct {
-	Phase                string             `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty"`
-	Uptime               uint32             `protobuf:"varint,2,opt,name=uptime,proto3" json:"uptime,omitempty"`
-	Volumes              []*ResHostVolume   `protobuf:"bytes,3,rep,name=volumes,proto3" json:"volumes,omitempty"`
-	Stats                *PbStatsSampleFeed `protobuf:"bytes,4,opt,name=stats,proto3" json:"stats,omitempty"`
-	Updated              uint32             `protobuf:"varint,5,opt,name=updated,proto3" json:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	Phase                string             `protobuf:"bytes,1,opt,name=phase,proto3" json:"phase,omitempty" toml:"phase,omitempty"`
+	Uptime               uint32             `protobuf:"varint,2,opt,name=uptime,proto3" json:"uptime,omitempty" toml:"uptime,omitempty"`
+	Volumes              []*ResHostVolume   `protobuf:"bytes,3,rep,name=volumes,proto3" json:"volumes,omitempty" toml:"volumes,omitempty"`
+	Stats                *PbStatsSampleFeed `protobuf:"bytes,4,opt,name=stats,proto3" json:"stats,omitempty" toml:"stats,omitempty"`
+	Updated              uint32             `protobuf:"varint,5,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-" toml:"-"`
+	XXX_unrecognized     []byte             `json:"-" toml:"-"`
+	XXX_sizecache        int32              `json:"-" toml:"-"`
 }
 
 func (m *ResHostStatus) Reset()         { *m = ResHostStatus{} }
@@ -848,15 +848,15 @@ func (m *ResHostStatus) GetUpdated() uint32 {
 }
 
 type ResHostBound struct {
-	Masters              *ResZoneMasterList `protobuf:"bytes,2,opt,name=masters,proto3" json:"masters,omitempty"`
-	ExpPods              []string           `protobuf:"bytes,5,rep,name=exp_pods,json=expPods,proto3" json:"exp_pods,omitempty"`
-	ZoneInpackServiceUrl string             `protobuf:"bytes,7,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl,proto3" json:"zone_inpack_service_url,omitempty"`
-	ExpBoxRemoves        []string           `protobuf:"bytes,8,rep,name=exp_box_removes,json=expBoxRemoves,proto3" json:"exp_box_removes,omitempty"`
-	ExpBoxStops          []string           `protobuf:"bytes,9,rep,name=exp_box_stops,json=expBoxStops,proto3" json:"exp_box_stops,omitempty"`
-	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices,proto3" json:"image_services,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	Masters              *ResZoneMasterList `protobuf:"bytes,2,opt,name=masters,proto3" json:"masters,omitempty" toml:"masters,omitempty"`
+	ExpPods              []string           `protobuf:"bytes,5,rep,name=exp_pods,json=expPods,proto3" json:"exp_pods,omitempty" toml:"exp_pods,omitempty"`
+	ZoneInpackServiceUrl string             `protobuf:"bytes,7,opt,name=zone_inpack_service_url,json=zoneInpackServiceUrl,proto3" json:"zone_inpack_service_url,omitempty" toml:"zone_inpack_service_url,omitempty"`
+	ExpBoxRemoves        []string           `protobuf:"bytes,8,rep,name=exp_box_removes,json=expBoxRemoves,proto3" json:"exp_box_removes,omitempty" toml:"exp_box_removes,omitempty"`
+	ExpBoxStops          []string           `protobuf:"bytes,9,rep,name=exp_box_stops,json=expBoxStops,proto3" json:"exp_box_stops,omitempty" toml:"exp_box_stops,omitempty"`
+	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices,proto3" json:"image_services,omitempty" toml:"image_services,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-" toml:"-"`
+	XXX_unrecognized     []byte             `json:"-" toml:"-"`
+	XXX_sizecache        int32              `json:"-" toml:"-"`
 }
 
 func (m *ResHostBound) Reset()         { *m = ResHostBound{} }
@@ -927,18 +927,18 @@ func (m *ResHostBound) GetImageServices() []*ResImageService {
 }
 
 type ResZone struct {
-	Meta                 *ObjectMeta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
-	Phase                int32              `protobuf:"varint,3,opt,name=phase,proto3" json:"phase,omitempty"`
-	Summary              string             `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
-	WanAddrs             []string           `protobuf:"bytes,5,rep,name=wan_addrs,json=wanAddrs,proto3" json:"wan_addrs,omitempty"`
-	LanAddrs             []string           `protobuf:"bytes,6,rep,name=lan_addrs,json=lanAddrs,proto3" json:"lan_addrs,omitempty"`
-	Cells                []*ResCell         `protobuf:"bytes,7,rep,name=cells,proto3" json:"cells,omitempty"`
-	Options              []*Label           `protobuf:"bytes,8,rep,name=options,proto3" json:"options,omitempty"`
-	WanApi               string             `protobuf:"bytes,9,opt,name=wan_api,json=wanApi,proto3" json:"wan_api,omitempty"`
-	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices,proto3" json:"image_services,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	Meta                 *ObjectMeta        `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty" toml:"meta,omitempty"`
+	Phase                int32              `protobuf:"varint,3,opt,name=phase,proto3" json:"phase,omitempty" toml:"phase,omitempty"`
+	Summary              string             `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty" toml:"summary,omitempty"`
+	WanAddrs             []string           `protobuf:"bytes,5,rep,name=wan_addrs,json=wanAddrs,proto3" json:"wan_addrs,omitempty" toml:"wan_addrs,omitempty"`
+	LanAddrs             []string           `protobuf:"bytes,6,rep,name=lan_addrs,json=lanAddrs,proto3" json:"lan_addrs,omitempty" toml:"lan_addrs,omitempty"`
+	Cells                []*ResCell         `protobuf:"bytes,7,rep,name=cells,proto3" json:"cells,omitempty" toml:"cells,omitempty"`
+	Options              []*Label           `protobuf:"bytes,8,rep,name=options,proto3" json:"options,omitempty" toml:"options,omitempty"`
+	WanApi               string             `protobuf:"bytes,9,opt,name=wan_api,json=wanApi,proto3" json:"wan_api,omitempty" toml:"wan_api,omitempty"`
+	ImageServices        []*ResImageService `protobuf:"bytes,10,rep,name=image_services,json=imageServices,proto3" json:"image_services,omitempty" toml:"image_services,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-" toml:"-"`
+	XXX_unrecognized     []byte             `json:"-" toml:"-"`
+	XXX_sizecache        int32              `json:"-" toml:"-"`
 }
 
 func (m *ResZone) Reset()         { *m = ResZone{} }
@@ -1030,15 +1030,15 @@ func (m *ResZone) GetImageServices() []*ResImageService {
 }
 
 type ResCell struct {
-	Meta                 *ObjectMeta    `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty"`
-	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty"`
-	Phase                int32          `protobuf:"varint,4,opt,name=phase,proto3" json:"phase,omitempty"`
-	Description          string         `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty"`
-	NodeNum              int32          `protobuf:"varint,6,opt,name=node_num,json=nodeNum,proto3" json:"node_num,omitempty"`
-	Status               *ResCellStatus `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	Meta                 *ObjectMeta    `protobuf:"bytes,2,opt,name=meta,proto3" json:"meta,omitempty" toml:"meta,omitempty"`
+	ZoneId               string         `protobuf:"bytes,3,opt,name=zone_id,json=zoneId,proto3" json:"zone_id,omitempty" toml:"zone_id,omitempty"`
+	Phase                int32          `protobuf:"varint,4,opt,name=phase,proto3" json:"phase,omitempty" toml:"phase,omitempty"`
+	Description          string         `protobuf:"bytes,5,opt,name=description,proto3" json:"description,omitempty" toml:"description,omitempty"`
+	NodeNum              int32          `protobuf:"varint,6,opt,name=node_num,json=nodeNum,proto3" json:"node_num,omitempty" toml:"node_num,omitempty"`
+	Status               *ResCellStatus `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty" toml:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-" toml:"-"`
+	XXX_unrecognized     []byte         `json:"-" toml:"-"`
+	XXX_sizecache        int32          `json:"-" toml:"-"`
 }
 
 func (m *ResCell) Reset()         { *m = ResCell{} }
@@ -1109,19 +1109,19 @@ func (m *ResCell) GetStatus() *ResCellStatus {
 }
 
 type ResCellStatus struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Updated              uint32   `protobuf:"varint,2,opt,name=updated,proto3" json:"updated,omitempty"`
-	CpuCap               int64    `protobuf:"varint,5,opt,name=cpu_cap,json=cpuCap,proto3" json:"cpu_cap,omitempty"`
-	CpuUsed              int64    `protobuf:"varint,6,opt,name=cpu_used,json=cpuUsed,proto3" json:"cpu_used,omitempty"`
-	MemCap               int64    `protobuf:"varint,7,opt,name=mem_cap,json=memCap,proto3" json:"mem_cap,omitempty"`
-	MemUsed              int64    `protobuf:"varint,8,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty"`
-	HostCap              int32    `protobuf:"varint,10,opt,name=host_cap,json=hostCap,proto3" json:"host_cap,omitempty"`
-	HostIn               int32    `protobuf:"varint,11,opt,name=host_in,json=hostIn,proto3" json:"host_in,omitempty"`
-	VolCap               int32    `protobuf:"varint,12,opt,name=vol_cap,json=volCap,proto3" json:"vol_cap,omitempty"`
-	VolUsed              int32    `protobuf:"varint,13,opt,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	Updated              uint32   `protobuf:"varint,2,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	CpuCap               int64    `protobuf:"varint,5,opt,name=cpu_cap,json=cpuCap,proto3" json:"cpu_cap,omitempty" toml:"cpu_cap,omitempty"`
+	CpuUsed              int64    `protobuf:"varint,6,opt,name=cpu_used,json=cpuUsed,proto3" json:"cpu_used,omitempty" toml:"cpu_used,omitempty"`
+	MemCap               int64    `protobuf:"varint,7,opt,name=mem_cap,json=memCap,proto3" json:"mem_cap,omitempty" toml:"mem_cap,omitempty"`
+	MemUsed              int64    `protobuf:"varint,8,opt,name=mem_used,json=memUsed,proto3" json:"mem_used,omitempty" toml:"mem_used,omitempty"`
+	HostCap              int32    `protobuf:"varint,10,opt,name=host_cap,json=hostCap,proto3" json:"host_cap,omitempty" toml:"host_cap,omitempty"`
+	HostIn               int32    `protobuf:"varint,11,opt,name=host_in,json=hostIn,proto3" json:"host_in,omitempty" toml:"host_in,omitempty"`
+	VolCap               int32    `protobuf:"varint,12,opt,name=vol_cap,json=volCap,proto3" json:"vol_cap,omitempty" toml:"vol_cap,omitempty"`
+	VolUsed              int32    `protobuf:"varint,13,opt,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty" toml:"vol_used,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResCellStatus) Reset()         { *m = ResCellStatus{} }
@@ -1220,12 +1220,12 @@ func (m *ResCellStatus) GetVolUsed() int32 {
 }
 
 type ResZoneMasterNode struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Addr                 string   `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
-	Action               uint32   `protobuf:"varint,3,opt,name=action,proto3" json:"action,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	Addr                 string   `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty" toml:"addr,omitempty"`
+	Action               uint32   `protobuf:"varint,3,opt,name=action,proto3" json:"action,omitempty" toml:"action,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *ResZoneMasterNode) Reset()         { *m = ResZoneMasterNode{} }
@@ -1275,13 +1275,13 @@ func (m *ResZoneMasterNode) GetAction() uint32 {
 }
 
 type ResZoneMasterList struct {
-	Version              uint64               `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
-	Leader               string               `protobuf:"bytes,2,opt,name=leader,proto3" json:"leader,omitempty"`
-	Updated              uint64               `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty"`
-	Items                []*ResZoneMasterNode `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
+	Version              uint64               `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	Leader               string               `protobuf:"bytes,2,opt,name=leader,proto3" json:"leader,omitempty" toml:"leader,omitempty"`
+	Updated              uint64               `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	Items                []*ResZoneMasterNode `protobuf:"bytes,4,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-" toml:"-"`
+	XXX_unrecognized     []byte               `json:"-" toml:"-"`
+	XXX_sizecache        int32                `json:"-" toml:"-"`
 }
 
 func (m *ResZoneMasterList) Reset()         { *m = ResZoneMasterList{} }

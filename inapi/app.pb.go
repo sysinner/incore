@@ -22,14 +22,14 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // host
 type AppSpecDepend struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Version              string   `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty"`
-	Priority             int32    `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
-	Configs              []string `protobuf:"bytes,5,rep,name=configs,proto3" json:"configs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Version              string   `protobuf:"bytes,3,opt,name=version,proto3" json:"version,omitempty" toml:"version,omitempty"`
+	Priority             int32    `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty" toml:"priority,omitempty"`
+	Configs              []string `protobuf:"bytes,5,rep,name=configs,proto3" json:"configs,omitempty" toml:"configs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *AppSpecDepend) Reset()         { *m = AppSpecDepend{} }
@@ -93,12 +93,12 @@ func (m *AppSpecDepend) GetConfigs() []string {
 }
 
 type AppServiceReplica struct {
-	Rep                  uint32   `protobuf:"varint,1,opt,name=rep,proto3" json:"rep,omitempty"`
-	Ip                   string   `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty"`
-	Port                 uint32   `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Rep                  uint32   `protobuf:"varint,1,opt,name=rep,proto3" json:"rep,omitempty" toml:"rep,omitempty"`
+	Ip                   string   `protobuf:"bytes,2,opt,name=ip,proto3" json:"ip,omitempty" toml:"ip,omitempty"`
+	Port                 uint32   `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty" toml:"port,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *AppServiceReplica) Reset()         { *m = AppServiceReplica{} }
@@ -148,16 +148,16 @@ func (m *AppServiceReplica) GetPort() uint32 {
 }
 
 type AppServicePort struct {
-	Port                 uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
-	Endpoints            []*AppServiceReplica `protobuf:"bytes,2,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
-	Updated              int64                `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty"`
-	Name                 string               `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
-	Spec                 string               `protobuf:"bytes,6,opt,name=spec,proto3" json:"spec,omitempty"`
-	PodId                string               `protobuf:"bytes,7,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
-	AppId                string               `protobuf:"bytes,8,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
+	Port                 uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty" toml:"port,omitempty"`
+	Endpoints            []*AppServiceReplica `protobuf:"bytes,2,rep,name=endpoints,proto3" json:"endpoints,omitempty" toml:"endpoints,omitempty"`
+	Updated              int64                `protobuf:"varint,3,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	Name                 string               `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Spec                 string               `protobuf:"bytes,6,opt,name=spec,proto3" json:"spec,omitempty" toml:"spec,omitempty"`
+	PodId                string               `protobuf:"bytes,7,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
+	AppId                string               `protobuf:"bytes,8,opt,name=app_id,json=appId,proto3" json:"app_id,omitempty" toml:"app_id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-" toml:"-"`
+	XXX_unrecognized     []byte               `json:"-" toml:"-"`
+	XXX_sizecache        int32                `json:"-" toml:"-"`
 }
 
 func (m *AppServicePort) Reset()         { *m = AppServicePort{} }
@@ -235,13 +235,13 @@ func (m *AppServicePort) GetAppId() string {
 }
 
 type AppServicePortPodBind struct {
-	Port                 uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
-	PodId                string               `protobuf:"bytes,2,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
-	Endpoints            []*AppServiceReplica `protobuf:"bytes,3,rep,name=endpoints,proto3" json:"endpoints,omitempty"`
-	Updated              int64                `protobuf:"varint,4,opt,name=updated,proto3" json:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
+	Port                 uint32               `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty" toml:"port,omitempty"`
+	PodId                string               `protobuf:"bytes,2,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
+	Endpoints            []*AppServiceReplica `protobuf:"bytes,3,rep,name=endpoints,proto3" json:"endpoints,omitempty" toml:"endpoints,omitempty"`
+	Updated              int64                `protobuf:"varint,4,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-" toml:"-"`
+	XXX_unrecognized     []byte               `json:"-" toml:"-"`
+	XXX_sizecache        int32                `json:"-" toml:"-"`
 }
 
 func (m *AppServicePortPodBind) Reset()         { *m = AppServicePortPodBind{} }
@@ -298,12 +298,12 @@ func (m *AppServicePortPodBind) GetUpdated() int64 {
 }
 
 type AppServicePod struct {
-	PodId                string            `protobuf:"bytes,1,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
-	Ports                []*AppServicePort `protobuf:"bytes,4,rep,name=ports,proto3" json:"ports,omitempty"`
-	Updated              int64             `protobuf:"varint,5,opt,name=updated,proto3" json:"updated,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
-	XXX_unrecognized     []byte            `json:"-"`
-	XXX_sizecache        int32             `json:"-"`
+	PodId                string            `protobuf:"bytes,1,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
+	Ports                []*AppServicePort `protobuf:"bytes,4,rep,name=ports,proto3" json:"ports,omitempty" toml:"ports,omitempty"`
+	Updated              int64             `protobuf:"varint,5,opt,name=updated,proto3" json:"updated,omitempty" toml:"updated,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-" toml:"-"`
+	XXX_unrecognized     []byte            `json:"-" toml:"-"`
+	XXX_sizecache        int32             `json:"-" toml:"-"`
 }
 
 func (m *AppServicePod) Reset()         { *m = AppServicePod{} }

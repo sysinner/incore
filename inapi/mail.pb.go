@@ -46,13 +46,13 @@ func (MailType) EnumDescriptor() ([]byte, []int) {
 }
 
 type MailTemplate struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Title                string   `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Body                 string   `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
-	Type                 MailType `protobuf:"varint,4,opt,name=type,proto3,enum=inapi.MailType" json:"type,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty" toml:"name,omitempty"`
+	Title                string   `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty" toml:"title,omitempty"`
+	Body                 string   `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty" toml:"body,omitempty"`
+	Type                 MailType `protobuf:"varint,4,opt,name=type,proto3,enum=inapi.MailType" json:"type,omitempty" toml:"type,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *MailTemplate) Reset()         { *m = MailTemplate{} }
@@ -109,16 +109,16 @@ func (m *MailTemplate) GetType() MailType {
 }
 
 type MailEntry struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	ToUser               string   `protobuf:"bytes,3,opt,name=to_user,json=toUser,proto3" json:"to_user,omitempty"`
-	FromUser             string   `protobuf:"bytes,5,opt,name=from_user,json=fromUser,proto3" json:"from_user,omitempty"`
-	Title                string   `protobuf:"bytes,8,opt,name=title,proto3" json:"title,omitempty"`
-	Body                 string   `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty"`
-	Type                 MailType `protobuf:"varint,11,opt,name=type,proto3,enum=inapi.MailType" json:"type,omitempty"`
-	Created              uint32   `protobuf:"varint,14,opt,name=created,proto3" json:"created,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	ToUser               string   `protobuf:"bytes,3,opt,name=to_user,json=toUser,proto3" json:"to_user,omitempty" toml:"to_user,omitempty"`
+	FromUser             string   `protobuf:"bytes,5,opt,name=from_user,json=fromUser,proto3" json:"from_user,omitempty" toml:"from_user,omitempty"`
+	Title                string   `protobuf:"bytes,8,opt,name=title,proto3" json:"title,omitempty" toml:"title,omitempty"`
+	Body                 string   `protobuf:"bytes,9,opt,name=body,proto3" json:"body,omitempty" toml:"body,omitempty"`
+	Type                 MailType `protobuf:"varint,11,opt,name=type,proto3,enum=inapi.MailType" json:"type,omitempty" toml:"type,omitempty"`
+	Created              uint32   `protobuf:"varint,14,opt,name=created,proto3" json:"created,omitempty" toml:"created,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *MailEntry) Reset()         { *m = MailEntry{} }
@@ -196,14 +196,14 @@ func (m *MailEntry) GetCreated() uint32 {
 }
 
 type MailPodStatus struct {
-	Id                   string               `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	User                 string               `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty"`
-	Items                []*MailPodStatus_Pod `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
-	Created              uint32               `protobuf:"varint,5,opt,name=created,proto3" json:"created,omitempty"`
-	WeekNum              uint32               `protobuf:"varint,6,opt,name=week_num,json=weekNum,proto3" json:"week_num,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
+	Id                   string               `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	User                 string               `protobuf:"bytes,2,opt,name=user,proto3" json:"user,omitempty" toml:"user,omitempty"`
+	Items                []*MailPodStatus_Pod `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty" toml:"items,omitempty"`
+	Created              uint32               `protobuf:"varint,5,opt,name=created,proto3" json:"created,omitempty" toml:"created,omitempty"`
+	WeekNum              uint32               `protobuf:"varint,6,opt,name=week_num,json=weekNum,proto3" json:"week_num,omitempty" toml:"week_num,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-" toml:"-"`
+	XXX_unrecognized     []byte               `json:"-" toml:"-"`
+	XXX_sizecache        int32                `json:"-" toml:"-"`
 }
 
 func (m *MailPodStatus) Reset()         { *m = MailPodStatus{} }
@@ -267,11 +267,11 @@ func (m *MailPodStatus) GetWeekNum() uint32 {
 }
 
 type MailPodStatus_PodReplica struct {
-	Id                   uint32   `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	VolUsed              int64    `protobuf:"varint,2,opt,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Id                   uint32   `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty" toml:"id,omitempty"`
+	VolUsed              int64    `protobuf:"varint,2,opt,name=vol_used,json=volUsed,proto3" json:"vol_used,omitempty" toml:"vol_used,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-" toml:"-"`
+	XXX_unrecognized     []byte   `json:"-" toml:"-"`
+	XXX_sizecache        int32    `json:"-" toml:"-"`
 }
 
 func (m *MailPodStatus_PodReplica) Reset()         { *m = MailPodStatus_PodReplica{} }
@@ -314,17 +314,17 @@ func (m *MailPodStatus_PodReplica) GetVolUsed() int64 {
 }
 
 type MailPodStatus_Pod struct {
-	PodId                string                      `protobuf:"bytes,1,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty"`
-	ZoneName             string                      `protobuf:"bytes,2,opt,name=zone_name,json=zoneName,proto3" json:"zone_name,omitempty"`
-	CellName             string                      `protobuf:"bytes,3,opt,name=cell_name,json=cellName,proto3" json:"cell_name,omitempty"`
-	SpecCpu              int32                       `protobuf:"varint,5,opt,name=spec_cpu,json=specCpu,proto3" json:"spec_cpu,omitempty"`
-	SpecMem              int32                       `protobuf:"varint,6,opt,name=spec_mem,json=specMem,proto3" json:"spec_mem,omitempty"`
-	SpecVol              int32                       `protobuf:"varint,7,opt,name=spec_vol,json=specVol,proto3" json:"spec_vol,omitempty"`
-	PaymentCycleAmount   float32                     `protobuf:"fixed32,8,opt,name=payment_cycle_amount,json=paymentCycleAmount,proto3" json:"payment_cycle_amount,omitempty"`
-	Reps                 []*MailPodStatus_PodReplica `protobuf:"bytes,15,rep,name=reps,proto3" json:"reps,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                    `json:"-"`
-	XXX_unrecognized     []byte                      `json:"-"`
-	XXX_sizecache        int32                       `json:"-"`
+	PodId                string                      `protobuf:"bytes,1,opt,name=pod_id,json=podId,proto3" json:"pod_id,omitempty" toml:"pod_id,omitempty"`
+	ZoneName             string                      `protobuf:"bytes,2,opt,name=zone_name,json=zoneName,proto3" json:"zone_name,omitempty" toml:"zone_name,omitempty"`
+	CellName             string                      `protobuf:"bytes,3,opt,name=cell_name,json=cellName,proto3" json:"cell_name,omitempty" toml:"cell_name,omitempty"`
+	SpecCpu              int32                       `protobuf:"varint,5,opt,name=spec_cpu,json=specCpu,proto3" json:"spec_cpu,omitempty" toml:"spec_cpu,omitempty"`
+	SpecMem              int32                       `protobuf:"varint,6,opt,name=spec_mem,json=specMem,proto3" json:"spec_mem,omitempty" toml:"spec_mem,omitempty"`
+	SpecVol              int32                       `protobuf:"varint,7,opt,name=spec_vol,json=specVol,proto3" json:"spec_vol,omitempty" toml:"spec_vol,omitempty"`
+	PaymentCycleAmount   float32                     `protobuf:"fixed32,8,opt,name=payment_cycle_amount,json=paymentCycleAmount,proto3" json:"payment_cycle_amount,omitempty" toml:"payment_cycle_amount,omitempty"`
+	Reps                 []*MailPodStatus_PodReplica `protobuf:"bytes,15,rep,name=reps,proto3" json:"reps,omitempty" toml:"reps,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                    `json:"-" toml:"-"`
+	XXX_unrecognized     []byte                      `json:"-" toml:"-"`
+	XXX_sizecache        int32                       `json:"-" toml:"-"`
 }
 
 func (m *MailPodStatus_Pod) Reset()         { *m = MailPodStatus_Pod{} }
