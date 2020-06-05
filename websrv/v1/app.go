@@ -707,6 +707,10 @@ func (c App) OpResSetAction() {
 		})
 	}
 
+	for _, v := range res.Options {
+		opt.Items.Set("option/"+v.Name, v.Value)
+	}
+
 	if app.Operate.Options.Set(opt) {
 
 		app.Meta.Updated = types.MetaTimeNow()

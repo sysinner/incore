@@ -126,7 +126,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 		return err
 	}
 
-	if pkg.Kind != "Package" {
+	if pkg.Kind != "Pack" {
 		return errors.New("Package Not Found: " + url)
 	}
 

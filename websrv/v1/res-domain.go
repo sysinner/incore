@@ -235,6 +235,13 @@ func (c Resource) DomainSetAction() {
 		prev.Description, sync = set.Description, true
 	}
 
+	for _, v := range set.Options {
+		if vp, ok := prev.Options.Get(v.Name); !ok || vp.String() != v.Value {
+			prev.Options.Set(v.Name, v.Value)
+			sync = true
+		}
+	}
+
 	if sync {
 		prev.Meta.Updated = types.MetaTimeNow()
 		data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(obj_name), prev).Commit()

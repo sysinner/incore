@@ -660,16 +660,16 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				User: "action",
 			},
 			HostConfig: &drvClient.HostConfig{
-				NetworkMode:      netMode,
-				ExtraHosts:       extHosts,
-				PortBindings:     bindPorts,
-				Binds:            append(inst.VolumeMountsExport(), tp.lxcfsVols...),
-				Memory:           int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
-				MemorySwap:       int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
-				MemorySwappiness: 0,
-				CPUPeriod:        1000000,
-				CPUQuota:         int64(inst.Spec.Resources.CpuLimit) * 1e5,
-				CPUSetCPUs:       inst.CpuSets(),
+				NetworkMode:  netMode,
+				ExtraHosts:   extHosts,
+				PortBindings: bindPorts,
+				Binds:        append(inst.VolumeMountsExport(), tp.lxcfsVols...),
+				Memory:       int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
+				MemorySwap:   int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
+				// MemorySwappiness: 0,
+				CPUPeriod:  1000000,
+				CPUQuota:   int64(inst.Spec.Resources.CpuLimit) * 1e5,
+				CPUSetCPUs: inst.CpuSets(),
 				Ulimits: []drvClient.ULimit{
 					{
 						Name: "nofile",
@@ -678,7 +678,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 					},
 				},
 				StorageOpt: map[string]string{
-					"size": "10G",
+					// "size": "10G", // TODO
 				},
 				RestartPolicy: drvClient.AlwaysRestart(),
 			},
