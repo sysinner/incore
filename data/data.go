@@ -17,7 +17,6 @@ package data
 import (
 	"fmt"
 
-	"github.com/hooto/hlog4g/hlog"
 	"github.com/lynkdb/iomix/sko"
 	"github.com/lynkdb/kvgo"
 
@@ -29,74 +28,27 @@ var (
 	DataZone   sko.ClientConnector
 	DataGlobal sko.ClientConnector
 	DataInpack sko.ClientConnector
+	err        error
 )
 
 func Setup() error {
 
-	for _, v := range config.Config.IoConnectors {
-
-		switch v.Name {
-		case "db_local":
-		case "db_zone":
-		case "db_global":
-
-		default:
-			continue
+	if config.Config.DataLocal != nil {
+		if DataLocal, err = kvgo.Open(config.Config.DataLocal); err != nil {
+			return err
 		}
+	}
 
-		var (
-			db  interface{}
-			err error
-		)
-
-		if v.Driver == "lynkdb/kvgo" {
-
-			db, err = kvgo.Open(*v)
-
-		} else {
-
-			/**
-			hlog.Printf("info", "DataConnector (%s) Plugin Open %s",
-				v.Name, string(v.DriverPlugin))
-
-			p, err := plugin.Open(config.Prefix + "/plugin/" + string(v.DriverPlugin))
-			if err != nil {
-				return err
-			}
-
-			nc, err := p.Lookup("NewConnector")
-			if err != nil {
-				return err
-			}
-
-			fn, ok := nc.(func(opts *connect.ConnOptions) (skv.Connector, error))
-			if !ok {
-				return fmt.Errorf("No Plugin/Method (%s) Found", "NewConnector")
-			}
-
-			db, err = fn(v)
-			*/
+	if config.Config.DataZone != nil {
+		if DataZone, err = kvgo.Open(config.Config.DataZone); err != nil {
+			return err
 		}
+	}
 
-		if err != nil {
-			return fmt.Errorf("setup %s err %s", v.Name, err.Error())
+	if config.Config.DataGlobal != nil {
+		if DataGlobal, err = kvgo.Open(config.Config.DataGlobal); err != nil {
+			return err
 		}
-
-		switch v.Name {
-		case "db_local":
-			DataLocal = db.(sko.ClientConnector)
-
-		case "db_zone":
-			DataZone = db.(sko.ClientConnector)
-
-		case "db_global":
-			DataGlobal = db.(sko.ClientConnector)
-
-		default:
-			continue
-		}
-
-		hlog.Printf("info", "DataConnector (%s) OK", v.Name)
 	}
 
 	if DataLocal == nil {

@@ -25,12 +25,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hooto/hconf4g/hconf"
+	"github.com/hooto/htoml4g/htoml"
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/iomix/connect"
+	"github.com/lynkdb/kvgo"
 
 	"github.com/sysinner/incore/inapi"
 )
@@ -70,11 +71,14 @@ type ConfigCommon struct {
 	IamServiceUrlGlobal       string                   `json:"iam_service_url_global,omitempty" toml:"iam_service_url_global,omitempty"`
 	LxcFsEnable               bool                     `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
 	ImageServices             []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
+	DataLocal                 *kvgo.Config             `json:"data_local,omitempty" toml:"data_local,omitempty"`
+	DataZone                  *kvgo.Config             `json:"data_zone,omitempty" toml:"data_zone,omitempty"`
+	DataGlobal                *kvgo.Config             `json:"data_global,omitempty" toml:"data_global,omitempty"`
 }
 
 func (cfg *ConfigCommon) Sync() error {
 	if cfg.filepath != "" {
-		return hconf.EncodeToFile(Config, cfg.filepath, nil)
+		return htoml.EncodeToFile(Config, cfg.filepath, nil)
 	}
 	return nil
 }
@@ -106,7 +110,7 @@ func Setup() error {
 		Prefix = "/opt/sysinner"
 	}
 
-	if err := hconf.DecodeFromFile(&Config, Prefix+"/etc/main.conf"); err != nil {
+	if err := htoml.DecodeFromFile(&Config, Prefix+"/etc/main.conf"); err != nil {
 
 		if !os.IsNotExist(err) {
 			return err
@@ -216,33 +220,26 @@ func (it *ConfigCommon) SetupHost() error {
 
 func (it *ConfigCommon) setupDataConnect() error {
 
-	conns := []types.NameIdentifier{
-		"db_local",
-	}
-	if IsZoneMaster() {
-		conns = append(conns, []types.NameIdentifier{
-			"db_zone",
-			"db_global",
-		}...)
+	for _, conn := range it.IoConnectors {
+
+		cfg, err := kvgo.ConfigParse(*conn)
+		if err != nil {
+			continue
+		}
+
+		switch conn.Name {
+
+		case "db_local":
+			it.DataLocal = cfg
+
+		case "db_global":
+			it.DataGlobal = cfg
+
+		case "db_zone":
+			it.DataZone = cfg
+		}
 	}
 
-	for _, opName := range conns {
-		opts := Config.IoConnectors.Options(opName)
-		if opts == nil {
-			opts = &connect.ConnOptions{
-				Name:      opName,
-				Connector: "iomix/sko/client-connector",
-				Driver:    types.NewNameIdentifier("lynkdb/kvgo"),
-			}
-		}
-		if opts.Value("data_dir") == "" {
-			opts.SetValue("data_dir", Prefix+"/var/"+string(opName))
-			opts.SetValue("lynkdb/sko/compaction_table_size", "8")
-			opts.SetValue("lynkdb/sko/write_buffer", "4")
-			opts.SetValue("lynkdb/sko/cache_capacity", "16")
-		}
-		Config.IoConnectors.SetOptions(*opts)
-	}
 	return nil
 }
 

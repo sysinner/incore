@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hooto/hconf4g/hconf"
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/htoml4g/htoml"
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamapi"
 	"github.com/hooto/iam/iamclient"
@@ -332,7 +332,7 @@ func (c AppSpec) EntryAction() {
 
 	if c.Params.Get("ct") == "toml" {
 		defer func() {
-			bs, _ := hconf.Encode(&rsp, nil)
+			bs, _ := htoml.Encode(&rsp, nil)
 			c.Response.Out.Header().Set("Content-Type", "application/toml")
 			c.RenderString(string(bs))
 		}()
@@ -441,7 +441,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	if c.Request.RawBody[0] != '{' {
-		err = hconf.Decode(&req, c.Request.RawBody)
+		err = htoml.Decode(&req, c.Request.RawBody)
 	} else {
 		err = c.Request.JsonDecode(&req)
 	}
