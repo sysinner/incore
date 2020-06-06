@@ -43,7 +43,7 @@ func (c *Zonebound) Init() int {
 
 	if !c.us.IsLogin() {
 		c.Response.Out.WriteHeader(401)
-		c.RenderJson(types.NewTypeErrorMeta(iamapi.ErrCodeUnauthorized, "Unauthorized"))
+		c.RenderJson(types.NewTypeErrorMeta(iamapi.ErrCodeUnauthorized, "Unauthorized #02"))
 		return 1
 	}
 

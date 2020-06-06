@@ -230,13 +230,27 @@ func (it *ConfigCommon) setupDataConnect() error {
 		switch conn.Name {
 
 		case "db_local":
-			it.DataLocal = cfg
+			if it.DataLocal == nil {
+				it.DataLocal = cfg
+			}
 
 		case "db_global":
-			it.DataGlobal = cfg
+			if it.DataGlobal == nil {
+				it.DataGlobal = cfg
+			}
 
 		case "db_zone":
-			it.DataZone = cfg
+			if it.DataZone == nil {
+				it.DataZone = cfg
+			}
+		}
+	}
+
+	if it.DataLocal == nil {
+		it.DataLocal = &kvgo.Config{
+			Storage: kvgo.ConfigStorage{
+				DataDirectory: Prefix + "/var/db_local",
+			},
 		}
 	}
 

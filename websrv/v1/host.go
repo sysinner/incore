@@ -33,7 +33,7 @@ func (c *Host) Init() int {
 
 	if !c.us.IsLogin() {
 		c.Response.Out.WriteHeader(401)
-		c.RenderJson(types.NewTypeErrorMeta(iamapi.ErrCodeUnauthorized, "Unauthorized"))
+		c.RenderJson(types.NewTypeErrorMeta(iamapi.ErrCodeUnauthorized, "Unauthorized #h01"))
 		return 1
 	}
 
