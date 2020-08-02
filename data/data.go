@@ -17,37 +17,52 @@ package data
 import (
 	"fmt"
 
-	"github.com/lynkdb/iomix/sko"
 	"github.com/lynkdb/kvgo"
+	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 
 	"github.com/sysinner/incore/config"
 )
 
 var (
-	DataLocal  sko.ClientConnector
-	DataZone   sko.ClientConnector
-	DataGlobal sko.ClientConnector
-	DataInpack sko.ClientConnector
+	DataLocal  kv2.Client
+	DataZone   kv2.Client
+	DataGlobal kv2.Client
+	DataInpack kv2.Client
 	err        error
 )
 
 func Setup() error {
 
 	if config.Config.DataLocal != nil {
-		if DataLocal, err = kvgo.Open(config.Config.DataLocal); err != nil {
+		if cn, err := kvgo.Open(config.Config.DataLocal); err != nil {
 			return err
+		} else {
+			DataLocal, err = cn.NewClient()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	if config.Config.DataZone != nil {
-		if DataZone, err = kvgo.Open(config.Config.DataZone); err != nil {
+		if cn, err := kvgo.Open(config.Config.DataZone); err != nil {
 			return err
+		} else {
+			DataZone, err = cn.NewClient()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	if config.Config.DataGlobal != nil {
-		if DataGlobal, err = kvgo.Open(config.Config.DataGlobal); err != nil {
+		if cn, err := kvgo.Open(config.Config.DataGlobal); err != nil {
 			return err
+		} else {
+			DataGlobal, err = cn.NewClient()
+			if err != nil {
+				return err
+			}
 		}
 	}
 

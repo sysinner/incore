@@ -30,8 +30,8 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/sko"
 	iox_utils "github.com/lynkdb/iomix/utils"
+	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
@@ -269,7 +269,7 @@ func (c App) SetAction() {
 
 	prev.Meta.Updated = tn
 
-	var rs *sko.ObjectResult
+	var rs *kv2.ObjectResult
 	if prev.Spec.Meta.Version != "" {
 		rs = data.DataGlobal.NewReader(
 			inapi.NsKvGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version)).Query()

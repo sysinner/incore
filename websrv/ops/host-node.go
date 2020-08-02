@@ -17,7 +17,7 @@ package ops
 import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/sko"
+	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/config"
@@ -33,7 +33,7 @@ func (c Host) NodeListAction() {
 		zoneid = c.Params.Get("zoneid")
 		cellid = c.Params.Get("cellid")
 		sets   inapi.GeneralObjectList
-		rs     *sko.ObjectResult
+		rs     *kv2.ObjectResult
 	)
 	defer c.RenderJson(&sets)
 
@@ -74,7 +74,7 @@ func (c Host) NodeEntryAction() {
 			inapi.GeneralObject
 			inapi.ResHost
 		}
-		rs *sko.ObjectResult
+		rs *kv2.ObjectResult
 	)
 	defer c.RenderJson(&node)
 

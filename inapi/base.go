@@ -28,8 +28,8 @@ func (it *ObjectMeta) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	it.Created = timeUpgrade(it.Created)
-	it.Updated = timeUpgrade(it.Updated)
+	it2.Created = timeUpgrade(it2.Created)
+	it2.Updated = timeUpgrade(it2.Updated)
 
 	*it = ObjectMeta(it2)
 

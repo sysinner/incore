@@ -39,7 +39,7 @@ func zmWorkerMasterLeaderRefresh() {
 
 		if rs := data.DataZone.NewWriter(
 			zmLeaderKey, status.Host.Meta.Id).
-			PrevDataCheckSet(status.Host.Meta.Id).
+			PrevDataCheckSet(status.Host.Meta.Id, nil).
 			ExpireSet(12000).Commit(); rs.OK() {
 
 			status.ZoneMasterList.Version = rs.Meta.Version
@@ -55,7 +55,7 @@ func zmWorkerMasterLeaderRefresh() {
 
 		if rs2 := data.DataZone.NewWriter(
 			zmLeaderKey, status.Host.Meta.Id).
-			PrevDataCheckSet(status.Host.Meta.Id).
+			PrevDataCheckSet(status.Host.Meta.Id, nil).
 			ExpireSet(12000).Commit(); rs2.OK() {
 
 			status.ZoneMasterList.Leader = status.Host.Meta.Id

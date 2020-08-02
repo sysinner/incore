@@ -30,7 +30,6 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
-	"github.com/lynkdb/iomix/connect"
 	"github.com/lynkdb/kvgo"
 
 	"github.com/sysinner/incore/inapi"
@@ -61,7 +60,6 @@ type ConfigCommon struct {
 	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
 	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty" toml:"zone_master_scheduler_plugin,omitempty"`
 	ZoneIamAccessKey          *iamapi.AccessKey        `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
-	IoConnectors              connect.MultiConnOptions `json:"io_connects" toml:"io_connects"`
 	PodHomeDir                string                   `json:"pod_home_dir" toml:"pod_home_dir"`
 	Options                   types.Labels             `json:"items,omitempty" toml:"items,omitempty"`
 	PprofHttpPort             uint16                   `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
@@ -93,7 +91,7 @@ var (
 		HomeDir:  "/home/action",
 	}
 	InitZoneId       = "local"
-	InitCellId       = "general"
+	InitCellId       = "g1"
 	SysConfigurators = []*inapi.SysConfigurator{}
 )
 
@@ -219,32 +217,6 @@ func (it *ConfigCommon) SetupHost() error {
 //
 
 func (it *ConfigCommon) setupDataConnect() error {
-
-	for _, conn := range it.IoConnectors {
-
-		cfg, err := kvgo.ConfigParse(*conn)
-		if err != nil {
-			continue
-		}
-
-		switch conn.Name {
-
-		case "db_local":
-			if it.DataLocal == nil {
-				it.DataLocal = cfg
-			}
-
-		case "db_global":
-			if it.DataGlobal == nil {
-				it.DataGlobal = cfg
-			}
-
-		case "db_zone":
-			if it.DataZone == nil {
-				it.DataZone = cfg
-			}
-		}
-	}
 
 	if it.DataLocal == nil {
 		it.DataLocal = &kvgo.Config{

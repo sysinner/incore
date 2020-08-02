@@ -19,12 +19,12 @@ import (
 	"strings"
 
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/lynkdb/iomix/sko"
+	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 
 	"github.com/sysinner/incore/data"
 )
 
-func InitData(items []*sko.ClientObjectItem) error {
+func InitData(items []*kv2.ClientObjectItem) error {
 
 	if data.DataGlobal == nil {
 		return fmt.Errorf("data.DataGlobal Not Init")
