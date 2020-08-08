@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/hooto/htoml4g/htoml"
+	iamcfg "github.com/hooto/iam/config"
 	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
@@ -58,6 +59,7 @@ type ConfigCommon struct {
 	Host                      HostMember               `json:"host" toml:"host"`
 	Masters                   inapi.HostNodeAddresses  `json:"masters" toml:"masters"`
 	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
+	IamService                *iamcfg.ConfigCommon     `json:"iam_service,omitempty" toml:"iam_service,omitempty"`
 	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty" toml:"zone_master_scheduler_plugin,omitempty"`
 	ZoneIamAccessKey          *iamapi.AccessKey        `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
 	PodHomeDir                string                   `json:"pod_home_dir" toml:"pod_home_dir"`
