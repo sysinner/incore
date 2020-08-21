@@ -19,8 +19,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 
@@ -220,23 +220,26 @@ func (c Host) ZoneAccChargeKeyRefreshAction() {
 		return
 	}
 
-	init_akacc := iamapi.AccessKey{
+	init_akacc := hauth.AccessKey{
 		User: "sysadmin",
-		AccessKey: "00" + idhash.HashToHexString(
+		Id: "00" + idhash.HashToHexString(
 			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", zone_id)), 14),
-		SecretKey: idhash.RandBase64String(40),
-		Bounds: []iamapi.AccessKeyBound{{
-			Name: "sys/zm/" + zone_id,
-		}},
+		Secret: idhash.RandBase64String(40),
+		Scopes: []*hauth.ScopeFilter{
+			{
+				Name:  "sys/zm",
+				Value: zone_id,
+			},
+		},
 		Description: "ZoneMaster AccCharge",
 	}
-	if err := iam_db.AccessKeyReset(init_akacc); err != nil {
+	if err := iam_db.AccessKeyReset(&init_akacc); err != nil {
 		set.Error = types.NewErrorMeta("500", "database/iam error "+err.Error())
 		return
 	}
 
-	zone.OptionSet("iam/acc_charge/access_key", init_akacc.AccessKey)
-	zone.OptionSet("iam/acc_charge/secret_key", init_akacc.SecretKey)
+	zone.OptionSet("iam/acc_charge/access_key", init_akacc.Id)
+	zone.OptionSet("iam/acc_charge/secret_key", init_akacc.Secret)
 
 	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(zone_id), zone).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta("500", "database/global error "+rs.Message)
@@ -251,7 +254,7 @@ func (c Host) ZoneAccChargeKeyRefreshAction() {
 	}
 
 	hlog.Printf("warn", "ops/zone/acc-charge/key/reset %s, %s...",
-		init_akacc.AccessKey, init_akacc.SecretKey[:20])
+		init_akacc.Id, init_akacc.Secret[:20])
 
 	status.Zone = &zone
 

@@ -47,20 +47,6 @@ func podChargeRefresh() error {
 		return nil
 	}
 
-	/**
-	if v, ok := status.Zone.OptionGet("iam/acc_charge/access_key"); !ok {
-		return nil
-	} else {
-		inCfg.Config.ZoneIamAccessKey.AccessKey = v
-	}
-
-	if v, ok := status.Zone.OptionGet("iam/acc_charge/secret_key"); !ok {
-		return nil
-	} else {
-		inCfg.Config.ZoneIamAccessKey.SecretKey = v
-	}
-	*/
-
 	// TODO
 	pod_specPlans = []*inapi.PodSpecPlan{}
 	if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(

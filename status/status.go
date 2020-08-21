@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
@@ -54,7 +54,7 @@ var (
 	ZonePodServices      struct {
 		Items []*inapi.AppServicePod `json:"items"`
 	}
-	zonePodChargeIamAccessKey = &iamapi.AccessKey{
+	zonePodChargeIamAccessKey = &hauth.AccessKey{
 		User: "sysadmin",
 	}
 	ZoneSysConfigGroupList inapi.SysConfigGroupList
@@ -129,23 +129,13 @@ func GlobalZoneCell(zoneId, cellId string) *inapi.ResCell {
 	return nil
 }
 
-func ZonePodChargeAccessKey() *iamapi.AccessKey {
+func ZonePodChargeAccessKey() *hauth.AccessKey {
 
 	if Zone != nil && len(zonePodChargeIamAccessKey.AccessKey) < 8 {
 
 		if config.Config.ZoneIamAccessKey != nil {
 			zonePodChargeIamAccessKey = config.Config.ZoneIamAccessKey
 		}
-
-		/**
-		if v, ok := Zone.OptionGet("iam/acc_charge/access_key"); ok {
-			zonePodChargeIamAccessKey.AccessKey = v
-		}
-
-		if v, ok := Zone.OptionGet("iam/acc_charge/secret_key"); ok {
-			zonePodChargeIamAccessKey.SecretKey = v
-		}
-		*/
 	}
 
 	return zonePodChargeIamAccessKey

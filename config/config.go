@@ -25,9 +25,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/hooto/htoml4g/htoml"
 	iamcfg "github.com/hooto/iam/config"
-	"github.com/hooto/iam/iamapi"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
@@ -61,7 +61,7 @@ type ConfigCommon struct {
 	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
 	IamService                *iamcfg.ConfigCommon     `json:"iam_service,omitempty" toml:"iam_service,omitempty"`
 	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty" toml:"zone_master_scheduler_plugin,omitempty"`
-	ZoneIamAccessKey          *iamapi.AccessKey        `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
+	ZoneIamAccessKey          *hauth.AccessKey         `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
 	PodHomeDir                string                   `json:"pod_home_dir" toml:"pod_home_dir"`
 	Options                   types.Labels             `json:"items,omitempty" toml:"items,omitempty"`
 	PprofHttpPort             uint16                   `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`

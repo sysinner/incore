@@ -29,7 +29,7 @@ import (
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/status"
 
-	iam_api "github.com/hooto/iam/iamapi"
+	"github.com/hooto/hauth/go/hauth/v1"
 	iam_db "github.com/hooto/iam/store"
 )
 
@@ -126,49 +126,39 @@ func zmWorkerZoneAccessKeySetup() error {
 	}
 
 	if status.Zone == nil {
-		return fmt.Errorf("Zone (%s) Not Found", status.ZoneId)
+		return fmt.Errorf("Zone Not Setup")
 	}
 
-	ak := iam_api.AccessKey{
-		User: "sysadmin",
-		Bounds: []iam_api.AccessKeyBound{{
-			Name: "sys/zm/" + status.ZoneId,
-		}},
-		Description: "ZoneMaster AccCharge",
-	}
-	if v, ok := status.Zone.OptionGet("iam/acc_charge/access_key"); ok {
-		ak.AccessKey = v
-	}
-	if v, ok := status.Zone.OptionGet("iam/acc_charge/secret_key"); ok {
-		ak.SecretKey = v
-	}
+	if config.Config.ZoneIamAccessKey == nil {
 
-	if ak.AccessKey == "" || ak.SecretKey == "" {
-		//
-		ak.AccessKey = "00" + idhash.HashToHexString(
+		akId := "00" + idhash.HashToHexString(
 			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", status.ZoneId)), 14)
 
-		ak.SecretKey = idhash.HashToBase64String(
-			idhash.AlgSha256, []byte(config.Config.Host.SecretKey), 40)
-		//
-		status.Zone.OptionSet("iam/acc_charge/access_key", ak.AccessKey)
-		status.Zone.OptionSet("iam/acc_charge/secret_key", ak.SecretKey)
+		config.Config.ZoneIamAccessKey = iam_db.KeyMgr.KeyGet(akId)
 
-		//
-		if rs := data.DataGlobal.NewWriter(
-			inapi.NsGlobalSysZone(status.ZoneId), status.Zone).Commit(); !rs.OK() {
-			return fmt.Errorf("zone #%s AccessKey Reset Error", status.ZoneId)
-		}
-		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysZone(status.ZoneId), status.Zone).Commit(); !rs.OK() {
-			return fmt.Errorf("zone #%s AccessKey Reset Error", status.ZoneId)
-		}
+		if config.Config.ZoneIamAccessKey == nil {
 
-		hlog.Printf("warn", "zone #%s, reset iam/acc_charge/key, access_key %s, secret_key %s...",
-			status.ZoneId, ak.AccessKey, ak.SecretKey[:8])
+			config.Config.ZoneIamAccessKey = &hauth.AccessKey{
+				Id: akId,
+				Secret: idhash.HashToBase64String(
+					idhash.AlgSha256, []byte(config.Config.Host.SecretKey), 40),
+				User: "sysadmin",
+				Scopes: []*hauth.ScopeFilter{
+					{
+						Name:  "sys/zm",
+						Value: status.ZoneId,
+					},
+				},
+				Description: "ZoneMaster AccCharge",
+			}
+
+			hlog.Printf("warn", "zone #%s, init iam/acc_charge/key, access_key id %s, secret %s...",
+				status.ZoneId, config.Config.ZoneIamAccessKey.Id, config.Config.ZoneIamAccessKey.Secret[:8])
+
+			iam_db.AccessKeyInitData(config.Config.ZoneIamAccessKey)
+			config.Config.Sync()
+		}
 	}
-
-	iam_db.AccessKeyInitData(ak)
 
 	zmAccessKeySetup = true
 
