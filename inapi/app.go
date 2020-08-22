@@ -17,6 +17,7 @@ package inapi
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/lessos/lessgo/types"
@@ -274,8 +275,24 @@ type AppConfigurator struct {
 	Fields AppConfigFields      `json:"fields,omitempty" toml:"fields,omitempty"`
 }
 
+func (it *AppConfigurator) Valid() error {
+
+	if err := it.Name.Valid(); err != nil {
+		return errors.New("invalid name : " + err.Error())
+	}
+
+	name := strings.ToLower(it.Name.String())
+	if !strings.HasPrefix(name, "cfg/") {
+		name = "cfg/" + name
+	}
+	it.Name = types.NameIdentifier(name)
+
+	return nil
+}
+
 const (
 	AppConfigFieldTypeString uint16 = 1
+	AppConfigFieldTypeText   uint16 = 3
 	AppConfigFieldTypeSelect uint16 = 2
 
 	AppConfigFieldAutoFillDefaultValue = "defval"

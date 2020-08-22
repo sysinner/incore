@@ -24,7 +24,7 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 
-	iam_db "github.com/hooto/iam/store"
+	iam_db "github.com/hooto/iam/data"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/status"

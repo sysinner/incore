@@ -23,8 +23,8 @@ import (
 	"strconv"
 	"strings"
 
+	iamdata "github.com/hooto/iam/data"
 	"github.com/hooto/iam/iamapi"
-	iamdata "github.com/hooto/iam/store"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	"golang.org/x/net/publicsuffix"

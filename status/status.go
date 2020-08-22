@@ -131,7 +131,7 @@ func GlobalZoneCell(zoneId, cellId string) *inapi.ResCell {
 
 func ZonePodChargeAccessKey() *hauth.AccessKey {
 
-	if Zone != nil && len(zonePodChargeIamAccessKey.AccessKey) < 8 {
+	if Zone != nil && len(zonePodChargeIamAccessKey.Id) < 8 {
 
 		if config.Config.ZoneIamAccessKey != nil {
 			zonePodChargeIamAccessKey = config.Config.ZoneIamAccessKey

@@ -770,8 +770,8 @@ func (c AppSpec) CfgSetAction() {
 		return
 	}
 
-	if err := req.Configurator.Name.Valid(); err != nil {
-		set.Error = types.NewErrorMeta("400", "Invalid Configurator Name: "+err.Error())
+	if err := req.Configurator.Valid(); err != nil {
+		set.Error = types.NewErrorMeta("400", err.Error())
 		return
 	}
 	for _, v := range req.Configurator.Fields {

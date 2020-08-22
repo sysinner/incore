@@ -30,7 +30,7 @@ import (
 	"github.com/sysinner/incore/status"
 
 	"github.com/hooto/hauth/go/hauth/v1"
-	iam_db "github.com/hooto/iam/store"
+	iamdata "github.com/hooto/iam/data"
 )
 
 var (
@@ -134,7 +134,7 @@ func zmWorkerZoneAccessKeySetup() error {
 		akId := "00" + idhash.HashToHexString(
 			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", status.ZoneId)), 14)
 
-		config.Config.ZoneIamAccessKey = iam_db.KeyMgr.KeyGet(akId)
+		config.Config.ZoneIamAccessKey = iamdata.KeyMgr.KeyGet(akId)
 
 		if config.Config.ZoneIamAccessKey == nil {
 
@@ -155,7 +155,7 @@ func zmWorkerZoneAccessKeySetup() error {
 			hlog.Printf("warn", "zone #%s, init iam/acc_charge/key, access_key id %s, secret %s...",
 				status.ZoneId, config.Config.ZoneIamAccessKey.Id, config.Config.ZoneIamAccessKey.Secret[:8])
 
-			iam_db.AccessKeyInitData(config.Config.ZoneIamAccessKey)
+			iamdata.AccessKeyInitData(config.Config.ZoneIamAccessKey)
 			config.Config.Sync()
 		}
 	}
