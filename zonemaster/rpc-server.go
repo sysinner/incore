@@ -37,7 +37,9 @@ var (
 	zmMu sync.Mutex
 )
 
-type ApiZoneMaster struct{}
+type ApiZoneMaster struct {
+	inapi.UnimplementedApiZoneMasterServer
+}
 
 func (s *ApiZoneMaster) HostStatusSync(
 	ctx context.Context,

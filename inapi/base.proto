@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package inapi;
 
+option go_package = ".;inapi";
+
 message ErrorMeta {
     string code    = 1;
     string message = 2;

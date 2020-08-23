@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package inapi;
 
+option go_package = ".;inapi";
+
 enum MailType {
 	TEXT = 0;
 	HTML = 1;

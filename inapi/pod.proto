@@ -16,9 +16,11 @@ syntax = "proto3";
 
 package inapi;
 
-import "inapi/base.proto";
-import "inapi/operator.proto";
-import "inapi/stats.proto";
+option go_package = ".;inapi";
+
+import "base.proto";
+import "operator.proto";
+import "stats.proto";
 
 message HealthStatus {
     uint32 part_id  = 1; // struct:object_slice_key

@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package inapi;
 
+option go_package = ".;inapi";
+
 message PbOpLogEntry {
     string name    = 1; // struct:object_slice_key
     string status  = 2;

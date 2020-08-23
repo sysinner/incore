@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package inapi;
 
+option go_package = ".;inapi";
+
 // host
 message AppSpecDepend {
     string id = 1; // struct:object_slice_key

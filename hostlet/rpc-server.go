@@ -25,7 +25,9 @@ import (
 	"github.com/sysinner/incore/status"
 )
 
-type ApiHostMember struct{}
+type ApiHostMember struct {
+	inapi.UnimplementedApiHostMemberServer
+}
 
 func (s *ApiHostMember) HostJoin(
 	ctx context.Context,

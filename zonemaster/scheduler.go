@@ -31,7 +31,7 @@ import (
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	typeScheduler "github.com/sysinner/incore/inapi/scheduler"
-	pScheduler "github.com/sysinner/incore/plugin/scheduler"
+	pScheduler "github.com/sysinner/incore/module/scheduler"
 	"github.com/sysinner/incore/status"
 )
 
@@ -72,7 +72,7 @@ func SetupScheduler() error {
 
 	if inCfg.Config.ZoneMasterSchedulerPlugin != "" {
 
-		p, err := plugin.Open(inCfg.Prefix + "/plugin/" + inCfg.Config.ZoneMasterSchedulerPlugin)
+		p, err := plugin.Open(inCfg.Prefix + "/module/" + inCfg.Config.ZoneMasterSchedulerPlugin)
 		if err != nil {
 			return err
 		}

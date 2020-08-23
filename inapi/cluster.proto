@@ -16,9 +16,11 @@ syntax = "proto3";
 
 package inapi;
 
-import "inapi/base.proto";
-import "inapi/pod.proto";
-import "inapi/stats.proto";
+option go_package = ".;inapi";
+
+import "base.proto";
+import "pod.proto";
+import "stats.proto";
 
 // volume
 message ResVolValue {

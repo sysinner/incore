@@ -14,8 +14,9 @@
 
 package inapi
 
-//go:generate protoc --go_out=plugins=grpc:. inapi/*.proto
-//go:generate protobuf_slice "inapi/*.proto"
+//go:generate protoc --proto_path=./ --go_opt=paths=source_relative --go_out=./ --go-grpc_out=./ app.proto base.proto cluster.proto mail.proto operator.proto pod.proto stats.proto
+//go:generate protobuf_slice "*.proto"
+//go:generate htoml-tag-fix ./
 
 import (
 	"fmt"
