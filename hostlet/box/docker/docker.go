@@ -680,7 +680,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				StorageOpt: map[string]string{
 					// "size": "10G", // TODO
 				},
-				RestartPolicy: drvClient.AlwaysRestart(),
+				RestartPolicy: drvClient.RestartUnlessStopped(),
 			},
 		})
 

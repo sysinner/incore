@@ -20,6 +20,7 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/hooto/iam/iamclient"
 
+	incfg "github.com/sysinner/incore/config"
 	status "github.com/sysinner/incore/status"
 	"github.com/sysinner/inpanel"
 )
@@ -52,6 +53,11 @@ func (c Index) IndexAction() {
 		cfgTitle = html.EscapeString(cfgTitle)
 	}
 
+	siteUrl := "https://www.sysinner.com"
+	if incfg.Config.ZoneMaster != nil && incfg.Config.ZoneMaster.LocaleLang == "zh-CN" {
+		siteUrl = "https://www.sysinner.cn"
+	}
+
 	c.RenderString(`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,8 +88,7 @@ func (c Index) IndexAction() {
     <div class="status status_dark" id="incp-well-status">loading</div>
   </div>
   <div class="footer">
-    <span class="copy">&copy;2020&nbsp;</span>
-    <span class="url-info">Powered by <a href="https://www.sysinner.com" target="_blank">InnerStack</a></span>
+    <span class="url-info">Powered by <a href="` + siteUrl + `" target="_blank">InnerStack</a></span>
   </div>
 </div>
 </div>

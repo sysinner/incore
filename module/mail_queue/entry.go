@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package zjob
+package mail_queue
 
 import (
 	"errors"
 
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/hooto/iam/iamapi"
+	"github.com/hooto/hmsg/go/hmsg/v1"
 	"github.com/hooto/iam/iamclient"
 
 	"github.com/sysinner/incore/config"
@@ -57,7 +57,7 @@ func (it *MailQueue) Run(ctx *injob.Context) error {
 
 	for _, v := range rs.Items {
 
-		var item iamapi.MsgItem
+		var item hmsg.MsgItem
 		if err := v.Decode(&item); err != nil {
 			continue
 		}

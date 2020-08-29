@@ -124,7 +124,7 @@ func zoneMasterSync() error {
 			}
 			if len(ms) > 0 && !config.Config.Masters.Equal(ms) {
 				config.Config.Masters = ms
-				config.Config.Sync()
+				config.Config.Flush()
 				hlog.Printf("info", "hostlet/config/masters refreshed")
 			}
 		}
@@ -169,7 +169,7 @@ func zoneMasterSync() error {
 
 		if chg {
 			config.Config.ImageServices = zms.ImageServices
-			config.Config.Sync()
+			config.Config.Flush()
 			hlog.Printf("info", "hostlet/config refreshed, image-services %d", len(zms.ImageServices))
 		}
 	}
@@ -212,7 +212,7 @@ func zoneMasterSync() error {
 
 	if len(zms.ZoneInpackServiceUrl) > 10 && zms.ZoneInpackServiceUrl != config.Config.InpackServiceUrl {
 		config.Config.InpackServiceUrl = zms.ZoneInpackServiceUrl
-		config.Config.Sync()
+		config.Config.Flush()
 	}
 
 	if err := podVolQuotaRefresh(); err != nil {

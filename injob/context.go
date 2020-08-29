@@ -15,6 +15,7 @@
 package injob
 
 import (
+	"github.com/hooto/hmsg/go/hmsg/v1"
 	"github.com/sysinner/incore/inapi"
 )
 
@@ -26,4 +27,5 @@ type Context struct {
 	ZonePodList       *inapi.PodList
 	ZonePodStatusList *inapi.PodStatusList
 	IsZoneLeader      bool
+	ZoneMailManager   *hmsg.MailManager
 }

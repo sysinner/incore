@@ -156,7 +156,7 @@ func zmWorkerZoneAccessKeySetup() error {
 				status.ZoneId, config.Config.ZoneIamAccessKey.Id, config.Config.ZoneIamAccessKey.Secret[:8])
 
 			iamdata.AccessKeyInitData(config.Config.ZoneIamAccessKey)
-			config.Config.Sync()
+			config.Config.Flush()
 		}
 	}
 

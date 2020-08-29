@@ -47,36 +47,38 @@ type HostMember struct {
 }
 
 type ZoneMaster struct {
-	MultiZoneEnable    bool `json:"multi_zone_enable,omitempty" toml:"multi_zone_enable,omitempty"`
-	MultiCellEnable    bool `json:"multi_cell_enable" toml:"multi_cell_enable"`
-	MultiHostEnable    bool `json:"multi_host_enable" toml:"multi_host_enable"`
-	MultiReplicaEnable bool `json:"multi_replica_enable" toml:"multi_replica_enable"`
+	DataNode           *kvgo.Config `json:"data_node" toml:"data_node"`
+	DataTableZone      string       `json:"data_table_zone" toml:"data_table_zone"`
+	DataTableGlobal    string       `json:"data_table_global" toml:"data_table_global"`
+	DataTableInpack    string       `json:"data_table_inpack" toml:"data_table_inpack"`
+	MultiZoneEnable    bool         `json:"multi_zone_enable,omitempty" toml:"multi_zone_enable,omitempty"`
+	MultiCellEnable    bool         `json:"multi_cell_enable" toml:"multi_cell_enable"`
+	MultiHostEnable    bool         `json:"multi_host_enable" toml:"multi_host_enable"`
+	MultiReplicaEnable bool         `json:"multi_replica_enable" toml:"multi_replica_enable"`
+	SchedulerPlugin    string       `json:"scheduler_plugin,omitempty" toml:"scheduler_plugin,omitempty"`
+	LocaleLang         string       `json:"locale_lang,omitempty" toml:"locale_lang,omitempty" desc:"locale language name. default: en"`
 }
 
 type ConfigCommon struct {
-	filepath                  string                   `json:"-" toml:"-"`
-	InstanceId                string                   `json:"instance_id" toml:"instance_id"`
-	Host                      HostMember               `json:"host" toml:"host"`
-	Masters                   inapi.HostNodeAddresses  `json:"masters" toml:"masters"`
-	ZoneMaster                *ZoneMaster              `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
-	IamService                *iamcfg.ConfigCommon     `json:"iam_service,omitempty" toml:"iam_service,omitempty"`
-	ZoneMasterSchedulerPlugin string                   `json:"zone_master_scheduler_plugin,omitempty" toml:"zone_master_scheduler_plugin,omitempty"`
-	ZoneIamAccessKey          *hauth.AccessKey         `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
-	PodHomeDir                string                   `json:"pod_home_dir" toml:"pod_home_dir"`
-	Options                   types.Labels             `json:"items,omitempty" toml:"items,omitempty"`
-	PprofHttpPort             uint16                   `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
-	InpackServiceUrl          string                   `json:"inpack_service_url,omitempty" toml:"inpack_service_url,omitempty"`
-	InpanelServiceUrl         string                   `json:"inpanel_service_url,omitempty" toml:"inpanel_service_url,omitempty"`
-	IamServiceUrlFrontend     string                   `json:"iam_service_url_frontend,omitempty" toml:"iam_service_url_frontend,omitempty"`
-	IamServiceUrlGlobal       string                   `json:"iam_service_url_global,omitempty" toml:"iam_service_url_global,omitempty"`
-	LxcFsEnable               bool                     `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
-	ImageServices             []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
-	DataLocal                 *kvgo.Config             `json:"data_local,omitempty" toml:"data_local,omitempty"`
-	DataZone                  *kvgo.Config             `json:"data_zone,omitempty" toml:"data_zone,omitempty"`
-	DataGlobal                *kvgo.Config             `json:"data_global,omitempty" toml:"data_global,omitempty"`
+	filepath              string                   `json:"-" toml:"-"`
+	InstanceId            string                   `json:"instance_id" toml:"instance_id"`
+	Host                  HostMember               `json:"host" toml:"host"`
+	Masters               inapi.HostNodeAddresses  `json:"masters" toml:"masters"`
+	ZoneMaster            *ZoneMaster              `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
+	IamService            *iamcfg.ConfigCommon     `json:"iam_service,omitempty" toml:"iam_service,omitempty"`
+	ZoneIamAccessKey      *hauth.AccessKey         `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
+	PodHomeDir            string                   `json:"pod_home_dir" toml:"pod_home_dir"`
+	Options               types.Labels             `json:"items,omitempty" toml:"items,omitempty"`
+	PprofHttpPort         uint16                   `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
+	InpackServiceUrl      string                   `json:"inpack_service_url,omitempty" toml:"inpack_service_url,omitempty"`
+	InpanelServiceUrl     string                   `json:"inpanel_service_url,omitempty" toml:"inpanel_service_url,omitempty"`
+	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty" toml:"iam_service_url_frontend,omitempty"`
+	IamServiceUrlGlobal   string                   `json:"iam_service_url_global,omitempty" toml:"iam_service_url_global,omitempty"`
+	LxcFsEnable           bool                     `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
+	ImageServices         []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
 }
 
-func (cfg *ConfigCommon) Sync() error {
+func (cfg *ConfigCommon) Flush() error {
 	if cfg.filepath != "" {
 		return htoml.EncodeToFile(Config, cfg.filepath, nil)
 	}
@@ -147,23 +149,22 @@ func Setup() error {
 			Config.Host.LanAddr.IP(), Config.Host.HttpPort)
 	}
 
+	if Config.ZoneMaster != nil && Config.ZoneMaster.LocaleLang == "" {
+		Config.ZoneMaster.LocaleLang = "en"
+	}
+
 	if err := setupUser(); err != nil {
 		return err
 	}
 
-	//
-	if err := Config.setupDataConnect(); err != nil {
-		return err
-	}
-
-	return Config.Sync()
+	return Config.Flush()
 }
 
 func (it *ConfigCommon) SetupHost() error {
 
 	if len(Config.Host.Id) < 16 {
 		Config.Host.Id = idhash.RandHexString(16)
-		Config.Sync()
+		Config.Flush()
 	}
 
 	// Private IPv4
@@ -210,22 +211,7 @@ func (it *ConfigCommon) SetupHost() error {
 
 	if len(Config.Host.SecretKey) < 32 {
 		Config.Host.SecretKey = idhash.RandBase64String(40)
-		Config.Sync()
-	}
-
-	return nil
-}
-
-//
-
-func (it *ConfigCommon) setupDataConnect() error {
-
-	if it.DataLocal == nil {
-		it.DataLocal = &kvgo.Config{
-			Storage: kvgo.ConfigStorage{
-				DataDirectory: Prefix + "/var/db_local",
-			},
-		}
+		Config.Flush()
 	}
 
 	return nil
@@ -256,6 +242,9 @@ func setupUser() error {
 func IsZoneMaster() bool {
 	for _, v := range Config.Masters {
 		if Config.Host.LanAddr == v {
+			if Config.ZoneMaster == nil {
+				Config.ZoneMaster = &ZoneMaster{}
+			}
 			return true
 		}
 	}

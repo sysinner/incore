@@ -633,6 +633,9 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			StorageOpt: map[string]string{
 				"size": "10G",
 			},
+			RestartPolicy: &drvClientTypes.RestartPolicy{
+				Name: "unless-stopped",
+			},
 		}
 		bpNetworkingConfig := &drvClientTypes.NetworkingConfig{
 			//

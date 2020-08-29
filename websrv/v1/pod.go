@@ -982,7 +982,7 @@ func (c Pod) AccessSetAction() {
 
 				v = strings.TrimSpace(v)
 
-				if len(v) < 512 && len(v) > 128 {
+				if len(v) < 2048 && len(v) > 128 {
 					keySets = append(keySets, v)
 				}
 			}

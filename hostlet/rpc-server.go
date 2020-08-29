@@ -80,7 +80,7 @@ func (s *ApiHostMember) HostJoin(
 
 	status.ZoneHostSecretKeys.Set(status.Host.Meta.Id, config.Config.Host.SecretKey)
 
-	config.Config.Sync()
+	config.Config.Flush()
 	hlog.Printf("warn", "zone-master node join zone:%s", config.Config.Host.ZoneId)
 
 	return &status.Host, nil

@@ -18,28 +18,6 @@ package inapi;
 
 option go_package = ".;inapi";
 
-enum MailType {
-	TEXT = 0;
-	HTML = 1;
-}
-
-message MailTemplate {
-	string name = 1;
-	string title = 2;
-	string body = 3;
-	MailType type = 4;
-}
-
-message MailEntry {
-	string id = 1;
-	string to_user = 3;
-	string from_user = 5;
-	string title = 8;
-	string body = 9;
-	MailType type = 11;
-	uint32 created = 14;
-}
-
 message MailPodStatus {
 	message PodReplica {
 		uint32 id = 1;
@@ -47,6 +25,7 @@ message MailPodStatus {
 	}
 	message Pod {
 		string pod_id = 1;
+		string pod_name = 9;
 		string zone_name = 2;
 		string cell_name = 3;
 		int32 spec_cpu = 5;

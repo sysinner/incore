@@ -132,6 +132,32 @@ func podRepListCtrlRefresh() error {
 		boxDels = []string{}
 	)
 
+	for _, repId := range nstatus.PodRepStops {
+
+		inst := nstatus.BoxActives.Get(repId)
+		if inst == nil {
+			continue
+		}
+
+		if inapi.OpActionAllow(inst.Status.Action, inapi.OpActionStopped) ||
+			!inapi.OpActionAllow(inst.Status.Action, inapi.OpActionRunning) {
+			continue
+		}
+
+		drv := boxDrivers.Get(inst.Spec.Image.Driver)
+		if drv == nil {
+			continue
+		}
+
+		if err := drv.BoxStop(inst); err != nil {
+			hlog.Printf("info", "hostlet rep %s:%d, driver %s stop err %s",
+				inst.PodID, inst.Replica.RepId, inst.Spec.Image.Driver, err.Error())
+		} else {
+			hlog.Printf("info", "hostlet rep %s:%d, driver %s stop ok",
+				inst.PodID, inst.Replica.RepId, inst.Spec.Image.Driver)
+		}
+	}
+
 	for _, pod := range nstatus.PodRepActives {
 
 		if inapi.OpActionAllow(pod.Replica.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {

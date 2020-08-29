@@ -402,7 +402,7 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 	}
 	if len(masters) > 0 {
 		config.Config.Masters = masters
-		config.Config.Sync()
+		config.Config.Flush()
 	}
 
 	//

@@ -12,69 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package zjob
+package pod_status_mail
 
 import (
 	"errors"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/hmsg/go/hmsg/v1"
 	"github.com/hooto/iam/iamapi"
-	"github.com/lessos/lessgo/crypto/idhash"
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/injob"
-	"github.com/sysinner/incore/inutils/tplrender"
-)
-
-var (
-	podStatusMailTemplate = &inapi.MailTemplate{
-		Name:  "pod/status/mail",
-		Title: "Pod Status of Week {{.WeekNum}}",
-		Body: `<html>
-<body>
-<h2>Pod Status of Week {{.WeekNum}}</h2>
-<div>
-<table cellpadding="5" align="left">
-<thead>
-<tr>
-<th>Pod</th>
-<th>Location</th>
-<th>CPU/RAM</th>
-<th>Storage</th>
-<th>Storage Usage of Replicas</th>
-<th>Cost in running</th>
-</tr>
-</thead>
-<tbody>
-{{range $v := .Items}}
-<tr>
-<td>{{$v.PodId}}</td>
-<td>{{$v.ZoneName}} / {{$v.CellName}}</td>
-<td>{{$v.SpecCpu}} m / {{$v.SpecMem}} MB</td>
-<td>{{$v.SpecVol}} GB</td>
-<td>
-{{range $v2 := $v.Reps}}
-<div>#{{$v2.Id}} {{$v2.VolUsed}} MB</div>
-{{end}}
-</td>
-<td>{{$v.PaymentCycleAmount}}/Hour</td>
-</tr>
-{{end}}
-</tbody>
-</table>
-</div>
-
-<h2>Notice</h2>
-<div>
-this message was auto created by InnerStack, please do not reply to this message. Mail sent to this address cannot be answered.
-</div>
-</body>
-</html>
-`,
-		Type: inapi.MailType_HTML,
-	}
 )
 
 type PodStatusMail struct {
@@ -92,12 +42,20 @@ func (it *PodStatusMail) Run(ctx *injob.Context) error {
 	}
 
 	if ctx.Zone == nil {
-		return errors.New("invalid ctx.ZoneId")
+		return errors.New("no ctx.ZoneId setup")
 	}
 
 	if ctx.ZonePodStatusList == nil ||
 		len(ctx.ZonePodStatusList.Items) < 1 {
-		return errors.New("invalid ctx.ZonePodStatusList")
+		return errors.New("no ctx.ZonePodStatusList setup")
+	}
+
+	if ctx.ZoneMailManager == nil {
+		return errors.New("no ctx.ZoneMailManager setup")
+	}
+
+	if err := ctx.ZoneMailManager.TemplateSet(podStatusMailTemplate); err != nil {
+		return err
 	}
 
 	var (
@@ -142,6 +100,7 @@ func (it *PodStatusMail) Run(ctx *injob.Context) error {
 
 			item := &inapi.MailPodStatus_Pod{
 				PodId:              pod.Meta.ID,
+				PodName:            pod.Meta.Name,
 				ZoneName:           pod.Spec.Zone,
 				CellName:           pod.Spec.Cell,
 				SpecCpu:            pod.Spec.Box.Resources.CpuLimit * 100,
@@ -173,24 +132,18 @@ func (it *PodStatusMail) Run(ctx *injob.Context) error {
 			set.Items = append(set.Items, item)
 		}
 
-		tbs, err := tplrender.Render(podStatusMailTemplate.Title, set)
+		mail, err := ctx.ZoneMailManager.TemplateRender(
+			podStatusMailTemplate.Name, "", set)
 		if err != nil {
 			return err
 		}
 
-		bbs, err := tplrender.Render(podStatusMailTemplate.Body, set)
-		if err != nil {
-			return err
-		}
-
-		msg := iamapi.MsgItem{
-			Id:      idhash.HashToHexString([]byte(it.Name()+user), 16),
-			Created: tn,
-			ToUser:  user,
-			Title:   string(tbs),
-			Body:    string(bbs),
-			Type:    iamapi.MsgType(podStatusMailTemplate.Type),
-		}
+		msg := hmsg.NewMsgItem(hmsg.HashSeed(it.Name() + user))
+		msg.ToUser = user
+		msg.Title = mail.Title
+		msg.Body = mail.Body
+		msg.Type = mail.BodyType
+		msg.Created = tn
 
 		if rs := data.DataZone.NewWriter(
 			inapi.NsZoneMailQueue(msg.SentId()), msg).Commit(); !rs.OK() {

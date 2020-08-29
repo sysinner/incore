@@ -22,6 +22,7 @@ import (
 
 	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/hmsg/go/hmsg/v1"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
 
@@ -60,6 +61,7 @@ var (
 	ZoneSysConfigGroupList inapi.SysConfigGroupList
 	ZoneLeaded             int64 = 0
 	ZoneScheduled          int64 = 0
+	ZoneMailManager              = hmsg.NewMailManager()
 
 	// global cluster
 	gmu            sync.RWMutex
@@ -74,6 +76,7 @@ func JobContextRefresh() *injob.Context {
 		ZonePodList:       ZonePodList,
 		ZonePodStatusList: ZonePodStatusList,
 		IsZoneLeader:      IsZoneMasterLeader(),
+		ZoneMailManager:   ZoneMailManager,
 	}
 }
 
@@ -195,6 +198,11 @@ func Init() error {
 	if config.IsZoneMaster() {
 		json.DecodeFile(config.Prefix+"/etc/zm-pod-services.json", &ZonePodServices)
 		hlog.Printf("info", "status/zone/pod/service refreshed %d", len(ZonePodServices.Items))
+	}
+
+	if config.Config.ZoneMaster != nil &&
+		config.Config.ZoneMaster.LocaleLang != "" {
+		ZoneMailManager.LocaleLangSet(config.Config.ZoneMaster.LocaleLang)
 	}
 
 	inited = true

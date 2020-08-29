@@ -20,25 +20,65 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/hooto/hmsg/go/hmsg/v1"
 	"github.com/hooto/iam/iamapi"
-	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/status"
 )
 
-var (
-	podTransferEmailTemplate = `A Pod transfer issue was created by %s that to change the owner to you (%s). please login to the management console and manually confirm this issue use next URL.
+var podTransferEmailTemplate = &hmsg.MailTemplateEntry{
+	Name: "zone/pod/transfer/confirm-mail",
+	Items: []*hmsg.MailTemplateLang{
+		{
+			Lang:  "en",
+			Title: "Pod Transfer Issue Alert",
+			Body: `A Pod transfer issue was created by {{.FromUser}} that to change the owner to you ({{.ToUser}}).
+please login to the management console and manually confirm this issue use next URL.
 
-Management Console: %s
-Pod ID: %s
+Management Console: {{.ConsoleUrl}}
+Pod ID: {{.PodId}}
+Pod Name: {{.PodName}}
 
 ====
 Please do not reply to this message. Mail sent to this address cannot be answered.
-`
-)
+`,
+			BodyType: hmsg.MsgContentType_TextPlain,
+			Version:  1,
+		},
+		{
+			Lang:  "zh-CN",
+			Title: "Pod 所有权转移提醒",
+			Body: `有一个 Pod 转移工单已经被 {{.FromUser}} 创建, 它会将 Pod 所有人变更为你 ({{.ToUser}}), 
+请登录管理控制台确认这项操作:
+
+管理控制台: {{.ConsoleUrl}}
+Pod ID: {{.PodId}}
+Pod 名称: {{.PodName}}
+
+====
+本邮件消息由系统自动创建，请不要回复此邮件。
+`,
+			BodyType: hmsg.MsgContentType_TextPlain,
+			Version:  1,
+		},
+	},
+}
+
+func init() {
+	status.ZoneMailManager.TemplateSet(podTransferEmailTemplate)
+}
+
+type userTransferData struct {
+	ToUser     string
+	FromUser   string
+	ConsoleUrl string
+	PodId      string
+	PodName    string
+}
 
 func (c Pod) UserTransferAction() {
 
@@ -106,19 +146,31 @@ func (c Pod) UserTransferAction() {
 		return
 	}
 
-	if err := iamclient.SysMsgPost(iamapi.MsgItem{
-		ToUser: set.UserTo,
-		Title:  "Pod Transfer Issue Alert",
-		Body: fmt.Sprintf(podTransferEmailTemplate,
-			prev.Meta.User,
-			set.UserTo,
-			config.Config.InpanelServiceUrl,
-			set.Id,
-		),
-	}, config.Config.ZoneIamAccessKey); err == nil {
-		hlog.Printf("info", "zm/v1 msg post ok")
-	} else {
-		hlog.Printf("info", "zm/v1 msg post err %s", err.Error())
+	item := userTransferData{
+		FromUser:   prev.Meta.User,
+		ToUser:     set.UserTo,
+		ConsoleUrl: config.Config.InpanelServiceUrl,
+		PodId:      set.Id,
+		PodName:    set.Name,
+	}
+
+	mail, err := status.ZoneMailManager.TemplateRender(
+		podTransferEmailTemplate.Name, "", item)
+	if err != nil {
+		rsp.Error = types.NewErrorMeta("500", err.Error())
+		return
+	}
+
+	msg := hmsg.NewMsgItem(hmsg.HashSeed(podTransferEmailTemplate.Name + item.PodId + item.ToUser))
+	msg.ToUser = item.ToUser
+	msg.Title = mail.Title
+	msg.Body = mail.Body
+	msg.Type = mail.BodyType
+
+	if rs := data.DataZone.NewWriter(
+		inapi.NsZoneMailQueue(msg.SentId()), msg).Commit(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta("500", rs.Message)
+		return
 	}
 
 	rsp.Kind = "PodInstance"

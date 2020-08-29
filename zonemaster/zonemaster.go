@@ -22,8 +22,9 @@ import (
 	iamWorker "github.com/hooto/iam/worker"
 
 	"github.com/sysinner/incore/injob"
+	"github.com/sysinner/incore/module/mail_queue"
+	"github.com/sysinner/incore/module/pod_status_mail"
 	"github.com/sysinner/incore/status"
-	"github.com/sysinner/incore/zonemaster/zjob"
 )
 
 var (
@@ -49,8 +50,8 @@ func Start() error {
 		return err
 	}
 
-	jobDaemon.Commit(zjob.NewPodStatusMailJobEntry())
-	jobDaemon.Commit(zjob.NewMailQueueJobEntry())
+	jobDaemon.Commit(pod_status_mail.NewPodStatusMailJobEntry())
+	jobDaemon.Commit(mail_queue.NewMailQueueJobEntry())
 
 	go jobDaemon.Start()
 

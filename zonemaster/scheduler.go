@@ -23,10 +23,10 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/iam/iamapi"
-	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 
+	"github.com/hooto/iam/iamclient"
 	inCfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
@@ -43,13 +43,6 @@ var (
 	hostResUsages     = map[string]*hostUsageItem{}
 	scheduleHostList  typeScheduler.ScheduleHostList
 	errServerError    = errors.New("server error")
-	haEmailTemplate   = `A availability issue was detected (Pod %s, Replica %d) by InnerStack. please login to the management console and manually confirm this issue and execute the failover task.
-
-Management Console: %s 
-
-====
-Please do not reply to this message. Mail sent to this address cannot be answered.
-`
 )
 
 type destResReplica struct {
@@ -70,9 +63,13 @@ type hostUsageItem struct {
 
 func SetupScheduler() error {
 
-	if inCfg.Config.ZoneMasterSchedulerPlugin != "" {
+	if inCfg.Config.ZoneMaster == nil {
+		return errors.New("no zone-master setup")
+	}
 
-		p, err := plugin.Open(inCfg.Prefix + "/module/" + inCfg.Config.ZoneMasterSchedulerPlugin)
+	if inCfg.Config.ZoneMaster.SchedulerPlugin != "" {
+
+		p, err := plugin.Open(inCfg.Prefix + "/module/" + inCfg.Config.ZoneMaster.SchedulerPlugin)
 		if err != nil {
 			return err
 		}
@@ -1744,11 +1741,7 @@ func schedulePodFailover(podq *inapi.Pod) error {
 
 			if !inapi.OpActionAllow(foRep.Action, inapi.HealthFailoverMsgSent) {
 
-				if err := iamclient.SysMsgPost(iamapi.MsgItem{
-					ToUser: podq.Meta.User,
-					Title:  "Availability Issue Alert",
-					Body:   fmt.Sprintf(haEmailTemplate, podq.Meta.ID, repId, inCfg.Config.InpanelServiceUrl),
-				}, inCfg.Config.ZoneIamAccessKey); err == nil {
+				if err := haEmailAction(podq, repId); err == nil {
 					foRep.Action = inapi.HealthFailoverMsgSent
 					hlog.Printf("info", "zm/scheduler msg/failover-event post ok")
 				} else {
@@ -1847,11 +1840,7 @@ func schedulePodFailover(podq *inapi.Pod) error {
 
 		if !inapi.OpActionAllow(foRep.Action, inapi.HealthFailoverMsgSent) {
 
-			if err := iamclient.SysMsgPost(iamapi.MsgItem{
-				ToUser: podq.Meta.User,
-				Title:  "Availability Issue Alert",
-				Body:   fmt.Sprintf(haEmailTemplate, podq.Meta.ID, repId, inCfg.Config.InpanelServiceUrl),
-			}, inCfg.Config.ZoneIamAccessKey); err == nil {
+			if err := haEmailAction(podq, repId); err == nil {
 				foRep.Action = inapi.HealthFailoverMsgSent
 				hlog.Printf("info", "zm/scheduler msg/failover-event post ok")
 			} else {
