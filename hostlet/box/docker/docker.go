@@ -57,7 +57,8 @@ var (
 		"swaps",
 		"uptime",
 	}
-	err error
+	err                     error
+	cfgStorageOptSizeEnable = true
 )
 
 func NewDriver() (napi.BoxDriver, error) {
@@ -643,6 +644,11 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 		// hlog.Printf("info", "hostlet/box Create %s, hosts %s", inst.Name, strings.Join(extHosts, ","))
 
+		storOpt := map[string]string{}
+		if cfgStorageOptSizeEnable {
+			storOpt["size"] = "10G"
+		}
+
 		boxInspect, err := tp.client.CreateContainer(drvClient.CreateContainerOptions{
 			Name: inst.Name,
 			Config: &drvClient.Config{
@@ -673,14 +679,16 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 						Hard: 30000,
 					},
 				},
-				StorageOpt: map[string]string{
-					// "size": "10G", // TODO
-				},
+				StorageOpt:    storOpt,
 				RestartPolicy: drvClient.RestartUnlessStopped(),
 			},
 		})
 
 		if err != nil && !strings.Contains(err.Error(), "container already exists") {
+			// --storage-opt is supported only for overlay over xfs with 'pquota' mount option
+			if strings.Contains(err.Error(), "storage-opt") {
+				cfgStorageOptSizeEnable = false
+			}
 			if strings.Contains(err.Error(), "no such image") {
 				tp.imageSets.Del(imageName)
 			}
@@ -713,7 +721,8 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 			hlog.Printf("info", "hostlet/box Start %s, Error %v", inst.Name, err)
 
-			if strings.Contains(err.Error(), "OCI runtime create failed") {
+			if strings.Contains(err.Error(), "OCI runtime create failed") ||
+				strings.Contains(err.Error(), "storage-opt") {
 
 				if err = tp.client.RemoveContainer(drvClient.RemoveContainerOptions{
 					ID:    inst.ID,

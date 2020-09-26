@@ -56,6 +56,10 @@ type ZoneMainJob struct {
 	hs     *httpsrv.Service
 }
 
+var (
+	err error
+)
+
 func NewZoneMainJob() *injob.JobEntry {
 	return injob.NewJobEntry(&ZoneMainJob{},
 		injob.NewSchedule().EveryTimeCycle(injob.Second, 3))
@@ -303,10 +307,6 @@ func (it *ZoneMainJob) init() error {
 
 		if err := SetupScheduler(); err != nil {
 			return fmt.Errorf("ic_zm.SetupScheduler err %s", err.Error())
-		}
-
-		if err := Start(); err != nil {
-			return fmt.Errorf("ic_zm.Start err %s", err.Error())
 		}
 
 		if err := instatus.ZoneMailManager.TemplateLoad(incfg.Prefix + "/etc"); err != nil {

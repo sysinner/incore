@@ -14,6 +14,7 @@
 
 package zonemaster
 
+/**
 import (
 	"sync"
 	"time"
@@ -33,6 +34,7 @@ var (
 	jobDaemon *injob.Daemon
 	err       error
 )
+
 
 func Start() error {
 
@@ -88,3 +90,4 @@ func Start() error {
 
 	return nil
 }
+*/

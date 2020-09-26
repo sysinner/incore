@@ -166,6 +166,12 @@ func (it *BoxInstanceStatsFeed) Set(name string, value int64) {
 	})
 }
 
+type BoxPackMount struct {
+	Name     string `json:"name"`
+	Version  string `json:"version"`
+	HostPath string `json:"host_path"`
+}
+
 type BoxInstance struct {
 	mu            sync.Mutex
 	statusPending bool
@@ -185,6 +191,7 @@ type BoxInstance struct {
 	Stats         *inapi.PbStatsSampleFeed `json:"-"`
 	SysVolSynced  int64                    `json:"sys_vol_synced"`
 	SpecCpuSets   []int32                  `json:"spec_cpu_sets"`
+	PackMounts    []*BoxPackMount          `json:"pack_mounts"`
 }
 
 func BoxInstanceName(podId string, repId uint32) string {
@@ -417,6 +424,7 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 		},
 	}
 
+	/**
 	for _, app := range inst.Apps {
 
 		if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
@@ -432,6 +440,16 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 				ReadOnly:  true,
 			})
 		}
+	}
+	*/
+
+	for _, vm := range inst.PackMounts {
+		ls, _ = inapi.PbVolumeMountSliceSync(ls, &inapi.PbVolumeMount{
+			Name:      "ipm-" + vm.Name,
+			HostDir:   vm.HostPath,
+			MountPath: InPackMountPath(vm.Name, vm.Version),
+			ReadOnly:  true,
+		})
 	}
 
 	if !inapi.PbVolumeMountSliceEqual(inst.Spec.Mounts, ls) {

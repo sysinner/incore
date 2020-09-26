@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package confrender
+package cmd
 
 import (
 	"errors"
@@ -20,42 +20,81 @@ import (
 	"strings"
 
 	"github.com/hooto/hflag4g/hflag"
-
+	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inconf"
 	"github.com/sysinner/incore/inutils/filerender"
 )
 
-var (
-	podCfr  *inconf.PodConfigurator
-	appCfr  *inconf.AppConfigurator
-	appSpec = ""
-	err     error
-)
+type configRenderCommand struct {
+	cmd  *inapi.BaseCommand
+	args struct {
+		AppSpec string
+		Input   string
+		Output  string
+	}
+}
 
-func ActionConfig() error {
+func NewConfigRenderCommand() *inapi.BaseCommand {
 
-	if err := pod_init(); err != nil {
+	c := &configRenderCommand{
+		cmd: &inapi.BaseCommand{
+			Use:     "config-render",
+			Aliases: []string{"confrender"},
+			Short:   "read input file and render with config data, then write to output file",
+		},
+	}
+
+	c.cmd.Flags().StringVar(&c.args.AppSpec, "app-spec",
+		"",
+		`app-spec id`,
+	)
+
+	c.cmd.Flags().StringVar(&c.args.Input, "in",
+		"",
+		`input file path (template of text, json, toml, yaml, ini)`,
+	)
+
+	c.cmd.Flags().StringVar(&c.args.Output, "out",
+		"",
+		`output file path`,
+	)
+
+	c.cmd.RunE = c.run
+
+	return c.cmd
+}
+
+func (it *configRenderCommand) run(cmd *inapi.BaseCommand, args []string) error {
+
+	if err := podSetup(); err != nil {
 		return err
 	}
 
-	if v, ok := hflag.ValueOK("in"); ok {
-		if v2, ok2 := hflag.ValueOK("out"); ok2 {
-			if err := cfgRender(v.String(), v2.String()); err != nil {
-				return err
-			} else {
-				return nil
-			}
-		}
+	appCfr, err := appSetup(it.args.AppSpec)
+	if err != nil {
+		return err
 	}
 
-	return errors.New("invalid command")
+	if it.args.Input == "" {
+		return errors.New("--in input file not setup")
+	}
+
+	if it.args.Output == "" {
+		return errors.New("--out output file not setup")
+	}
+
+	if err := cfgRender(appCfr, it.args.Input, it.args.Output); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func keyenc(k string) string {
 	return strings.Replace(strings.Replace(k, "/", "__", -1), "-", "_", -1)
 }
 
-func cfgRender(src, dst string) error {
+func cfgRender(appCfr *inconf.AppConfigurator, src, dst string) error {
 
 	sets := map[string]interface{}{}
 
@@ -90,22 +129,4 @@ func cfgRender(src, dst string) error {
 	}
 
 	return filerender.Render(src, dst, 0644, sets)
-}
-
-func pod_init() error {
-
-	if podCfr, err = inconf.NewPodConfigurator(); err != nil {
-		return err
-	}
-
-	if v, ok := hflag.ValueOK("app-spec"); ok {
-		appSpec = v.String()
-	}
-
-	appCfr = podCfr.AppConfigurator(appSpec)
-	if appCfr == nil {
-		return errors.New("No AppSpec (" + appSpec + ") Found")
-	}
-
-	return nil
 }

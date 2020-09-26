@@ -291,9 +291,14 @@ func (it *AppConfigurator) Valid() error {
 }
 
 const (
-	AppConfigFieldTypeString uint16 = 1
-	AppConfigFieldTypeText   uint16 = 3
-	AppConfigFieldTypeSelect uint16 = 2
+	AppConfigFieldTypeString             uint16 = 1
+	AppConfigFieldTypeSelect             uint16 = 2
+	AppConfigFieldTypeText               uint16 = 300
+	AppConfigFieldTypeTextJSON           uint16 = 301
+	AppConfigFieldTypeTextTOML           uint16 = 302
+	AppConfigFieldTypeTextYAML           uint16 = 303
+	AppConfigFieldTypeTextINI            uint16 = 304
+	AppConfigFieldTypeTextJavaProperties uint16 = 305
 
 	AppConfigFieldAutoFillDefaultValue = "defval"
 	AppConfigFieldAutoFillHexString_32 = "hexstr_32"
@@ -316,14 +321,15 @@ func AppConfigFieldAutoFillValid(v string) bool {
 }
 
 type AppConfigField struct {
-	Name      string        `json:"name" toml:"name"`
-	Title     string        `json:"title,omitempty" toml:"title,omitempty"`
-	Prompt    string        `json:"prompt,omitempty" toml:"prompt,omitempty"`
-	Type      uint16        `json:"type,omitempty" toml:"type,omitempty"`
-	Default   string        `json:"default,omitempty" toml:"default,omitempty"`
-	AutoFill  string        `json:"auto_fill,omitempty" toml:"auto_fill,omitempty"`
-	Enums     types.Labels  `json:"enums,omitempty" toml:"enums,omitempty"`
-	Validates types.KvPairs `json:"validates,omitempty" toml:"validates,omitempty"`
+	Name        string        `json:"name" toml:"name"`
+	Title       string        `json:"title,omitempty" toml:"title,omitempty"`
+	Prompt      string        `json:"prompt,omitempty" toml:"prompt,omitempty"`
+	Type        uint16        `json:"type,omitempty" toml:"type,omitempty"`
+	Default     string        `json:"default,omitempty" toml:"default,omitempty"`
+	AutoFill    string        `json:"auto_fill,omitempty" toml:"auto_fill,omitempty"`
+	Enums       types.Labels  `json:"enums,omitempty" toml:"enums,omitempty"`
+	Validates   types.KvPairs `json:"validates,omitempty" toml:"validates,omitempty"`
+	Description string        `json:"description,omitempty" toml:"description,omitempty"`
 }
 
 type AppConfigFields []*AppConfigField
@@ -387,24 +393,42 @@ func (it *AppOperate) Service(spec string, port uint32, pod_id string) *AppServi
 	return nil
 }
 
+type AppOptionField struct {
+	Type  uint16 `json:"type,omitempty" toml:"type,omitempty"`
+	Name  string `json:"name" toml:"name"`
+	Value string `json:"value" toml:"value"`
+}
+
 type AppOption struct {
 	Name    types.NameIdentifier `json:"name" toml:"name"`
-	Items   types.Labels         `json:"items,omitempty" toml:"items,omitempty"`
+	Items   []*AppOptionField    `json:"items,omitempty" toml:"items,omitempty"`
 	Subs    types.ArrayString    `json:"subs,omitempty" toml:"subs,omitempty"`
 	Ref     *AppOptionRef        `json:"ref,omitempty" toml:"ref,omitempty"`
 	User    string               `json:"user,omitempty" toml:"user,omitempty"`
 	Updated types.MetaTime       `json:"updated,omitempty" toml:"updated,omitempty"`
 }
 
+func (it *AppOption) Field(name string) *AppOptionField {
+	for _, v := range it.Items {
+		if v.Name == name {
+			return v
+		}
+	}
+	return nil
+}
+
 func (it *AppOption) ValueOK(name string) (types.Bytex, bool) {
-	return it.Items.Get(name)
+	for _, v := range it.Items {
+		if v.Name == name {
+			return types.Bytex(v.Value), true
+		}
+	}
+	return types.Bytex{}, false
 }
 
 func (it *AppOption) Value(name string) types.Bytex {
-	if v, ok := it.Items.Get(name); ok {
-		return v
-	}
-	return types.Bytex{}
+	v, _ := it.ValueOK(name)
+	return v
 }
 
 type AppOptions []*AppOption
@@ -474,7 +498,7 @@ func (ls *AppOptions) Sync(item AppOption) (changed bool) {
 			changed = true
 		}
 
-		if !prev.Items.Equal(item.Items) {
+		if !ValueEqual(prev.Items, item.Items) {
 			prev.Items = item.Items
 			changed = true
 		}

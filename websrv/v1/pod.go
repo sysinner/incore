@@ -473,6 +473,7 @@ func (c Pod) NewAction() {
 		set.Error = types.NewErrorMeta("400", "No Image Found")
 		return
 	}
+	fmt.Println("img", set.Box.Image, img)
 
 	res := spec_plan.ResCompute(set.Box.ResCompute)
 	if res == nil {

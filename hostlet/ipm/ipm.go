@@ -32,6 +32,7 @@ import (
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
+
 	"github.com/sysinner/inpack/ipapi"
 )
 
@@ -71,9 +72,13 @@ func Prepare(inst *napi.BoxInstance) error {
 
 	for _, app := range inst.Apps {
 
+		if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
+			continue
+		}
+
 		for _, p := range app.Spec.Packages {
 
-			if err := ipm_entry_sync(p); err != nil {
+			if err := ipm_entry_sync(inst, app, p); err != nil {
 				return err
 			}
 		}
@@ -82,9 +87,9 @@ func Prepare(inst *napi.BoxInstance) error {
 	return nil
 }
 
-func ipm_entry_sync(vp inapi.VolumePackage) error {
+func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.VolumePackage) error {
 
-	if vp.Name == "" || len(vp.Version) < 1 || len(vp.Release) < 1 {
+	if vp.Name == "" || len(vp.Version) < 1 {
 		return errors.New("Package Not Found")
 	}
 
@@ -105,15 +110,25 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 		ipm_mu.Unlock()
 	}(tag_name)
 
-	pHostDir := napi.InPackHostDir(vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
+	var (
+		dist = inst.Spec.Image.OsDist
+		arch = inst.Spec.Image.Arch
+	)
+
+	/**
+	pHostDir := napi.InPackHostDir(vp.Name, vp.Version, vp.Release,
+		status.Host.Spec.Platform.Os,
+		status.Host.Spec.Platform.Arch)
 	if _, err := os.Stat(pHostDir + "/.inpack/inpack.json"); err == nil {
 		return nil
 	}
+	*/
 
 	// TODO
 	url := fmt.Sprintf("%s/ips/v1/pkg/entry?name=%s&version=%s&release=%s&dist=%s&arch=%s",
 		config.Config.Zone.InpackServiceUrl,
-		vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
+		vp.Name, vp.Version, "",
+		dist, arch)
 	c := httpclient.Get(url)
 	defer c.Close()
 
@@ -134,6 +149,29 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 		pfilename = ipm_filename(pkg.Pack)
 		pfilepath = ipm_hostpath(pkg.Pack)
 	)
+
+	pHostDir := napi.InPackHostDir(vp.Name,
+		string(pkg.Version.Version),
+		string(pkg.Version.Release),
+		pkg.Version.Dist,
+		pkg.Version.Arch)
+
+	item := &napi.BoxPackMount{
+		Name:     vp.Name,
+		Version:  string(pkg.Version.Version),
+		HostPath: pHostDir,
+	}
+
+	if _, err := os.Stat(pHostDir + "/.inpack/inpack.json"); err == nil {
+
+		if rs, _ := inapi.SliceMerge(inst.PackMounts, item, func(i int) bool {
+			return vp.Name == inst.PackMounts[i].Name
+		}); rs != nil {
+			inst.PackMounts = rs.([]*napi.BoxPackMount)
+		}
+
+		return nil
+	}
 
 	inutils.FsMakeDir(pHostDir, 2048, 2048, 0750)
 
@@ -181,6 +219,12 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 
 	if err := ipm_entry_sync_extract(pfilepath, pHostDir); err != nil {
 		return err
+	}
+
+	if rs, _ := inapi.SliceMerge(inst.PackMounts, item, func(i int) bool {
+		return vp.Name == inst.PackMounts[i].Name
+	}); rs != nil {
+		inst.PackMounts = rs.([]*napi.BoxPackMount)
 	}
 
 	return nil

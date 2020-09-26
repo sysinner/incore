@@ -479,6 +479,7 @@ func (c PodSpec) BoxImageListAction() {
 
 	var (
 		repo   = c.Params.Get("repo")
+		action = uint32(c.Params.Int64("action"))
 		offset = inapi.NsGlobalBoxImage(repo, "")
 		cutset = inapi.NsGlobalBoxImage(repo, "")
 	)
@@ -488,9 +489,13 @@ func (c PodSpec) BoxImageListAction() {
 		LimitNumSet(100).Query()
 	for _, v := range rss.Items {
 		var item inapi.PodSpecBoxImage
-		if err := v.Decode(&item); err == nil {
-			ls.Items = append(ls.Items, item)
+		if err := v.Decode(&item); err != nil {
+			continue
 		}
+		if action > 0 && action != item.Action {
+			continue
+		}
+		ls.Items = append(ls.Items, item)
 	}
 
 	ls.Kind = "PodSpecBoxImageList"
@@ -523,6 +528,16 @@ func (c PodSpec) BoxImageSetAction() {
 		return
 	}
 
+	if !inapi.SpecOsDistRE.MatchString(setItem.OsDist) {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Dist Name")
+		return
+	}
+
+	if !inapi.SpecCpuArchRE.MatchString(setItem.Arch) {
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Arch Name")
+		return
+	}
+
 	if setItem.SortOrder < 4 {
 		setItem.SortOrder = 4
 	} else if setItem.SortOrder > 20 {
@@ -532,10 +547,6 @@ func (c PodSpec) BoxImageSetAction() {
 	if setItem.Action != inapi.PodSpecBoxImageActionDisable {
 		setItem.Action = inapi.PodSpecBoxImageActionEnable
 	}
-
-	// TODO
-	setItem.Arch = inapi.SpecCpuArchAmd64
-	setItem.OsDist = "el7"
 
 	setItem.Meta.ID = setItem.Name + ":" + setItem.Tag
 

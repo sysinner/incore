@@ -54,7 +54,28 @@ var (
 	}
 )
 
-func Start() error {
+type agentDaemonCommand struct {
+	cmd  *inapi.BaseCommand
+	args struct {
+		Action string
+	}
+}
+
+func NewAgentDaemonCommand() *inapi.BaseCommand {
+
+	c := &agentDaemonCommand{
+		cmd: &inapi.BaseCommand{
+			Use:   "daemon",
+			Short: "run inagent in daemon mode",
+		},
+	}
+
+	c.cmd.RunE = c.run
+
+	return c.cmd
+}
+
+func (it *agentDaemonCommand) run(cmd *inapi.BaseCommand, args []string) error {
 
 	//
 	pod_id = strings.TrimSpace(os.Getenv("POD_ID"))

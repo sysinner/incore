@@ -48,6 +48,11 @@ const (
 	PodSpecBoxImageActionDisable uint32 = 1 << 3
 )
 
+var (
+	SpecOsDistRE  = regexp.MustCompile(`el7|el8|all`)
+	SpecCpuArchRE = regexp.MustCompile(`x64|src`)
+)
+
 const (
 	SpecCpuArchAmd64 = "x64"
 )

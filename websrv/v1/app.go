@@ -680,7 +680,18 @@ func (c App) OpResSetAction() {
 		if v.Action != 1 {
 			continue
 		}
-		opt.Items.Set(v.Name, v.Value)
+
+		item := &inapi.AppOptionField{
+			Name:  v.Name,
+			Value: v.Value,
+			// Type:  v.Type,
+		}
+
+		if ls, _ := inapi.SliceMerge(opt.Items, item, func(i int) bool {
+			return opt.Items[i].Name == item.Name
+		}); ls != nil {
+			opt.Items = ls.([]*inapi.AppOptionField)
+		}
 
 		//
 		if !strings.HasPrefix(v.Value, "pod:") {
@@ -708,7 +719,17 @@ func (c App) OpResSetAction() {
 	}
 
 	for _, v := range res.Options {
-		opt.Items.Set("option/"+v.Name, v.Value)
+
+		item := &inapi.AppOptionField{
+			Name:  "option/" + v.Name,
+			Value: v.Value,
+		}
+
+		if ls, _ := inapi.SliceMerge(opt.Items, item, func(i int) bool {
+			return opt.Items[i].Name == item.Name
+		}); ls != nil {
+			opt.Items = ls.([]*inapi.AppOptionField)
+		}
 	}
 
 	if app.Operate.Options.Set(opt) {
@@ -833,10 +854,10 @@ func (c App) ConfigAction() {
 			value      = ""
 			value_prev = ""
 		)
-		if v, ok := set.Option.Items.Get(field.Name); ok {
+		if v, ok := set.Option.ValueOK(field.Name); ok {
 			value = v.String()
 		}
-		if v, ok := appOpOpt.Items.Get(field.Name); ok {
+		if v, ok := appOpOpt.ValueOK(field.Name); ok {
 			value_prev = v.String()
 		}
 
@@ -846,7 +867,7 @@ func (c App) ConfigAction() {
 
 			case inapi.AppConfigFieldAutoFillDefaultValue:
 				if len(field.Default) < 1 {
-					rsp.Error = types.NewErrorMeta("500", "Server Error")
+					rsp.Error = types.NewErrorMeta("400", "DefaultValue empty")
 					return
 				}
 				value = field.Default
@@ -866,7 +887,7 @@ func (c App) ConfigAction() {
 				}
 
 			default:
-				rsp.Error = types.NewErrorMeta("500", "Server Error")
+				rsp.Error = types.NewErrorMeta("500", "Not DedaultValue Type Found")
 				return
 			}
 		}
@@ -884,7 +905,16 @@ func (c App) ConfigAction() {
 		}
 
 		if len(value) > 0 {
-			set_opt.Items.Set(field.Name, value)
+			item := &inapi.AppOptionField{
+				Name:  field.Name,
+				Value: value,
+				Type:  field.Type,
+			}
+			if ls, _ := inapi.SliceMerge(set_opt.Items, item, func(i int) bool {
+				return set_opt.Items[i].Name == item.Name
+			}); ls != nil {
+				set_opt.Items = ls.([]*inapi.AppOptionField)
+			}
 		}
 	}
 
@@ -1091,7 +1121,16 @@ func appOpOptRender(app *inapi.AppInstance, specRender bool) {
 			if tpl, err := template.New("s").Parse(v2.Value); err == nil {
 				var dst bytes.Buffer
 				if err := tpl.Execute(&dst, exArr); err == nil {
-					v.Items.Set(v2.Name, dst.String())
+					item := &inapi.AppOptionField{
+						Name:  v2.Name,
+						Type:  v2.Type,
+						Value: dst.String(),
+					}
+					if ls, _ := inapi.SliceMerge(v.Items, item, func(i int) bool {
+						return v.Items[i].Name == item.Name
+					}); ls != nil {
+						v.Items = ls.([]*inapi.AppOptionField)
+					}
 				}
 			}
 		}

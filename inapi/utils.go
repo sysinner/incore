@@ -14,6 +14,39 @@
 
 package inapi
 
+import (
+	"reflect"
+)
+
+func ValueEqual(v1, v2 interface{}) bool {
+	return reflect.DeepEqual(v1, v2)
+}
+
+func SliceFind(ar interface{}, equal func(i int) bool) interface{} {
+	rv := reflect.ValueOf(ar)
+	for i := 0; i < rv.Len(); i++ {
+		if equal(i) {
+			return rv.Index(i)
+		}
+	}
+	return nil
+}
+
+func SliceMerge(ar interface{}, v interface{}, equal func(i int) bool) (interface{}, bool) {
+	rv := reflect.ValueOf(ar)
+	for i := 0; i < rv.Len(); i++ {
+		if !equal(i) {
+			continue
+		}
+		if reflect.DeepEqual(rv.Index(i).Interface(), v) {
+			return nil, false
+		}
+		rv.Index(i).Set(reflect.ValueOf(v))
+		return nil, true
+	}
+	return reflect.Append(rv, reflect.ValueOf(v)).Interface(), true
+}
+
 func ArrayStringHas(ls []string, s string) bool {
 	for _, v := range ls {
 		if v == s {

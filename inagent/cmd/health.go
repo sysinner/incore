@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package health
+package cmd
 
 import (
 	"errors"
 	"fmt"
 
-	"github.com/hooto/hflag4g/hflag"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/net/httpclient"
 	"github.com/lessos/lessgo/types"
@@ -30,18 +29,43 @@ var (
 	healthActions = types.ArrayString([]string{"active", "setup"})
 )
 
-func HealthSync() error {
+type healthSyncCommand struct {
+	cmd  *inapi.BaseCommand
+	args struct {
+		Action string
+	}
+}
 
-	action, ok := hflag.ValueOK("action")
-	if !ok {
+func NewHealthSyncCommand() *inapi.BaseCommand {
+
+	c := &healthSyncCommand{
+		cmd: &inapi.BaseCommand{
+			Use:   "health-sync",
+			Short: "synchronize heartbeat information to the central zone main nodes",
+		},
+	}
+
+	c.cmd.Flags().StringVar(&c.args.Action, "action",
+		"active",
+		`action value (ex: active, setup)`,
+	)
+
+	c.cmd.RunE = c.run
+
+	return c.cmd
+}
+
+func (it *healthSyncCommand) run(cmd *inapi.BaseCommand, args []string) error {
+
+	if it.args.Action == "" {
 		return errors.New("no --action=value found")
 	}
 
-	if !healthActions.Has(action.String()) {
+	if !healthActions.Has(it.args.Action) {
 		return errors.New("invalid --action=value")
 	}
 
-	hc := httpclient.Get("http://unix/in/v1/health/sync?action=" + action.String())
+	hc := httpclient.Get("http://unix/in/v1/health/sync?action=" + it.args.Action)
 	defer hc.Close()
 
 	hc.SetUnixDomainSocket("/home/action/.sysinner/inagent.sock")
@@ -55,7 +79,25 @@ func HealthSync() error {
 	return nil
 }
 
-func HealthStatus() error {
+type healthStatusCommand struct {
+	cmd *inapi.BaseCommand
+}
+
+func NewHealthStatusCommand() *inapi.BaseCommand {
+
+	c := &healthStatusCommand{
+		cmd: &inapi.BaseCommand{
+			Use:   "health-status",
+			Short: "output app status",
+		},
+	}
+
+	c.cmd.RunE = c.run
+
+	return c.cmd
+}
+
+func (it *healthStatusCommand) run(cmd *inapi.BaseCommand, args []string) error {
 
 	hc := httpclient.Get("http://unix/in/v1/health/status")
 	defer hc.Close()

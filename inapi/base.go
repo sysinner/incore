@@ -17,7 +17,11 @@ package inapi
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/spf13/cobra"
 )
+
+type BaseCommand = cobra.Command
 
 type jsonObjectMeta ObjectMeta
 

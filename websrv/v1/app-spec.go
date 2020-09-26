@@ -29,6 +29,7 @@ import (
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
+
 	"github.com/sysinner/inpack/ipapi"
 )
 
@@ -421,6 +422,15 @@ func (c AppSpec) EntryAction() {
 	}
 
 	rsp = set
+
+	if rsp.Configurator != nil {
+		for _, ft := range rsp.Configurator.Fields {
+			if ft.Type == 3 {
+				ft.Type = 300
+			}
+		}
+	}
+
 	rsp.Kind = "AppSpec"
 }
 
@@ -694,20 +704,27 @@ func (c AppSpec) SetAction() {
 	}
 
 	for _, v := range prev.Packages {
+
 		version := ipapi.PackVersion{
 			Version: types.Version(v.Version),
-			Release: types.Version(v.Release),
-			Dist:    v.Dist,
-			Arch:    v.Arch,
+			// Release: types.Version(v.Release),
+			// Dist:    v.Dist,
+			// Arch:    v.Arch,
 		}
-		if err := version.Valid(); err != nil {
-			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, err.Error())
+
+		if !version.Version.Valid() {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
+				fmt.Sprintf("invalid version %s", v.Version))
 			return
 		}
-		id := ipapi.PackFilenameKey(v.Name, version)
-		if rs := data.DataInpack.NewReader(ipapi.DataPackKey(id)).Query(); !rs.OK() {
-			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPackage ("+
-				ipapi.PackFilename(v.Name, version)+") Not Found")
+
+		if rs := data.DataInpack.NewReader().KeyRangeSet(
+			ipapi.DataPackKey(fmt.Sprintf("%s-%s", v.Name, v.Version)),
+			ipapi.DataPackKey(fmt.Sprintf("%s-%sz", v.Name, v.Version)),
+		).LimitNumSet(1).Query(); !rs.OK() {
+
+			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
+				fmt.Sprintf("Package %s/%s Not Found", v.Name, v.Version))
 			return
 		}
 	}
@@ -808,13 +825,16 @@ func (c AppSpec) CfgSetAction() {
 
 		// TODO
 
+		v.Default = strings.TrimSpace(v.Default)
+
 		item := inapi.AppConfigField{
-			Name:     v.Name,
-			Title:    v.Title,
-			Prompt:   v.Prompt,
-			Type:     v.Type,
-			Default:  v.Default,
-			AutoFill: v.AutoFill,
+			Name:        v.Name,
+			Title:       v.Title,
+			Description: v.Description,
+			Prompt:      v.Prompt,
+			Type:        v.Type,
+			Default:     v.Default,
+			AutoFill:    v.AutoFill,
 		}
 
 		if item.AutoFill != "" && !inapi.AppConfigFieldAutoFillValid(item.AutoFill) {

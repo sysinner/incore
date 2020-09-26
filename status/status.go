@@ -29,6 +29,7 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/injob"
+	"github.com/sysinner/incore/inutils"
 )
 
 var (
@@ -180,6 +181,8 @@ func Setup() error {
 		return nil
 	}
 
+	dist, arch, _ := inutils.ResSysHostEnvDistArch()
+
 	Host = inapi.ResHost{
 		Meta: &inapi.ObjectMeta{
 			Id: config.Config.Host.Id,
@@ -191,6 +194,11 @@ func Setup() error {
 		Spec: &inapi.ResHostSpec{
 			PeerLanAddr: config.Config.Host.LanAddr,
 			PeerWanAddr: config.Config.Host.WanAddr,
+			Platform: &inapi.ResPlatform{
+				Os:     dist,
+				Arch:   arch,
+				Kernel: inutils.ResSysHostKernel(),
+			},
 		},
 		Status: &inapi.ResHostStatus{
 			Uptime: uint32(time.Now().Unix()),

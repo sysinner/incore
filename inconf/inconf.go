@@ -104,20 +104,34 @@ func (it *PodConfigurator) PodSpec() *inapi.PodSpecBound {
 	return it.Pod.Spec
 }
 
+func (it *PodConfigurator) AppConfigQuery(cfgGroupNames ...string) *AppConfigGroup {
+
+	for _, app := range it.Pod.Apps {
+
+		for _, opt := range app.Operate.Options {
+
+			for _, v := range cfgGroupNames {
+
+				if !prefixMatch(string(opt.Name), v) {
+					continue
+				}
+
+				return &AppConfigGroup{
+					opt: opt,
+				}
+			}
+		}
+	}
+	return nil
+}
+
 func (it *PodConfigurator) AppConfigurator(appSpecId string) *AppConfigurator {
 
 	if appSpecId != "" {
 
-		var (
-			prefix = false
-		)
-		if appSpecId[len(appSpecId)-1] == '*' {
-			prefix, appSpecId = true, appSpecId[:len(appSpecId)-1]
-		}
-
 		for _, app := range it.Pod.Apps {
 
-			if (prefix && !strings.HasPrefix(app.Spec.Meta.ID, appSpecId)) &&
+			if !prefixMatch(app.Spec.Meta.ID, appSpecId) &&
 				appSpecId != app.Spec.Meta.ID {
 				continue
 			}
@@ -137,7 +151,7 @@ func (it *PodConfigurator) AppConfigurator(appSpecId string) *AppConfigurator {
 
 			for _, dp := range app.Spec.Depends {
 
-				if (prefix && !strings.HasPrefix(dp.Id, appSpecId)) &&
+				if !prefixMatch(dp.Id, appSpecId) &&
 					appSpecId != dp.Id {
 					continue
 				}
@@ -180,12 +194,20 @@ func (it *AppConfigurator) AppConfigQuery(cfgGroupNames ...string) *AppConfigGro
 
 func (it *AppConfigurator) AppConfig(cfgGroupName string) *AppConfigGroup {
 
-	if len(it.App.Operate.Options) > 0 {
-		if opt := it.App.Operate.Options.Get(cfgGroupName); opt != nil {
+	for _, opt := range it.App.Operate.Options {
+		if prefixMatch(string(opt.Name), cfgGroupName) {
 			return &AppConfigGroup{
 				opt: opt,
 			}
 		}
+	}
+	return nil
+}
+
+func (it *AppConfigurator) AppConfigField(cfgGroupName, cfgItemName string) *inapi.AppOptionField {
+
+	if opt := it.AppConfig(cfgGroupName); opt != nil {
+		return opt.opt.Field(cfgItemName)
 	}
 
 	return nil
@@ -248,13 +270,6 @@ func (it *AppConfigurator) AppService(srvAppSpecId string, port uint32) *AppServ
 
 	if len(it.App.Operate.Services) > 0 {
 
-		var (
-			prefix = false
-		)
-		if len(srvAppSpecId) > 1 && srvAppSpecId[len(srvAppSpecId)-1] == '*' {
-			prefix, srvAppSpecId = true, srvAppSpecId[:len(srvAppSpecId)-1]
-		}
-
 		for _, v := range it.App.Operate.Services {
 
 			if port > 0 && v.Port != port {
@@ -266,7 +281,7 @@ func (it *AppConfigurator) AppService(srvAppSpecId string, port uint32) *AppServ
 			}
 
 			if srvAppSpecId != "" &&
-				(prefix && !strings.HasPrefix(v.Spec, srvAppSpecId)) &&
+				!prefixMatch(v.Spec, srvAppSpecId) &&
 				srvAppSpecId != v.Spec {
 				continue
 			}
@@ -284,4 +299,15 @@ func (it *AppConfigGroup) Value(itemName string) types.Bytex {
 
 func (it *AppConfigGroup) ValueOK(itemName string) (types.Bytex, bool) {
 	return it.opt.ValueOK(itemName)
+}
+
+func prefixMatch(s1, s2 string) bool {
+	if len(s1) > 0 && s1 == s2 {
+		return true
+	} else if len(s2) > 1 && s2[len(s2)-1] == '*' {
+		if strings.HasPrefix(s1, s2[:len(s2)-1]) {
+			return true
+		}
+	}
+	return false
 }

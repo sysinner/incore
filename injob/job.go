@@ -85,6 +85,8 @@ func (it *JobEntry) exec(ctx *Context) {
 	} else {
 		// hlog.Printf("debug", "job %s well done in %v", it.job.Spec().Name, time.Since(tn))
 	}
+
+	it.running = false
 }
 
 func (it *JobEntry) Schedule() *Schedule {
