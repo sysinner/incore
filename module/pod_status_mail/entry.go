@@ -28,11 +28,20 @@ import (
 )
 
 type PodStatusMail struct {
-	sch *injob.Schedule
+	spec *injob.JobSpec
+	sch  *injob.Schedule
 }
 
-func (it *PodStatusMail) Name() string {
-	return "zone/pod/status/mail"
+func (it *PodStatusMail) Spec() *injob.JobSpec {
+	if it.spec == nil {
+		it.spec = injob.NewJobSpec("zone/pod/status/mail").
+			ConditionSet("zone/main/leader", -1)
+	}
+	return it.spec
+}
+
+func (it *PodStatusMail) Status() *injob.Status {
+	return nil
 }
 
 func (it *PodStatusMail) Run(ctx *injob.Context) error {
@@ -138,7 +147,7 @@ func (it *PodStatusMail) Run(ctx *injob.Context) error {
 			return err
 		}
 
-		msg := hmsg.NewMsgItem(hmsg.HashSeed(it.Name() + user))
+		msg := hmsg.NewMsgItem(hmsg.HashSeed(it.Spec().Name + user))
 		msg.ToUser = user
 		msg.Title = mail.Title
 		msg.Body = mail.Body
@@ -151,7 +160,7 @@ func (it *PodStatusMail) Run(ctx *injob.Context) error {
 		}
 	}
 
-	hlog.Printf("info", "job %s, n %d", it.Name(), len(rs.Items))
+	hlog.Printf("info", "job %s, n %d", it.Spec().Name, len(rs.Items))
 
 	return nil
 }

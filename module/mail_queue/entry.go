@@ -28,12 +28,21 @@ import (
 )
 
 type MailQueue struct {
+	spec *injob.JobSpec
 	sch  *injob.Schedule
 	done int64
 }
 
-func (it *MailQueue) Name() string {
-	return "zone/mail/queue"
+func (it *MailQueue) Spec() *injob.JobSpec {
+	if it.spec == nil {
+		it.spec = injob.NewJobSpec("zone/mail/queue").
+			ConditionSet("zone/main/leader", -1)
+	}
+	return it.spec
+}
+
+func (it *MailQueue) Status() *injob.Status {
+	return nil
 }
 
 func (it *MailQueue) Run(ctx *injob.Context) error {
@@ -62,7 +71,7 @@ func (it *MailQueue) Run(ctx *injob.Context) error {
 			continue
 		}
 
-		if err := iamclient.SysMsgPost(item, config.Config.ZoneIamAccessKey); err == nil {
+		if err := iamclient.SysMsgPost(item, config.Config.ZoneMain.IamAccessKey); err == nil {
 
 			it.done += 1
 

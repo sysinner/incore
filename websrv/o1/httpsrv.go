@@ -12,35 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package injob
+package o1
 
 import (
-	"github.com/hooto/hmsg/go/hmsg/v1"
-	"github.com/sysinner/incore/inapi"
+	"github.com/hooto/httpsrv"
 )
 
-type ContextRefresher func() *Context
+func NewModule() httpsrv.Module {
 
-type Context struct {
-	Zone              *inapi.ResZone
-	ZoneHostList      *inapi.ResHostList
-	ZonePodList       *inapi.PodList
-	ZonePodStatusList *inapi.PodStatusList
-	IsZoneLeader      bool
-	ZoneMailManager   *hmsg.MailManager
-	daemon            *Daemon
-}
+	module := httpsrv.NewModule("in_o1")
 
-func (it *Context) ConditionSet(name string, v int64) *Context {
-	if it.daemon != nil {
-		it.daemon.conditionSet(name, v)
-	}
-	return it
-}
+	module.ControllerRegister(new(Config))
+	module.ControllerRegister(new(System))
 
-func (it *Context) ConditionDel(name string) *Context {
-	if it.daemon != nil {
-		it.daemon.conditionDel(name)
-	}
-	return it
+	return module
 }

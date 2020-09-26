@@ -112,7 +112,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 
 	// TODO
 	url := fmt.Sprintf("%s/ips/v1/pkg/entry?name=%s&version=%s&release=%s&dist=%s&arch=%s",
-		config.Config.InpackServiceUrl,
+		config.Config.Zone.InpackServiceUrl,
 		vp.Name, vp.Version, vp.Release, vp.Dist, vp.Arch)
 	c := httpclient.Get(url)
 	defer c.Close()
@@ -154,7 +154,7 @@ func ipm_entry_sync(vp inapi.VolumePackage) error {
 	defer fp.Close()
 
 	dlurl := fmt.Sprintf("%s/ips/v1/pkg/dl/%s/%s/%s",
-		config.Config.InpackServiceUrl, pkg.Meta.Name, pkg.Version.Version, pfilename)
+		config.Config.Zone.InpackServiceUrl, pkg.Meta.Name, pkg.Version.Version, pfilename)
 
 	hlog.Printf("info", "Download Package From (%s)", dlurl)
 	rsp, err := http.Get(dlurl)

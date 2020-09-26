@@ -60,7 +60,7 @@ func (c *Pod) Init() int {
 
 func (c *Pod) owner_or_sysadmin_allow(user, privilege string) bool {
 	if c.us.AccessAllow(user) ||
-		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.Zone.InstanceId) {
 		return true
 	}
 	return false
@@ -125,7 +125,7 @@ func (c Pod) ListAction() {
 
 		// TOPO
 		if c.Params.Get("filter_meta_user") == "all" &&
-			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.Zone.InstanceId) {
 			//
 		} else if pod.Meta.User != c.us.UserName &&
 			!iamapi.ArrayStringHas(c.us.Groups, pod.Meta.User) {
@@ -697,8 +697,8 @@ func (c Pod) SetInfoAction() {
 	}
 
 	//
-	if config.Config.ZoneMaster != nil &&
-		config.Config.ZoneMaster.MultiReplicaEnable {
+	if config.Config.ZoneMain != nil &&
+		config.Config.ZoneMain.MultiReplicaEnable {
 
 		if err := prev.OpRepCapValid(set.Operate.ReplicaCap); err != nil {
 			set.Error = types.NewErrorMeta("400", "ReplicaCap Valid Error : "+err.Error())
@@ -762,7 +762,7 @@ func (c Pod) SetInfoAction() {
 
 	//
 	prev.Operate.ExpSysState = set.Operate.ExpSysState
-	if config.Config.ZoneMaster.MultiReplicaEnable {
+	if config.Config.ZoneMain.MultiReplicaEnable {
 		prev.Operate.ReplicaCap = set.Operate.ReplicaCap
 
 		if set.Operate.Deploy != nil {

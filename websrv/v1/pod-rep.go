@@ -48,7 +48,7 @@ func (c *PodRep) Init() int {
 
 func (c *PodRep) owner_or_sysadmin_allow(user, privilege string) bool {
 	if c.us.AccessAllow(user) ||
-		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.Zone.InstanceId) {
 		return true
 	}
 	return false
@@ -59,9 +59,9 @@ func (c PodRep) SetAction() {
 	set := types.TypeMeta{}
 	defer c.RenderJson(&set)
 
-	if config.Config.ZoneMaster == nil ||
-		!config.Config.ZoneMaster.MultiHostEnable ||
-		!config.Config.ZoneMaster.MultiReplicaEnable {
+	if config.Config.ZoneMain == nil ||
+		!config.Config.ZoneMain.MultiHostEnable ||
+		!config.Config.ZoneMain.MultiReplicaEnable {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Access Denied")
 		return
 	}

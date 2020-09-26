@@ -149,7 +149,7 @@ func (c Pod) UserTransferAction() {
 	item := userTransferData{
 		FromUser:   prev.Meta.User,
 		ToUser:     set.UserTo,
-		ConsoleUrl: config.Config.InpanelServiceUrl,
+		ConsoleUrl: config.Config.Zone.InpanelServiceUrl,
 		PodId:      set.Id,
 		PodName:    set.Name,
 	}

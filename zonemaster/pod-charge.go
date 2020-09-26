@@ -42,7 +42,7 @@ func podChargeRefresh() error {
 		return nil
 	}
 
-	if inCfg.Config.ZoneIamAccessKey == nil {
+	if inCfg.Config.ZoneMain.IamAccessKey == nil {
 		hlog.Printf("warn", "charge AccessKey not found")
 		return nil
 	}
@@ -219,7 +219,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
 			Comment:   strings.Join(comments, ", "),
-		}, inCfg.Config.ZoneIamAccessKey); rsp.Kind == "AccountChargePrepay" {
+		}, inCfg.Config.ZoneMain.IamAccessKey); rsp.Kind == "AccountChargePrepay" {
 			pod.Payment.Prepay = payAmount
 			pod.Payment.CycleAmount = cycleAmount
 			pod.Payment.User = ""
@@ -253,7 +253,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 			TimeStart: pod.Payment.TimeStart,
 			TimeClose: pod.Payment.TimeClose,
 			Comment:   strings.Join(comments, ", "),
-		}, inCfg.Config.ZoneIamAccessKey); rsp.Kind == "AccountChargePayout" {
+		}, inCfg.Config.ZoneMain.IamAccessKey); rsp.Kind == "AccountChargePayout" {
 			pod.Payment.Payout = payAmount
 			pod.Payment.CycleAmount = cycleAmount
 			pod.Payment.User = ""

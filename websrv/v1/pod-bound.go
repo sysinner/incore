@@ -70,7 +70,7 @@ func (c *Podbound) Init() int {
 func (c *Podbound) owner_or_sysadmin_allow(user, privilege string) bool {
 	if c.us.AccessAllow(user) ||
 		iamapi.ArrayStringHas(c.us.Groups, user) ||
-		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.InstanceId) {
+		iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.Zone.InstanceId) {
 		return true
 	}
 	return false
@@ -94,7 +94,7 @@ func (c Podbound) IndexAction() {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
 
-		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
+		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.Zone.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
 			data.DataLocal.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).ExpireSet(3600000).Commit()
@@ -172,7 +172,7 @@ func PodBoundTerminalWsHandlerFunc(w http.ResponseWriter, r *http.Request) {
 	p := wsutil.NewSingleHostReverseProxy(backendURL)
 	p.Dial = func(network, addr string) (net.Conn, error) {
 		return net.Dial("unix", fmt.Sprintf(inagent_sock,
-			config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))))
+			config.Config.Zone.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))))
 	}
 
 	p.ServeHTTP(w, r)
@@ -187,7 +187,7 @@ func pbPodInstanceSpec(pod_id string, rep_id uint32) *inapi.Pod {
 		rs.Decode(&pod)
 	} else if rs.NotFound() {
 
-		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
+		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.Zone.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
 			data.DataLocal.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).ExpireSet(3600000).Commit()
@@ -210,7 +210,7 @@ type podProxyUnixClients struct {
 func fakeDial(pod_id string, rep_id uint32) func(proto, addr string) (conn net.Conn, err error) {
 	return func(proto, addr string) (conn net.Conn, err error) {
 		return net.DialTimeout("unix", fmt.Sprintf(inagent_sock,
-			config.Config.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), inagent_dial_tto)
+			config.Config.Zone.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), inagent_dial_tto)
 	}
 }
 

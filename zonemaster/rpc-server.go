@@ -41,19 +41,95 @@ type ApiZoneMaster struct {
 	inapi.UnimplementedApiZoneMasterServer
 }
 
+func (s *ApiZoneMaster) HostConfig(
+	ctx context.Context,
+	req *inapi.ZoneHostConfigRequest,
+) (*inapi.ZoneHostConfigReply, error) {
+
+	if !status.IsZoneMaster() {
+		return nil, errors.New("Invalid Zone MainNode Address")
+	}
+
+	if !inapi.ResSysHostIdReg.MatchString(req.Id) {
+		return nil, errors.New("Invalid Host ID")
+	}
+
+	if !inapi.HostNodeAddress(req.LanAddr).Valid() {
+		return nil, errors.New("Invalid Host Address")
+	}
+
+	if !inapi.ResSysHostSecretKeyReg.MatchString(req.SecretKey) {
+		return nil, errors.New("Invalid Host Secret Key")
+	}
+
+	if !inapi.ResSysCellIdReg.MatchString(req.CellId) {
+		return nil, errors.New("Invalid Cell ID")
+	}
+
+	if pc := status.GlobalZoneCell(status.ZoneId, req.CellId); pc == nil {
+		return nil, errors.New("cell-id not found")
+	}
+
+	dbkey := inapi.NsZoneSysHost(status.ZoneId, req.Id)
+	rs := data.DataZone.NewReader(dbkey).Query()
+	if !rs.OK() {
+		if !rs.NotFound() {
+			return nil, errors.New("Server Error, Try again later")
+		}
+
+		node := inapi.ResHost{
+			Meta: &inapi.ObjectMeta{
+				Id:      req.Id,
+				Created: uint64(types.MetaTimeNow()),
+				Updated: uint64(types.MetaTimeNow()),
+			},
+			Operate: &inapi.ResHostOperate{
+				Action: 1,
+				ZoneId: status.ZoneId,
+				CellId: req.CellId,
+				Pr:     inapi.ResSysHostPriorityDefault,
+			},
+			Spec: &inapi.ResHostSpec{
+				PeerLanAddr: req.LanAddr,
+			},
+		}
+
+		if rs := data.DataGlobal.NewWriter(
+			inapi.NsGlobalSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
+			return nil, errors.New("Server Error")
+		}
+
+		if rs := data.DataZone.NewWriter(
+			inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
+			return nil, errors.New("Server Error")
+		}
+
+		if rs := data.DataZone.NewWriter(
+			inapi.NsZoneSysHostSecretKey(node.Operate.ZoneId, node.Meta.Id), req.SecretKey).Commit(); !rs.OK() {
+			return nil, errors.New("Server Error")
+		}
+	}
+
+	return &inapi.ZoneHostConfigReply{
+		ZoneMainNodes: config.Config.Zone.MainNodes,
+		ZoneId:        status.ZoneId,
+		CellId:        req.CellId,
+	}, nil
+}
+
 func (s *ApiZoneMaster) HostStatusSync(
 	ctx context.Context,
-	opts *inapi.ResHost,
+	req *inapi.ResHost,
 ) (*inapi.ResHostBound, error) {
 
-	// fmt.Println("host status sync", opts.Meta.Id, opts.Status.Uptime)
+	// fmt.Println("host status sync", req.Meta.Id, req.Status.Uptime)
 	if !status.IsZoneMasterLeader() {
 		return &inapi.ResHostBound{
 			Masters: &status.ZoneMasterList,
 		}, nil
 	}
 
-	if opts == nil || opts.Meta == nil {
+	if req == nil || req.Meta == nil {
 		return nil, errors.New("BadArgs")
 	}
 
@@ -62,20 +138,20 @@ func (s *ApiZoneMaster) HostStatusSync(
 	}
 
 	//
-	host := status.ZoneHostList.Item(opts.Meta.Id)
+	host := status.ZoneHostList.Item(req.Meta.Id)
 	if host == nil || host.Meta == nil {
-		return nil, errors.New("BadArgs No Host Found " + opts.Meta.Id)
+		return nil, errors.New("BadArgs No Host Found " + req.Meta.Id)
 	}
 
 	//
-	if opts.Spec.PeerLanAddr != "" && opts.Spec.PeerLanAddr != host.Spec.PeerLanAddr {
-		zmHostAddrChange(opts, host.Spec.PeerLanAddr)
+	if req.Spec.PeerLanAddr != "" && req.Spec.PeerLanAddr != host.Spec.PeerLanAddr {
+		zmHostAddrChange(req, host.Spec.PeerLanAddr)
 	}
 
-	if opts.Status != nil && opts.Status.Stats != nil {
+	if req.Status != nil && req.Status.Stats != nil {
 
 		arrs := inapi.NewPbStatsIndexList(600, 60)
-		for _, v := range opts.Status.Stats.Items {
+		for _, v := range req.Status.Stats.Items {
 			for _, v2 := range v.Items {
 				arrs.Sync(v.Name, v2.Time, v2.Value)
 			}
@@ -83,7 +159,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		for _, v := range arrs.Items {
 
-			pk := inapi.NsKvZoneSysHostStats(status.ZoneId, opts.Meta.Id, v.Time)
+			pk := inapi.NsKvZoneSysHostStats(status.ZoneId, req.Meta.Id, v.Time)
 
 			var statsIndex inapi.PbStatsIndexFeed
 			if rs := data.DataZone.NewReader(pk).Query(); rs.OK() {
@@ -104,20 +180,20 @@ func (s *ApiZoneMaster) HostStatusSync(
 				data.DataZone.NewWriter(pk, statsIndex).ExpireSet(30 * 86400 * 1000).Commit()
 			}
 		}
-		opts.Status.Stats = nil
+		req.Status.Stats = nil
 	}
 
 	//
-	if host.SyncStatus(*opts) {
+	if host.SyncStatus(*req) {
 		host.Status.Updated = uint32(time.Now().Unix())
-		data.DataZone.NewWriter(inapi.NsZoneSysHost(status.ZoneId, opts.Meta.Id), host).Commit()
-		// hlog.Printf("info", "zone-master/host %s updated", opts.Meta.Id)
+		data.DataZone.NewWriter(inapi.NsZoneSysHost(status.ZoneId, req.Meta.Id), host).Commit()
+		// hlog.Printf("info", "zone-master/host %s updated", req.Meta.Id)
 	}
 
 	tn := uint32(time.Now().Unix())
 
 	// PodReplica Status
-	for _, repStatus := range opts.Prs {
+	for _, repStatus := range req.Prs {
 
 		if repStatus.PodId == "" {
 			continue
@@ -133,12 +209,12 @@ func (s *ApiZoneMaster) HostStatusSync(
 			continue
 		}
 
-		if ctrRep.Node != opts.Meta.Id &&
-			(ctrRep.Next == nil || ctrRep.Next.Node != opts.Meta.Id) {
+		if ctrRep.Node != req.Meta.Id &&
+			(ctrRep.Next == nil || ctrRep.Next.Node != req.Meta.Id) {
 			continue
 		}
 
-		if ctrRep.Node == opts.Meta.Id && repStatus.Stats != nil {
+		if ctrRep.Node == req.Meta.Id && repStatus.Stats != nil {
 
 			arrs := inapi.NewPbStatsIndexList(600, 60)
 
@@ -185,7 +261,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 			continue
 		}
 
-		if ctrRep.Node == opts.Meta.Id {
+		if ctrRep.Node == req.Meta.Id {
 
 			if prevRepStatus := podStatus.RepGet(repStatus.RepId); prevRepStatus != nil {
 
@@ -195,7 +271,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 				}
 
 				hlog.Printf("debug", "zm/rpc-server host %s, rep %s#%d, prev-oplog v%d n%d, status-oplog v%d n%d",
-					opts.Meta.Id, repStatus.PodId, repStatus.RepId,
+					req.Meta.Id, repStatus.PodId, repStatus.RepId,
 					prevRepStatus.OpLog.Version, len(prevRepStatus.OpLog.Items),
 					repStatus.OpLog.Version, len(repStatus.OpLog.Items),
 				)
@@ -207,15 +283,15 @@ func (s *ApiZoneMaster) HostStatusSync(
 					repStatus.OpLog = prevRepStatus.OpLog
 				}
 			}
-			repStatus.Node = opts.Meta.Id
+			repStatus.Node = req.Meta.Id
 
 			hlog.Printf("debug", "zm/rpc-server host %s, rep %s#%d, status %s",
-				opts.Meta.Id, repStatus.PodId, repStatus.RepId,
+				req.Meta.Id, repStatus.PodId, repStatus.RepId,
 				strings.Join(inapi.OpActionStrings(repStatus.Action), "|"),
 			)
 		}
 
-		if ctrRep.Next != nil && ctrRep.Next.Node == opts.Meta.Id {
+		if ctrRep.Next != nil && ctrRep.Next.Node == req.Meta.Id {
 
 			if inapi.OpActionAllow(repStatus.Action, inapi.OpActionMigrated) &&
 				!inapi.OpActionAllow(ctrRep.Next.Action, inapi.OpActionMigrated) {
@@ -247,12 +323,12 @@ func (s *ApiZoneMaster) HostStatusSync(
 		// hlog.Printf("info", "zone-master/pod StatusSync %s/%d phase:%s updated", v.Id, v.Rep, v.Phase)
 	}
 
-	// hlog.Printf("info", "zone-master/rpc-server hostlet synced pods:%d", len(opts.Prs))
+	// hlog.Printf("info", "zone-master/rpc-server hostlet synced pods:%d", len(req.Prs))
 
 	var (
 		hostBound = &inapi.ResHostBound{
 			Masters:              &status.ZoneMasterList,
-			ZoneInpackServiceUrl: config.Config.InpackServiceUrl,
+			ZoneInpackServiceUrl: config.Config.Zone.InpackServiceUrl,
 			ImageServices:        status.Zone.ImageServices,
 		}
 	)
@@ -262,19 +338,19 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 		for _, ctrRep := range bpod.Operate.Replicas {
 
-			if ctrRep.PrevNode == opts.Meta.Id && ctrRep.Next == nil {
+			if ctrRep.PrevNode == req.Meta.Id && ctrRep.Next == nil {
 
 				hostBound.ExpBoxRemoves = append(hostBound.ExpBoxRemoves,
 					inapi.PodRepInstanceName(bpod.Meta.ID, ctrRep.RepId))
 				continue
 			}
 
-			if ctrRep.Node != opts.Meta.Id &&
-				(ctrRep.Next == nil || ctrRep.Next.Node != opts.Meta.Id) {
+			if ctrRep.Node != req.Meta.Id &&
+				(ctrRep.Next == nil || ctrRep.Next.Node != req.Meta.Id) {
 				continue
 			}
 
-			if ctrRep.Node == opts.Meta.Id {
+			if ctrRep.Node == req.Meta.Id {
 
 				if inapi.OpActionAllow(ctrRep.Action, inapi.OpActionDestroy|inapi.OpActionDestroyed) {
 					hostBound.ExpBoxRemoves = append(hostBound.ExpBoxRemoves,
@@ -297,7 +373,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 				Operate: bpod.Operate,
 			}
 
-			if ctrRep.Next != nil && ctrRep.Next.Node == opts.Meta.Id {
+			if ctrRep.Next != nil && ctrRep.Next.Node == req.Meta.Id {
 
 				if ctrRep.Action == (inapi.OpActionMigrate | inapi.OpActionStop) {
 					continue
@@ -346,7 +422,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 	}
 
 	hlog.Printf("debug", "zm/rpc-server Ctr host %s, removes %d",
-		opts.Meta.Id,
+		req.Meta.Id,
 		len(hostBound.ExpBoxRemoves))
 
 	return hostBound, nil
@@ -387,7 +463,7 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 	}
 
 	//
-	masters := []inapi.HostNodeAddress{}
+	mainNodes := []string{}
 	for i, v := range status.ZoneMasterList.Items {
 
 		if v.Addr == addr_prev {
@@ -398,10 +474,10 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 				addr_prev, host.Spec.PeerLanAddr)
 		}
 
-		masters = append(masters, inapi.HostNodeAddress(status.ZoneMasterList.Items[i].Addr))
+		mainNodes = inapi.ArrayStringUniJoin(mainNodes, status.ZoneMasterList.Items[i].Addr)
 	}
-	if len(masters) > 0 {
-		config.Config.Masters = masters
+	if len(mainNodes) > 0 {
+		config.Config.Zone.MainNodes = mainNodes
 		config.Config.Flush()
 	}
 

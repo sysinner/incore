@@ -31,7 +31,6 @@ import (
 
 	drvClient "github.com/fsouza/go-dockerclient"
 
-	inCfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/ipm"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
@@ -47,8 +46,8 @@ var (
 	binInstall         = "/usr/bin/install"
 	clientUnixSockAddr = "unix:///var/run/docker.sock"
 	lxcfsBins          = [][]string{
+		{"/usr/bin/innerstack-lxcfs", "/var/lib/innerstack-lxcfs/proc/"},
 		{"/usr/bin/lxcfs", "/var/lib/lxcfs/proc/"},
-		{"/usr/local/bin/pouch-lxcfs", "/var/lib/pouch-lxcfs/proc/"},
 	}
 	lxcfsMounts = []string{
 		"cpuinfo",
@@ -70,20 +69,17 @@ func NewDriver() (napi.BoxDriver, error) {
 
 		vols := []string{}
 
-		if inCfg.Config.LxcFsEnable {
+		for _, vp := range lxcfsBins {
 
-			for _, vp := range lxcfsBins {
-
-				if _, err := exec.Command("pidof", vp[0]).Output(); err != nil {
-					continue
-				}
-
-				for _, v := range lxcfsMounts {
-					vols = append(vols, fmt.Sprintf("%s:%s:ro", vp[1]+v, "/proc/"+v))
-				}
-
-				break
+			if _, err := exec.Command("pidof", vp[0]).Output(); err != nil {
+				continue
 			}
+
+			for _, v := range lxcfsMounts {
+				vols = append(vols, fmt.Sprintf("%s:%s:ro", vp[1]+v, "/proc/"+v))
+			}
+
+			break
 		}
 
 		driver = &BoxDriver{
@@ -716,7 +712,18 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		if err := tp.client.StartContainer(inst.ID, nil); err != nil {
 
 			hlog.Printf("info", "hostlet/box Start %s, Error %v", inst.Name, err)
-			if strings.Contains(err.Error(), "No such container") ||
+
+			if strings.Contains(err.Error(), "OCI runtime create failed") {
+
+				if err = tp.client.RemoveContainer(drvClient.RemoveContainerOptions{
+					ID:    inst.ID,
+					Force: true,
+				}); err == nil {
+					inst.ID = ""
+					hlog.Printf("warn", "hostlet/box %s : remove and re-create", inst.Name)
+				}
+				time.Sleep(1e9)
+			} else if strings.Contains(err.Error(), "No such container") ||
 				strings.Contains(err.Error(), "no such file or directory") {
 				inst.ID = ""
 			}

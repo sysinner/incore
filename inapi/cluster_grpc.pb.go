@@ -93,6 +93,7 @@ var _ApiHostMember_serviceDesc = grpc.ServiceDesc{
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ApiZoneMasterClient interface {
+	HostConfig(ctx context.Context, in *ZoneHostConfigRequest, opts ...grpc.CallOption) (*ZoneHostConfigReply, error)
 	HostStatusSync(ctx context.Context, in *ResHost, opts ...grpc.CallOption) (*ResHostBound, error)
 }
 
@@ -102,6 +103,15 @@ type apiZoneMasterClient struct {
 
 func NewApiZoneMasterClient(cc grpc.ClientConnInterface) ApiZoneMasterClient {
 	return &apiZoneMasterClient{cc}
+}
+
+func (c *apiZoneMasterClient) HostConfig(ctx context.Context, in *ZoneHostConfigRequest, opts ...grpc.CallOption) (*ZoneHostConfigReply, error) {
+	out := new(ZoneHostConfigReply)
+	err := c.cc.Invoke(ctx, "/inapi.ApiZoneMaster/HostConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *apiZoneMasterClient) HostStatusSync(ctx context.Context, in *ResHost, opts ...grpc.CallOption) (*ResHostBound, error) {
@@ -117,6 +127,7 @@ func (c *apiZoneMasterClient) HostStatusSync(ctx context.Context, in *ResHost, o
 // All implementations must embed UnimplementedApiZoneMasterServer
 // for forward compatibility
 type ApiZoneMasterServer interface {
+	HostConfig(context.Context, *ZoneHostConfigRequest) (*ZoneHostConfigReply, error)
 	HostStatusSync(context.Context, *ResHost) (*ResHostBound, error)
 	mustEmbedUnimplementedApiZoneMasterServer()
 }
@@ -125,6 +136,9 @@ type ApiZoneMasterServer interface {
 type UnimplementedApiZoneMasterServer struct {
 }
 
+func (*UnimplementedApiZoneMasterServer) HostConfig(context.Context, *ZoneHostConfigRequest) (*ZoneHostConfigReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method HostConfig not implemented")
+}
 func (*UnimplementedApiZoneMasterServer) HostStatusSync(context.Context, *ResHost) (*ResHostBound, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method HostStatusSync not implemented")
 }
@@ -132,6 +146,24 @@ func (*UnimplementedApiZoneMasterServer) mustEmbedUnimplementedApiZoneMasterServ
 
 func RegisterApiZoneMasterServer(s *grpc.Server, srv ApiZoneMasterServer) {
 	s.RegisterService(&_ApiZoneMaster_serviceDesc, srv)
+}
+
+func _ApiZoneMaster_HostConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ZoneHostConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApiZoneMasterServer).HostConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/inapi.ApiZoneMaster/HostConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApiZoneMasterServer).HostConfig(ctx, req.(*ZoneHostConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _ApiZoneMaster_HostStatusSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -156,6 +188,10 @@ var _ApiZoneMaster_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "inapi.ApiZoneMaster",
 	HandlerType: (*ApiZoneMasterServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "HostConfig",
+			Handler:    _ApiZoneMaster_HostConfig_Handler,
+		},
 		{
 			MethodName: "HostStatusSync",
 			Handler:    _ApiZoneMaster_HostStatusSync_Handler,

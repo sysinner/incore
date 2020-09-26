@@ -19,21 +19,20 @@ import (
 	"time"
 )
 
-var (
-	DaemonDefault = &Daemon{}
-)
-
 type Daemon struct {
-	mu      sync.Mutex
-	jobs    []*JobEntry
-	ctx     *Context
-	running bool
-	cr      ContextRefresher
+	mu         sync.Mutex
+	cmu        sync.RWMutex
+	jobs       []*JobEntry
+	ctx        *Context
+	running    bool
+	cr         ContextRefresher
+	conditions map[string]int64
 }
 
 func NewDaemon(cr ContextRefresher) (*Daemon, error) {
 	return &Daemon{
-		cr: cr,
+		cr:         cr,
+		conditions: map[string]int64{},
 	}, nil
 }
 
@@ -43,7 +42,7 @@ func (it *Daemon) Commit(j *JobEntry) *JobEntry {
 	defer it.mu.Unlock()
 
 	for _, v := range it.jobs {
-		if v.job.Name() == j.job.Name() {
+		if v.job.Spec().Name == j.job.Spec().Name {
 			v.status = StatusOK
 			if j.sch != nil {
 				v.sch = j.sch
@@ -55,6 +54,34 @@ func (it *Daemon) Commit(j *JobEntry) *JobEntry {
 	it.jobs = append(it.jobs, j)
 
 	return j.Commit()
+}
+
+func (it *Daemon) conditionAllow(j *JobEntry) bool {
+
+	if len(j.job.Spec().Conditions) == 0 {
+		return true
+	}
+
+	it.cmu.RLock()
+	defer it.cmu.RUnlock()
+
+	tn := time.Now().UnixNano() / 1e6
+
+	for c, v := range j.job.Spec().Conditions {
+
+		t, ok := it.conditions[c]
+		if !ok {
+			return false
+		}
+
+		if v == -1 || t+v >= tn {
+			return true
+		}
+
+		break
+	}
+
+	return false
 }
 
 func (it *Daemon) Start() {
@@ -81,7 +108,15 @@ func (it *Daemon) Start() {
 			ctx = it.cr()
 		}
 
+		if ctx.daemon == nil {
+			ctx.daemon = it
+		}
+
 		for _, j := range it.jobs {
+
+			if !it.conditionAllow(j) {
+				continue
+			}
 
 			if !j.Schedule().Hit(st) {
 				continue
@@ -90,4 +125,16 @@ func (it *Daemon) Start() {
 			go j.exec(ctx)
 		}
 	}
+}
+
+func (it *Daemon) conditionSet(name string, v int64) {
+	it.cmu.Lock()
+	defer it.cmu.Unlock()
+	it.conditions[name] = v
+}
+
+func (it *Daemon) conditionDel(name string) {
+	it.cmu.Lock()
+	defer it.cmu.Unlock()
+	delete(it.conditions, name)
 }

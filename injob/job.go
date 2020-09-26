@@ -21,8 +21,16 @@ import (
 )
 
 type Job interface {
-	Name() string
+	Spec() *JobSpec
 	Run(ctx *Context) error
+}
+
+type JobSpec struct {
+	Name       string
+	Conditions map[string]int64
+}
+
+type JobStatus struct {
 }
 
 type JobEntry struct {
@@ -31,6 +39,18 @@ type JobEntry struct {
 	status  int
 	job     Job
 	running bool
+}
+
+func NewJobSpec(name string) *JobSpec {
+	return &JobSpec{
+		Name:       name,
+		Conditions: map[string]int64{},
+	}
+}
+
+func (it *JobSpec) ConditionSet(name string, v int64) *JobSpec {
+	it.Conditions[name] = v
+	return it
 }
 
 func NewJobEntry(job Job, sch *Schedule) *JobEntry {
@@ -61,7 +81,9 @@ func (it *JobEntry) exec(ctx *Context) {
 	}()
 
 	if err := it.job.Run(ctx); err != nil {
-		hlog.Printf("warn", "job %s err %s", it.job.Name(), err.Error())
+		hlog.Printf("warn", "job %s err %s", it.job.Spec().Name, err.Error())
+	} else {
+		// hlog.Printf("debug", "job %s well done in %v", it.job.Spec().Name, time.Since(tn))
 	}
 }
 

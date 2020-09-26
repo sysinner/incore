@@ -48,7 +48,7 @@ func (c *Sys) Init() int {
 
 type SysCfg struct {
 	ZoneId           string                  `json:"zone_id"`
-	ZoneMaster       *in_cfg.ZoneMaster      `json:"zone_master"`
+	ZoneMaster       *in_cfg.ZoneMainConfig  `json:"zone_master"`
 	SysConfigs       []*inapi.SysConfigGroup `json:"sys_configs,omitempty"`
 	sysConfigUpdated int64                   `json:"-"`
 }
@@ -67,7 +67,7 @@ func (c *Sys) CfgAction() {
 			ZoneId: in_cfg.Config.Host.ZoneId,
 		}
 
-		sysCfg.ZoneMaster = in_cfg.Config.ZoneMaster
+		sysCfg.ZoneMaster = in_cfg.Config.ZoneMain
 	}
 
 	if (sysCfg.sysConfigUpdated + 60) < tn {

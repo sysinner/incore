@@ -12,35 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package injob
+package o1
 
 import (
-	"github.com/hooto/hmsg/go/hmsg/v1"
-	"github.com/sysinner/incore/inapi"
+	"github.com/hooto/httpsrv"
+
+	incfg "github.com/sysinner/incore/config"
+	insts "github.com/sysinner/incore/status"
 )
 
-type ContextRefresher func() *Context
-
-type Context struct {
-	Zone              *inapi.ResZone
-	ZoneHostList      *inapi.ResHostList
-	ZonePodList       *inapi.PodList
-	ZonePodStatusList *inapi.PodStatusList
-	IsZoneLeader      bool
-	ZoneMailManager   *hmsg.MailManager
-	daemon            *Daemon
+type System struct {
+	*httpsrv.Controller
 }
 
-func (it *Context) ConditionSet(name string, v int64) *Context {
-	if it.daemon != nil {
-		it.daemon.conditionSet(name, v)
-	}
-	return it
-}
+func (c System) HostInfoAction() {
 
-func (it *Context) ConditionDel(name string) *Context {
-	if it.daemon != nil {
-		it.daemon.conditionDel(name)
+	rep := incfg.HostInfoReply{
+		ConfigCommon: incfg.Config,
 	}
-	return it
+
+	if insts.IsZoneMaster() {
+
+		rep.Status.ZoneMainNode = true
+
+		if insts.IsZoneMasterLeader() {
+			rep.Status.ZoneLeader = true
+		}
+	}
+
+	rep.Status.HostUptime = int64(insts.Host.Status.Uptime)
+
+	c.RenderJson(rep)
 }

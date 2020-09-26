@@ -23,7 +23,7 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/rpcsrv"
+	"github.com/sysinner/incore/inrpc"
 	"github.com/sysinner/incore/status"
 )
 
@@ -149,10 +149,10 @@ func (c Host) NodeNewAction() {
 	}
 
 	set.ZoneMasters = status.ZoneMasters()
-	set.ZoneInpackServiceUrl = config.Config.InpackServiceUrl
+	set.ZoneInpackServiceUrl = config.Config.Zone.InpackServiceUrl
 
 	//
-	conn, err := rpcsrv.ClientConn(set.PeerLanAddr)
+	conn, err := inrpc.ClientConn(set.PeerLanAddr)
 	if err != nil {
 		set.Error = types.NewErrorMeta("400", "Invalid Peer Address %s"+set.PeerLanAddr)
 		return

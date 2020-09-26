@@ -12,9 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package version
+package inapi
 
-var (
-	Version = "0.9.2"
-	Release = "1"
-)
+func ArrayStringHas(ls []string, s string) bool {
+	for _, v := range ls {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func ArrayStringEqual(ls1, ls2 []string) bool {
+	if len(ls1) != len(ls2) {
+		return false
+	}
+	for _, v := range ls1 {
+		if !ArrayStringHas(ls2, v) {
+			return false
+		}
+	}
+	return true
+}
+
+func ArrayStringUniJoin(ls []string, s string) []string {
+	if s != "" {
+		for _, v := range ls {
+			if v == s {
+				return ls
+			}
+		}
+		ls = append(ls, s)
+	}
+	return ls
+}

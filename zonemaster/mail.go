@@ -71,7 +71,7 @@ type haEmailData struct {
 func haEmailAction(pod *inapi.Pod, repId uint32) error {
 
 	item := haEmailData{
-		ConsoleUrl: inCfg.Config.InpanelServiceUrl,
+		ConsoleUrl: inCfg.Config.Zone.InpanelServiceUrl,
 		PodId:      pod.Meta.ID,
 		PodName:    pod.Meta.Name,
 		ReplicaId:  repId,

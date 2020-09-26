@@ -40,8 +40,8 @@ import (
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inrpc"
 	"github.com/sysinner/incore/inutils"
-	"github.com/sysinner/incore/rpcsrv"
 	"github.com/sysinner/incore/status"
 )
 
@@ -69,7 +69,7 @@ func zoneMasterSync() error {
 	}()
 
 	//
-	if len(config.Config.Masters) == 0 {
+	if len(config.Config.Zone.MainNodes) == 0 {
 		return errors.New("No MasterList.Items Found")
 	}
 
@@ -115,15 +115,14 @@ func zoneMasterSync() error {
 	// fmt.Println(zms)
 	if zms.Masters != nil {
 		if chg := status.LocalZoneMasterList.SyncList(zms.Masters); chg {
-			ms := inapi.HostNodeAddresses{}
+			mainNodes := []string{}
 			for _, v := range zms.Masters.Items {
-				addr := inapi.HostNodeAddress(v.Addr)
-				if addr.Valid() {
-					ms = append(ms, inapi.HostNodeAddress(addr))
+				if addr := inapi.HostNodeAddress(v.Addr); addr.Valid() {
+					mainNodes = inapi.ArrayStringUniJoin(mainNodes, addr.String())
 				}
 			}
-			if len(ms) > 0 && !config.Config.Masters.Equal(ms) {
-				config.Config.Masters = ms
+			if len(mainNodes) > 0 && !inapi.ArrayStringEqual(config.Config.Zone.MainNodes, mainNodes) {
+				config.Config.Zone.MainNodes = mainNodes
 				config.Config.Flush()
 				hlog.Printf("info", "hostlet/config/masters refreshed")
 			}
@@ -131,7 +130,7 @@ func zoneMasterSync() error {
 	}
 
 	//
-	if !inapi.ResImageServiceSliceEqual(config.Config.ImageServices, zms.ImageServices) {
+	if !inapi.ResImageServiceSliceEqual(config.Config.Zone.ImageServices, zms.ImageServices) {
 
 		chg := false
 
@@ -168,7 +167,7 @@ func zoneMasterSync() error {
 		}
 
 		if chg {
-			config.Config.ImageServices = zms.ImageServices
+			config.Config.Zone.ImageServices = zms.ImageServices
 			config.Config.Flush()
 			hlog.Printf("info", "hostlet/config refreshed, image-services %d", len(zms.ImageServices))
 		}
@@ -210,8 +209,8 @@ func zoneMasterSync() error {
 		nstatus.PodRepStops.Clean()
 	}
 
-	if len(zms.ZoneInpackServiceUrl) > 10 && zms.ZoneInpackServiceUrl != config.Config.InpackServiceUrl {
-		config.Config.InpackServiceUrl = zms.ZoneInpackServiceUrl
+	if len(zms.ZoneInpackServiceUrl) > 10 && zms.ZoneInpackServiceUrl != config.Config.Zone.InpackServiceUrl {
+		config.Config.Zone.InpackServiceUrl = zms.ZoneInpackServiceUrl
 		config.Config.Flush()
 	}
 
@@ -231,8 +230,8 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 	//
 	addr := status.LocalZoneMasterList.LeaderAddr()
 	if addr == "" {
-		if len(config.Config.Masters) > 0 {
-			addr = string(config.Config.Masters[0])
+		if len(config.Config.Zone.MainNodes) > 0 {
+			addr = string(config.Config.Zone.MainNodes[0])
 		}
 		if addr == "" {
 			return nil, errors.New("No MasterList.LeaderAddr Found")
@@ -241,7 +240,7 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 	// hlog.Printf("info", "No MasterList.LeaderAddr Addr: %s", addr)
 
 	//
-	conn, err := rpcsrv.ClientConn(addr)
+	conn, err := inrpc.ClientConn(addr)
 	if err != nil {
 		hlog.Printf("error", "No MasterList.LeaderAddr Found: %s", addr)
 		return nil, err
@@ -536,7 +535,7 @@ func hostStatsFeed() *inapi.PbStatsSampleFeed {
 
 	// Storage IO
 	devs, _ := ps_disk.Partitions(false)
-	if dev_name := diskDevName(devs, config.Config.PodHomeDir); dev_name != "" {
+	if dev_name := diskDevName(devs, config.Config.Zone.PodHomeDir); dev_name != "" {
 		if diom, err := ps_disk.IOCounters(dev_name); err == nil {
 			if dio, ok := diom[dev_name]; ok {
 				hostStats.SampleSync("fs/sp/rn", timo, int64(dio.ReadCount), false)

@@ -261,7 +261,7 @@ func podRepMigrateOut(inst *napi.BoxInstance) error {
 
 			sets := map[string]interface{}{
 				"prefix":      inConf.Prefix,
-				"server_port": fmt.Sprintf("%d", inConf.Config.Host.LanAddr.Port()+5),
+				"server_port": fmt.Sprintf("%d", inapi.HostNodeAddress(inConf.Config.Host.LanAddr).Port()+5),
 			}
 			rsyncdActiveModules.Set(inst.Name,
 				napi.PodVolSysDir(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId))

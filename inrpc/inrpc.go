@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package rpcsrv
+package inrpc
 
 import (
 	"fmt"
@@ -24,26 +24,40 @@ import (
 	"github.com/sysinner/incore/auth"
 )
 
+type RpcServer = grpc.Server
+
 var (
-	// Server         = grpc.NewServer(grpc.Creds(NewCredentialServer()))
+	mu             sync.Mutex
 	grpcMsgByteMax = 16 * 1024 * 1024
-	Server         = grpc.NewServer(
+	lis            net.Listener
+	server         = grpc.NewServer(
 		grpc.MaxMsgSize(grpcMsgByteMax),
 		grpc.MaxSendMsgSize(grpcMsgByteMax),
 		grpc.MaxRecvMsgSize(grpcMsgByteMax),
 	)
 	clientConns  = map[string]*grpc.ClientConn{}
 	clientConnMu sync.Mutex
+	err          error
 )
 
 func Start(port uint16) error {
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	mu.Lock()
+	defer mu.Unlock()
+
+	lis, err = net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		return err
 	}
 
-	go Server.Serve(lis)
+	go server.Serve(lis)
+	return nil
+}
+
+func RegisterServer(fn func(s *RpcServer)) error {
+	mu.Lock()
+	defer mu.Unlock()
+	fn(server)
 	return nil
 }
 

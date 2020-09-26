@@ -18,167 +18,186 @@ package inapi;
 
 option go_package = ".;inapi";
 
-import "base.proto";
+import "inapi.proto";
 import "pod.proto";
 import "stats.proto";
 
 // volume
 message ResVolValue {
-    string name = 1; // struct:object_slice_key
-    int32 value = 2; // GB
-    uint32 attrs = 3;
+	string name = 1; // struct:object_slice_key
+	int32 value = 2; // GB
+	uint32 attrs = 3;
 }
 
 message ResVolBound {
-    string ref_id = 1;
-    string ref_name = 2;
-    string mnt = 4;
-    int32 size = 5;
-    uint32 attrs = 6;
+	string ref_id = 1;
+	string ref_name = 2;
+	string mnt = 4;
+	int32 size = 5;
+	uint32 attrs = 6;
 }
 
 // image
 message ResImageService {
-    string driver = 1;
-    string url = 2; // struct:object_slice_key
+	string driver = 1;
+	string url = 2; // struct:object_slice_key
 }
 
 // host
 message ResHostOperate {
-    uint32          action    = 1;
-    string          cell_id   = 2;
-    string          zone_id   = 3;
-    int32           cpu_used  = 4; // 10m
-    int64           mem_used  = 5; // MB
-    repeated ResVolValue vol_used = 6;
-    repeated uint32 port_used = 7;
-    int32           box_num   = 8;
-    uint32          pr        = 9; // Priority
+	uint32          action    = 1;
+	string          cell_id   = 2;
+	string          zone_id   = 3;
+	int32           cpu_used  = 4; // 10m
+	int64           mem_used  = 5; // MB
+	repeated ResVolValue vol_used = 6;
+	repeated uint32 port_used = 7;
+	int32           box_num   = 8;
+	uint32          pr        = 9; // Priority
 }
 
 message ResHost {
-    ObjectMeta              meta    = 1;
-    ResHostOperate          operate = 2;
-    ResHostSpec             spec    = 3;
-    ResHostStatus           status  = 4;
-    repeated PbPodRepStatus prs     = 5;
+	ObjectMeta              meta    = 1;
+	ResHostOperate          operate = 2;
+	ResHostSpec             spec    = 3;
+	ResHostStatus           status  = 4;
+	repeated PbPodRepStatus prs     = 5;
 }
 
 
 message ResHostNew {
-    string name = 1;
-    uint32 action = 2;
-    string zone_id = 3;
-    string cell_id = 4;
-    string peer_lan_addr = 5;
-    string secret_key = 6;
-    repeated string zone_masters = 7;
-    string zone_iam_service_url = 8;
-    string zone_inpack_service_url = 9;
+	string name = 1;
+	uint32 action = 2;
+	string zone_id = 3;
+	string cell_id = 4;
+	string peer_lan_addr = 5;
+	string secret_key = 6;
+	repeated string zone_masters = 7;
+	string zone_iam_service_url = 8;
+	string zone_inpack_service_url = 9;
 }
 
 message ResHostList {
-    repeated ResHost items = 2;
+	repeated ResHost items = 2;
 }
 
 message ResHostSpec {
-    ResPlatform     platform      = 2;
-    ResHostResource capacity      = 3;
-    uint32          http_port     = 5;
-    string          peer_lan_addr = 6;
-    string          peer_wan_addr = 7;
-    string exp_docker_version = 10;
-    string exp_rkt_version = 11;
-    string exp_pouch_version = 12;
+	ResPlatform     platform      = 2;
+	ResHostResource capacity      = 3;
+	uint32          http_port     = 5;
+	string          peer_lan_addr = 6;
+	string          peer_wan_addr = 7;
+	string exp_docker_version = 10;
+	string exp_rkt_version = 11;
+	string exp_pouch_version = 12;
 }
 
 message ResPlatform {
-    string os     = 1;
-    string kernel = 2;
-    string arch   = 3;
+	string os     = 1;
+	string kernel = 2;
+	string arch   = 3;
 }
 
 message ResHostResource {
-    int64                 mem  = 1;
-    int32                 cpu  = 2;
-    repeated ResVolValue vols = 3;
+	int64                 mem  = 1;
+	int32                 cpu  = 2;
+	repeated ResVolValue vols = 3;
 }
 
 message ResHostVolume {
-    string name  = 1;
-    uint64 total = 2;
-    uint64 used  = 3;
+	string name  = 1;
+	uint64 total = 2;
+	uint64 used  = 3;
 }
 
 message ResHostStatus {
-    string                 phase   = 1;
-    uint32                 uptime  = 2;
-    repeated ResHostVolume volumes = 3;
-    PbStatsSampleFeed      stats   = 4;
-    uint32                 updated = 5;
+	string                 phase   = 1;
+	uint32                 uptime  = 2;
+	repeated ResHostVolume volumes = 3;
+	PbStatsSampleFeed      stats   = 4;
+	uint32                 updated = 5;
 }
 
 message ResHostBound {
-    ResZoneMasterList masters  = 2;
-    repeated string exp_pods = 5;
-    string zone_inpack_service_url = 7;
-    repeated string exp_box_removes = 8;
-    repeated string exp_box_stops = 9;
-    repeated ResImageService image_services = 10;
+	ResZoneMasterList masters  = 2;
+	repeated string exp_pods = 5;
+	string zone_inpack_service_url = 7;
+	repeated string exp_box_removes = 8;
+	repeated string exp_box_stops = 9;
+	repeated ResImageService image_services = 10;
 }
 
 
 message ResZone {
-    ObjectMeta       meta      = 2;
-    int32            phase     = 3;
-    string           summary   = 4;
-    repeated string  wan_addrs = 5;
-    repeated string  lan_addrs = 6;
-    repeated ResCell cells     = 7;
-    repeated Label   options   = 8;
-    string           wan_api   = 9;
-    repeated ResImageService image_services = 10;
+	ObjectMeta       meta      = 2;
+	int32            phase     = 3;
+	string           summary   = 4;
+	repeated string  wan_addrs = 5;
+	repeated string  lan_addrs = 6;
+	repeated ResCell cells     = 7;
+	repeated Label   options   = 8;
+	string           wan_api   = 9;
+	repeated ResImageService image_services = 10;
 }
 
 message ResCell {
-    ObjectMeta meta        = 2;
-    string     zone_id     = 3;
-    int32      phase       = 4;
-    string     description = 5;
-    int32      node_num    = 6;
-    ResCellStatus status = 7;
+	ObjectMeta meta        = 2;
+	string     zone_id     = 3;
+	int32      phase       = 4;
+	string     description = 5;
+	int32      node_num    = 6;
+	ResCellStatus status = 7;
 }
 
 message ResCellStatus {
-    string id = 1;
-    uint32 updated = 2;
-    int64 cpu_cap = 5;
-    int64 cpu_used = 6;
-    int64 mem_cap = 7;
-    int64 mem_used = 8;
-    int32 host_cap = 10;
-    int32 host_in = 11;
-    int32 vol_cap = 12;
-    int32 vol_used = 13;
+	string id = 1;
+	uint32 updated = 2;
+	int64 cpu_cap = 5;
+	int64 cpu_used = 6;
+	int64 mem_cap = 7;
+	int64 mem_used = 8;
+	int32 host_cap = 10;
+	int32 host_in = 11;
+	int32 vol_cap = 12;
+	int32 vol_used = 13;
 }
 
 message ResZoneMasterNode {
-    string id     = 1;
-    string addr   = 2;
-    uint32 action = 3;
+	string id     = 1;
+	string addr   = 2;
+	uint32 action = 3;
 }
 
 message ResZoneMasterList {
-    uint64                     version = 1;
-    string                     leader  = 2;
-    uint64                     updated = 3;
-    repeated ResZoneMasterNode items   = 4;
+	uint64                     version = 1;
+	string                     leader  = 2;
+	uint64                     updated = 3;
+	repeated ResZoneMasterNode items   = 4;
+}
+
+message ZoneHostConfigRequest {
+	uint64 action = 2;
+	string id = 3;
+	string cell_id = 4;
+	string lan_addr = 5;
+	string secret_key = 6;
+}
+
+message ZoneHostConfigReply {
+	string zone_id = 3;
+	string cell_id = 4;
+	repeated string zone_main_nodes = 5;
+}
+
+message ServiceReply {
+	string kind = 1;
 }
 
 service ApiHostMember {
-    rpc HostJoin (ResHostNew) returns (ResHost) {}
+	rpc HostJoin (ResHostNew) returns (ResHost) {}
 }
 
 service ApiZoneMaster {
-    rpc HostStatusSync (ResHost) returns (ResHostBound) {}
+	rpc HostConfig (ZoneHostConfigRequest) returns (ZoneHostConfigReply) {}
+	rpc HostStatusSync (ResHost) returns (ResHostBound) {}
 }

@@ -129,16 +129,16 @@ func zmWorkerZoneAccessKeySetup() error {
 		return fmt.Errorf("Zone Not Setup")
 	}
 
-	if config.Config.ZoneIamAccessKey == nil {
+	if config.Config.ZoneMain.IamAccessKey == nil {
 
 		akId := "00" + idhash.HashToHexString(
 			[]byte(fmt.Sprintf("sys/zone/iam_acc_charge/ak/%s", status.ZoneId)), 14)
 
-		config.Config.ZoneIamAccessKey = iamdata.KeyMgr.KeyGet(akId)
+		config.Config.ZoneMain.IamAccessKey = iamdata.KeyMgr.KeyGet(akId)
 
-		if config.Config.ZoneIamAccessKey == nil {
+		if config.Config.ZoneMain.IamAccessKey == nil {
 
-			config.Config.ZoneIamAccessKey = &hauth.AccessKey{
+			config.Config.ZoneMain.IamAccessKey = &hauth.AccessKey{
 				Id: akId,
 				Secret: idhash.HashToBase64String(
 					idhash.AlgSha256, []byte(config.Config.Host.SecretKey), 40),
@@ -153,9 +153,9 @@ func zmWorkerZoneAccessKeySetup() error {
 			}
 
 			hlog.Printf("warn", "zone #%s, init iam/acc_charge/key, access_key id %s, secret %s...",
-				status.ZoneId, config.Config.ZoneIamAccessKey.Id, config.Config.ZoneIamAccessKey.Secret[:8])
+				status.ZoneId, config.Config.ZoneMain.IamAccessKey.Id, config.Config.ZoneMain.IamAccessKey.Secret[:8])
 
-			iamdata.AccessKeyInitData(config.Config.ZoneIamAccessKey)
+			iamdata.AccessKeyInitData(config.Config.ZoneMain.IamAccessKey)
 			config.Config.Flush()
 		}
 	}

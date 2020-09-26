@@ -29,53 +29,89 @@ import (
 	"github.com/hooto/htoml4g/htoml"
 	iamcfg "github.com/hooto/iam/config"
 	"github.com/lessos/lessgo/crypto/idhash"
-	"github.com/lessos/lessgo/encoding/json"
-	"github.com/lessos/lessgo/types"
 	"github.com/lynkdb/kvgo"
 
 	"github.com/sysinner/incore/inapi"
 )
 
-type HostMember struct {
-	Id        string                `json:"id" toml:"id"`
-	ZoneId    string                `json:"zone_id" toml:"zone_id"`
-	CellId    string                `json:"cell_id,omitempty" toml:"cell_id,omitempty"`
-	LanAddr   inapi.HostNodeAddress `json:"lan_addr" toml:"lan_addr"`
-	WanAddr   inapi.HostNodeAddress `json:"wan_addr" toml:"wan_addr"`
-	HttpPort  uint16                `json:"http_port" toml:"http_port"`
-	SecretKey string                `json:"secret_key" toml:"secret_key"`
+type HostConfig struct {
+	Id            string `json:"id" toml:"id"`
+	ZoneId        string `json:"zone_id" toml:"zone_id"`
+	CellId        string `json:"cell_id" toml:"cell_id"`
+	LanAddr       string `json:"lan_addr" toml:"lan_addr"`
+	WanAddr       string `json:"wan_addr,omitempty" toml:"wan_addr,omitempty"`
+	SecretKey     string `json:"secret_key" toml:"secret_key"`
+	PprofHttpPort uint16 `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
 }
 
-type ZoneMaster struct {
-	DataNode           *kvgo.Config `json:"data_node" toml:"data_node"`
-	DataTableZone      string       `json:"data_table_zone" toml:"data_table_zone"`
-	DataTableGlobal    string       `json:"data_table_global" toml:"data_table_global"`
-	DataTableInpack    string       `json:"data_table_inpack" toml:"data_table_inpack"`
-	MultiZoneEnable    bool         `json:"multi_zone_enable,omitempty" toml:"multi_zone_enable,omitempty"`
-	MultiCellEnable    bool         `json:"multi_cell_enable" toml:"multi_cell_enable"`
-	MultiHostEnable    bool         `json:"multi_host_enable" toml:"multi_host_enable"`
-	MultiReplicaEnable bool         `json:"multi_replica_enable" toml:"multi_replica_enable"`
-	SchedulerPlugin    string       `json:"scheduler_plugin,omitempty" toml:"scheduler_plugin,omitempty"`
-	LocaleLang         string       `json:"locale_lang,omitempty" toml:"locale_lang,omitempty" desc:"locale language name. default: en"`
+type HostJoinRequest struct {
+	ZoneAddr      string `json:"zone_addr" toml:"zone_addr"`
+	HostId        string `json:"host_id" toml:"host_id"`
+	HostAddr      string `json:"host_addr" toml:"host_addr"`
+	HostSecretKey string `json:"host_secret_key" toml:"host_secret_key"`
+	CellId        string `json:"cell_id" toml:"cell_id"`
 }
 
-type ConfigCommon struct {
-	filepath              string                   `json:"-" toml:"-"`
-	InstanceId            string                   `json:"instance_id" toml:"instance_id"`
-	Host                  HostMember               `json:"host" toml:"host"`
-	Masters               inapi.HostNodeAddresses  `json:"masters" toml:"masters"`
-	ZoneMaster            *ZoneMaster              `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
-	IamService            *iamcfg.ConfigCommon     `json:"iam_service,omitempty" toml:"iam_service,omitempty"`
-	ZoneIamAccessKey      *hauth.AccessKey         `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
+type ZoneInitRequest struct {
+	HostAddr string `json:"host_addr" toml:"host_addr"`
+	ZoneId   string `json:"zone_id" toml:"zone_id"`
+	CellId   string `json:"cell_id" toml:"cell_id"`
+	HttpPort uint16 `json:"http_port" toml:"http_port"`
+}
+
+type ZoneConfig struct {
+	InstanceId            string                   `json:"instance_id,omitempty" toml:"instance_id,omitempty"`
+	ZoneId                string                   `json:"zone_id" toml:"zone_id"`
+	MainNodes             []string                 `json:"main_nodes" toml:"main_nodes"`
+	HttpPort              uint16                   `json:"http_port" toml:"http_port"`
 	PodHomeDir            string                   `json:"pod_home_dir" toml:"pod_home_dir"`
-	Options               types.Labels             `json:"items,omitempty" toml:"items,omitempty"`
-	PprofHttpPort         uint16                   `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
+	ImageServices         []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
 	InpackServiceUrl      string                   `json:"inpack_service_url,omitempty" toml:"inpack_service_url,omitempty"`
 	InpanelServiceUrl     string                   `json:"inpanel_service_url,omitempty" toml:"inpanel_service_url,omitempty"`
 	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty" toml:"iam_service_url_frontend,omitempty"`
 	IamServiceUrlGlobal   string                   `json:"iam_service_url_global,omitempty" toml:"iam_service_url_global,omitempty"`
-	LxcFsEnable           bool                     `json:"lxc_fs_enable" toml:"lxc_fs_enable"`
-	ImageServices         []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
+}
+
+type ZoneMainConfig struct {
+	DataTableZone      string           `json:"data_table_zone" toml:"data_table_zone"`
+	DataTableGlobal    string           `json:"data_table_global" toml:"data_table_global"`
+	DataTableInpack    string           `json:"data_table_inpack" toml:"data_table_inpack"`
+	MultiZoneEnable    bool             `json:"multi_zone_enable" toml:"multi_zone_enable"`
+	MultiCellEnable    bool             `json:"multi_cell_enable" toml:"multi_cell_enable"`
+	MultiHostEnable    bool             `json:"multi_host_enable" toml:"multi_host_enable"`
+	MultiReplicaEnable bool             `json:"multi_replica_enable" toml:"multi_replica_enable"`
+	SchedulerPlugin    string           `json:"scheduler_plugin,omitempty" toml:"scheduler_plugin,omitempty"`
+	LocaleLang         string           `json:"locale_lang" toml:"locale_lang" desc:"locale language name. default: en"`
+	IamAccessKey       *hauth.AccessKey `json:"iam_access_key,omitempty" toml:"iam_access_key,omitempty"`
+}
+
+type ConfigCommon struct {
+	filepath string `json:"-" toml:"-"`
+
+	Host       HostConfig           `json:"host" toml:"host"`
+	Zone       ZoneConfig           `json:"zone" toml:"zone"`
+	ZoneMain   *ZoneMainConfig      `json:"zone_main,omitempty" toml:"zone_main,omitempty"`
+	IamService *iamcfg.ConfigCommon `json:"iam_service,omitempty" toml:"iam_service,omitempty"`
+	ZoneData   *kvgo.Config         `json:"zone_data,omitempty" toml:"zone_data,omitempty"`
+
+	/**
+	DelZoneIamAccessKey *hauth.AccessKey         `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
+	ZoneMaster          *ZoneMainConfig          `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
+	ImageServices       []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
+	Masters             []string                 `json:"masters" toml:"masters"`
+	PodHomeDir          string                   `json:"pod_home_dir" toml:"pod_home_dir"`
+	InpackServiceUrl    string                   `json:"inpack_service_url,omitempty" toml:"inpack_service_url,omitempty"`
+	InpanelServiceUrl   string                   `json:"inpanel_service_url,omitempty" toml:"inpanel_service_url,omitempty"`
+	*/
+}
+
+type HostInfoReply struct {
+	ConfigCommon
+	Status struct {
+		ZoneMainNode bool  `json:"zone_main_node,omitempty" toml:"zone_main_node,omitempty"`
+		ZoneLeader   bool  `json:"zone_leader,omitempty" toml:"zone_leader,omitempty"`
+		HostUptime   int64 `json:"host_uptime,omitempty" toml:"host_uptime,omitempty"`
+	} `json:"status,omitempty" toml:"status,omitempty"`
 }
 
 func (cfg *ConfigCommon) Flush() error {
@@ -94,84 +130,45 @@ var (
 		Username: "action",
 		HomeDir:  "/home/action",
 	}
-	InitZoneId       = "local"
+	InitZoneId       = "z1"
 	InitCellId       = "g1"
 	SysConfigurators = []*inapi.SysConfigurator{}
+	err              error
 )
 
-func Setup() error {
-
-	var err error
+func BasicSetup() error {
 
 	//
 	if u, err := user.Current(); err != nil || u.Uid != "0" {
 		return fmt.Errorf("Access Denied : must be run as root")
 	}
 
-	if Prefix, err = filepath.Abs(filepath.Dir(os.Args[0]) + "/.."); err != nil {
-		Prefix = "/opt/sysinner"
-	}
-
-	if err := htoml.DecodeFromFile(&Config, Prefix+"/etc/main.conf"); err != nil {
-
-		if !os.IsNotExist(err) {
-			return err
-		}
-
-		//
-		if err := json.DecodeFile(Prefix+"/etc/config.json", &Config); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-	}
-
-	Config.filepath = Prefix + "/etc/main.conf"
-
-	if err := Config.SetupHost(); err != nil {
-		return err
-	}
-
-	//
-	if Config.PodHomeDir == "" {
-		if strings.HasPrefix(Prefix, "/opt/sysinner/in") {
-			os.MkdirAll("/opt/sysinner/pods", 0755)
-			Config.PodHomeDir = "/opt/sysinner/pods"
-		} else {
-			Config.PodHomeDir = Prefix + "/var/pods"
-		}
-	}
-
-	if Config.IamServiceUrlFrontend != "" && !strings.HasPrefix(Config.IamServiceUrlFrontend, "http") {
-		return fmt.Errorf("Invalid iam_service_url_frontend")
-	}
-
-	if Config.InpanelServiceUrl == "" {
-		Config.InpanelServiceUrl = fmt.Sprintf("http://%s:%d/in",
-			Config.Host.LanAddr.IP(), Config.Host.HttpPort)
-	}
-
-	if Config.ZoneMaster != nil && Config.ZoneMaster.LocaleLang == "" {
-		Config.ZoneMaster.LocaleLang = "en"
-	}
-
 	if err := setupUser(); err != nil {
 		return err
 	}
 
-	return Config.Flush()
-}
+	if Prefix, err = filepath.Abs(filepath.Dir(os.Args[0]) + "/.."); err != nil {
+		Prefix = "/opt/sysinner"
+	}
 
-func (it *ConfigCommon) SetupHost() error {
+	if err := htoml.DecodeFromFile(&Config, Prefix+"/etc/config.toml"); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	}
+
+	Config.filepath = Prefix + "/etc/config.toml"
 
 	if len(Config.Host.Id) < 16 {
 		Config.Host.Id = idhash.RandHexString(16)
-		Config.Flush()
 	}
 
 	// Private IPv4
 	// 10.0.0.0 ~ 10.255.255.255
 	// 172.16.0.0 ~ 172.31.255.255
 	// 192.168.0.0 ~ 192.168.255.255
-	if !Config.Host.LanAddr.Valid() {
+	lanAddr := inapi.HostNodeAddress(Config.Host.LanAddr)
+	if !lanAddr.Valid() {
 
 		// auto setup local area ip address
 		addrs, _ := net.InterfaceAddrs()
@@ -189,32 +186,94 @@ func (it *ConfigCommon) SetupHost() error {
 			if ipa == 10 ||
 				(ipa == 172 && ipb >= 16 && ipb <= 31) ||
 				(ipa == 192 && ipb == 168) {
-				Config.Host.LanAddr.SetIP(
+
+				lanAddr.SetIP(
 					fmt.Sprintf("%s.%s.%s.%s", ips[1], ips[2], ips[3], ips[4]),
 				)
 				break
 			}
 		}
 
-		if len(Config.Host.LanAddr) < 8 {
-			Config.Host.LanAddr.SetIP("127.0.0.1")
+		if len(lanAddr) < 8 {
+			lanAddr.SetIP("127.0.0.1")
 		}
 	}
 
-	if Config.Host.LanAddr.Port() < 1024 {
-		Config.Host.LanAddr.SetPort(9529)
+	if lanAddr.Port() < 1 {
+		lanAddr.SetPort(9529)
 	}
 
-	if Config.Host.HttpPort < 1024 {
-		Config.Host.HttpPort = 9530
+	Config.Host.LanAddr = lanAddr.String()
+
+	if Config.Zone.HttpPort < 1 {
+		Config.Zone.HttpPort = 9530
 	}
 
 	if len(Config.Host.SecretKey) < 32 {
 		Config.Host.SecretKey = idhash.RandBase64String(40)
-		Config.Flush()
 	}
 
-	return nil
+	if IsZoneMaster() && Config.ZoneMain == nil {
+		Config.ZoneMain = &ZoneMainConfig{}
+	}
+
+	/**
+	{
+		if len(Config.Zone.ImageServices) == 0 && len(Config.ImageServices) > 0 {
+			Config.Zone.ImageServices = Config.ImageServices
+		}
+
+		if len(Config.Zone.MainNodes) == 0 && len(Config.Masters) > 0 {
+			Config.Zone.MainNodes = Config.Masters
+		}
+
+		if Config.Zone.InpackServiceUrl == "" && Config.InpackServiceUrl != "" {
+			Config.Zone.InpackServiceUrl = Config.InpackServiceUrl
+		}
+
+		if Config.Zone.InpanelServiceUrl == "" && Config.InpanelServiceUrl != "" {
+			Config.Zone.InpanelServiceUrl = Config.InpanelServiceUrl
+		}
+
+		if Config.Zone.PodHomeDir == "" && Config.PodHomeDir != "" {
+			Config.Zone.PodHomeDir = Config.PodHomeDir
+		}
+
+		if Config.Zone.ZoneId == "" && Config.Host.ZoneId != "" {
+			Config.Zone.ZoneId = Config.Host.ZoneId
+		}
+
+		if Config.ZoneMain.IamAccessKey == nil && Config.DelZoneIamAccessKey != nil {
+			Config.ZoneMain.IamAccessKey = Config.DelZoneIamAccessKey
+		}
+	}
+	*/
+
+	return Config.Flush()
+}
+
+func Setup() error {
+
+	//
+	if Config.Zone.PodHomeDir == "" {
+		os.MkdirAll("/opt/sysinner/pods", 0755)
+		Config.Zone.PodHomeDir = "/opt/sysinner/pods"
+	}
+
+	if Config.Zone.IamServiceUrlFrontend != "" &&
+		!strings.HasPrefix(Config.Zone.IamServiceUrlFrontend, "http") {
+		return fmt.Errorf("Invalid iam_service_url_frontend")
+	}
+
+	if Config.Zone.InpanelServiceUrl == "" {
+		Config.Zone.InpanelServiceUrl = fmt.Sprintf("http://%s/in", Config.Host.LanAddr)
+	}
+
+	if Config.ZoneMain != nil && Config.ZoneMain.LocaleLang == "" {
+		Config.ZoneMain.LocaleLang = "en"
+	}
+
+	return Config.Flush()
 }
 
 func setupUser() error {
@@ -240,11 +299,11 @@ func setupUser() error {
 }
 
 func IsZoneMaster() bool {
-	for _, v := range Config.Masters {
-		if Config.Host.LanAddr == v {
-			if Config.ZoneMaster == nil {
-				Config.ZoneMaster = &ZoneMaster{}
-			}
+	if Config.Zone.ZoneId == "" || len(Config.Zone.MainNodes) == 0 {
+		return false
+	}
+	for _, v := range Config.Zone.MainNodes {
+		if v == Config.Host.LanAddr {
 			return true
 		}
 	}

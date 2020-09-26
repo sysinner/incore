@@ -73,7 +73,7 @@ func volMountPoint(mnt string) string {
 		strings.HasPrefix(mnt, "/opt") {
 		mnt += "/sysinner/pods"
 	} else {
-		mnt = config.Config.PodHomeDir
+		mnt = config.Config.Zone.PodHomeDir
 	}
 	return mnt
 }

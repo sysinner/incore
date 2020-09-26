@@ -39,14 +39,20 @@ func (s *ApiHostMember) HostJoin(
 	}
 
 	if opts == nil ||
-		len(config.Config.Masters) > 0 ||
-		len(config.Config.Host.Id) < 12 ||
-		(len(config.Config.Host.ZoneId) > 0 && config.Config.Host.ZoneId != opts.ZoneId) {
-		return nil, errors.New("Action Denied")
+		len(config.Config.Zone.MainNodes) > 0 {
+		return nil, errors.New("Action Denied: the host only to perform a one-time initialization to join one cluster")
+	}
+
+	if len(opts.ZoneMasters) < 1 {
+		return nil, errors.New("Invalid Zone Masters")
 	}
 
 	if !inapi.HostNodeAddress(opts.PeerLanAddr).Valid() {
 		return nil, errors.New("Peer LAN Address Not Valid")
+	}
+
+	if opts.PeerLanAddr != string(config.Config.Host.LanAddr) {
+		return nil, errors.New("Invalid Peer Lan Address")
 	}
 
 	if !inapi.ResSysHostSecretKeyReg.MatchString(opts.SecretKey) ||
@@ -54,29 +60,23 @@ func (s *ApiHostMember) HostJoin(
 		return nil, errors.New("Invalid Secret Key")
 	}
 
-	if opts.PeerLanAddr != string(config.Config.Host.LanAddr) {
-		return nil, errors.New("Invalid Peer Lan Address")
-	}
-
-	if len(opts.ZoneMasters) < 1 {
-		return nil, errors.New("Invalid Zone Masters")
-	}
-
-	ms := []inapi.HostNodeAddress{}
+	mainNodes := []string{}
 	for _, v := range opts.ZoneMasters {
 		addr := inapi.HostNodeAddress(v)
 		if !addr.Valid() {
 			return nil, errors.New("Invalid Zone Masters: " + v)
 		}
-		ms = append(ms, addr)
+		mainNodes = inapi.ArrayStringUniJoin(mainNodes, addr.String())
 	}
+
+	config.Config.Zone.ZoneId = opts.ZoneId
+	config.Config.Zone.MainNodes = mainNodes
 
 	status.Host.Operate.ZoneId = opts.ZoneId
 	status.ZoneId = opts.ZoneId
 
 	config.Config.Host.ZoneId = opts.ZoneId
-	config.Config.Masters = ms
-	config.Config.InpackServiceUrl = opts.ZoneInpackServiceUrl
+	config.Config.Zone.InpackServiceUrl = opts.ZoneInpackServiceUrl
 
 	status.ZoneHostSecretKeys.Set(status.Host.Meta.Id, config.Config.Host.SecretKey)
 

@@ -63,7 +63,7 @@ func (c PodSpec) ResComputeListAction() {
 	}
 	defer c.RenderJson(&ls)
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		ls.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -125,7 +125,7 @@ func (c PodSpec) ResComputeNewAction() {
 		set.MemLimit = 32 * 1024 // limit max to 32 GB
 	}
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -168,7 +168,7 @@ func (c PodSpec) ResComputeSetAction() {
 		return
 	}
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -202,7 +202,7 @@ func (c PodSpec) PlanListAction() {
 	ls := inapi.PodSpecPlanList{}
 	defer c.RenderJson(&ls)
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		ls.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -253,7 +253,7 @@ func (c PodSpec) PlanEntryAction() {
 	set := inapi.PodSpecPlan{}
 	defer c.RenderJson(&set)
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -286,7 +286,7 @@ func (c PodSpec) PlanSetAction() {
 		return
 	}
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -472,7 +472,7 @@ func (c PodSpec) BoxImageListAction() {
 	ls := inapi.GeneralObjectList{}
 	defer c.RenderJson(&ls)
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		ls.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -545,7 +545,7 @@ func (c PodSpec) BoxImageSetAction() {
 		return
 	}
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}
@@ -570,7 +570,7 @@ func (c PodSpec) ResVolumeListAction() {
 	ls := inapi.GeneralObjectList{}
 	defer c.RenderJson(&ls)
 
-	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.InstanceId) {
+	if !iamclient.SessionAccessAllowed(c.Session, "sys.admin", in_conf.Config.Zone.InstanceId) {
 		ls.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 		return
 	}

@@ -72,7 +72,7 @@ func (c Pod) AppSyncAction() {
 	for i, srvport := range app.Spec.ServicePorts {
 
 		if srvport.HostPort > 0 && srvport.HostPort <= 1024 {
-			if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+			if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.Zone.InstanceId) {
 				set.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
 				return
 			}
@@ -142,7 +142,7 @@ func (c Pod) AppSyncAction() {
 		for _, spv := range dep_spec.ServicePorts {
 
 			if spv.HostPort > 0 && spv.HostPort <= 1024 {
-				if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+				if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.Zone.InstanceId) {
 					set.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
 					return
 				}
@@ -239,7 +239,7 @@ func (c Pod) AppSetAction() {
 	for i, srvport := range app.Spec.ServicePorts {
 
 		if srvport.HostPort > 0 && srvport.HostPort <= 1024 {
-			if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.InstanceId) {
+			if !iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.Zone.InstanceId) {
 				rsp.Error = types.NewErrorMeta("403", "AccessDenied: Only SysAdmin can setting Host Port to 1~2014")
 				return
 			}

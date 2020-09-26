@@ -136,8 +136,8 @@ func ZonePodChargeAccessKey() *hauth.AccessKey {
 
 	if Zone != nil && len(zonePodChargeIamAccessKey.Id) < 8 {
 
-		if config.Config.ZoneIamAccessKey != nil {
-			zonePodChargeIamAccessKey = config.Config.ZoneIamAccessKey
+		if config.Config.ZoneMain.IamAccessKey != nil {
+			zonePodChargeIamAccessKey = config.Config.ZoneMain.IamAccessKey
 		}
 	}
 
@@ -148,7 +148,7 @@ func IsZoneMaster() bool {
 	if ZoneId == "" || Host.Operate == nil {
 		return false
 	}
-	for _, v := range config.Config.Masters {
+	for _, v := range config.Config.Zone.MainNodes {
 		if v == config.Config.Host.LanAddr {
 			return true
 		}
@@ -170,10 +170,14 @@ func ZoneMasters() []string {
 	return zms
 }
 
-func Init() error {
+func Setup() error {
 
 	if len(config.Config.Host.Id) < 16 {
 		return errors.New("No Config Found")
+	}
+
+	if inited {
+		return nil
 	}
 
 	Host = inapi.ResHost{
@@ -185,8 +189,8 @@ func Init() error {
 			ZoneId: config.Config.Host.ZoneId,
 		},
 		Spec: &inapi.ResHostSpec{
-			PeerLanAddr: string(config.Config.Host.LanAddr),
-			PeerWanAddr: string(config.Config.Host.WanAddr),
+			PeerLanAddr: config.Config.Host.LanAddr,
+			PeerWanAddr: config.Config.Host.WanAddr,
 		},
 		Status: &inapi.ResHostStatus{
 			Uptime: uint32(time.Now().Unix()),
@@ -195,14 +199,16 @@ func Init() error {
 
 	ZoneId = config.Config.Host.ZoneId
 
+	ZoneHostSecretKeys.Set(Host.Meta.Id, config.Config.Host.SecretKey)
+
 	if config.IsZoneMaster() {
 		json.DecodeFile(config.Prefix+"/etc/zm-pod-services.json", &ZonePodServices)
 		hlog.Printf("info", "status/zone/pod/service refreshed %d", len(ZonePodServices.Items))
 	}
 
-	if config.Config.ZoneMaster != nil &&
-		config.Config.ZoneMaster.LocaleLang != "" {
-		ZoneMailManager.LocaleLangSet(config.Config.ZoneMaster.LocaleLang)
+	if config.Config.ZoneMain != nil &&
+		config.Config.ZoneMain.LocaleLang != "" {
+		ZoneMailManager.LocaleLangSet(config.Config.ZoneMain.LocaleLang)
 	}
 
 	inited = true

@@ -54,7 +54,7 @@ func (c Index) IndexAction() {
 	}
 
 	siteUrl := "https://www.sysinner.com"
-	if incfg.Config.ZoneMaster != nil && incfg.Config.ZoneMaster.LocaleLang == "zh-CN" {
+	if incfg.Config.ZoneMain != nil && incfg.Config.ZoneMain.LocaleLang == "zh-CN" {
 		siteUrl = "https://www.sysinner.cn"
 	}
 

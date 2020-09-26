@@ -60,22 +60,29 @@ func ResSysHostEnvDistArch() (string, string, error) {
 	if len(rs2) < 2 {
 		return dist, arch, errors.New("Unknow ENV")
 	}
-
-	if rs2[0] == "CentOS" {
-		dist = "el"
-	} else if rs2[0] == "Debian" {
-		dist = "de"
-	} else {
-		return dist, arch, errors.New("Unknow ENV")
-	}
-
 	ver := strings.Split(rs2[1], ".")
-	if len(ver) == 0 {
-		return dist, arch, errors.New("Unknow ENV")
-	}
-	if ver[0] == "6" || ver[0] == "7" {
-		dist += ver[0]
-	} else {
+
+	switch rs2[0] {
+
+	case "CentOS":
+		dist = "el"
+		if len(ver) >= 1 {
+			dist += ver[0]
+		}
+
+	case "Debian":
+		dist = "debian"
+		if len(ver) >= 1 {
+			dist += ver[0]
+		}
+
+	case "Ubuntu":
+		dist = "ubuntu"
+		if len(ver) >= 2 {
+			dist += strings.Join(ver[:2], "")
+		}
+
+	default:
 		return dist, arch, errors.New("Unknow ENV")
 	}
 

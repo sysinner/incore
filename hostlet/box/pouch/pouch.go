@@ -35,7 +35,6 @@ import (
 	drvClientTypes "github.com/alibaba/pouch/apis/types"
 	drvClient "github.com/alibaba/pouch/client"
 
-	inCfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/ipm"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
@@ -612,7 +611,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			},
 		}
 		bpHostConfig := &drvClientTypes.HostConfig{
-			EnableLxcfs:  inCfg.Config.LxcFsEnable,
+			EnableLxcfs:  true,
 			NetworkMode:  "bridge",
 			PortBindings: bindPorts,
 			Binds:        inst.VolumeMountsExport(),

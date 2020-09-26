@@ -63,13 +63,13 @@ type hostUsageItem struct {
 
 func SetupScheduler() error {
 
-	if inCfg.Config.ZoneMaster == nil {
+	if inCfg.Config.ZoneMain == nil {
 		return errors.New("no zone-master setup")
 	}
 
-	if inCfg.Config.ZoneMaster.SchedulerPlugin != "" {
+	if inCfg.Config.ZoneMain.SchedulerPlugin != "" {
 
-		p, err := plugin.Open(inCfg.Prefix + "/module/" + inCfg.Config.ZoneMaster.SchedulerPlugin)
+		p, err := plugin.Open(inCfg.Prefix + "/module/" + inCfg.Config.ZoneMain.SchedulerPlugin)
 		if err != nil {
 			return err
 		}

@@ -39,10 +39,6 @@ func Setup() error {
 		return err
 	}
 
-	if err := setupZone(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -76,13 +72,13 @@ func setupZone() error {
 		return nil
 	}
 
-	if config.Config.ZoneMaster == nil {
+	if config.Config.ZoneMain == nil {
 		return errors.New("no zone setup")
 	}
 
-	if config.Config.ZoneMaster.DataNode == nil {
+	if config.Config.ZoneData == nil {
 
-		config.Config.ZoneMaster.DataNode = &kvgo.Config{
+		config.Config.ZoneData = &kvgo.Config{
 			Storage: kvgo.ConfigStorage{
 				DataDirectory: config.Prefix + "/var/db_zone",
 			},
@@ -93,7 +89,7 @@ func setupZone() error {
 		}
 	}
 
-	cn, err := kvgo.Open(config.Config.ZoneMaster.DataNode)
+	cn, err := kvgo.Open(config.Config.ZoneData)
 	if err != nil {
 		return err
 	}
@@ -120,38 +116,38 @@ func setupZone() error {
 
 	//
 	if DataZone == nil {
-		if config.Config.ZoneMaster.DataTableZone == "" {
+		if config.Config.ZoneMain.DataTableZone == "" {
 			if err := dbinit("zone"); err != nil {
 				return err
 			}
-			config.Config.ZoneMaster.DataTableZone = "zone"
+			config.Config.ZoneMain.DataTableZone = "zone"
 			flush = true
 		}
-		DataZone = dbZone.OpenTable(config.Config.ZoneMaster.DataTableZone)
+		DataZone = dbZone.OpenTable(config.Config.ZoneMain.DataTableZone)
 	}
 
 	//
 	if DataGlobal == nil {
-		if config.Config.ZoneMaster.DataTableGlobal == "" {
+		if config.Config.ZoneMain.DataTableGlobal == "" {
 			if err := dbinit("global"); err != nil {
 				return err
 			}
-			config.Config.ZoneMaster.DataTableGlobal = "global"
+			config.Config.ZoneMain.DataTableGlobal = "global"
 			flush = true
 		}
-		DataGlobal = dbZone.OpenTable(config.Config.ZoneMaster.DataTableGlobal)
+		DataGlobal = dbZone.OpenTable(config.Config.ZoneMain.DataTableGlobal)
 	}
 
 	//
 	if DataInpack == nil {
-		if config.Config.ZoneMaster.DataTableInpack == "" {
+		if config.Config.ZoneMain.DataTableInpack == "" {
 			if err := dbinit("inpack"); err != nil {
 				return err
 			}
-			config.Config.ZoneMaster.DataTableInpack = "inpack"
+			config.Config.ZoneMain.DataTableInpack = "inpack"
 			flush = true
 		}
-		DataInpack = dbZone.OpenTable(config.Config.ZoneMaster.DataTableInpack)
+		DataInpack = dbZone.OpenTable(config.Config.ZoneMain.DataTableInpack)
 	}
 
 	if flush {

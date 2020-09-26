@@ -168,7 +168,7 @@ func (it *QuotaConfig) SyncVendor() error {
 			strings.HasPrefix(v.Mnt, "/opt") {
 			maps += fmt.Sprintf("%d:%s\n", v.Id, filepath.Clean(v.Mnt+"/sysinner/pods/"+v.Name))
 		} else {
-			maps += fmt.Sprintf("%d:%s\n", v.Id, filepath.Clean(config.Config.PodHomeDir+"/"+v.Name))
+			maps += fmt.Sprintf("%d:%s\n", v.Id, filepath.Clean(config.Config.Zone.PodHomeDir+"/"+v.Name))
 		}
 	}
 
@@ -236,7 +236,7 @@ func QuotaKeeperInit() error {
 
 		if !strings.HasPrefix(d.Mountpoint, "/data/") &&
 			!strings.HasPrefix(d.Mountpoint, "/opt") &&
-			!strings.HasPrefix(config.Config.PodHomeDir, d.Mountpoint) {
+			!strings.HasPrefix(config.Config.Zone.PodHomeDir, d.Mountpoint) {
 			continue
 		}
 
