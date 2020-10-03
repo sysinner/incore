@@ -158,7 +158,7 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 
 	item := &napi.BoxPackMount{
 		Name:     vp.Name,
-		Version:  string(pkg.Version.Version),
+		Version:  vp.Version,
 		HostPath: pHostDir,
 	}
 

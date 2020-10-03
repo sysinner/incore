@@ -542,7 +542,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 	}
 
 	if err := ipm.Prepare(inst); err != nil {
-		hlog.Printf("warn", "hostlet/box ipm_prepare %s", err.Error())
+		// hlog.Printf("warn", "hostlet/box ipm_prepare %s", err.Error())
 		return err
 	}
 
@@ -658,6 +658,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				ExposedPorts: expPorts,
 				Env: []string{
 					"POD_ID=" + inst.PodID,
+					fmt.Sprintf("REP_ID=%d", inst.Replica.RepId),
 				},
 				User: "action",
 			},

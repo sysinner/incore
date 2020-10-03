@@ -1115,7 +1115,8 @@ func appOpOptRender(app *inapi.AppInstance, specRender bool) {
 
 	for _, v := range app.Operate.Options {
 		for _, v2 := range v.Items {
-			if strings.Index(v2.Value, "{{.") < 0 {
+			if strings.Index(v2.Value, "{{.") < 0 ||
+				(v2.Type >= 300 || v2.Type <= 399) {
 				continue
 			}
 			if tpl, err := template.New("s").Parse(v2.Value); err == nil {

@@ -23,7 +23,7 @@ import (
 var (
 	renderKeyFilterRoles = []string{
 		"/", "__",
-		"-", "__",
+		"-", "_",
 	}
 	renderTplReg = regexp.MustCompile(`{{(.*?)}}`)
 )

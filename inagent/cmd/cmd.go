@@ -16,8 +16,12 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 
+	"github.com/hooto/hflag4g/hflag"
 	"github.com/sysinner/incore/inconf"
+	"github.com/sysinner/incore/inutils/tplrender"
 )
 
 var (
@@ -52,4 +56,58 @@ func appSetup(appSpec string) (*inconf.AppConfigurator, error) {
 	}
 
 	return appCfr, nil
+}
+
+func keyenc(k string) string {
+	return strings.Replace(strings.Replace(k, "/", "__", -1), "-", "_", -1)
+}
+
+func varParams(appCfr *inconf.AppConfigurator) map[string]interface{} {
+
+	sets := map[string]interface{}{}
+
+	hflag.Each(func(key, val string) {
+		if strings.HasPrefix(key, "var/") ||
+			strings.HasPrefix(key, "var__") {
+			sets[key] = val
+		}
+	})
+
+	if podCfr != nil {
+		sets["pod/replica/rep_id"] = fmt.Sprintf("%d", podCfr.Pod.Replica.RepId)
+		sets["pod/operate/replica_cap"] = fmt.Sprintf("%d", podCfr.Pod.Operate.ReplicaCap)
+	}
+
+	if appCfr != nil {
+
+		for _, op := range appCfr.App.Operate.Options {
+			for _, item := range op.Items {
+				key := keyenc(fmt.Sprintf("app__%s__option__%s__%s",
+					appCfr.AppSpecId,
+					op.Name,
+					item.Name,
+				))
+				sets[key] = item.Value
+			}
+		}
+
+		for _, p := range appCfr.App.Operate.Services {
+
+			if p.Name == "" || len(p.Endpoints) < 1 {
+				continue
+			}
+
+			key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
+				p.Name,
+			))
+			sets[key+"lan_addr"] = p.Endpoints[0].Ip
+			sets[key+"host_port"] = fmt.Sprintf("%d", p.Endpoints[0].Port)
+		}
+	}
+
+	return sets
+}
+
+func varRender(txt string, sets map[string]interface{}) ([]byte, error) {
+	return tplrender.Render(txt, sets)
 }

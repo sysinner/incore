@@ -19,9 +19,11 @@ package inapi
 //go:generate htoml-tag-fix ./
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
@@ -311,6 +313,23 @@ func (ls *VolumeMounts) DiffSync(items VolumeMounts) {
 type EnvVar struct {
 	Name  string `json:"name" toml:"name"`
 	Value string `json:"value,omitempty" toml:"value,omitempty"`
+}
+
+type Validator interface {
+	Valid(s string) error
+}
+
+func ValidUtf8String(s string, min, max int) error {
+	if min > 0 && len(s) < min {
+		return fmt.Errorf("value can not less than %d chars", min)
+	}
+	if max > 0 && len(s) > max {
+		return fmt.Errorf("value can not greater than %d chars", max)
+	}
+	if len(s) > 0 && !utf8.ValidString(s) {
+		return errors.New("invalid UTF-8-encoded value")
+	}
+	return nil
 }
 
 func ObjPrint(name string, v interface{}) {

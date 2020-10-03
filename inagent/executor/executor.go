@@ -425,7 +425,7 @@ func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[st
 			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()
 	} else {
-		hlog.Printf("info", "executor:%s pending", esName)
+		// hlog.Printf("info", "executor:%s pending", esName)
 	}
 
 	return inapi.PbOpLogInfo, "pending"

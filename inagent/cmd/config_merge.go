@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/spf13/viper"
 	"github.com/sysinner/incore/inapi"
 )
@@ -100,6 +101,15 @@ func (it *configMergeCommand) run(cmd *inapi.BaseCommand, args []string) error {
 	if field.Value == "" {
 		return nil
 	}
+
+	if sets := varParams(appCfr); len(sets) > 0 {
+		varValue, err := varRender(field.Value, sets)
+		if err == nil {
+			field.Value = string(varValue)
+		}
+	}
+
+	hlog.Printf("info", "load config field value %s", field.Value)
 
 	cg := viper.New()
 	cg.SetKeysCaseSensitive(true)

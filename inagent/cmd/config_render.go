@@ -16,10 +16,7 @@ package cmd
 
 import (
 	"errors"
-	"fmt"
-	"strings"
 
-	"github.com/hooto/hflag4g/hflag"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inconf"
 	"github.com/sysinner/incore/inutils/filerender"
@@ -90,43 +87,9 @@ func (it *configRenderCommand) run(cmd *inapi.BaseCommand, args []string) error 
 	return nil
 }
 
-func keyenc(k string) string {
-	return strings.Replace(strings.Replace(k, "/", "__", -1), "-", "_", -1)
-}
-
 func cfgRender(appCfr *inconf.AppConfigurator, src, dst string) error {
 
-	sets := map[string]interface{}{}
-
-	hflag.Each(func(key, val string) {
-		if strings.HasPrefix(key, "var__") {
-			sets[key] = val
-		}
-	})
-
-	for _, op := range appCfr.App.Operate.Options {
-		for _, item := range op.Items {
-			key := keyenc(fmt.Sprintf("app__%s__option__%s__%s",
-				appCfr.AppSpecId,
-				op.Name,
-				item.Name,
-			))
-			sets[key] = item.Value
-		}
-	}
-
-	for _, p := range appCfr.App.Operate.Services {
-
-		if p.Name == "" || len(p.Endpoints) < 1 {
-			continue
-		}
-
-		key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
-			p.Name,
-		))
-		sets[key+"lan_addr"] = p.Endpoints[0].Ip
-		sets[key+"host_port"] = fmt.Sprintf("%d", p.Endpoints[0].Port)
-	}
+	sets := varParams(appCfr)
 
 	return filerender.Render(src, dst, 0644, sets)
 }

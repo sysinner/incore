@@ -77,6 +77,10 @@ func (c AppSpec) ListAction() {
 				specf.Meta.User = spec.Meta.User
 			}
 
+			if fields.Has("meta/subtitle") {
+				specf.Meta.Subtitle = spec.Meta.Subtitle
+			}
+
 			if fields.Has("meta/version") {
 				specf.Meta.Version = spec.Meta.Version
 			}

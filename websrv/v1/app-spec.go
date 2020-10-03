@@ -100,6 +100,10 @@ func (c AppSpec) ListAction() {
 				},
 			}
 
+			if fields.Has("meta/subtitle") {
+				specf.Meta.Subtitle = spec.Meta.Subtitle
+			}
+
 			if fields.Has("meta/user") {
 				specf.Meta.User = spec.Meta.User
 			}
@@ -488,6 +492,21 @@ func (c AppSpec) SetAction() {
 		reqVersion, _ = strconv.Atoi(req.Meta.Version)
 	)
 
+	if err = inapi.ValidUtf8String(req.Meta.Name, 1, 30); err != nil {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid Title "+err.Error())
+		return
+	}
+
+	if err = inapi.ValidUtf8String(req.Meta.Subtitle, 0, 100); err != nil {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid Subtitle "+err.Error())
+		return
+	}
+
+	if err = inapi.ValidUtf8String(req.Description, 0, 2000); err != nil {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid Description "+err.Error())
+		return
+	}
+
 	if prev.Meta.ID == "" {
 
 		prev = req
@@ -510,6 +529,7 @@ func (c AppSpec) SetAction() {
 
 		// TODO
 		prev.Meta.Name = req.Meta.Name
+		prev.Meta.Subtitle = req.Meta.Subtitle
 		prev.Packages = req.Packages
 		prev.VcsRepos = req.VcsRepos
 		prev.ExpRes = req.ExpRes
