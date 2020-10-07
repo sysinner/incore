@@ -16,8 +16,8 @@ package v1
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -50,6 +50,13 @@ func (c *AppSpec) Init() int {
 	}
 
 	return 0
+}
+
+func (c AppSpec) TypeTagListAction() {
+	c.RenderJson(inapi.WebServiceReply{
+		Kind:  "AppSpecTypeTagList",
+		Items: inapi.AppSpecTypeTagDicts,
+	})
 }
 
 func (c AppSpec) ListAction() {
@@ -122,6 +129,14 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("comment") {
 				specf.Comment = spec.Comment
+			}
+
+			if fields.Has("type_tags") {
+				specf.TypeTags = spec.TypeTags
+			}
+
+			if fields.Has("urls") {
+				specf.Urls = spec.Urls
 			}
 
 			if fields.Has("depends") {
@@ -228,7 +243,7 @@ func (c AppSpec) VersionListAction() {
 
 	// TODO
 	rs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
-		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999"),
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999.0.0"),
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "0")).
 		LimitNumSet(1000).Query()
 	var (
@@ -298,7 +313,7 @@ func (c AppSpec) ItemDelAction() {
 
 	if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, ""),
-		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "")).
+		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999.0.0")).
 		LimitNumSet(10000).Query(); rs.OK() {
 		for _, v := range rs.Items {
 			var item inapi.AppSpec
@@ -487,9 +502,9 @@ func (c AppSpec) SetAction() {
 	}
 
 	var (
-		tn            = types.MetaTimeNow()
-		setNew        = false
-		reqVersion, _ = strconv.Atoi(req.Meta.Version)
+		tn         = types.MetaTimeNow()
+		setNew     = false
+		reqVersion = inapi.NewAppSpecVersion(req.Meta.Version)
 	)
 
 	if err = inapi.ValidUtf8String(req.Meta.Name, 1, 30); err != nil {
@@ -507,6 +522,28 @@ func (c AppSpec) SetAction() {
 		return
 	}
 
+	if len(req.Urls) > 0 {
+		urls := []*inapi.AppSpecUrlEntry{}
+		for _, v := range req.Urls {
+			v.Name = strings.ToLower(v.Name)
+			if !inapi.AppSpecUrlNameRE.MatchString(v.Name) {
+				set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "invalid urls[]/name "+v.Name)
+				return
+			}
+			if u, e := url.Parse(v.Url); e != nil {
+				set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "invalid urls[]/url "+v.Url)
+				return
+			} else {
+				v.Url = u.String()
+			}
+			if rs, _ := inapi.SliceMerge(urls, v, func(i int) bool {
+				return urls[i].Name == v.Name
+			}); rs != nil {
+				urls = rs.([]*inapi.AppSpecUrlEntry)
+			}
+		}
+	}
+
 	if prev.Meta.ID == "" {
 
 		prev = req
@@ -517,14 +554,23 @@ func (c AppSpec) SetAction() {
 
 	} else {
 
-		prevVersion, _ := strconv.Atoi(prev.Meta.Version)
-		if reqVersion == 0 {
+		prevVersion := inapi.NewAppSpecVersion(prev.Meta.Version)
+
+		if reqVersion.IndexId() == 0 {
 			reqVersion = prevVersion
-		} else if reqVersion < prevVersion {
-			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid meta/version")
-			return
-		} else if reqVersion == prevVersion {
-			reqVersion++
+			reqVersion.Add(false, false, true)
+		} else {
+
+			cn := reqVersion.Compare(prevVersion)
+			if cn == 0 ||
+				(reqVersion.Major == prevVersion.Major &&
+					reqVersion.Minor == prevVersion.Minor) {
+				reqVersion = prevVersion
+				reqVersion.Add(false, false, true)
+			} else if cn == -1 {
+				set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Invalid meta/version")
+				return
+			}
 		}
 
 		// TODO
@@ -536,7 +582,9 @@ func (c AppSpec) SetAction() {
 		prev.ExpDeploy = req.ExpDeploy
 
 		prev.Description = req.Description
+		prev.TypeTags = req.TypeTags
 		prev.Comment = req.Comment
+		prev.Urls = req.Urls
 
 		prev.Depends = []*inapi.AppSpecDepend{}
 		for _, v := range req.Depends {
@@ -618,10 +666,7 @@ func (c AppSpec) SetAction() {
 
 	prev.Meta.Updated = tn
 
-	if reqVersion < 1 {
-		reqVersion = 1
-	}
-	prev.Meta.Version = strconv.Itoa(reqVersion)
+	prev.Meta.Version = reqVersion.FullVersion()
 
 	//
 	if prev.ExpRes.CpuMin < 1 {
@@ -699,7 +744,16 @@ func (c AppSpec) SetAction() {
 		}
 		appSpecSets.Set(v.Id)
 
-		if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)).Query(); !rs.OK() {
+		var (
+			vs = inapi.NewAppSpecVersion(v.Version)
+		)
+		v.Version = vs.PrefixString()
+		vs.Patch = 99999999
+
+		if rs := data.DataGlobal.NewReader().KeyRangeSet(
+			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.MajorMinorVersion()),
+			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.FullVersion())).
+			LimitNumSet(1).Query(); !rs.OK() || len(rs.Items) == 0 {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Internally dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -715,8 +769,16 @@ func (c AppSpec) SetAction() {
 		}
 		appSpecSets.Set(v.Id)
 
-		if rs := data.DataGlobal.NewReader(
-			inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)).Query(); !rs.OK() {
+		var (
+			vs = inapi.NewAppSpecVersion(v.Version)
+		)
+		v.Version = vs.PrefixString()
+		vs.Patch = 99999999
+
+		if rs := data.DataGlobal.NewReader().KeyRangeSet(
+			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.MajorMinorVersion()),
+			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.FullVersion())).
+			LimitNumSet(1).Query(); !rs.OK() || len(rs.Items) == 0 {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Remotely dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -727,9 +789,6 @@ func (c AppSpec) SetAction() {
 
 		version := ipapi.PackVersion{
 			Version: types.Version(v.Version),
-			// Release: types.Version(v.Release),
-			// Dist:    v.Dist,
-			// Arch:    v.Arch,
 		}
 
 		if !version.Version.Valid() {
@@ -766,6 +825,8 @@ func (c AppSpec) SetAction() {
 			prev.Executors[i].Priority = inapi.SpecExecutorPriorityMax
 		}
 	}
+
+	prev.Reset()
 
 	//
 	if setNew {
@@ -878,10 +939,9 @@ func (c AppSpec) CfgSetAction() {
 
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	// INCR Resource Version
-	resVersion, _ := strconv.Atoi(prev.Meta.Version)
-	resVersion++
-	prev.Meta.Version = strconv.Itoa(resVersion)
+	resVersion := inapi.NewAppSpecVersion(prev.Meta.Version)
+	resVersion.Add(false, false, true)
+	prev.Meta.Version = resVersion.FullVersion()
 
 	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
@@ -959,10 +1019,9 @@ func (c AppSpec) CfgFieldDelAction() {
 
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	// INCR Resource Version
-	resVersion, _ := strconv.Atoi(prev.Meta.Version)
-	resVersion++
-	prev.Meta.Version = strconv.Itoa(resVersion)
+	resVersion := inapi.NewAppSpecVersion(prev.Meta.Version)
+	resVersion.Add(false, false, true)
+	prev.Meta.Version = resVersion.FullVersion()
 
 	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit(); !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
@@ -976,4 +1035,34 @@ func (c AppSpec) CfgFieldDelAction() {
 	}
 
 	set.Kind = "AppSpec"
+}
+
+func appSpecVersionLastPatch(specId, version string) *inapi.AppSpec {
+
+	var (
+		spec inapi.AppSpec
+		v    = inapi.NewAppSpecVersion(version)
+	)
+
+	v.Patch = 99999999
+
+	if rs := data.DataGlobal.NewReader().KeyRangeSet(
+		inapi.NsKvGlobalAppSpecVersion(specId, v.FullVersion()),
+		inapi.NsKvGlobalAppSpecVersion(specId, v.MajorMinorVersion())).
+		ModeRevRangeSet(true).Query(); rs.OK() && len(rs.Items) > 0 {
+		rs.Items[0].Decode(&spec)
+		if spec.Meta.ID == specId {
+			return &spec
+		}
+	}
+
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(specId)).
+		Query(); rs.OK() {
+		rs.Decode(&spec)
+		if spec.Meta.ID == specId {
+			return &spec
+		}
+	}
+
+	return nil
 }

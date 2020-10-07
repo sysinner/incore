@@ -42,10 +42,6 @@ func podSetup() error {
 
 func appSetup(appSpec string) (*inconf.AppConfigurator, error) {
 
-	if appSpec == "" {
-		return nil, errors.New("--app-spec not setup")
-	}
-
 	if err := podSetup(); err != nil {
 		return nil, err
 	}
@@ -69,25 +65,27 @@ func varParams(appCfr *inconf.AppConfigurator) map[string]interface{} {
 	hflag.Each(func(key, val string) {
 		if strings.HasPrefix(key, "var/") ||
 			strings.HasPrefix(key, "var__") {
-			sets[key] = val
+			sets[keyenc(key)] = val
 		}
 	})
 
 	if podCfr != nil {
-		sets["pod/replica/rep_id"] = fmt.Sprintf("%d", podCfr.Pod.Replica.RepId)
-		sets["pod/operate/replica_cap"] = fmt.Sprintf("%d", podCfr.Pod.Operate.ReplicaCap)
+		sets["pod__replica__rep_id"] = fmt.Sprintf("%d", podCfr.Pod.Replica.RepId)
+		sets["pod__operate__replica_cap"] = fmt.Sprintf("%d", podCfr.Pod.Operate.ReplicaCap)
 	}
 
 	if appCfr != nil {
 
 		for _, op := range appCfr.App.Operate.Options {
 			for _, item := range op.Items {
-				key := keyenc(fmt.Sprintf("app__%s__option__%s__%s",
-					appCfr.AppSpecId,
-					op.Name,
-					item.Name,
-				))
+				var (
+					ckey = keyenc(fmt.Sprintf("%s__%s", op.Name, item.Name))
+					key  = keyenc(fmt.Sprintf("app__%s__option__%s", appCfr.AppSpecId, ckey))
+				)
 				sets[key] = item.Value
+				if _, ok := sets[ckey]; !ok {
+					sets[ckey] = item.Value
+				}
 			}
 		}
 

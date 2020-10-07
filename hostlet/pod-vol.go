@@ -251,10 +251,12 @@ func QuotaKeeperInit() error {
 			continue
 		}
 
+		/**
 		if !strings.Contains(d.Opts, "prjquota") {
-			hlog.Printf("warn", "the option:prjquota required on mountpoint of %s", d.Mountpoint)
+			hlog.Printf("warn", "the option:prjquota required on mountpoint %s", d.Mountpoint)
 			continue
 		}
+		*/
 
 		if _, err = exec.Command(quotaCmd, "-x", "-c", "report", d.Mountpoint).Output(); err != nil {
 			hlog.Printf("warn", "error to get report of prjquota on mountpoint of %s", d.Mountpoint)

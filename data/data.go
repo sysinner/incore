@@ -16,11 +16,14 @@ package data
 
 import (
 	"errors"
+	"strings"
 
+	"github.com/hooto/hlog4g/hlog"
 	"github.com/lynkdb/kvgo"
 	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 
 	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inapi"
 )
 
 var (
@@ -136,6 +139,7 @@ func setupZone() error {
 			flush = true
 		}
 		DataGlobal = dbZone.OpenTable(config.Config.ZoneMain.DataTableGlobal)
+		UpgradeGlobalData(DataGlobal)
 	}
 
 	//
@@ -153,6 +157,62 @@ func setupZone() error {
 	if flush {
 		if err = config.Config.Flush(); err != nil {
 			return err
+		}
+	}
+
+	return nil
+}
+
+func UpgradeGlobalData(data kv2.ClientTable) error {
+
+	if data == nil {
+		return errors.New("Upgrade Global Data kv2.ClientConnector Not Found")
+	}
+
+	rs := data.NewReader(nil).KeyRangeSet(
+		inapi.NsGlobalAppSpec(""), inapi.NsGlobalAppSpec("zzzz")).
+		LimitNumSet(200).Query()
+
+	for _, v := range rs.Items {
+
+		var spec inapi.AppSpec
+		if err := v.Decode(&spec); err != nil {
+			continue
+		}
+		var specPrev inapi.AppSpecPrev
+		if err := v.Decode(&specPrev); err != nil {
+			continue
+		}
+
+		prekey := inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "")
+
+		rs2 := data.NewReader(nil).KeyRangeSet(
+			prekey, append(prekey, 0xff)).LimitNumSet(200).Query()
+		if rs2.OK() {
+
+			for _, v2 := range rs2.Items {
+
+				k := strings.TrimPrefix(string(v2.Meta.Key), string(prekey))
+				if len(k) > 24 {
+					continue
+				}
+
+				var pspec inapi.AppSpec
+				if err := v2.Decode(&pspec); err != nil {
+					continue
+				}
+
+				if rs3 := data.NewWriter(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, pspec.Meta.Version), pspec).Commit(); rs3.OK() {
+
+					data.NewWriter(v2.Meta.Key, nil, nil).ModeDeleteSet(true).Commit()
+				}
+			}
+		}
+
+		if specPrev.Meta.Version != spec.Meta.Version {
+			data.NewWriter(inapi.NsGlobalAppSpec(spec.Meta.ID), spec).Commit()
+			hlog.Printf("info", "AppSpec %s version %s -> %s",
+				spec.Meta.ID, specPrev.Meta.Version, spec.Meta.Version)
 		}
 	}
 

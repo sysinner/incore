@@ -20,6 +20,7 @@ import (
 
 	"github.com/hooto/httpsrv"
 
+	iamdb "github.com/hooto/iam/data"
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inrpc"
@@ -101,6 +102,7 @@ func (c Config) HostJoinAction() {
 	incfg.Config.Host.ZoneId = rs.ZoneId
 	incfg.Config.Host.CellId = rs.CellId
 	incfg.Config.Host.LanAddr = req.HostAddr
+	incfg.Config.Host.WanAddr = req.HostAddr
 
 	incfg.Config.Zone.ZoneId = rs.ZoneId
 	incfg.Config.Zone.MainNodes = rs.ZoneMainNodes
@@ -157,6 +159,19 @@ func (c Config) ZoneInitAction() {
 		incfg.Config.Zone.HttpPort = 9530
 	}
 
+	{
+		waddr := inapi.HostNodeAddress(req.WanAddr)
+		if waddr.Port() == 0 {
+			waddr.SetPort(1234)
+		}
+		if !waddr.Valid() {
+			rep.Kind, rep.Message = inapi.ErrCodeClientError, "invalid WAN address"
+			return
+		}
+
+		incfg.Config.Host.WanAddr = waddr.IP()
+	}
+
 	//
 	var ok bool
 	var validCheck = func(name, val, def string, re *regexp.Regexp) (string, bool) {
@@ -187,6 +202,10 @@ func (c Config) ZoneInitAction() {
 
 	if incfg.Config.ZoneMain == nil {
 		incfg.Config.ZoneMain = &incfg.ZoneMainConfig{}
+	}
+
+	if req.Password != "" {
+		iamdb.DefaultSysadminPassword = req.Password
 	}
 
 	incfg.Config.ZoneMain.MultiHostEnable = true

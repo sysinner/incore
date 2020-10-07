@@ -45,7 +45,9 @@ type schedulerFieldType struct {
 }
 
 type Schedule struct {
-	times [6]uint64
+	times      [6]uint64
+	onBoot     bool
+	onBootDone bool
 }
 
 func scheduleTime(t time.Time) [6]uint64 {
@@ -66,6 +68,11 @@ func NewSchedule() *Schedule {
 	}
 
 	return sch
+}
+
+func (it *Schedule) OnBoot(opt bool) *Schedule {
+	it.onBoot = opt
+	return it
 }
 
 func (it *Schedule) EveryTime(opt int, in uint) *Schedule {
@@ -185,6 +192,11 @@ func (it *Schedule) EveryTimeCycle(opt int, in uint) *Schedule {
 }
 
 func (it *Schedule) Hit(times [6]uint64) bool {
+
+	if it.onBoot && !it.onBootDone {
+		return true
+	}
+
 	hit := 0
 	for i, v := range it.times {
 		if !u64Allow(v, times[i]) {

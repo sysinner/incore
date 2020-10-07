@@ -95,16 +95,10 @@ func (c Pod) AppSyncAction() {
 
 	for _, dv := range app.Spec.Depends {
 
-		var dep_spec inapi.AppSpec
-		if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalAppSpecVersion(dv.Id, dv.Version)).Query(); rs.OK() {
-			rs.Decode(&dep_spec)
-		} else if rs = data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(dv.Id)).Query(); rs.OK() { // TODO
-			rs.Decode(&dep_spec)
-		}
-
-		if dep_spec.Meta.ID != dv.Id {
+		dep_spec := appSpecVersionLastPatch(dv.Id, dv.Version)
+		if dep_spec == nil {
 			set.Error = types.NewErrorMeta("400",
-				fmt.Sprintf("Not Dependent AppSpec (%s/v%s) Found", dv.Name, dv.Version))
+				fmt.Sprintf("Not Dependent AppSpec (%s/v%s) Found", dv.Id, dv.Version))
 			return
 		}
 

@@ -45,6 +45,8 @@ func NewHealthSyncCommand() *inapi.BaseCommand {
 		},
 	}
 
+	c.cmd.FParseErrWhitelist.UnknownFlags = true
+
 	c.cmd.Flags().StringVar(&c.args.Action, "action",
 		"active",
 		`action value (ex: active, setup)`,
@@ -91,6 +93,8 @@ func NewHealthStatusCommand() *inapi.BaseCommand {
 			Short: "output app status",
 		},
 	}
+
+	c.cmd.FParseErrWhitelist.UnknownFlags = true
 
 	c.cmd.RunE = c.run
 

@@ -15,15 +15,22 @@
 package hostlet
 
 import (
+	"os/exec"
+
 	incfg "github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/hostlet/box/docker"
 	"github.com/sysinner/incore/injob"
-	// "github.com/sysinner/incore/inapi"
-	// "github.com/sysinner/incore/inrpc"
 )
 
+func JobSetup(jobDaemon *injob.Daemon) {
+	jobDaemon.Commit(NewHostletJob())
+	jobDaemon.Commit(docker.NewBoxImageUpdateJob())
+}
+
 type HostletJob struct {
-	spec *injob.JobSpec
-	rpc  bool
+	spec   *injob.JobSpec
+	rpc    bool
+	inited bool
 }
 
 func (it *HostletJob) Spec() *injob.JobSpec {
@@ -43,10 +50,37 @@ func (it *HostletJob) Run(ctx *injob.Context) error {
 		return nil
 	}
 
-	if !running {
-		if err := Start(); err != nil {
-			return err
+	// TODO
+	if !it.inited {
+
+		script := `sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
+setenforce 0
+`
+		if _, err := exec.Command("bash", "-c", script).Output(); err != nil {
+			// skip error
 		}
+
+		for _, v := range []string{
+			"innerstack-lxcfs",
+		} {
+			if _, err := exec.Command("systemctl", "enable", v).Output(); err != nil {
+				return err
+			}
+
+			if _, err := exec.Command("systemctl", "start", v).Output(); err != nil {
+				return err
+			}
+		}
+
+		it.inited = true
+	}
+
+	if running {
+		return nil
+	}
+
+	if err := Start(); err != nil {
+		return err
 	}
 
 	/**

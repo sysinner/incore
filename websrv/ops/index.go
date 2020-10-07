@@ -43,7 +43,7 @@ func (c Index) IndexAction() {
 	cfgLogo, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
 		"cp_navbar_logo")
 	if !ok {
-		cfgLogo = "/in/cp/~/cp/img/logo-g1s96.png"
+		cfgLogo = "/in/cp/~/cp/img/logo-10x7-light-h128.png"
 	}
 
 	cfgTitle, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
@@ -67,7 +67,7 @@ func (c Index) IndexAction() {
   <script src="/in/ops/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
   <script src="/in/ops/~/ops/js/main.js?v=` + inpanel.VersionHash + `"></script>
   <link rel="stylesheet" href="/in/ops/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
-  <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/favicon.png">
+  <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/logo-1x1-light.ico">
   <script type="text/javascript">
     inOps.version = "` + inpanel.VersionHash + `";
     inOps.zone_id = "` + inpanel.ZoneId + `";
@@ -83,7 +83,7 @@ func (c Index) IndexAction() {
   <div class="incp-well-panel">
     <div class="body2c">
       <div class="body2c1">
-        <img src="` + cfgLogo + `">
+        <img src="` + cfgLogo + `" width="64px">
       </div>
       <div class="body2c2">
         <div>InnerStack<br/>Operations Management</div>

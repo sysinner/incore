@@ -78,6 +78,7 @@ func JobContextRefresh() *injob.Context {
 		ZonePodStatusList: ZonePodStatusList,
 		IsZoneLeader:      IsZoneMasterLeader(),
 		ZoneMailManager:   ZoneMailManager,
+		Host:              &Host,
 	}
 }
 

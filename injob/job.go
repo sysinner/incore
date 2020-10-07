@@ -84,6 +84,11 @@ func (it *JobEntry) exec(ctx *Context) {
 		hlog.Printf("warn", "job %s err %s", it.job.Spec().Name, err.Error())
 	} else {
 		// hlog.Printf("debug", "job %s well done in %v", it.job.Spec().Name, time.Since(tn))
+		if it.sch.onBoot && !it.sch.onBootDone {
+			it.sch.onBootDone = true
+			hlog.Printf("info", "job %s onboot done",
+				it.job.Spec().Name)
+		}
 	}
 
 	it.running = false

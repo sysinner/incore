@@ -227,10 +227,10 @@ func (it *ZoneMainJob) init() error {
 		}
 
 		// init inpack database
+		ip_db.Data = ic_db.DataInpack
 		if err = ip_db.Setup(); err != nil {
 			return fmt.Errorf("ip_db setup failed:%s", err.Error())
 		}
-		ip_db.Data = ic_db.DataInpack
 		// ic_db.DataInpack = ip_db.Data
 
 		// TODEL

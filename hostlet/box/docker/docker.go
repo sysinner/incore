@@ -31,6 +31,7 @@ import (
 
 	drvClient "github.com/fsouza/go-dockerclient"
 
+	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/ipm"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
@@ -39,14 +40,14 @@ import (
 
 var (
 	mu                 sync.Mutex
-	driver             napi.BoxDriver
+	driver             *BoxDriver
 	timeout            = time.Second * 10
 	clientTimeout      = time.Second * 10
 	activeNumMax       = 100
 	binInstall         = "/usr/bin/install"
 	clientUnixSockAddr = "unix:///var/run/docker.sock"
 	lxcfsBins          = [][]string{
-		{"/usr/bin/innerstack-lxcfs", "/var/lib/innerstack-lxcfs/proc/"},
+		{"bin/innerstack-lxcfs", "/var/lib/innerstack-lxcfs/proc/"},
 		{"/usr/bin/lxcfs", "/var/lib/lxcfs/proc/"},
 	}
 	lxcfsMounts = []string{
@@ -72,7 +73,12 @@ func NewDriver() (napi.BoxDriver, error) {
 
 		for _, vp := range lxcfsBins {
 
-			if _, err := exec.Command("pidof", vp[0]).Output(); err != nil {
+			binpath := vp[0]
+			if binpath[0] != '/' {
+				binpath = incfg.Prefix + "/" + binpath
+			}
+
+			if _, err := exec.Command("pidof", binpath).Output(); err != nil {
 				continue
 			}
 
@@ -259,22 +265,33 @@ func (tp *BoxDriver) statusRefresh() {
 
 	// refresh current images
 	if !tp.inited {
-		if rsi, err := tp.client.ListImages(drvClient.ListImagesOptions{
-			All: false,
-		}); err == nil {
-			for _, v := range rsi {
-				for _, v2 := range v.RepoTags {
-					tp.imageSets.Set(v2)
-					hlog.Printf("info", "hostlet/box images tag %s", v2)
-				}
-			}
-			hlog.Printf("info", "hostlet/box images %d", len(tp.imageSets))
-		}
+		tp.imageListRefresh()
 	}
 
 	if !tp.inited {
 		tp.inited = true
 	}
+}
+
+func (tp *BoxDriver) imageListRefresh() error {
+
+	rsi, err := tp.client.ListImages(drvClient.ListImagesOptions{
+		All: false,
+	})
+	if err == nil {
+		for _, v := range rsi {
+			for _, v2 := range v.RepoTags {
+				tp.imageSets.Set(v2)
+				if !tp.inited {
+					hlog.Printf("info", "hostlet/box images tag %s", v2)
+				}
+			}
+		}
+		if !tp.inited {
+			hlog.Printf("info", "hostlet/box images %d", len(tp.imageSets))
+		}
+	}
+	return err
 }
 
 func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
@@ -905,10 +922,10 @@ func (tp *BoxDriver) ImageSetup(inst *napi.BoxInstance) error {
 		Repository: imageName,
 	}, drvClient.AuthConfiguration{})
 	if err != nil {
-		hlog.Printf("warn", "hostlet/box %s, pull image error %s", inst.Name, err.Error())
+		hlog.Printf("warn", "hostlet/box %s, pull image %s, error %s", inst.Name, imageName, err.Error())
 	} else {
 		tp.imageSets.Set(imageName)
-		hlog.Printf("info", "hostlet/box %s, pull image ok", inst.Name)
+		hlog.Printf("info", "hostlet/box %s, pull image %s, ok", inst.Name, imageName)
 	}
 
 	return err

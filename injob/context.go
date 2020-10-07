@@ -28,6 +28,7 @@ type Context struct {
 	ZonePodStatusList *inapi.PodStatusList
 	IsZoneLeader      bool
 	ZoneMailManager   *hmsg.MailManager
+	Host              *inapi.ResHost
 	daemon            *Daemon
 }
 

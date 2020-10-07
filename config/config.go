@@ -57,6 +57,8 @@ type ZoneInitRequest struct {
 	ZoneId   string `json:"zone_id" toml:"zone_id"`
 	CellId   string `json:"cell_id" toml:"cell_id"`
 	HttpPort uint16 `json:"http_port" toml:"http_port"`
+	Password string `json:"password" toml:"password"`
+	WanAddr  string `json:"wan_addr,omitempty" toml:"wan_addr,omitempty"`
 }
 
 type ZoneConfig struct {
@@ -122,7 +124,7 @@ func (cfg *ConfigCommon) Flush() error {
 }
 
 var (
-	Prefix string
+	Prefix = "/opt/sysinner/innerstack"
 	Config ConfigCommon
 	User   = &user.User{
 		Uid:      "2048",
@@ -147,8 +149,8 @@ func BasicSetup() error {
 		return err
 	}
 
-	if Prefix, err = filepath.Abs(filepath.Dir(os.Args[0]) + "/.."); err != nil {
-		Prefix = "/opt/sysinner"
+	if v, err := filepath.Abs(filepath.Dir(os.Args[0]) + "/.."); err == nil {
+		Prefix = v
 	}
 
 	if err := htoml.DecodeFromFile(&Config, Prefix+"/etc/config.toml"); err != nil {

@@ -44,6 +44,8 @@ func NewConfigMergeCommand() *inapi.BaseCommand {
 		},
 	}
 
+	c.cmd.FParseErrWhitelist.UnknownFlags = true
+
 	c.cmd.Flags().StringVar(&c.args.AppSpec, "app-spec",
 		"",
 		`app-spec id`,

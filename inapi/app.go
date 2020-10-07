@@ -15,6 +15,7 @@
 package inapi
 
 import (
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
@@ -31,6 +32,7 @@ var (
 	AppSpecIdReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9_-]{2,39}$")
 	AppSpecVcsGitUrlReg = regexp.MustCompile(`^(https?:\/\/)([\w\-_\.\/]+)(\.git)$`)
 	AppSpecVcsDirReg    = regexp.MustCompile(`^[a-zA-Z0-9\.\/\-_]{1,50}$`)
+	AppSpecUrlNameRE    = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
 )
 
 type AppPhase string
@@ -157,7 +159,6 @@ type AppSpec struct {
 	LastVersion    string                       `json:"last_version,omitempty" toml:"last_version,omitempty"`
 	Roles          types.ArrayUint32            `json:"roles,omitempty" toml:"roles,omitempty"`
 	Vendor         string                       `json:"vendor,omitempty" toml:"vendor,omitempty"`
-	Description    string                       `json:"description,omitempty" toml:"description,omitempty"`
 	Depends        []*AppSpecDepend             `json:"depends,omitempty" toml:"depends,omitempty"`
 	DepRemotes     []*AppSpecDepend             `json:"dep_remotes,omitempty" toml:"dep_remotes,omitempty"`
 	Packages       AppPackages                  `json:"packages,omitempty" toml:"packages,omitempty"`
@@ -169,6 +170,91 @@ type AppSpec struct {
 	ExpRes         AppSpecResRequirements       `json:"exp_res,omitempty" toml:"exp_res,omitempty"`
 	ExpDeploy      AppSpecExpDeployRequirements `json:"exp_deploy,omitempty" toml:"exp_deploy,omitempty"`
 	Comment        string                       `json:"comment,omitempty" toml:"comment,omitempty"`
+	TypeTags       []string                     `json:"type_tags,omitempty" toml:"type_tags,omitempty"`
+	Description    string                       `json:"description,omitempty" toml:"description,omitempty"`
+	Urls           []*AppSpecUrlEntry           `json:"urls,omitempty" toml:"urls,omitempty"`
+}
+
+func appSpecVersioUpgrade(v string) string {
+	return NewAppSpecVersion(v).PrefixString()
+}
+
+type AppSpecDependPrev AppSpecDepend
+
+func (it *AppSpecDepend) UnmarshalJSON(b []byte) error {
+
+	var it2 AppSpecDependPrev
+	if err := json.Unmarshal(b, &it2); err != nil {
+		return err
+	}
+
+	it2.Version = appSpecVersioUpgrade(it2.Version)
+
+	*it = AppSpecDepend(it2)
+
+	return nil
+}
+
+type AppSpecPrev AppSpec
+
+func (it *AppSpec) UnmarshalJSON(b []byte) error {
+
+	var it2 AppSpecPrev
+	if err := json.Unmarshal(b, &it2); err != nil {
+		return err
+	}
+
+	it2.Meta.Version = appSpecVersioUpgrade(it2.Meta.Version)
+	it2.LastVersion = appSpecVersioUpgrade(it2.LastVersion)
+
+	*it = AppSpec(it2)
+
+	return nil
+}
+
+type AppSpecUrlEntry struct {
+	Name string `json:"name" toml:"name"`
+	Url  string `json:"url,omitempty" toml:"url,omitempty"`
+}
+
+type AppSpecTagEntry struct {
+	Name  string `json:"name" toml:"name"`
+	Value string `json:"value" toml:"value"`
+}
+
+var (
+	AppSpecTypeTagDicts = []*AppSpecTagEntry{
+		{Name: "devops", Value: "DevOps"},         // Development and Operations
+		{Name: "enterprise", Value: "Enterprise"}, // Enterprise Applications
+		{Name: "database", Value: "Database"},
+		{Name: "storage", Value: "Storage"},
+		{Name: "runtime", Value: "Runtime"},
+		{Name: "bigdata", Value: "BigData"},
+		{Name: "net", Value: "Network"},
+		{Name: "security", Value: "Security"},
+		{Name: "ai", Value: "AI"},
+		{Name: "iot", Value: "IoT"},
+	}
+	appSpecTypeTagSets = map[string]bool{}
+)
+
+func init() {
+	for _, v := range AppSpecTypeTagDicts {
+		appSpecTypeTagSets[v.Name] = true
+	}
+}
+
+func (it *AppSpec) Reset() *AppSpec {
+	tTags := []string{}
+	for _, v := range it.TypeTags {
+		v = strings.ToLower(strings.TrimSpace(v))
+		if _, ok := appSpecTypeTagSets[v]; ok &&
+			!ArrayStringHas(tTags, v) {
+			tTags = append(tTags, v)
+		}
+	}
+	it.TypeTags = tTags
+	return it
 }
 
 type AppSpecResRequirements struct {
@@ -220,7 +306,8 @@ func (it *AppSpecExpDeployRequirements) Stateless() bool {
 
 type AppSpecList struct {
 	types.TypeMeta `json:",inline" toml:",inline"`
-	Items          []AppSpec `json:"items,omitempty" toml:"items,omitempty"`
+	Items          []AppSpec          `json:"items,omitempty" toml:"items,omitempty"`
+	TypeTagDicts   []*AppSpecTagEntry `json:"type_tag_dicts,omitempty" toml:"type_tag_dicts,omitempty"`
 }
 
 type AppSpecVersionEntry struct {

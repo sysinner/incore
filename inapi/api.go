@@ -73,8 +73,10 @@ const (
 )
 
 type WebServiceReply struct {
-	Kind    string `json:"kind,omitempty" toml:"kind,omitempty"`
-	Message string `json:"message,omitempty" toml:"message,omitempty"`
+	Kind    string      `json:"kind,omitempty" toml:"kind,omitempty"`
+	Message string      `json:"message,omitempty" toml:"message,omitempty"`
+	Item    interface{} `json:"item,omitempty" toml:"item,omitempty"`
+	Items   interface{} `json:"items,omitempty" toml:"items,omitempty"`
 }
 
 type GeneralObject struct {
@@ -320,13 +322,14 @@ type Validator interface {
 }
 
 func ValidUtf8String(s string, min, max int) error {
-	if min > 0 && len(s) < min {
-		return fmt.Errorf("value can not less than %d chars", min)
+	ul := utf8.RuneCountInString(s)
+	if min > 0 && ul < min {
+		return fmt.Errorf("value can not less than %d utf8 chars", min)
 	}
-	if max > 0 && len(s) > max {
-		return fmt.Errorf("value can not greater than %d chars", max)
+	if max > 0 && ul > max {
+		return fmt.Errorf("value can not greater than %d utf8 chars", max)
 	}
-	if len(s) > 0 && !utf8.ValidString(s) {
+	if ul > 0 && !utf8.ValidString(s) {
 		return errors.New("invalid UTF-8-encoded value")
 	}
 	return nil

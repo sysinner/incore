@@ -15,13 +15,11 @@
 package executor
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -29,6 +27,7 @@ import (
 
 	"github.com/sysinner/incore/inagent/status"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/incore/inutils/tplrender"
 )
 
 func oplog_name(name string) string {
@@ -404,23 +403,15 @@ func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[st
 	}
 
 	//
-	tpl, err := template.New("s").Parse(script)
+	bs, err := tplrender.Render(script, dms)
 	if err != nil {
-		hlog.Printf("error", "executor:%s template.Parse E:%s",
-			esName, err.Error())
-		return inapi.PbOpLogError, err.Error()
-	}
-
-	//
-	var tplout bytes.Buffer
-	if err := tpl.Execute(&tplout, dms); err != nil {
 		hlog.Printf("error", "executor:%s template.Execute E:%s",
 			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()
 	}
 
 	//
-	if err := executor_cmd(esName, es.Cmd, tplout.String()); err != nil {
+	if err := executor_cmd(esName, es.Cmd, string(bs)); err != nil {
 		hlog.Printf("error", "executor:%s CMD E:%s",
 			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()

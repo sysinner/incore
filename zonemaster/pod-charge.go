@@ -90,6 +90,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 	if pod.Spec == nil ||
 		pod.Spec.Ref.Name == "" ||
 		pod.Spec.VolSys == nil {
+		hlog.Printf("info", "no pod spec plan found")
 		return false
 	}
 	var specPlan *inapi.PodSpecPlan
@@ -100,6 +101,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 		}
 	}
 	if specPlan == nil {
+		hlog.Printf("info", "no pod spec plan found")
 		return false
 	}
 
@@ -113,8 +115,12 @@ func podItemCharge(pod *inapi.Pod) bool {
 
 	for _, v := range pod.Operate.Replicas {
 
-		if v.Node == "" ||
-			inapi.OpActionAllow(v.Action, inapi.OpActionDestroy) {
+		if v.Node == "" {
+			continue
+		}
+
+		if inapi.OpActionAllow(v.Action, inapi.OpActionDestroy) &&
+			pod.Payment.Payout > 0 {
 			continue
 		}
 
@@ -146,12 +152,13 @@ func podItemCharge(pod *inapi.Pod) bool {
 		tn = uint32(time.Now().Unix())
 	)
 
-	if cycleAmount == 0 || repNum == 0 {
+	if repNum == 0 {
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 			pod.Payment.TimeClose = tn
 			data.DataZone.NewWriter(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
 		}
+		hlog.Printf("info", "no pod spec plan found")
 		return false
 	}
 
@@ -177,6 +184,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 	}
 
 	if pod.Payment.TimeClose <= pod.Payment.TimeStart {
+		hlog.Printf("info", "no pod spec plan found")
 		return false
 	}
 
@@ -208,10 +216,6 @@ func podItemCharge(pod *inapi.Pod) bool {
 
 	if pod.Payment.TimeClose == timeCloseNow && pod.Payment.Prepay == 0 {
 
-		// hlog.Printf("info", "Pod %s AccountChargePrepay %f %d %d",
-		// 	pod.Meta.ID, payAmount,
-		// 	pod.Payment.TimeStart, pod.Payment.TimeClose)
-
 		if rsp := iamclient.AccountChargePrepay(iamapi.AccountChargePrepay{
 			User:      payUser,
 			Product:   types.NameIdentifier(fmt.Sprintf("pod/%s", pod.Meta.ID)),
@@ -220,11 +224,19 @@ func podItemCharge(pod *inapi.Pod) bool {
 			TimeClose: pod.Payment.TimeClose,
 			Comment:   strings.Join(comments, ", "),
 		}, inCfg.Config.ZoneMain.IamAccessKey); rsp.Kind == "AccountChargePrepay" {
+
 			pod.Payment.Prepay = payAmount
+			pod.Payment.Payout = 0
 			pod.Payment.CycleAmount = cycleAmount
-			pod.Payment.User = ""
+			pod.Payment.User = payUser
+
 			data.DataZone.NewWriter(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
+
+			hlog.Printf("info", "Pod %s AccountChargePrepay %f, time start %d, in %d sec",
+				pod.Meta.ID, payAmount,
+				pod.Payment.TimeStart, pod.Payment.TimeClose-pod.Payment.TimeStart)
+
 		} else {
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
@@ -243,8 +255,9 @@ func podItemCharge(pod *inapi.Pod) bool {
 
 	} else if pod.Payment.TimeClose < timeCloseNow && pod.Payment.Payout == 0 {
 
-		// hlog.Printf("error", "Pod %s AccountChargePayout %f %d %d",
-		// 	pod.Meta.ID, pod.Payment.Payout, pod.Payment.TimeStart, pod.Payment.TimeClose)
+		hlog.Printf("info", "Pod %s AccountChargePayout %f, time start %d, in %s sec, TRY",
+			pod.Meta.ID, pod.Payment.Payout,
+			pod.Payment.TimeStart, pod.Payment.TimeClose-pod.Payment.TimeStart)
 
 		if rsp := iamclient.AccountChargePayout(iamapi.AccountChargePayout{
 			User:      payUser,
@@ -254,12 +267,19 @@ func podItemCharge(pod *inapi.Pod) bool {
 			TimeClose: pod.Payment.TimeClose,
 			Comment:   strings.Join(comments, ", "),
 		}, inCfg.Config.ZoneMain.IamAccessKey); rsp.Kind == "AccountChargePayout" {
+
 			pod.Payment.Payout = payAmount
 			pod.Payment.CycleAmount = cycleAmount
 			pod.Payment.User = ""
+
 			data.DataZone.NewWriter(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
+
+			hlog.Printf("info", "Pod %s AccountChargePayout %f DONE",
+				pod.Meta.ID, pod.Payment.Payout)
+
 		} else {
+
 			if rsp.Error != nil {
 				if rsp.Error.Code == iamapi.ErrCodeAccChargeOut {
 					podEntryChargeOut(pod.Meta.ID)

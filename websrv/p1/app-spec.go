@@ -33,6 +33,13 @@ var (
 	public_roles = []uint32{1, 100, 101}
 )
 
+func (c AppSpec) TypeTagListAction() {
+	c.RenderJson(inapi.WebServiceReply{
+		Kind:  "AppSpecTypeTagList",
+		Items: inapi.AppSpecTypeTagDicts,
+	})
+}
+
 func (c AppSpec) ListAction() {
 
 	ls := inapi.AppSpecList{}
@@ -46,6 +53,11 @@ func (c AppSpec) ListAction() {
 	if fns := c.Params.Get("fields"); fns != "" {
 		fields.Set(fns)
 		fields.Sort()
+	}
+
+	tags := []string{}
+	if v := c.Params.Get("type_tags"); v != "" {
+		tags = strings.Split(v, ",")
 	}
 
 	for _, v := range rs.Items {
@@ -62,6 +74,21 @@ func (c AppSpec) ListAction() {
 		if c.Params.Get("qry_text") != "" &&
 			!strings.Contains(spec.Meta.ID, c.Params.Get("qry_text")) {
 			continue
+		}
+
+		if len(tags) > 0 {
+			thit := false
+			for _, t := range tags {
+				for _, t0 := range spec.TypeTags {
+					if t == t0 {
+						thit = true
+						break
+					}
+				}
+			}
+			if !thit {
+				continue
+			}
 		}
 
 		if len(fields) > 0 {
@@ -101,6 +128,10 @@ func (c AppSpec) ListAction() {
 
 			if fields.Has("description") {
 				specf.Description = spec.Description
+			}
+
+			if fields.Has("type_tags") {
+				specf.TypeTags = spec.TypeTags
 			}
 
 			if fields.Has("packages") {
@@ -157,6 +188,10 @@ func (c AppSpec) ListAction() {
 	}
 
 	ls.Kind = "AppSpecList"
+
+	if c.Params.Get("type_tag_dicts") == "yes" {
+		ls.TypeTagDicts = inapi.AppSpecTypeTagDicts
+	}
 }
 
 func (c AppSpec) EntryAction() {

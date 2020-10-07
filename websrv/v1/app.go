@@ -269,33 +269,23 @@ func (c App) SetAction() {
 
 	prev.Meta.Updated = tn
 
-	var rs *kv2.ObjectResult
-	if prev.Spec.Meta.Version != "" {
-		rs = data.DataGlobal.NewReader(
-			inapi.NsKvGlobalAppSpecVersion(prev.Spec.Meta.ID, prev.Spec.Meta.Version)).Query()
-		if !rs.OK() {
-			rs = data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID)).Query()
-		}
-	} else {
-		rs = data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(prev.Spec.Meta.ID)).Query()
-	}
-	var spec inapi.AppSpec
-	if rs.OK() {
-		rs.Decode(&spec)
-	}
+	spec := appSpecVersionLastPatch(prev.Spec.Meta.ID, prev.Spec.Meta.Version)
 
-	if spec.Meta.ID == "" || spec.Meta.ID != prev.Spec.Meta.ID {
+	if spec == nil {
 		if set_new {
 			rsp.Error = types.NewErrorMeta("400", fmt.Sprintf("AppSpec Not Found %s/%s", prev.Spec.Meta.ID, prev.Spec.Meta.Version))
 			return
 		}
 	} else {
-		prev.Spec = spec
+		prev.Spec = *spec
+		hlog.Printf("info", "app spec %s, version %s", spec.Meta.ID, spec.Meta.Version)
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
 		prev.Operate.Action = prev.Operate.Action | inapi.OpActionStop
 	}
+
+	var rs *kv2.ObjectResult
 
 	if set_new {
 
@@ -813,15 +803,12 @@ func (c App) ConfigAction() {
 				continue
 			}
 
-			var app_spec inapi.AppSpec
-			if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalAppSpecVersion(v.Id, v.Version)).Query(); rs.OK() {
-				rs.Decode(&app_spec)
+			app_spec := appSpecVersionLastPatch(v.Id, v.Version)
+			if app_spec == nil {
+				continue
+				// rsp.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, fmt.Sprintf("AppSpec (%s) Not Found", v.Id))
 			}
-			if app_spec.Meta.ID != v.Id { // TODO
-				if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v.Id)).Query(); rs.OK() {
-					rs.Decode(&app_spec)
-				}
-			}
+
 			if app_spec.Configurator != nil && len(app_spec.Configurator.Fields) > 0 {
 				appConfigurator = app_spec.Configurator
 			}
@@ -1069,7 +1056,6 @@ func (c App) ConfigRepRemotesAction() {
 		if v.Delete {
 			for i2, v2 := range app.Operate.Services {
 				if v.AppId == v2.AppId && v.SpecId == v2.Spec {
-					fmt.Println("delete", v2.AppId)
 					app.Operate.Services = append(app.Operate.Services[:i2], app.Operate.Services[i2+1:]...)
 					break
 				}

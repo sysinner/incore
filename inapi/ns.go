@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/sysinner/incore/inutils"
@@ -119,9 +118,11 @@ func DataAppSpecVersionKey(version string) string {
 	if version == "" {
 		return ""
 	}
-	u32, _ := strconv.Atoi(version)
-	return fmt.Sprintf("%s.%s",
-		inutils.Uint32ToHexString(0), inutils.Uint32ToHexString(uint32(u32)))
+	v := NewAppSpecVersion(version)
+	if !v.Valid() {
+		return ""
+	}
+	return v.HexString()
 }
 
 // t2
