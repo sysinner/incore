@@ -90,7 +90,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 	if pod.Spec == nil ||
 		pod.Spec.Ref.Name == "" ||
 		pod.Spec.VolSys == nil {
-		hlog.Printf("info", "no pod spec plan found")
+		hlog.Printf("info", "no pod (%s) spec plan found", pod.Meta.ID)
 		return false
 	}
 	var specPlan *inapi.PodSpecPlan

@@ -54,6 +54,7 @@ type ZoneMainJob struct {
 	spec   *injob.JobSpec
 	inited bool
 	hs     *httpsrv.Service
+	t0     int64
 }
 
 var (
@@ -275,7 +276,7 @@ func (it *ZoneMainJob) init() error {
 		incfg.Config.Zone.InstanceId = ic_inst.Meta.ID
 		incfg.Config.Flush()
 
-		it.hs.HandlerFuncRegister("/in/v1/pb/termws", ic_ws_v1.PodBoundTerminalWsHandlerFunc)
+		// it.hs.HandlerFuncRegister("/in/v1/pb/termws", ic_ws_v1.PodBoundTerminalWsHandlerFunc)
 
 		// Frontend APIs for Users
 		it.hs.ModuleRegister("/in/v1", ic_ws_v1.NewModule())

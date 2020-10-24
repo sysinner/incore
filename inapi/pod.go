@@ -168,6 +168,9 @@ func (pod *Pod) OpRepCapValid(num_new int32) error {
 	if num_new != pod.Operate.ReplicaCap && pod.Apps != nil {
 
 		for _, v := range pod.Apps {
+			if v.Spec.ExpDeploy == nil {
+				v.Spec.ExpDeploy = &AppSpecExpDeployRequirements{}
+			}
 			if num_new < v.Spec.ExpDeploy.RepMin {
 				return errors.New(fmt.Sprintf("RepNum %d conflict with AppSpec %s Min Limit %d",
 					num_new, v.Spec.Meta.Name, v.Spec.ExpDeploy.RepMin))

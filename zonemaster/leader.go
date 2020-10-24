@@ -44,6 +44,9 @@ func zmWorkerMasterLeaderRefresh() {
 
 			status.ZoneMasterList.Version = rs.Meta.Version
 			status.ZoneMasterList.Updated = rs.Meta.Updated
+
+			hlog.Printf("debug", "zm/zone-master/leader refresh %d", rs.Meta.Version)
+
 		} else {
 			hlog.Printf("warn", "zm/zone-master/leader refresh failed %s", rs.Message)
 		}

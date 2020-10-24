@@ -40,9 +40,11 @@ func (it *ConfigJob) Run(ctx *injob.Context) error {
 		return nil
 	}
 
-	if IsZoneMaster() && !it.mainNode {
-		it.mainNode = true
-		ctx.ConditionSet("zone/main-node", -1)
+	if IsZoneMaster() {
+		if !it.mainNode {
+			it.mainNode = true
+			ctx.ConditionSet("zone/main-node", -1)
+		}
 	} else {
 		it.mainNode = false
 		ctx.ConditionDel("zone/main-node")

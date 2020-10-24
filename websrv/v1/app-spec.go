@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -207,11 +208,15 @@ func (c AppSpec) ListAction() {
 				}
 			}
 
-			ls.Items = append(ls.Items, specf)
+			ls.Items = append(ls.Items, &specf)
 		} else {
-			ls.Items = append(ls.Items, spec)
+			ls.Items = append(ls.Items, &spec)
 		}
 	}
+
+	sort.Slice(ls.Items, func(i, j int) bool {
+		return ls.Items[i].Meta.Updated > ls.Items[j].Meta.Updated
+	})
 
 	ls.Kind = "AppSpecList"
 }
@@ -542,6 +547,14 @@ func (c AppSpec) SetAction() {
 				urls = rs.([]*inapi.AppSpecUrlEntry)
 			}
 		}
+	}
+
+	if req.ExpRes == nil {
+		req.ExpRes = &inapi.AppSpecResRequirements{}
+	}
+
+	if req.ExpDeploy == nil {
+		req.ExpDeploy = &inapi.AppSpecExpDeployRequirements{}
 	}
 
 	if prev.Meta.ID == "" {

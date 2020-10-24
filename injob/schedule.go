@@ -204,5 +204,6 @@ func (it *Schedule) Hit(times [6]uint64) bool {
 		}
 		hit += 1
 	}
+
 	return hit == len(scheduleTimeFields)
 }

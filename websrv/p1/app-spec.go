@@ -16,7 +16,10 @@ package p1
 
 import (
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/types"
@@ -25,13 +28,16 @@ import (
 	"github.com/sysinner/incore/inapi"
 )
 
+var (
+	publicRoles    = []uint32{1, 100, 101}
+	appSpecMu      sync.RWMutex
+	appSpecItems   []*inapi.AppSpec
+	appSpecUpdated int64
+)
+
 type AppSpec struct {
 	*httpsrv.Controller
 }
-
-var (
-	public_roles = []uint32{1, 100, 101}
-)
 
 func (c AppSpec) TypeTagListAction() {
 	c.RenderJson(inapi.WebServiceReply{
@@ -40,14 +46,55 @@ func (c AppSpec) TypeTagListAction() {
 	})
 }
 
+func appSpecRefresh() {
+
+	tn := time.Now().Unix()
+
+	if (appSpecUpdated + 60) > tn {
+		return
+	}
+
+	appSpecMu.Lock()
+	defer appSpecMu.Unlock()
+
+	var (
+		rs = data.DataGlobal.NewReader(nil).
+			KeyRangeSet(inapi.NsGlobalAppSpec(""), inapi.NsGlobalAppSpec("zzzz")).
+			LimitNumSet(1000).Query()
+		items = []*inapi.AppSpec{}
+	)
+
+	for _, v := range rs.Items {
+
+		var item inapi.AppSpec
+		if err := v.Decode(&item); err != nil {
+			continue
+		}
+
+		items = append(items, &item)
+	}
+
+	appSpecUpdated = tn
+
+	if len(items) > 0 {
+
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].Meta.Updated > items[j].Meta.Updated
+		})
+
+		appSpecItems = items
+
+	} else {
+		appSpecUpdated -= 50
+	}
+}
+
 func (c AppSpec) ListAction() {
 
 	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).
-		KeyRangeSet(inapi.NsGlobalAppSpec("zzzzzzzz"), inapi.NsGlobalAppSpec("")).
-		LimitNumSet(200).Query()
+	appSpecRefresh()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Get("fields"); fns != "" {
@@ -60,14 +107,9 @@ func (c AppSpec) ListAction() {
 		tags = strings.Split(v, ",")
 	}
 
-	for _, v := range rs.Items {
+	for _, spec := range appSpecItems {
 
-		var spec inapi.AppSpec
-		if err := v.Decode(&spec); err != nil {
-			continue
-		}
-
-		if !spec.Roles.MatchAny(public_roles) {
+		if !spec.Roles.MatchAny(publicRoles) {
 			continue
 		}
 
@@ -93,7 +135,7 @@ func (c AppSpec) ListAction() {
 
 		if len(fields) > 0 {
 
-			specf := inapi.AppSpec{
+			specf := &inapi.AppSpec{
 				Meta: types.InnerObjectMeta{
 					ID:   spec.Meta.ID,
 					Name: spec.Meta.Name,
@@ -204,13 +246,18 @@ func (c AppSpec) EntryAction() {
 		defer c.RenderJson(&set)
 	}
 
+	appSpecRefresh()
+
 	if c.Params.Get("id") == "" {
 		set.Error = types.NewErrorMeta("400", "ID can not be null")
 		return
 	}
 
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
-		rs.Decode(&set)
+	for _, v := range appSpecItems {
+		if v.Meta.ID == c.Params.Get("id") {
+			set = *v
+			break
+		}
 	}
 
 	if set.Meta.ID != c.Params.Get("id") {
@@ -218,7 +265,7 @@ func (c AppSpec) EntryAction() {
 		return
 	}
 
-	if !set.Roles.MatchAny(public_roles) {
+	if !set.Roles.MatchAny(publicRoles) {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 		return
 	}
@@ -227,6 +274,7 @@ func (c AppSpec) EntryAction() {
 		set.Meta.User = ""
 		set.Meta.Created = 0
 		set.Meta.Updated = 0
+		set.LastVersion = ""
 		c.Response.Out.Header().Set("Content-Disposition",
 			fmt.Sprintf("attachment; filename=app_spec_%s.json", set.Meta.ID))
 	}

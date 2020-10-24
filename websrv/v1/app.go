@@ -312,7 +312,7 @@ func (c App) SetAction() {
 			return
 		}
 
-		if err := appPodResCheck(&pod, &prev.Spec.ExpRes); err != nil {
+		if err := appPodResCheck(&pod, prev.Spec.ExpRes); err != nil {
 			rsp.Error = types.NewErrorMeta("400", err.Error()+", try to select another pod to deploy this application")
 			return
 		}
@@ -350,6 +350,10 @@ func appPodResCheck(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) 
 		return errors.New("this pod currently unavailable")
 	}
 
+	if app_spec_res == nil {
+		app_spec_res = &inapi.AppSpecResRequirements{}
+	}
+
 	if pod.Spec.VolSys == nil {
 		return errors.New("pod currently unavailable")
 	} else if app_spec_res.VolMin > pod.Spec.VolSys.Size {
@@ -372,6 +376,10 @@ func appPodResCheck(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) 
 }
 
 func appPodConflictCheck(pod *inapi.Pod, app *inapi.AppInstance) error {
+
+	if app.Spec.ExpDeploy == nil {
+		app.Spec.ExpDeploy = &inapi.AppSpecExpDeployRequirements{}
+	}
 
 	if app.Spec.ExpDeploy.SysState == inapi.AppSpecExpDeploySysStateful &&
 		pod.Operate.ExpSysState == inapi.AppSpecExpDeploySysStateless {
@@ -1125,7 +1133,8 @@ func appOpOptRender(app *inapi.AppInstance, specRender bool) {
 
 	if specRender && app.Spec.Configurator != nil {
 		for _, v := range app.Spec.Configurator.Fields {
-			if strings.Index(v.Default, "{{.") < 0 {
+			if strings.Index(v.Default, "{{.") < 0 ||
+				(v.Type >= 300 || v.Type <= 399) {
 				continue
 			}
 			if tpl, err := template.New("s").Parse(v.Default); err == nil {

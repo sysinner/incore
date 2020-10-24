@@ -97,13 +97,15 @@ func (c Pod) ListAction() {
 		exp_filter_app_notin = types.ArrayString(strings.Split(v, ","))
 	}
 
-	var exp_filter_app_spec_res inapi.AppSpecResRequirements
+	exp_filter_app_spec_res := &inapi.AppSpecResRequirements{}
 	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
 		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v)).Query(); rs.OK() {
 			var spec inapi.AppSpec
 			rs.Decode(&spec)
 			if spec.Meta.ID == v {
-				exp_filter_app_spec_res = spec.ExpRes
+				if spec.ExpRes != nil {
+					exp_filter_app_spec_res = spec.ExpRes
+				}
 			}
 		}
 	}
@@ -168,7 +170,7 @@ func (c Pod) ListAction() {
 		}
 
 		if exp_filter_app_spec_res.CpuMin > 0 {
-			if err := appPodResCheck(&pod, &exp_filter_app_spec_res); err != nil {
+			if err := appPodResCheck(&pod, exp_filter_app_spec_res); err != nil {
 				continue
 			}
 		}
@@ -511,8 +513,9 @@ func (c Pod) NewAction() {
 		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v)).Query(); rs.OK() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
-			if app_spec.Meta.ID == v && app_spec.ExpRes.CpuMin > 0 {
-				if err := appPodResCheck(&pod, &app_spec.ExpRes); err != nil {
+			if app_spec.Meta.ID == v && app_spec.ExpRes != nil &&
+				app_spec.ExpRes.CpuMin > 0 {
+				if err := appPodResCheck(&pod, app_spec.ExpRes); err != nil {
 					set.Error = types.NewErrorMeta("400", err.Error())
 					return
 				}
@@ -1259,8 +1262,9 @@ func (c Pod) SpecSetAction() {
 		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(app.Spec.Meta.ID)).Query(); rs.OK() {
 			var app_spec inapi.AppSpec
 			rs.Decode(&app_spec)
-			if app_spec.Meta.ID == app.Spec.Meta.ID && app_spec.ExpRes.CpuMin > 0 {
-				if err := appPodResCheck(&prev, &app_spec.ExpRes); err != nil {
+			if app_spec.Meta.ID == app.Spec.Meta.ID && app_spec.ExpRes != nil &&
+				app_spec.ExpRes.CpuMin > 0 {
+				if err := appPodResCheck(&prev, app_spec.ExpRes); err != nil {
 					set.Error = types.NewErrorMeta("400", err.Error())
 					return
 				}

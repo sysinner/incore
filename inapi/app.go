@@ -93,6 +93,9 @@ func (ls *AppInstances) ExecutorSync(executor Executor, app_id string) {
 func (ls *AppInstances) SpecExpDeployStateless() bool {
 	n := 0
 	for _, v := range *ls {
+		if v.Spec.ExpDeploy == nil {
+			v.Spec.ExpDeploy = &AppSpecExpDeployRequirements{}
+		}
 		if v.Spec.ExpDeploy.Stateless() {
 			n += 1
 		}
@@ -106,6 +109,9 @@ func (ls *AppInstances) SpecExpDeployStateless() bool {
 
 func (ls *AppInstances) SpecExpDeployFailoverLimits() (delaySeconds, numMax, rateMax int32) {
 	for _, v := range *ls {
+		if v.Spec.ExpDeploy == nil {
+			v.Spec.ExpDeploy = &AppSpecExpDeployRequirements{}
+		}
 		if v.Spec.ExpDeploy.FailoverTime > delaySeconds {
 			delaySeconds = v.Spec.ExpDeploy.FailoverTime
 		}
@@ -122,6 +128,9 @@ func (ls *AppInstances) SpecExpDeployFailoverLimits() (delaySeconds, numMax, rat
 func (ls *AppInstances) SpecExpDeployFailoverEnable() bool {
 	n := 0
 	for _, v := range *ls {
+		if v.Spec.ExpDeploy == nil {
+			v.Spec.ExpDeploy = &AppSpecExpDeployRequirements{}
+		}
 		if v.Spec.ExpDeploy.FailoverEnable() {
 			n += 1
 		}
@@ -135,6 +144,9 @@ func (ls *AppInstances) SpecExpDeployFailoverEnable() bool {
 func (ls *AppInstances) NetworkModeHost() bool {
 	hostN := 0
 	for _, v := range *ls {
+		if v.Spec.ExpDeploy == nil {
+			v.Spec.ExpDeploy = &AppSpecExpDeployRequirements{}
+		}
 		if v.Spec.ExpDeploy.NetworkMode == AppSpecExpDeployNetworkModeHost {
 			hostN += 1
 		}
@@ -155,24 +167,24 @@ func (it *AppSpecDepend) Valid() error {
 //
 type AppSpec struct {
 	types.TypeMeta `json:",inline" toml:",inline"`
-	Meta           types.InnerObjectMeta        `json:"meta" toml:"meta"`
-	LastVersion    string                       `json:"last_version,omitempty" toml:"last_version,omitempty"`
-	Roles          types.ArrayUint32            `json:"roles,omitempty" toml:"roles,omitempty"`
-	Vendor         string                       `json:"vendor,omitempty" toml:"vendor,omitempty"`
-	Depends        []*AppSpecDepend             `json:"depends,omitempty" toml:"depends,omitempty"`
-	DepRemotes     []*AppSpecDepend             `json:"dep_remotes,omitempty" toml:"dep_remotes,omitempty"`
-	Packages       AppPackages                  `json:"packages,omitempty" toml:"packages,omitempty"`
-	VcsRepos       VcsRepoItems                 `json:"vcs_repos,omitempty" toml:"vcs_repos,omitempty"`
-	Executors      Executors                    `json:"executors,omitempty" toml:"executors,omitempty"`
-	VolumeMounts   AppVolumeMounts              `json:"volume_mounts,omitempty" toml:"volume_mounts,omitempty"`
-	ServicePorts   ServicePorts                 `json:"service_ports,omitempty" toml:"service_ports,omitempty"`
-	Configurator   *AppConfigurator             `json:"configurator,omitempty" toml:"configurator,omitempty"`
-	ExpRes         AppSpecResRequirements       `json:"exp_res,omitempty" toml:"exp_res,omitempty"`
-	ExpDeploy      AppSpecExpDeployRequirements `json:"exp_deploy,omitempty" toml:"exp_deploy,omitempty"`
-	Comment        string                       `json:"comment,omitempty" toml:"comment,omitempty"`
-	TypeTags       []string                     `json:"type_tags,omitempty" toml:"type_tags,omitempty"`
-	Description    string                       `json:"description,omitempty" toml:"description,omitempty"`
-	Urls           []*AppSpecUrlEntry           `json:"urls,omitempty" toml:"urls,omitempty"`
+	Meta           types.InnerObjectMeta         `json:"meta" toml:"meta"`
+	LastVersion    string                        `json:"last_version,omitempty" toml:"last_version,omitempty"`
+	Roles          types.ArrayUint32             `json:"roles,omitempty" toml:"roles,omitempty"`
+	Vendor         string                        `json:"vendor,omitempty" toml:"vendor,omitempty"`
+	Depends        []*AppSpecDepend              `json:"depends,omitempty" toml:"depends,omitempty"`
+	DepRemotes     []*AppSpecDepend              `json:"dep_remotes,omitempty" toml:"dep_remotes,omitempty"`
+	Packages       AppPackages                   `json:"packages,omitempty" toml:"packages,omitempty"`
+	VcsRepos       VcsRepoItems                  `json:"vcs_repos,omitempty" toml:"vcs_repos,omitempty"`
+	Executors      Executors                     `json:"executors,omitempty" toml:"executors,omitempty"`
+	VolumeMounts   AppVolumeMounts               `json:"volume_mounts,omitempty" toml:"volume_mounts,omitempty"`
+	ServicePorts   ServicePorts                  `json:"service_ports,omitempty" toml:"service_ports,omitempty"`
+	Configurator   *AppConfigurator              `json:"configurator,omitempty" toml:"configurator,omitempty"`
+	ExpRes         *AppSpecResRequirements       `json:"exp_res,omitempty" toml:"exp_res,omitempty"`
+	ExpDeploy      *AppSpecExpDeployRequirements `json:"exp_deploy,omitempty" toml:"exp_deploy,omitempty"`
+	Comment        string                        `json:"comment,omitempty" toml:"comment,omitempty"`
+	TypeTags       []string                      `json:"type_tags,omitempty" toml:"type_tags,omitempty"`
+	Description    string                        `json:"description,omitempty" toml:"description,omitempty"`
+	Urls           []*AppSpecUrlEntry            `json:"urls,omitempty" toml:"urls,omitempty"`
 }
 
 func appSpecVersioUpgrade(v string) string {
@@ -306,7 +318,7 @@ func (it *AppSpecExpDeployRequirements) Stateless() bool {
 
 type AppSpecList struct {
 	types.TypeMeta `json:",inline" toml:",inline"`
-	Items          []AppSpec          `json:"items,omitempty" toml:"items,omitempty"`
+	Items          []*AppSpec         `json:"items,omitempty" toml:"items,omitempty"`
 	TypeTagDicts   []*AppSpecTagEntry `json:"type_tag_dicts,omitempty" toml:"type_tag_dicts,omitempty"`
 }
 

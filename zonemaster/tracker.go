@@ -300,7 +300,11 @@ func zmWorkerZoneHostListRefresh() error {
 					continue
 				}
 
-				// hlog.Printf("info", "pod set %s", pod.Meta.ID)
+				if pod.Meta.ID == "c0b195ff7ecda586" {
+					data.DataZone.NewWriter(offset, nil).ModeDeleteSet(true).Commit()
+					hlog.Printf("warn", "remove pod %s", pod.Meta.ID)
+					continue
+				}
 				status.ZonePodList.Items.Set(&pod)
 
 				if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {

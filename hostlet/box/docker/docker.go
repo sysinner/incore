@@ -283,12 +283,12 @@ func (tp *BoxDriver) imageListRefresh() error {
 			for _, v2 := range v.RepoTags {
 				tp.imageSets.Set(v2)
 				if !tp.inited {
-					hlog.Printf("info", "hostlet/box images tag %s", v2)
+					hlog.Printf("debug", "hostlet/box images tag %s", v2)
 				}
 			}
 		}
 		if !tp.inited {
-			hlog.Printf("info", "hostlet/box images %d", len(tp.imageSets))
+			hlog.Printf("info", "hostlet/box load %d images", len(tp.imageSets))
 		}
 	}
 	return err
@@ -693,8 +693,8 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				Ulimits: []drvClient.ULimit{
 					{
 						Name: "nofile",
-						Soft: 30000,
-						Hard: 30000,
+						Soft: 10000,
+						Hard: 10000,
 					},
 				},
 				StorageOpt:    storOpt,
