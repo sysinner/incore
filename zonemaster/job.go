@@ -23,6 +23,8 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
 
+	"github.com/sysinner/injob/v1"
+
 	iam_cfg "github.com/hooto/iam/config"
 	iam_db "github.com/hooto/iam/data"
 	iam_cli "github.com/hooto/iam/iamclient"
@@ -44,7 +46,6 @@ import (
 	incfg "github.com/sysinner/incore/config"
 	ic_db "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/injob"
 	instatus "github.com/sysinner/incore/status"
 
 	is_cfg "github.com/sysinner/innerstack/config"
@@ -62,8 +63,10 @@ var (
 )
 
 func NewZoneMainJob() *injob.JobEntry {
-	return injob.NewJobEntry(&ZoneMainJob{},
-		injob.NewSchedule().EveryTimeCycle(injob.Second, 3))
+	return injob.NewJobEntry(
+		&ZoneMainJob{},
+		injob.NewSchedule().EveryTimeCycle(injob.Second, 3),
+	)
 }
 
 func (it *ZoneMainJob) Spec() *injob.JobSpec {

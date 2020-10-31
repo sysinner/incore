@@ -22,9 +22,11 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
+	"github.com/sysinner/injob/v1"
+
 	"github.com/sysinner/incore/config"
-	"github.com/sysinner/incore/injob"
 	"github.com/sysinner/incore/inutils/filerender"
+	"github.com/sysinner/incore/status"
 )
 
 type jobBoxImageEntry struct {
@@ -70,7 +72,7 @@ func (it *BoxImageUpdate) Status() *injob.Status {
 
 func (it *BoxImageUpdate) Run(ctx *injob.Context) error {
 
-	if ctx.Host == nil {
+	if !status.HostletReady() {
 		return errors.New("host not ready")
 	}
 

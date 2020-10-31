@@ -19,7 +19,7 @@ import (
 
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/box/docker"
-	"github.com/sysinner/incore/injob"
+	"github.com/sysinner/injob/v1"
 )
 
 func JobSetup(jobDaemon *injob.Daemon) {

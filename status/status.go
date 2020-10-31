@@ -28,7 +28,6 @@ import (
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/injob"
 	"github.com/sysinner/incore/inutils"
 )
 
@@ -70,8 +69,18 @@ var (
 	GlobalHostList inapi.ResHostList
 )
 
-func JobContextRefresh() *injob.Context {
-	return &injob.Context{
+type StatusContext struct {
+	Zone              *inapi.ResZone
+	ZoneHostList      *inapi.ResHostList
+	ZonePodList       *inapi.PodList
+	ZonePodStatusList *inapi.PodStatusList
+	IsZoneLeader      bool
+	ZoneMailManager   *hmsg.MailManager
+	Host              *inapi.ResHost
+}
+
+func StatusContextRefresh() interface{} {
+	return &StatusContext{
 		Zone:              Zone,
 		ZoneHostList:      ZoneHostList,
 		ZonePodList:       ZonePodList,
