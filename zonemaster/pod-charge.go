@@ -255,7 +255,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 
 	} else if pod.Payment.TimeClose < timeCloseNow && pod.Payment.Payout == 0 {
 
-		hlog.Printf("info", "Pod %s AccountChargePayout %f, time start %d, in %s sec, TRY",
+		hlog.Printf("info", "Pod %s AccountChargePayout %f, time start %d, in %d sec, TRY",
 			pod.Meta.ID, pod.Payment.Payout,
 			pod.Payment.TimeStart, pod.Payment.TimeClose-pod.Payment.TimeStart)
 

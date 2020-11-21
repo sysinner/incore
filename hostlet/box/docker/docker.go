@@ -186,6 +186,8 @@ func (tp *BoxDriver) statusRefresh() {
 				break
 			}
 
+			hlog.Printf("warn", "hostlet/docker/connect error %s", err.Error())
+
 			time.Sleep(2e9)
 			if len(tp.sets) > 0 {
 				hlog.Printf("warn", "hostlet/status/refresh, Can not connect to Docker Server %s", err)

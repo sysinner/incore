@@ -49,7 +49,7 @@ const (
 )
 
 var (
-	SpecOsDistRE  = regexp.MustCompile(`el7|el8|all`)
+	SpecOsDistRE  = regexp.MustCompile(`el7|el8|linux|all`)
 	SpecCpuArchRE = regexp.MustCompile(`x64|src`)
 )
 

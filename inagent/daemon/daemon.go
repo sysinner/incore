@@ -25,7 +25,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
-	"github.com/hooto/httpsrv/deps/go.net/websocket"
+	// "github.com/hooto/httpsrv/deps/go.net/websocket"
 	"github.com/lessos/lessgo/encoding/json"
 
 	"github.com/sysinner/incore/config"
@@ -115,9 +115,11 @@ func (it *agentDaemonCommand) run(cmd *inapi.BaseCommand, args []string) error {
 	//
 	httpsrv.GlobalService.Config.HttpAddr = addr_sock
 
+	/**
 	httpsrv.GlobalService.HandlerRegister(
 		"/in/v1/pb/termws",
 		websocket.Handler(v1.TerminalWsOpenAction))
+	*/
 
 	httpsrv.GlobalService.ModuleRegister("/in/v1/", v1.NewModule())
 

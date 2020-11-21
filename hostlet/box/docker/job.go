@@ -81,7 +81,7 @@ func (it *BoxImageUpdate) Run(ctx *injob.Context) error {
 		script := `sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
 setenforce 0
 `
-		if _, err := exec.Command("bash", "-c", script).Output(); err != nil {
+		if _, err := exec.Command("sh", "-c", script).Output(); err != nil {
 			// skip error
 		}
 
@@ -122,7 +122,7 @@ setenforce 0
 	}
 
 	if driver == nil || !driver.inited {
-		return errors.New("box/driver not ready")
+		return errors.New("box/driver not ready #01")
 	}
 
 	if err := driver.imageListRefresh(); err != nil {

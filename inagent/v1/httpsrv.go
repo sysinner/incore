@@ -29,7 +29,7 @@ func NewModule() httpsrv.Module {
 
 	module.ControllerRegister(new(Fs))
 	module.ControllerRegister(new(App))
-	module.ControllerRegister(new(Terminal))
+	// module.ControllerRegister(new(Terminal))
 	module.ControllerRegister(new(Pod))
 	module.ControllerRegister(new(Health))
 

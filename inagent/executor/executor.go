@@ -311,7 +311,7 @@ func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[st
 	//
 	// hlog.Printf("info", "executor:%s action:%s", etr.Name, es.Action.String())
 	if es.Action.Allow(inapi.ExecutorActionPending) {
-		hlog.Printf("info", "executor:%s Cmd.ProcessState Pending SKIP", esName)
+		hlog.Printf("debug", "executor:%s Cmd.ProcessState Pending SKIP", esName)
 		return inapi.PbOpLogInfo, "pending"
 	}
 

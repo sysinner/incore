@@ -45,6 +45,8 @@ int goChangeWinsz(int fd, struct winsize *winp) {
     return ioctl(fd, TIOCSWINSZ, winp);
 }
 */
+
+/**
 import "C"
 
 import (
@@ -190,19 +192,17 @@ func redirFromWs(fd int, ws *websocket.Conn, pid int, winsz *C.struct_winsize) {
 	var buf [2048]byte
 
 	for {
-		/*
-		   communication protocol:
+		//   communication protocol:
 
-		   1 byte   cmd
+		//   1 byte   cmd
 
-		   if cmd = i // input
-		       8 byte        length (ascii)
-		       length bytes  the actual input
+		//   if cmd = i // input
+		//       8 byte        length (ascii)
+		//       length bytes  the actual input
 
-		   if cmd = w // window size changed
-		       8 byte        cols (ascii)
-		       8 byte        rows (ascii)
-		*/
+		//   if cmd = w // window size changed
+		//       8 byte        cols (ascii)
+		//       8 byte        rows (ascii)
 
 		readFull(ws, buf[0:1])
 
@@ -292,10 +292,9 @@ func TerminalWsOpenAction(wsconn *websocket.Conn) {
 	ugid, _ := strconv.Atoi(u.Gid)
 	fmt.Println(uuid, ugid)
 
-	/* syscall.Setgid(ugid)
-	   syscall.Setuid(uuid)
-	   syscall.Chdir(this.Cfg.Prefix + "/" + sess.Uname)
-	*/
+	// syscall.Setgid(ugid)
+	//   syscall.Setuid(uuid)
+	//   syscall.Chdir(this.Cfg.Prefix + "/" + sess.Uname)
 	connections++
 	defer func() {
 		connections--
@@ -353,3 +352,4 @@ func TerminalWsOpenAction(wsconn *websocket.Conn) {
 
 	syscall.Wait4(pid, nil, 0, nil)
 }
+*/

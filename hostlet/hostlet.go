@@ -48,6 +48,8 @@ func Start() error {
 
 	if dr, err := docker.NewDriver(); err == nil {
 		boxDrivers.Items = append(boxDrivers.Items, dr)
+	} else {
+		hlog.Printf("error", "box.DockerDriver init error %s", err.Error())
 	}
 
 	if dr, err := pouch.NewDriver(); err == nil {
