@@ -133,7 +133,7 @@ var podStatusMailTemplate = &hmsg.MailTemplateEntry{
           <td>存储使用</td>
           <td>
             {{range $v2 := $v.Reps}}
-			<div>Replica #{{$v2.Id}} : {{$v2.VolUsed}} MB</div>
+			<div>副本 #{{$v2.Id}} : {{$v2.VolUsed}} MB</div>
             {{end}}
           </td>
         </tr>

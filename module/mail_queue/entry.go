@@ -24,7 +24,8 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/injob"
+	"github.com/sysinner/incore/status"
+	"github.com/sysinner/injob/v1"
 )
 
 type MailQueue struct {
@@ -36,7 +37,7 @@ type MailQueue struct {
 func (it *MailQueue) Spec() *injob.JobSpec {
 	if it.spec == nil {
 		it.spec = injob.NewJobSpec("zone/mail/queue").
-			ConditionSet("zone/main/leader", -1)
+			ConditionSet("zone/main-node/leader", 6000)
 	}
 	return it.spec
 }
@@ -47,12 +48,12 @@ func (it *MailQueue) Status() *injob.Status {
 
 func (it *MailQueue) Run(ctx *injob.Context) error {
 
-	if !ctx.IsZoneLeader {
+	if !status.IsZoneMasterLeader() {
 		return nil
 	}
 
-	if ctx.Zone == nil {
-		return errors.New("invalid ctx.ZoneId")
+	if status.Zone == nil {
+		return errors.New("invalid status.ZoneId")
 	}
 
 	var (

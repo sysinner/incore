@@ -112,6 +112,8 @@ func (it *ZoneMainJob) Run(ctx *injob.Context) error {
 
 		go iamWorker.AccountChargeCloseRefresh()
 		go iamWorker.MsgQueueRefresh()
+
+		ctx.ConditionRefresh("zone/main-node/leader")
 	}
 
 	return nil

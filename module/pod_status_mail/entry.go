@@ -24,7 +24,8 @@ import (
 
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
-	"github.com/sysinner/incore/injob"
+	"github.com/sysinner/incore/status"
+	"github.com/sysinner/injob/v1"
 )
 
 type PodStatusMail struct {
@@ -35,7 +36,7 @@ type PodStatusMail struct {
 func (it *PodStatusMail) Spec() *injob.JobSpec {
 	if it.spec == nil {
 		it.spec = injob.NewJobSpec("zone/pod/status/mail").
-			ConditionSet("zone/main/leader", -1)
+			ConditionSet("zone/main-node/leader", 6000)
 	}
 	return it.spec
 }
@@ -44,7 +45,9 @@ func (it *PodStatusMail) Status() *injob.Status {
 	return nil
 }
 
-func (it *PodStatusMail) Run(ctx *injob.Context) error {
+func (it *PodStatusMail) Run(c *injob.Context) error {
+
+	ctx := status.StatusContextRefresh()
 
 	if !ctx.IsZoneLeader {
 		return nil

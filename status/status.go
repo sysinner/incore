@@ -79,7 +79,7 @@ type StatusContext struct {
 	Host              *inapi.ResHost
 }
 
-func StatusContextRefresh() interface{} {
+func StatusContextRefresh() *StatusContext {
 	return &StatusContext{
 		Zone:              Zone,
 		ZoneHostList:      ZoneHostList,
