@@ -129,6 +129,16 @@ func (c Resource) DomainNewAction() {
 		return
 	}
 
+	if set.Meta.User != "" && set.Meta.User != c.us.UserName {
+		if !iamapi.ArrayStringHas(c.us.Groups, set.Meta.User) {
+			set.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied,
+				"Access Denied to bind owner to "+set.Meta.User)
+			return
+		}
+	} else {
+		set.Meta.User = c.us.UserName
+	}
+
 	if ar := strings.Split(set.Meta.Name, "."); len(ar) > 2 {
 
 		obj_name_main := fmt.Sprintf("%s/%s", inapi.ResourceTypeDomain, strings.Join(ar[len(ar)-2:], "."))
@@ -140,7 +150,8 @@ func (c Resource) DomainNewAction() {
 				return
 			}
 
-			if res.Meta.User != c.us.UserName {
+			if set.Meta.User != res.Meta.User &&
+				!iamapi.ArrayStringHas(c.us.Groups, set.Meta.User) {
 				set.Error = types.NewErrorMeta(inapi.ErrCodeObjectExists, "Domain signed ("+obj_name_main+") by another user")
 				return
 			}
@@ -152,7 +163,7 @@ func (c Resource) DomainNewAction() {
 		Meta: types.InnerObjectMeta{
 			ID:      idhash.HashToHexString([]byte(obj_name), 16),
 			Name:    obj_name,
-			User:    c.us.UserName,
+			User:    set.Meta.User,
 			Created: types.MetaTimeNow(),
 			Updated: types.MetaTimeNow(),
 		},

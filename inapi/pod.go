@@ -31,8 +31,8 @@ var (
 	pod_st_mu           sync.RWMutex
 	PodIdReg            = regexp.MustCompile("^[a-f0-9]{16,24}$")
 	PodSpecPlanIdReg    = regexp.MustCompile("^[a-z]{1}[a-z0-9]{1,9}$")
-	PodSpecImageNameReg = regexp.MustCompile("^[a-z][a-z0-9-_/]{1,50}$")
-	PodSpecImageTagReg  = regexp.MustCompile("^[a-z0-9.-_]{1,30}$")
+	PodSpecImageNameReg = regexp.MustCompile("^[a-z][a-z0-9\\-\\_\\/]{1,50}$")
+	PodSpecImageTagReg  = regexp.MustCompile("^[a-z0-9\\.\\-\\_]{1,30}$")
 	PodDestroyTTL       = int64(86400)
 	PodPlanChargeCycle  = uint64(3600)
 )
