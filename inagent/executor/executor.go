@@ -30,8 +30,56 @@ import (
 	"github.com/sysinner/incore/inutils/tplrender"
 )
 
-func oplog_name(name string) string {
+func oplogName(name string) string {
 	return "box/exec/" + name
+}
+
+func keyenc(k string) string {
+	return strings.Replace(strings.Replace(k, "/", "__", -1), "-", "_", -1)
+}
+
+func repParams(pod *inapi.PodRep) map[string]string {
+
+	sets := map[string]string{}
+
+	sets["pod__replica__rep_id"] = fmt.Sprintf("%d", pod.Replica.RepId)
+	sets["pod__operate__replica_cap"] = fmt.Sprintf("%d", pod.Operate.ReplicaCap)
+
+	for _, app := range pod.Apps {
+
+		for _, op := range app.Operate.Options {
+
+			for _, item := range op.Items {
+				var (
+					ckey = keyenc(fmt.Sprintf("%s__%s", op.Name, item.Name))
+					key  = keyenc(fmt.Sprintf("app__%s__option__%s", app.Spec.Meta.ID, ckey))
+				)
+				sets[key] = item.Value
+				if _, ok := sets[ckey]; !ok {
+					sets[ckey] = item.Value
+				}
+			}
+		}
+
+		for _, p := range app.Operate.Services {
+
+			if p.Name == "" || len(p.Endpoints) < 1 {
+				continue
+			}
+
+			key := keyenc(fmt.Sprintf("pod__oprep__port__%s__",
+				p.Name,
+			))
+			sets[key+"lan_addr"] = p.Endpoints[0].Ip
+			sets[key+"host_port"] = fmt.Sprintf("%d", p.Endpoints[0].Port)
+		}
+
+		for _, p := range app.Spec.Packages {
+			sets[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
+		}
+	}
+
+	return sets
 }
 
 func execStatusName(id string, name types.NameIdentifier) types.NameIdentifier {
@@ -44,12 +92,7 @@ func execAction(pod *inapi.PodRep, home_dir, appspec_id, exec_name string, actio
 		return nil
 	}
 
-	data_maps := map[string]string{}
-	for _, app := range pod.Apps {
-		for _, p := range app.Spec.Packages {
-			data_maps[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
-		}
-	}
+	sets := repParams(pod)
 
 	for i := 1; i < 10; i++ {
 
@@ -65,7 +108,7 @@ func execAction(pod *inapi.PodRep, home_dir, appspec_id, exec_name string, actio
 				}
 				n += 1
 				esName := execStatusName(app.Spec.Meta.ID, ve.Name)
-				if sts, _ := executor_action(esName, ve, data_maps, inapi.OpActionStop); sts == inapi.PbOpLogOK {
+				if sts, _ := executorAction(esName, ve, sets, inapi.OpActionStop); sts == inapi.PbOpLogOK {
 					n -= 1
 				}
 			}
@@ -94,20 +137,13 @@ func StopAll(pod *inapi.PodRep, home_dir string) error {
 
 func Runner(pod *inapi.PodRep, home_dir string) error {
 
-	if err := executor_init_ssh(pod); err != nil {
+	if err := executorInitSSH(pod); err != nil {
 		return err
 	}
 
 	if pod.Apps != nil && len(pod.Apps) > 0 {
 
-		data_maps := map[string]string{}
-
-		for _, app := range pod.Apps {
-
-			for _, p := range app.Spec.Packages {
-				data_maps[fmt.Sprintf("inpack_prefix_%s", strings.Replace(p.Name, "-", "_", -1))] = fmt.Sprintf("/usr/sysinner/%s/%s", p.Name, p.Version)
-			}
-		}
+		sets := repParams(pod)
 
 		for priority := uint8(0); priority <= inapi.SpecExecutorPriorityMax; {
 
@@ -138,8 +174,8 @@ func Runner(pod *inapi.PodRep, home_dir string) error {
 					}
 
 					status.Executors.Sync(ve)
-					if sts, msg := executor_action(esName, ve, data_maps, app.Operate.Action); sts != "" {
-						status.OpLog.LogSet(pod.Operate.Version, oplog_name(string(esName)), sts, msg)
+					if sts, msg := executorAction(esName, ve, sets, app.Operate.Action); sts != "" {
+						status.OpLog.LogSet(pod.Operate.Version, oplogName(string(esName)), sts, msg)
 					}
 				}
 			}
@@ -156,8 +192,8 @@ func Runner(pod *inapi.PodRep, home_dir string) error {
 }
 
 var (
-	ssh_init_version uint32 = 0
-	ssh_init_start          = `
+	sshInitVersion uint32 = 0
+	sshInitStart          = `
 if pidof sshd; then
     exit 0
 fi
@@ -166,7 +202,7 @@ fi
 `
 )
 
-func executor_init_ssh(pod *inapi.PodRep) error {
+func executorInitSSH(pod *inapi.PodRep) error {
 
 	if pod.Operate.Access == nil {
 		return nil
@@ -175,10 +211,10 @@ func executor_init_ssh(pod *inapi.PodRep) error {
 	if pod.Operate.Access.SshOn {
 
 		//
-		if ssh_init_version < pod.Operate.Version {
+		if sshInitVersion < pod.Operate.Version {
 
 			for _, v := range []string{"rsa", "ecdsa", "ed25519"} {
-				if err := executor_init_ssh_keygen(v); err != nil {
+				if err := executorInitSSHKeygen(v); err != nil {
 					return err
 				}
 			}
@@ -208,23 +244,23 @@ func executor_init_ssh(pod *inapi.PodRep) error {
 		}
 
 		//
-		if _, err := exec.Command("/bin/sh", "-c", fmt.Sprintf(ssh_init_start, port)).Output(); err != nil {
+		if _, err := exec.Command("/bin/sh", "-c", fmt.Sprintf(sshInitStart, port)).Output(); err != nil {
 			return err
 		}
 
-	} else if ssh_init_version > 0 && ssh_init_version < pod.Operate.Version {
+	} else if sshInitVersion > 0 && sshInitVersion < pod.Operate.Version {
 		exec.Command("/bin/sh", "-c", "killall sshd").Output()
 	}
 
-	if ssh_init_version != pod.Operate.Version {
-		ssh_init_version = pod.Operate.Version
-		hlog.Printf("info", "ssh_init_version %d", pod.Operate.Version)
+	if sshInitVersion != pod.Operate.Version {
+		sshInitVersion = pod.Operate.Version
+		hlog.Printf("info", "sshInitVersion %d", pod.Operate.Version)
 	}
 
 	return nil
 }
 
-func executor_init_ssh_keygen(name string) error {
+func executorInitSSHKeygen(name string) error {
 
 	_, err := os.Stat("/home/action/.ssh")
 	if err != nil {
@@ -239,7 +275,7 @@ func executor_init_ssh_keygen(name string) error {
 	return err
 }
 
-func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[string]string, op_action uint32) (string, string) {
+func executorAction(esName types.NameIdentifier, etr inapi.Executor, dms map[string]string, op_action uint32) (string, string) {
 
 	es := status.Statuses.Get(esName)
 	op_status, op_msg := "", ""
@@ -409,9 +445,18 @@ func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[st
 			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()
 	}
+	vars := ""
+	for k, v := range dms {
+		if vars != "" {
+			vars += ","
+		}
+		vars += fmt.Sprintf("%s=%s", k, v)
+	}
+	hlog.Printf("debug", "executor %s, vars %s, exec {{{{%s}}}}",
+		esName, vars, string(bs))
 
 	//
-	if err := executor_cmd(esName, es.Cmd, string(bs)); err != nil {
+	if err := executorCmd(esName, es.Cmd, string(bs)); err != nil {
 		hlog.Printf("error", "executor:%s CMD E:%s",
 			esName, err.Error())
 		return inapi.PbOpLogError, err.Error()
@@ -422,7 +467,7 @@ func executor_action(esName types.NameIdentifier, etr inapi.Executor, dms map[st
 	return inapi.PbOpLogInfo, "pending"
 }
 
-func executor_cmd(name types.NameIdentifier, cmd *exec.Cmd, script string) error {
+func executorCmd(name types.NameIdentifier, cmd *exec.Cmd, script string) error {
 
 	if cmd == nil {
 		return errors.New("No Command INIT")

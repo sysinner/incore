@@ -124,6 +124,7 @@ func (it *agentDaemonCommand) run(cmd *inapi.BaseCommand, args []string) error {
 	httpsrv.GlobalService.ModuleRegister("/in/v1/", v1.NewModule())
 
 	go httpsrv.GlobalService.Start()
+	// go sshRun()
 
 	worker()
 	return errors.New("httpsrv exit")
