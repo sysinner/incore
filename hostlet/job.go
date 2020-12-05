@@ -61,6 +61,18 @@ setenforce 0
 		}
 
 		for _, v := range []string{
+			"firewalld",
+		} {
+			if _, err := exec.Command("systemctl", "disable", v).Output(); err != nil {
+				// return err
+			}
+
+			if _, err := exec.Command("systemctl", "stop", v).Output(); err != nil {
+				// return err
+			}
+		}
+
+		for _, v := range []string{
 			"innerstack-lxcfs",
 		} {
 			if _, err := exec.Command("systemctl", "enable", v).Output(); err != nil {

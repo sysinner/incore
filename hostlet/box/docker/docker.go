@@ -661,11 +661,17 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			netMode = "host"
 		}
 
-		// hlog.Printf("info", "hostlet/box Create %s, hosts %s", inst.Name, strings.Join(extHosts, ","))
+		hlog.Printf("info", "hostlet/box Create %s, hosts %s, image %s",
+			inst.Name, strings.Join(extHosts, ","), imageName)
 
 		storOpt := map[string]string{}
 		if cfgStorageOptSizeEnable {
 			storOpt["size"] = "10G"
+		}
+
+		boxUser := "action"
+		if !strings.HasPrefix(imageName, "sysinner/innerstack-") {
+			boxUser = "root"
 		}
 
 		boxInspect, err := tp.client.CreateContainer(drvClient.CreateContainerOptions{
@@ -679,7 +685,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 					"POD_ID=" + inst.PodID,
 					fmt.Sprintf("REP_ID=%d", inst.Replica.RepId),
 				},
-				User: "action",
+				User: boxUser,
 			},
 			HostConfig: &drvClient.HostConfig{
 				NetworkMode:  netMode,

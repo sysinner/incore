@@ -362,6 +362,7 @@ func appPodResCheck(pod *inapi.Pod, app_spec_res *inapi.AppSpecResRequirements) 
 	}
 
 	res := pod.Spec.ResComputeBound()
+
 	if app_spec_res.CpuMin > res.CpuLimit {
 		return fmt.Errorf("AppSpec requires at least %d CPU resource",
 			app_spec_res.CpuMin)
@@ -596,6 +597,14 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 
 	if pod.Meta.ID != app.Operate.PodId {
 		return types.NewErrorMeta("404", "No Pod Found")
+	}
+
+	if hit := inapi.SliceFind(app.Spec.RuntimeImages, func(i int) bool {
+		return app.Spec.RuntimeImages[i] == pod.Spec.Box.Image.Ref.Id
+	}); hit == nil {
+		return types.NewErrorMeta(inapi.ErrCodeBadArgument,
+			fmt.Sprintf("The Runtime Image of Pod(%s) and AppSpec (%s) do not match",
+				pod.Spec.Box.Image.Ref.Id, strings.Join(app.Spec.RuntimeImages, ",")))
 	}
 
 	appOpOptRender(&app, false)

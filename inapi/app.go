@@ -33,6 +33,7 @@ var (
 	AppSpecVcsGitUrlReg = regexp.MustCompile(`^(https?:\/\/)([\w\-_\.\/]+)(\.git)$`)
 	AppSpecVcsDirReg    = regexp.MustCompile(`^[a-zA-Z0-9\.\/\-_]{1,50}$`)
 	AppSpecUrlNameRE    = regexp.MustCompile("^[a-z]{1}[a-z0-9_]{1,30}$")
+	AppSpecImageNameRE  = regexp.MustCompile("^[a-z0-9\\-\\_]{1,50}\\/[a-z0-9\\-\\_]{1,50}\\:[a-z0-9\\.\\-\\_]{1,50}$")
 )
 
 type AppPhase string
@@ -171,6 +172,7 @@ type AppSpec struct {
 	LastVersion    string                        `json:"last_version,omitempty" toml:"last_version,omitempty"`
 	Roles          types.ArrayUint32             `json:"roles,omitempty" toml:"roles,omitempty"`
 	Vendor         string                        `json:"vendor,omitempty" toml:"vendor,omitempty"`
+	RuntimeImages  []string                      `json:"runtime_images,omitempty" toml:"runtime_images,omitempty"`
 	Depends        []*AppSpecDepend              `json:"depends,omitempty" toml:"depends,omitempty"`
 	DepRemotes     []*AppSpecDepend              `json:"dep_remotes,omitempty" toml:"dep_remotes,omitempty"`
 	Packages       AppPackages                   `json:"packages,omitempty" toml:"packages,omitempty"`
@@ -209,6 +211,16 @@ func (it *AppSpecDepend) UnmarshalJSON(b []byte) error {
 
 type AppSpecPrev AppSpec
 
+func (it *AppSpec) Fix() *AppSpec {
+	if len(it.RuntimeImages) == 0 {
+		it.RuntimeImages = []string{
+			"sysinner/innerstack-g3:el8",
+			"sysinner/innerstack-g2:el7",
+		}
+	}
+	return it
+}
+
 func (it *AppSpec) UnmarshalJSON(b []byte) error {
 
 	var it2 AppSpecPrev
@@ -220,6 +232,7 @@ func (it *AppSpec) UnmarshalJSON(b []byte) error {
 	it2.LastVersion = appSpecVersioUpgrade(it2.LastVersion)
 
 	*it = AppSpec(it2)
+	it.Fix()
 
 	return nil
 }

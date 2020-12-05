@@ -455,6 +455,10 @@ func (c Pod) NewAction() {
 				Attrs:   res_vol.Attrs,
 				Size:    set.ResVolumeSize,
 			},
+			Box: inapi.PodSpecBoxBound{
+				Name:    set.Box.Name,
+				Updated: types.MetaTimeNow(),
+			},
 		},
 		Operate: inapi.PodOperate{
 			Action:     inapi.OpActionStart,
@@ -470,58 +474,101 @@ func (c Pod) NewAction() {
 		hlog.Printf("warn", "v1 pod/spec/image upgrade %s %s", id, set.Box.Image)
 	}
 
-	img := spec_plan.Image(set.Box.Image)
-	if img == nil {
-		set.Error = types.NewErrorMeta("400", "No Image Found")
-		return
-	}
-	fmt.Println("img", set.Box.Image, img)
+	// fmt.Println("img", set.Box.Image, img)
 
 	res := spec_plan.ResCompute(set.Box.ResCompute)
 	if res == nil {
 		set.Error = types.NewErrorMeta("400", "No ResCompute Found")
 		return
 	}
-
-	pod.Spec.Box = inapi.PodSpecBoxBound{
-		Name:    set.Box.Name,
-		Updated: types.MetaTimeNow(),
-		Image: inapi.PodSpecBoxImageBound{
-			Ref: &inapi.ObjectReference{
-				Id:   img.RefId,
-				Name: img.RefId,
-			},
-			RefName:  img.RefName,
-			RefTag:   img.RefTag,
-			RefTitle: img.RefTitle,
-			Driver:   img.Driver,
-			OsDist:   img.OsDist,
-			Arch:     img.Arch,
-			// Options: img.Options,
+	pod.Spec.Box.Resources = &inapi.PodSpecBoxResComputeBound{
+		Ref: &inapi.ObjectReference{
+			Id:   res.RefId,
+			Name: res.RefId,
 		},
-		Resources: &inapi.PodSpecBoxResComputeBound{
-			Ref: &inapi.ObjectReference{
-				Id:   res.RefId,
-				Name: res.RefId,
-			},
-			CpuLimit: res.CpuLimit,
-			MemLimit: res.MemLimit,
-		},
+		CpuLimit: res.CpuLimit,
+		MemLimit: res.MemLimit,
 	}
 
+	var appSpec *inapi.AppSpec
 	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
 		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v)).Query(); rs.OK() {
-			var app_spec inapi.AppSpec
-			rs.Decode(&app_spec)
-			if app_spec.Meta.ID == v && app_spec.ExpRes != nil &&
-				app_spec.ExpRes.CpuMin > 0 {
-				if err := appPodResCheck(&pod, app_spec.ExpRes); err != nil {
+			var item inapi.AppSpec
+			rs.Decode(&item)
+			if item.Meta.ID == v && item.ExpRes != nil &&
+				item.ExpRes.CpuMin > 0 {
+				// inapi.ObjPrint("app-spec", item)
+				if err := appPodResCheck(&pod, item.ExpRes); err != nil {
 					set.Error = types.NewErrorMeta("400", err.Error())
 					return
 				}
+				appSpec = &item
 			}
 		}
 	}
+
+	img := spec_plan.Image(set.Box.Image)
+	if img == nil {
+		// TODO
+		if appSpec != nil && types.ArrayStringHas(appSpec.RuntimeImages, set.Box.Image) {
+			if nametag := strings.Split(set.Box.Image, ":"); len(nametag) == 2 {
+				img = &inapi.PodSpecPlanBoxImageBound{
+					RefId:     set.Box.Image,
+					RefTitle:  set.Box.Image,
+					RefName:   nametag[0],
+					RefTag:    nametag[1],
+					Driver:    "docker",
+					OsDist:    "linux",
+					Arch:      "x64",
+					SortOrder: 10,
+				}
+			}
+		}
+		if img == nil {
+			set.Error = types.NewErrorMeta("400", "No Image Found")
+			return
+		}
+	}
+
+	pod.Spec.Box.Image = inapi.PodSpecBoxImageBound{
+		Ref: &inapi.ObjectReference{
+			Id:   img.RefId,
+			Name: img.RefId,
+		},
+		RefName:  img.RefName,
+		RefTag:   img.RefTag,
+		RefTitle: img.RefTitle,
+		Driver:   img.Driver,
+		OsDist:   img.OsDist,
+		Arch:     img.Arch,
+		// Options: img.Options,
+	}
+
+	// pod.Spec.Box = inapi.PodSpecBoxBound{
+	// 	Name:    set.Box.Name,
+	// 	Updated: types.MetaTimeNow(),
+	// 	Image: inapi.PodSpecBoxImageBound{
+	// 		Ref: &inapi.ObjectReference{
+	// 			Id:   img.RefId,
+	// 			Name: img.RefId,
+	// 		},
+	// 		RefName:  img.RefName,
+	// 		RefTag:   img.RefTag,
+	// 		RefTitle: img.RefTitle,
+	// 		Driver:   img.Driver,
+	// 		OsDist:   img.OsDist,
+	// 		Arch:     img.Arch,
+	// 		// Options: img.Options,
+	// 	},
+	// 	Resources: &inapi.PodSpecBoxResComputeBound{
+	// 		Ref: &inapi.ObjectReference{
+	// 			Id:   res.RefId,
+	// 			Name: res.RefId,
+	// 		},
+	// 		CpuLimit: res.CpuLimit,
+	// 		MemLimit: res.MemLimit,
+	// 	},
+	// }
 
 	if set.Error = podAccountChargePreValid(&pod, &spec_plan); set.Error != nil {
 		return
@@ -1213,8 +1260,33 @@ func (c Pod) SpecSetAction() {
 
 	img := spec_plan.Image(set.Box.Image)
 	if img == nil {
-		set.Error = types.NewErrorMeta("400", "No Image Found")
-		return
+		images := types.ArrayString{}
+		for _, app := range prev.Apps {
+			for _, v2 := range app.Spec.RuntimeImages {
+				images.Set(v2)
+			}
+		}
+		if len(images) > 0 && types.ArrayStringHas(images, set.Box.Image) {
+
+			if nametag := strings.Split(set.Box.Image, ":"); len(nametag) == 2 {
+
+				img = &inapi.PodSpecPlanBoxImageBound{
+					RefId:     set.Box.Image,
+					RefTitle:  set.Box.Image,
+					RefName:   nametag[0],
+					RefTag:    nametag[1],
+					Driver:    "docker",
+					OsDist:    "linux",
+					Arch:      "x64",
+					SortOrder: 10,
+				}
+			}
+		}
+
+		if img == nil {
+			set.Error = types.NewErrorMeta("400", "No Image Found")
+			return
+		}
 	}
 
 	/**

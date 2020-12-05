@@ -512,11 +512,13 @@ func (c PodSpec) BoxImageSetAction() {
 		return
 	}
 
+	setItem.Name = strings.TrimSpace(setItem.Name)
 	if !inapi.PodSpecImageNameReg.MatchString(setItem.Name) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Image Name")
 		return
 	}
 
+	setItem.Tag = strings.TrimSpace(setItem.Tag)
 	if !inapi.PodSpecImageTagReg.MatchString(setItem.Tag) {
 		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Image Tag")
 		return
@@ -552,7 +554,7 @@ func (c PodSpec) BoxImageSetAction() {
 
 	setItem.Meta.Name = strings.TrimSpace(setItem.Meta.Name)
 	if setItem.Meta.Name == "" {
-		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Image Name")
+		set.Error = types.NewErrorMeta(iamapi.ErrCodeInvalidArgument, "Invalid Display Name")
 		return
 	}
 

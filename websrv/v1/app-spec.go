@@ -28,6 +28,7 @@ import (
 	"github.com/hooto/iam/iamclient"
 	"github.com/lessos/lessgo/types"
 
+	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 
@@ -51,6 +52,13 @@ func (c *AppSpec) Init() int {
 	}
 
 	return 0
+}
+
+func (c *AppSpec) accessAllow(privilege string) bool {
+	if iamclient.SessionAccessAllowed(c.Session, privilege, config.Config.Zone.InstanceId) {
+		return true
+	}
+	return false
 }
 
 func (c AppSpec) TypeTagListAction() {
@@ -675,7 +683,30 @@ func (c AppSpec) SetAction() {
 		}
 
 		prev.Roles = req.Roles
+
+		if len(req.RuntimeImages) > 0 {
+			prev.RuntimeImages = req.RuntimeImages
+		}
 	}
+
+	images := types.ArrayString{}
+	for _, v := range prev.RuntimeImages {
+		v = strings.Trim(strings.TrimSpace(strings.ToLower(v)), "/")
+		if strings.HasPrefix(v, "oci/") || !inapi.AppSpecImageNameRE.MatchString(v) {
+			set.Error = types.NewErrorMeta("400", "Invalid Runtime Image Name : "+v)
+			return
+		}
+		if !strings.HasPrefix(v, "sysinner/") &&
+			!c.accessAllow("sysinner.admin") {
+			set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied,
+				"Access Denied : Only administrators can setup third-party images")
+			return
+		}
+		images.Set(v)
+	}
+	prev.RuntimeImages = []string(images)
+
+	prev.Fix()
 
 	prev.Meta.Updated = tn
 
