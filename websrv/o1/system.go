@@ -16,9 +16,14 @@ package o1
 
 import (
 	"github.com/hooto/httpsrv"
+	"github.com/sysinner/injob/v1"
 
 	incfg "github.com/sysinner/incore/config"
 	insts "github.com/sysinner/incore/status"
+)
+
+var (
+	JobDaemon *injob.Daemon
 )
 
 type System struct {
@@ -41,6 +46,10 @@ func (c System) HostInfoAction() {
 	}
 
 	rep.Status.HostUptime = int64(insts.Host.Status.Uptime)
+
+	if JobDaemon != nil {
+		rep.JobStatus = JobDaemon.BriefReport()
+	}
 
 	c.RenderJson(rep)
 }

@@ -114,6 +114,7 @@ type HostInfoReply struct {
 		ZoneLeader   bool  `json:"zone_leader,omitempty" toml:"zone_leader,omitempty"`
 		HostUptime   int64 `json:"host_uptime,omitempty" toml:"host_uptime,omitempty"`
 	} `json:"status,omitempty" toml:"status,omitempty"`
+	JobStatus interface{} `json:"job_status,omitempty" toml:"job_status,omitempty"`
 }
 
 func (cfg *ConfigCommon) Flush() error {
