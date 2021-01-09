@@ -248,7 +248,7 @@ func (it *ZoneMainJob) init() error {
 
 		it.hs.ModuleRegister("/ips/v1", ip_v1.NewModule())
 		it.hs.ModuleRegister("/ips/p1", ip_p1.NewModule())
-		it.hs.ModuleRegister("/in/cp/ips/~", httpsrv.NewStaticModule("ip_ui", incfg.Prefix+"/webui/ips"))
+		it.hs.ModuleRegister("/in/~/ips", httpsrv.NewStaticModule("ip_ui", incfg.Prefix+"/webui/ips/ips"))
 
 		// TODO
 		incfg.Config.Zone.InpackServiceUrl = fmt.Sprintf(
@@ -267,8 +267,8 @@ func (it *ZoneMainJob) init() error {
 
 	// module/hchart
 	{
-		it.hs.ModuleRegister("/in/cp/hchart/~", httpsrv.NewStaticModule("hchart_ui", incfg.Prefix+"/webui/hchart/webui"))
-		it.hs.ModuleRegister("/in/ops/hchart/~", httpsrv.NewStaticModule("hchart_ui_ops", incfg.Prefix+"/webui/hchart/webui"))
+		it.hs.ModuleRegister("/in/~/hchart", httpsrv.NewStaticModule("hchart_ui", incfg.Prefix+"/webui/hchart/webui"))
+		// it.hs.ModuleRegister("/in/ops/hchart/~", httpsrv.NewStaticModule("hchart_ui_ops", incfg.Prefix+"/webui/hchart/webui"))
 	}
 
 	// incore

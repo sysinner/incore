@@ -53,6 +53,7 @@ func NewIndexModule() httpsrv.Module {
 	})
 
 	module.ControllerRegister(new(Index))
+	module.ControllerRegister(new(iamclient.Auth))
 
 	return module
 }

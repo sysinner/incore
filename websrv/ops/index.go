@@ -43,7 +43,7 @@ func (c Index) IndexAction() {
 	cfgLogo, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
 		"cp_navbar_logo")
 	if !ok {
-		cfgLogo = "/in/cp/~/cp/img/logo-10x7-light-h128.png"
+		cfgLogo = "/in/~/in/cp/img/logo-10x7-light-h128.png"
 	}
 
 	cfgTitle, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
@@ -64,20 +64,21 @@ func (c Index) IndexAction() {
 <head>
   <meta charset="utf-8">
   <title>` + cfgTitle + `</title>
-  <script src="/in/ops/~/lessui/js/sea.js?v=` + inpanel.VersionHash + `"></script>
-  <script src="/in/ops/~/ops/js/main.js?v=` + inpanel.VersionHash + `"></script>
-  <link rel="stylesheet" href="/in/ops/~/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
-  <link rel="shortcut icon" type="image/x-icon" href="/in/cp/~/cp/img/logo-1x1-light.ico">
+  <script src="/in/~/valueui/main.js?v=` + inpanel.VersionHash + `"></script>
+  <link rel="shortcut icon" type="image/x-icon" href="/in/~/in/cp/img/logo-1x1-light.ico">
   <script type="text/javascript">
-    inOps.version = "` + inpanel.VersionHash + `";
-    inOps.zone_id = "` + inpanel.ZoneId + `";
-    inOps.nav_cluster_zone = ` + fmt.Sprintf("%v", inpanel.OpsClusterZone) + `;
-    inOps.nav_cluster_cell = ` + fmt.Sprintf("%v", inpanel.OpsClusterCell) + `;
-    inOps.nav_cluster_host = ` + fmt.Sprintf("%v", inpanel.OpsClusterHost) + `;
-    window.onload = inOps.Boot(` + login + `);
+    valueui.basepath = "/in/~/";
+    window.onload = valueui.Use("in/ops/js/main.js", function() {
+      inOps.version = "` + inpanel.VersionHash + `";
+      inOps.zone_id = "` + inpanel.ZoneId + `";
+      inOps.nav_cluster_zone = ` + fmt.Sprintf("%v", inpanel.OpsClusterZone) + `;
+      inOps.nav_cluster_cell = ` + fmt.Sprintf("%v", inpanel.OpsClusterCell) + `;
+      inOps.nav_cluster_host = ` + fmt.Sprintf("%v", inpanel.OpsClusterHost) + `;
+      inOps.Boot(` + login + `);
+    });
   </script>
 </head>
-<body id="body-content">
+<body id="valueui-body">
 <div class="incp-well" id="incp-well">
 <div class="incp-well-box">
   <div class="incp-well-panel">
