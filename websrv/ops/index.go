@@ -67,8 +67,9 @@ func (c Index) IndexAction() {
   <script src="/in/~/valueui/main.js?v=` + inpanel.VersionHash + `"></script>
   <link rel="shortcut icon" type="image/x-icon" href="/in/~/in/cp/img/logo-1x1-light.ico">
   <script type="text/javascript">
+    valueui.app_version = "` + inpanel.VersionHash + `";
     valueui.basepath = "/in/~/";
-    window.onload = valueui.Use("in/ops/js/main.js", function() {
+    window.onload = valueui.use("in/ops/js/main.js", function() {
       inOps.version = "` + inpanel.VersionHash + `";
       inOps.zone_id = "` + inpanel.ZoneId + `";
       inOps.nav_cluster_zone = ` + fmt.Sprintf("%v", inpanel.OpsClusterZone) + `;
