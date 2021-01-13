@@ -45,6 +45,7 @@ func (c Index) IndexAction() {
 	if !ok {
 		cfgLogo = "/in/~/in/cp/img/logo-10x7-light-h128.png"
 	}
+	cfgLogo += "?v=" + inpanel.VersionHash
 
 	cfgTitle, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
 		"html_head_title")
@@ -65,7 +66,8 @@ func (c Index) IndexAction() {
   <meta charset="utf-8">
   <title>` + cfgTitle + `</title>
   <script src="/in/~/valueui/main.js?v=` + inpanel.VersionHash + `"></script>
-  <link rel="shortcut icon" type="image/x-icon" href="/in/~/in/cp/img/logo-1x1-light.ico">
+  <link rel="stylesheet" href="/in/~/in/cp/css/base.css?v=` + inpanel.VersionHash + `" type="text/css">
+  <link rel="shortcut icon" type="image/x-icon" href="/in/~/in/cp/img/logo-1x1-light.ico?v=` + inpanel.VersionHash + `">
   <script type="text/javascript">
     valueui.app_version = "` + inpanel.VersionHash + `";
     valueui.basepath = "/in/~/";
