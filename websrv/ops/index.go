@@ -42,7 +42,7 @@ func (c Index) IndexAction() {
 
 	cfgLogo, ok := status.ZoneSysConfigGroupList.Value("innerstack/sys/webui",
 		"cp_navbar_logo")
-	if !ok {
+	if !ok || len(cfgLogo) < 1 {
 		cfgLogo = "/in/~/in/cp/img/logo-10x7-light-h128.png"
 	}
 	cfgLogo += "?v=" + inpanel.VersionHash

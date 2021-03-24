@@ -583,7 +583,8 @@ func (c Pod) NewAction() {
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	data.DataGlobal.NewWriter(sqkey, pod).Commit()
+	rs := data.DataGlobal.NewWriter(sqkey, pod).Commit()
+	hlog.Printf("info", "pod map to cell queue %v, msg %v", rs.OK(), pod)
 
 	set.Pod = pod.Meta.ID
 	set.Kind = "PodInstance"
@@ -1369,7 +1370,8 @@ func (c Pod) SpecSetAction() {
 	}
 
 	// Pod Map to Cell Queue
-	data.DataGlobal.NewWriter(sqkey, prev).ModeCreateSet(true).Commit()
+	rs := data.DataGlobal.NewWriter(sqkey, prev).ModeCreateSet(true).Commit()
+	hlog.Printf("info", "pod map to cell queue %v, msg %v", rs.OK(), prev)
 
 	set.Pod = prev.Meta.ID
 	set.Kind = "PodInstance"

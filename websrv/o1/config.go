@@ -161,15 +161,17 @@ func (c Config) ZoneInitAction() {
 
 	{
 		waddr := inapi.HostNodeAddress(req.WanAddr)
-		if waddr.Port() == 0 {
-			waddr.SetPort(1234)
-		}
-		if !waddr.Valid() {
-			rep.Kind, rep.Message = inapi.ErrCodeClientError, "invalid WAN address"
-			return
-		}
+		if len(waddr) > 0 {
+			if waddr.Port() == 0 {
+				waddr.SetPort(1234)
+			}
+			if !waddr.Valid() {
+				rep.Kind, rep.Message = inapi.ErrCodeClientError, "invalid WAN address"
+				return
+			}
 
-		incfg.Config.Host.WanAddr = waddr.IP()
+			incfg.Config.Host.WanAddr = waddr.IP()
+		}
 	}
 
 	//

@@ -19,6 +19,7 @@ import (
 
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/box/docker"
+	insta "github.com/sysinner/incore/status"
 	"github.com/sysinner/injob/v1"
 )
 
@@ -53,34 +54,37 @@ func (it *HostletJob) Run(ctx *injob.Context) error {
 	// TODO
 	if !it.inited {
 
-		script := `sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
+		if insta.Host.Spec != nil && insta.Host.Spec.Platform.Os == "el" {
+
+			script := `sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
 setenforce 0
 `
-		if _, err := exec.Command("bash", "-c", script).Output(); err != nil {
-			// skip error
-		}
-
-		for _, v := range []string{
-			"firewalld",
-		} {
-			if _, err := exec.Command("systemctl", "disable", v).Output(); err != nil {
-				// return err
+			if _, err := exec.Command("sh", "-c", script).Output(); err != nil {
+				// skip error
 			}
 
-			if _, err := exec.Command("systemctl", "stop", v).Output(); err != nil {
-				// return err
-			}
-		}
+			for _, v := range []string{
+				"firewalld",
+			} {
+				if _, err := exec.Command("systemctl", "disable", v).Output(); err != nil {
+					// return err
+				}
 
-		for _, v := range []string{
-			"innerstack-lxcfs",
-		} {
-			if _, err := exec.Command("systemctl", "enable", v).Output(); err != nil {
-				return err
+				if _, err := exec.Command("systemctl", "stop", v).Output(); err != nil {
+					// return err
+				}
 			}
 
-			if _, err := exec.Command("systemctl", "start", v).Output(); err != nil {
-				return err
+			for _, v := range []string{
+				"innerstack-lxcfs",
+			} {
+				if _, err := exec.Command("systemctl", "enable", v).Output(); err != nil {
+					return err
+				}
+
+				if _, err := exec.Command("systemctl", "start", v).Output(); err != nil {
+					return err
+				}
 			}
 		}
 

@@ -27,6 +27,7 @@ import (
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inutils/filerender"
 	"github.com/sysinner/incore/status"
+	insta "github.com/sysinner/incore/status"
 )
 
 type jobBoxImageEntry struct {
@@ -85,29 +86,32 @@ func (it *BoxImageUpdate) Run(ctx *injob.Context) error {
 
 	if !it.inited {
 
-		script := `sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
+		if insta.Host.Spec != nil && insta.Host.Spec.Platform.Os == "el" {
+
+			script := `sed -i 's/SELINUX\=enforcing/SELINUX\=disabled/g' /etc/selinux/config
 setenforce 0
 `
-		if _, err := exec.Command("sh", "-c", script).Output(); err != nil {
-			// skip error
-		}
-
-		if _, err := os.Stat("/opt/docker"); err != nil {
-			if err = os.Mkdir("/opt/docker", 0755); err != nil {
-				return err
+			if _, err := exec.Command("sh", "-c", script).Output(); err != nil {
+				// skip error
 			}
-		}
 
-		if _, err := os.Stat("/etc/docker/daemon.json"); err != nil {
+			if _, err := os.Stat("/opt/docker"); err != nil {
+				if err = os.Mkdir("/opt/docker", 0755); err != nil {
+					return err
+				}
+			}
 
-			os.Mkdir("/etc/docker", 0755)
-			js := `{
+			if _, err := os.Stat("/etc/docker/daemon.json"); err != nil {
+
+				os.Mkdir("/etc/docker", 0755)
+				js := `{
   "bip": "172.18.0.1/16",
   "graph": "/opt/docker",
   "registry-mirrors": ["https://registry.docker-cn.com", "https://mirror.ccs.tencentyun.com"]
 }`
-			if err = filerender.RenderString(js, "/etc/docker/daemon.json", 0644, map[string]interface{}{}); err != nil {
-				return err
+				if err = filerender.RenderString(js, "/etc/docker/daemon.json", 0644, map[string]interface{}{}); err != nil {
+					return err
+				}
 			}
 		}
 

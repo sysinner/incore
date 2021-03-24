@@ -244,7 +244,7 @@ func executorInitSSH(pod *inapi.PodRep) error {
 		}
 
 		//
-		if _, err := exec.Command("/bin/sh", "-c", fmt.Sprintf(sshInitStart, port)).Output(); err != nil {
+		if _, err := exec.Command("/bin/sh", "-c", fmt.Sprintf(sshInitStart, port)).CombinedOutput(); err != nil {
 			return err
 		}
 
@@ -269,7 +269,7 @@ func executorInitSSHKeygen(name string) error {
 
 	path := fmt.Sprintf("/home/action/.ssh/ssh_host_%s_key", name)
 	if _, err = os.Stat(path); err != nil {
-		_, err = exec.Command("sh", "-c", "ssh-keygen -t "+name+" -f "+path+" -N ''").Output()
+		_, err = exec.Command("sh", "-c", "ssh-keygen -t "+name+" -f "+path+" -N ''").CombinedOutput()
 	}
 
 	return err

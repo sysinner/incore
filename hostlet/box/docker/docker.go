@@ -84,6 +84,7 @@ func NewDriver() (napi.BoxDriver, error) {
 
 			for _, v := range lxcfsMounts {
 				vols = append(vols, fmt.Sprintf("%s:%s:ro", vp[1]+v, "/proc/"+v))
+				hlog.Printf("info", "lxcfs bin %s, proc %s", vp[0], vp[1])
 			}
 
 			break

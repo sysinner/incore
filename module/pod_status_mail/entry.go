@@ -170,5 +170,7 @@ func (it *PodStatusMail) Run(c *injob.Context) error {
 
 func NewPodStatusMailJobEntry() *injob.JobEntry {
 	return injob.NewJobEntry(&PodStatusMail{},
-		injob.NewSchedule().EveryTime(injob.Weekday, 1))
+		injob.NewSchedule().EveryTime(injob.Weekday, 1),
+		// injob.NewSchedule().EveryTimeCycle(injob.Second, 60),
+	)
 }

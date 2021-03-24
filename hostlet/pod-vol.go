@@ -530,7 +530,7 @@ func podVolQuotaRefresh() error {
 
 		_, err = exec.Command(quotaCmd, args...).Output()
 		if err != nil {
-			hlog.Printf("info", "hostlet/vol quota init %s", err.Error())
+			hlog.SlotPrint(60, "info", "hostlet/vol quota init %s", err.Error())
 			return
 		}
 
@@ -542,7 +542,7 @@ func podVolQuotaRefresh() error {
 			podRep.Replica.VolSysMnt,
 		}
 		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {
-			hlog.Printf("info", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
+			hlog.SlotPrint(60, "info", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
 			return
 		}
 	})

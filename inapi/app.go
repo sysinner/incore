@@ -403,14 +403,17 @@ func (it *AppConfigurator) Valid() error {
 }
 
 const (
-	AppConfigFieldTypeString             uint16 = 1
-	AppConfigFieldTypeSelect             uint16 = 2
+	AppConfigFieldTypeString uint16 = 1
+	AppConfigFieldTypeSelect uint16 = 2
+
 	AppConfigFieldTypeText               uint16 = 300
 	AppConfigFieldTypeTextJSON           uint16 = 301
 	AppConfigFieldTypeTextTOML           uint16 = 302
 	AppConfigFieldTypeTextYAML           uint16 = 303
 	AppConfigFieldTypeTextINI            uint16 = 304
 	AppConfigFieldTypeTextJavaProperties uint16 = 305
+
+	AppConfigFieldTypeAuthCert uint16 = 900
 
 	AppConfigFieldAutoFillDefaultValue = "defval"
 	AppConfigFieldAutoFillHexString_32 = "hexstr_32"
@@ -485,6 +488,17 @@ func (ls *AppConfigFields) Del(name string) {
 			return
 		}
 	}
+}
+
+type AppConfigFieldHelper interface {
+	Valid(field *AppConfigField) error
+}
+
+type AppConfigFieldTypeCA struct {
+}
+
+func (it *AppConfigFieldTypeCA) Valid(field *AppConfigField) error {
+	return nil
 }
 
 //

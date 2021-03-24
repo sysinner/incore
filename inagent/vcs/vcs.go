@@ -221,7 +221,20 @@ func vcsGitPrepare(vit *inapi.VcsRepoItem) error {
 		conf     = tdir + "/.git/config"
 		cfp, err = os.Open(conf)
 		url      = vit.Url
+		scripts  = ""
 	)
+
+	scripts += "export GO111MODULE=auto\n"
+	scripts += "export GOPROXY=https://goproxy.cn,direct\n"
+
+	if strings.Contains(url, "https://code.aliyun.com/") {
+		url = strings.Replace(url, "https://code.aliyun.com/", "git@code.aliyun.com:", -1)
+
+		scripts += "export GIT_TERMINAL_PROMPT=1\n"
+		scripts += "git config --global --add url.\"git@code.aliyun.com:\".insteadOf \"https://code.aliyun.com/\"\n"
+	}
+
+	exec.Command("sh", "-c", scripts).Output()
 
 	if err != nil {
 
