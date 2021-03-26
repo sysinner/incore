@@ -173,7 +173,7 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 		return nil
 	}
 
-	inutils.FsMakeDir(pHostDir, 2048, 2048, 0750)
+	inutils.FsMakeDir(pHostDir, config.DefaultUserID, config.DefaultGroupID, 0750)
 
 	if _, err := os.Stat(pfilepath); err == nil {
 
@@ -181,7 +181,7 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 			return ipm_entry_sync_extract(pfilepath, pHostDir)
 		}
 	}
-	inutils.FsMakeFileDir(pfilepath, 2048, 2048, 0750)
+	inutils.FsMakeFileDir(pfilepath, config.DefaultUserID, config.DefaultGroupID, 0750)
 
 	tmpfile := pfilepath + ".tmp"
 	fp, err := os.Create(tmpfile)
@@ -215,7 +215,7 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 	if err := os.Rename(tmpfile, pfilepath); err != nil {
 		return err
 	}
-	os.Chown(pfilepath, 2048, 2048)
+	os.Chown(pfilepath, config.DefaultUserID, config.DefaultGroupID)
 
 	if err := ipm_entry_sync_extract(pfilepath, pHostDir); err != nil {
 		return err

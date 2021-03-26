@@ -35,7 +35,7 @@ import (
 	"github.com/sysinner/incore/hostlet/ipm"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/inapi"
-	inSts "github.com/sysinner/incore/status"
+	insta "github.com/sysinner/incore/status"
 )
 
 var (
@@ -167,7 +167,7 @@ func (tp *BoxDriver) StatsEntry() *napi.BoxInstanceStatsFeed {
 
 func (tp *BoxDriver) statusRefresh() {
 
-	if inSts.Host.Meta.Id == "" {
+	if insta.Host.Meta.Id == "" {
 		return
 	}
 
@@ -202,14 +202,14 @@ func (tp *BoxDriver) statusRefresh() {
 
 	info, err := tp.client.Info()
 	if err != nil {
-		inSts.Host.Spec.ExpDockerVersion = ""
+		insta.Host.Spec.ExpDockerVersion = ""
 		tp.client = nil
 		if len(tp.sets) > 0 {
 			hlog.Printf("warn", "hostlet/status/refresh, failed on connect to Docker %s", err)
 		}
 		return
 	}
-	inSts.Host.Spec.ExpDockerVersion = info.ServerVersion
+	insta.Host.Spec.ExpDockerVersion = info.ServerVersion
 
 	// refresh current statuses
 	rsc, err := tp.client.ListContainers(drvClient.ListContainersOptions{
@@ -358,10 +358,15 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 	//
 	for _, cm := range boxInspect.Mounts {
 
+		/**
 		if !strings.HasPrefix(cm.Destination, "/home/action") &&
 			!strings.HasPrefix(cm.Destination, "/opt") &&
 			// !strings.HasPrefix(cm.Destination, "/etc/hosts") &&
 			!strings.HasPrefix(cm.Destination, "/usr/sysinner/") {
+			continue
+		}
+		*/
+		if strings.HasPrefix(cm.Destination, "/proc/") {
 			continue
 		}
 
@@ -584,7 +589,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 					strings.Contains(err.Error(), "No such container") ||
 					strings.Contains(err.Error(), "Container not running") {
 					inst.StatusActionSet(inapi.OpActionStopped)
-					time.Sleep(2e8)
+					time.Sleep(200e6)
 				} else {
 					return err
 				}
@@ -670,12 +675,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			storOpt["size"] = "10G"
 		}
 
-		boxUser := "action"
-		if !strings.HasPrefix(imageName, "sysinner/innerstack-") {
-			boxUser = "root"
-		}
-
-		boxInspect, err := tp.client.CreateContainer(drvClient.CreateContainerOptions{
+		boxCreateOptions := drvClient.CreateContainerOptions{
 			Name: inst.Name,
 			Config: &drvClient.Config{
 				Hostname:     inst.Name,
@@ -686,7 +686,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 					"POD_ID=" + inst.PodID,
 					fmt.Sprintf("REP_ID=%d", inst.Replica.RepId),
 				},
-				User: boxUser,
+				User: "action",
 			},
 			HostConfig: &drvClient.HostConfig{
 				NetworkMode:  netMode,
@@ -709,7 +709,18 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				StorageOpt:    storOpt,
 				RestartPolicy: drvClient.RestartUnlessStopped(),
 			},
-		})
+		}
+
+		if !strings.HasPrefix(imageName, "sysinner/innerstack-") {
+			boxCreateOptions.Config.User = "root"
+		}
+
+		if runtime.GOOS != "linux" {
+			boxCreateOptions.HostConfig.CPUSetCPUs = ""
+			boxCreateOptions.Config.User = "root"
+		}
+
+		boxInspect, err := tp.client.CreateContainer(boxCreateOptions)
 
 		if err != nil && !strings.Contains(err.Error(), "container already exists") {
 			// --storage-opt is supported only for overlay over xfs with 'pquota' mount option
@@ -771,7 +782,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 		inst.StatusActionSet(inapi.OpActionRunning)
 
-		time.Sleep(1e9)
+		time.Sleep(100e6)
 		// tp.docker_status_watch_entry(inst.ID)
 	} else {
 		// hlog.Printf("info", "hostlet/box Start %s, SKIP", inst.Name)

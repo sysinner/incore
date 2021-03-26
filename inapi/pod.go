@@ -18,8 +18,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/lessos/lessgo/types"
@@ -35,6 +37,8 @@ var (
 	PodSpecImageTagReg  = regexp.MustCompile("^[a-z0-9\\.\\-\\_]{1,50}$")
 	PodDestroyTTL       = int64(86400)
 	PodPlanChargeCycle  = uint64(3600)
+	OCINameRE           = regexp.MustCompile("^[a-zA-Z0-9\\.\\-\\_]{1,50}:[a-zA-Z0-9\\.\\-\\_]{1,50}$")
+	PodSpecMountPathRE  = regexp.MustCompile("^[a-zA-Z0-9\\.\\-\\_\\/\\{\\\\}]{1,100}$")
 )
 
 const (
@@ -331,16 +335,46 @@ type PodList struct {
 	UserTransfers  []*PodUserTransfer `json:"user_transfers,omitempty" toml:"user_transfers,omitempty"`
 }
 
+type PodSpecBoundMount struct {
+	Target string `json:"target" toml:"target"`
+	Source string `json:"source,omitempty" toml:"source,omitempty"`
+}
+
 // PodSpecBound is a description of a bound spec based on PodSpecPlan
 type PodSpecBound struct {
-	Ref       ObjectReference         `json:"ref,omitempty" toml:"ref,omitempty"`
-	Zone      string                  `json:"zone,omitempty" toml:"zone,omitempty"`
-	Cell      string                  `json:"cell,omitempty" toml:"cell,omitempty"`
-	BoxDriver string                  `json:"box_driver,omitempty" toml:"box_driver,omitempty"`
-	Labels    types.Labels            `json:"labels,omitempty" toml:"labels,omitempty"`
-	VolSys    *ResVolBound            `json:"vol_sys,omitempty" toml:"vol_sys,omitempty"`
-	Box       PodSpecBoxBound         `json:"box,omitempty" toml:"box,omitempty"`
-	Volumes   []PodSpecResVolumeBound `json:"volumes,omitempty" toml:"volumes,omitempty"`
+	Ref       ObjectReference      `json:"ref,omitempty" toml:"ref,omitempty"`
+	Zone      string               `json:"zone,omitempty" toml:"zone,omitempty"`
+	Cell      string               `json:"cell,omitempty" toml:"cell,omitempty"`
+	BoxDriver string               `json:"box_driver,omitempty" toml:"box_driver,omitempty"`
+	Labels    types.Labels         `json:"labels,omitempty" toml:"labels,omitempty"`
+	VolSys    *ResVolBound         `json:"vol_sys,omitempty" toml:"vol_sys,omitempty"`
+	Box       PodSpecBoxBound      `json:"box,omitempty" toml:"box,omitempty"`
+	Mounts    []*PodSpecBoundMount `json:"mounts" toml:"mounts"`
+	// Deprecated
+	Volumes []PodSpecResVolumeBound `json:"volumes,omitempty" toml:"volumes,omitempty"`
+}
+
+func (it *PodSpecBound) MountSet(v *PodSpecBoundMount) bool {
+
+	v.Target = filepath.Clean(v.Target)
+	if v.Target == "" || v.Target == "." || v.Target == ".." || v.Target == "/" {
+		return false
+	}
+
+	if !PodSpecMountPathRE.MatchString(v.Source) ||
+		!PodSpecMountPathRE.MatchString(v.Target) {
+		return false
+	}
+
+	for i2, v2 := range it.Mounts {
+		if v.Target == v2.Target {
+			it.Mounts[i2] = v
+			return true
+		}
+	}
+
+	it.Mounts = append(it.Mounts, v)
+	return true
 }
 
 type jsonPodSpecBound PodSpecBound
@@ -713,6 +747,24 @@ func (it *PodSpecPlan) ImagesSort() {
 
 func (s PodSpecPlan) Image(id string) *PodSpecPlanBoxImageBound {
 
+	if !strings.HasPrefix(id, BoxImageRepoDefault) &&
+		OCINameRE.MatchString(id) {
+
+		if nametag := strings.Split(id, ":"); len(nametag) == 2 {
+
+			return &PodSpecPlanBoxImageBound{
+				RefId:     id,
+				RefTitle:  id,
+				RefName:   nametag[0],
+				RefTag:    nametag[1],
+				Driver:    "docker",
+				OsDist:    "linux",
+				Arch:      "x64",
+				SortOrder: 20,
+			}
+		}
+	}
+
 	for _, v := range s.Images {
 
 		if v.RefId == id {
@@ -774,15 +826,16 @@ type PodSpecPlanZoneBound struct {
 
 type PodCreate struct {
 	types.TypeMeta `json:",inline" toml:",inline"`
-	Owner          string       `json:"owner,omitempty" toml:"owner,omitempty"`
-	Pod            string       `json:"pod,omitempty" toml:"pod,omitempty"`
-	Name           string       `json:"name" toml:"name"`
-	Plan           string       `json:"plan" toml:"plan"`
-	Zone           string       `json:"zone" toml:"zone"`
-	Cell           string       `json:"cell" toml:"cell"`
-	ResVolume      string       `json:"res_volume" toml:"res_volume"`
-	ResVolumeSize  int32        `json:"res_volume_size" toml:"res_volume_size"` // in GiB
-	Box            PodCreateBox `json:"box" toml:"box"`
+	Owner          string               `json:"owner,omitempty" toml:"owner,omitempty"`
+	Pod            string               `json:"pod,omitempty" toml:"pod,omitempty"`
+	Name           string               `json:"name" toml:"name"`
+	Plan           string               `json:"plan" toml:"plan"`
+	Zone           string               `json:"zone" toml:"zone"`
+	Cell           string               `json:"cell" toml:"cell"`
+	ResVolume      string               `json:"res_volume" toml:"res_volume"`
+	ResVolumeSize  int32                `json:"res_volume_size" toml:"res_volume_size"` // in GiB
+	Mounts         []*PodSpecBoundMount `json:"mounts" toml:"mounts"`
+	Box            PodCreateBox         `json:"box" toml:"box"`
 }
 
 type PodCreateBox struct {

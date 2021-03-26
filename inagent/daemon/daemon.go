@@ -103,8 +103,8 @@ func (it *agentDaemonCommand) run(cmd *inapi.BaseCommand, args []string) error {
 	}
 
 	//
-	syscall.Setgid(2048)
-	syscall.Setuid(2048)
+	syscall.Setgid(config.DefaultGroupID)
+	syscall.Setuid(config.DefaultUserID)
 	syscall.Chdir("/home/action")
 
 	//

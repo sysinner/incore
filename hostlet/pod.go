@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
+	"runtime"
 	"strings"
 	"time"
 
@@ -59,6 +61,12 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 		hlog.Printf("error", "hostlet/pod-pull no sys-mnt %s %s", pod.Meta.ID, err.Error())
 		return errors.New("no vol-sys-mnt")
 	}
+
+	/*
+		if runtime.GOOS == "darwin" {
+			pod.Replica.VolSysMnt = "/Volumes/sysinner/pods"
+		}
+	*/
 
 	sysdir := napi.VolAgentSysDir(pod.Replica.VolSysMnt, pod.Meta.ID, pod.Replica.RepId)
 
@@ -103,8 +111,9 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 	if inapi.OpActionAllow(pod.Replica.Action, inapi.OpActionStart) {
 
 		if _, err := os.Stat(sysdir); os.IsNotExist(err) {
-			if err := inutils.FsMakeDir(sysdir, 2048, 2048, 0750); err != nil {
-				hlog.Printf("error", "hostlet/pod-pull %s %s", prev.Meta.ID, err.Error())
+			if err := inutils.FsMakeDir(sysdir, inCfg.DefaultUserID, inCfg.DefaultGroupID, 0750); err != nil {
+				hlog.Printf("error", "hostlet/pod-pull #%s, mkdir (%s) err %s",
+					prev.Meta.ID, sysdir, err.Error())
 				return err
 			}
 		}
@@ -301,6 +310,8 @@ func podRepListCtrlRefresh() error {
 					err = drv.BoxStop(inst)
 				} else if inapi.OpActionAllow(inst.Replica.Action, inapi.OpActionStart) {
 
+					inst.SpecMounts = pod.Spec.Mounts
+
 					if err = podRepVolSetup(inst, false); err == nil {
 						err = drv.BoxStart(inst)
 						if err != nil && inst.ID == "" {
@@ -367,17 +378,24 @@ func podRepVolSetup(inst *napi.BoxInstance, force bool) error {
 		bashpfDst  = dirPodHome + "/.bash_profile"
 	)
 
-	if err := inutils.FsMakeDir(dirOpt, 2048, 2048, 0750); err != nil {
+	if err := inutils.FsMakeDir(dirOpt, inCfg.DefaultUserID, inCfg.DefaultGroupID, 0750); err != nil {
 		return fmt.Errorf("hostlet/box BOX:%s, FsMakeDir Err: %s", inst.Name, err.Error())
 	}
 
-	if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", 2048, 2048, 0750); err != nil {
+	if err := inutils.FsMakeDir(dirPodHome+"/.sysinner", inCfg.DefaultUserID, inCfg.DefaultGroupID, 0750); err != nil {
 		return fmt.Errorf("hostlet/box BOX:%s, FsMakeDir Err: %s", inst.Name, err.Error())
+	}
+
+	un := "root"
+	if runtime.GOOS != "linux" {
+		if u, err := user.Current(); err == nil {
+			un = u.Username
+		}
 	}
 
 	//
-	exec.Command(binInstall, "-m", "755", "-g", "root", "-o", "root", initSrc, initDst).Output()
-	exec.Command(binInstall, "-m", "755", "-g", "root", "-o", "root", agentSrc, agentDst).Output()
+	exec.Command(binInstall, "-m", "755", "-g", un, "-o", un, initSrc, initDst).Output()
+	exec.Command(binInstall, "-m", "755", "-g", un, "-o", un, agentSrc, agentDst).Output()
 	exec.Command("rsync", bashrcSrc, bashrcDst).Output()
 	exec.Command("rsync", bashpfSrc, bashpfDst).Output()
 

@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/htoml4g/htoml"
@@ -39,6 +40,10 @@ type AppSpec struct {
 	*httpsrv.Controller
 	us iamapi.UserSession
 }
+
+var (
+	appSpecVersionCaches sync.Map
+)
 
 func (c *AppSpec) Init() int {
 
@@ -92,9 +97,12 @@ func (c AppSpec) ListAction() {
 		}
 
 		//
-		if rs := data.DataGlobal.NewReader(
-			inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)).Query(); !rs.NotFound() {
-			data.DataGlobal.NewWriter(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version), spec).Commit()
+		if _, ok := appSpecVersionCaches.Load(spec.Meta.ID + ":" + spec.Meta.Version); !ok {
+			if rs := data.DataGlobal.NewReader(
+				inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)).Query(); !rs.NotFound() {
+				data.DataGlobal.NewWriter(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version), spec).Commit()
+			}
+			appSpecVersionCaches.Store(spec.Meta.ID+":"+spec.Meta.Version, true)
 		}
 
 		if spec.Meta.User != c.us.UserName &&
@@ -691,11 +699,14 @@ func (c AppSpec) SetAction() {
 
 	images := types.ArrayString{}
 	for _, v := range prev.RuntimeImages {
+
 		v = strings.Trim(strings.TrimSpace(strings.ToLower(v)), "/")
-		if strings.HasPrefix(v, "oci/") || !inapi.AppSpecImageNameRE.MatchString(v) {
+
+		if !inapi.OCINameRE.MatchString(v) {
 			set.Error = types.NewErrorMeta("400", "Invalid Runtime Image Name : "+v)
 			return
 		}
+
 		if !strings.HasPrefix(v, "sysinner/") &&
 			!c.accessAllow("sysinner.admin") {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied,

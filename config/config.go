@@ -22,6 +22,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -137,14 +138,11 @@ var (
 	InitCellId       = "g1"
 	SysConfigurators = []*inapi.SysConfigurator{}
 	err              error
+	DefaultUserID    = 2048
+	DefaultGroupID   = 2048
 )
 
 func BasicSetup() error {
-
-	//
-	if u, err := user.Current(); err != nil || u.Uid != "0" {
-		return fmt.Errorf("Access Denied : must be run as root")
-	}
 
 	if err := setupUser(); err != nil {
 		return err
@@ -281,21 +279,33 @@ func Setup() error {
 
 func setupUser() error {
 
-	if _, err := user.Lookup(User.Username); err != nil {
+	if runtime.GOOS == "linux" {
 
-		nologin, err := exec.LookPath("nologin")
-		if err != nil {
-			nologin = "/sbin/nologin"
+		if u, err := user.Current(); err != nil || u.Uid != "0" {
+			return fmt.Errorf("Access Denied : must be run as root")
 		}
 
-		if _, err = exec.Command(
-			"/usr/sbin/useradd",
-			"-d", User.HomeDir,
-			"-s", nologin,
-			"-u", User.Uid, User.Username,
-		).Output(); err != nil {
-			return err
+		if _, err := user.Lookup(User.Username); err != nil {
+
+			nologin, err := exec.LookPath("nologin")
+			if err != nil {
+				nologin = "/sbin/nologin"
+			}
+
+			if _, err = exec.Command(
+				"/usr/sbin/useradd",
+				"-d", User.HomeDir,
+				"-s", nologin,
+				"-u", User.Uid, User.Username,
+			).Output(); err != nil {
+				return err
+			}
 		}
+	} else {
+		DefaultUserID = os.Getuid()
+		DefaultGroupID = os.Getgid()
+
+		fmt.Println(DefaultUserID, DefaultGroupID)
 	}
 
 	return nil

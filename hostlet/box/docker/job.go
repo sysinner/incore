@@ -18,6 +18,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -115,18 +116,20 @@ setenforce 0
 			}
 		}
 
-		for _, v := range []string{
-			"containerd",
-			"docker",
-		} {
-			if _, err := exec.Command("systemctl", "enable", v).Output(); err != nil {
-				hlog.Printf("info", err.Error())
-				return err
-			}
+		if runtime.GOOS == "linux" {
+			for _, v := range []string{
+				"containerd",
+				"docker",
+			} {
+				if _, err := exec.Command("systemctl", "enable", v).Output(); err != nil {
+					hlog.Printf("info", err.Error())
+					return err
+				}
 
-			if _, err := exec.Command("systemctl", "start", v).Output(); err != nil {
-				hlog.Printf("info", err.Error())
-				return err
+				if _, err := exec.Command("systemctl", "start", v).Output(); err != nil {
+					hlog.Printf("info", err.Error())
+					return err
+				}
 			}
 		}
 		it.inited = true

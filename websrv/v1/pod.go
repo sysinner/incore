@@ -468,6 +468,10 @@ func (c Pod) NewAction() {
 		},
 	}
 
+	for _, v := range set.Mounts {
+		pod.Spec.MountSet(v)
+	}
+
 	//
 	if strings.IndexByte(set.Box.Image, ':') < 0 { // UPGRADE
 		set.Box.Image = inapi.BoxImageRepoDefault + ":" + set.Box.Image
@@ -1234,6 +1238,10 @@ func (c Pod) SpecSetAction() {
 		if fix := set.ResVolumeSize % res_vol.Step; fix > 0 {
 			set.ResVolumeSize += res_vol.Step
 		}
+	}
+
+	for _, v := range set.Mounts {
+		prev.Spec.MountSet(v)
 	}
 
 	if prev.Spec.Ref.Id != spec_plan.Meta.ID || prev.Spec.Ref.Version != spec_plan.Meta.Version {

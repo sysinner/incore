@@ -176,22 +176,23 @@ type BoxInstance struct {
 	mu            sync.Mutex
 	statusPending bool
 	opPending     bool
-	ID            string                   `json:"id"`
-	Name          string                   `json:"name"`
-	PodID         string                   `json:"pod_id"`
-	PodOpVersion  uint32                   `json:"pod_op_version"`
-	UpUpdated     uint32                   `json:"up_updated"`
-	Spec          inapi.PodSpecBoxBound    `json:"spec"`
-	Apps          inapi.AppInstances       `json:"apps"`
-	Replica       inapi.PodOperateReplica  `json:"replica"`
-	Retry         int                      `json:"retry"`
-	Env           []inapi.EnvVar           `json:"env"`
-	Status        inapi.PbPodBoxStatus     `json:"status"`
-	HealthStatus  inapi.HealthStatus       `json:"health_status"`
-	Stats         *inapi.PbStatsSampleFeed `json:"-"`
-	SysVolSynced  int64                    `json:"sys_vol_synced"`
-	SpecCpuSets   []int32                  `json:"spec_cpu_sets"`
-	PackMounts    []*BoxPackMount          `json:"pack_mounts"`
+	ID            string                     `json:"id"`
+	Name          string                     `json:"name"`
+	PodID         string                     `json:"pod_id"`
+	PodOpVersion  uint32                     `json:"pod_op_version"`
+	UpUpdated     uint32                     `json:"up_updated"`
+	Spec          inapi.PodSpecBoxBound      `json:"spec"`
+	Apps          inapi.AppInstances         `json:"apps"`
+	Replica       inapi.PodOperateReplica    `json:"replica"`
+	Retry         int                        `json:"retry"`
+	Env           []inapi.EnvVar             `json:"env"`
+	Status        inapi.PbPodBoxStatus       `json:"status"`
+	HealthStatus  inapi.HealthStatus         `json:"health_status"`
+	Stats         *inapi.PbStatsSampleFeed   `json:"-"`
+	SysVolSynced  int64                      `json:"sys_vol_synced"`
+	SpecCpuSets   []int32                    `json:"spec_cpu_sets"`
+	SpecMounts    []*inapi.PodSpecBoundMount `json:"spec_mounts"`
+	PackMounts    []*BoxPackMount            `json:"pack_mounts"`
 }
 
 func BoxInstanceName(podId string, repId uint32) string {
@@ -348,7 +349,7 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return false
 	}
 
-	if !ArrayInt32Equal(inst.SpecCpuSets, inst.Status.CpuSets) {
+	if runtime.GOOS == "linux" && !ArrayInt32Equal(inst.SpecCpuSets, inst.Status.CpuSets) {
 		hlog.Printf("debug", "box/spec miss-desire inst.CpuSets")
 		return false
 	}
@@ -422,6 +423,24 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 			HostDir:   VolPodPath(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId, "/opt"),
 			ReadOnly:  false,
 		},
+	}
+
+	for _, v := range inst.SpecMounts {
+
+		if strings.HasPrefix(v.Target, "/opt") ||
+			strings.HasPrefix(v.Target, "/home/action") {
+			continue
+		}
+
+		src := filepath.Clean(strings.Replace(v.Source, "{{.POD_SYS_VOL}}",
+			VolPodPath(inst.Replica.VolSysMnt, inst.PodID, inst.Replica.RepId, "/"), -1))
+
+		ls, _ = inapi.PbVolumeMountSliceSync(ls, &inapi.PbVolumeMount{
+			Name:      "spec-mount-" + strings.ToLower(v.Target),
+			MountPath: v.Target,
+			HostDir:   src,
+			ReadOnly:  false,
+		})
 	}
 
 	/**
