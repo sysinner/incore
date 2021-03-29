@@ -32,7 +32,6 @@ var (
 	ResSysHostIdReg        = regexp.MustCompile("^[0-9a-f]{12,16}$")
 	ResSysHostSecretKeyReg = regexp.MustCompile("^[0-9a-zA-Z\\+\\/]{20,40}$")
 	ResSysNodeNameReg      = regexp.MustCompile("^[0-9a-zA-Z._\\-]{1,30}$")
-
 	res_zone_mu            sync.RWMutex
 	resLabelNameReg        = regexp.MustCompile("^[a-z]{1}[a-z0-9-._/]{0,99}$")
 	resLabelErrNameEmpty   = errors.New("res_label name cannot be empty")
@@ -43,6 +42,7 @@ var (
 	ResSysHostPriorityMin     uint32 = 1
 	ResSysHostPriorityMax     uint32 = ResSysHostPriorityLength - 2
 	ResSysHostPriorityDefault uint32 = ResSysHostPriorityLength / 2
+	ResNetworkDomainNameRE           = regexp.MustCompile("^[0-9a-z._\\-]{1,100}$")
 )
 
 func (obj *ResZone) Cell(id string) *ResCell {

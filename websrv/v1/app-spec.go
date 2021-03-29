@@ -700,7 +700,9 @@ func (c AppSpec) SetAction() {
 	images := types.ArrayString{}
 	for _, v := range prev.RuntimeImages {
 
-		v = strings.Trim(strings.TrimSpace(strings.ToLower(v)), "/")
+		if v = strings.Trim(strings.TrimSpace(strings.ToLower(v)), "/"); v == "" {
+			continue
+		}
 
 		if !inapi.OCINameRE.MatchString(v) {
 			set.Error = types.NewErrorMeta("400", "Invalid Runtime Image Name : "+v)
@@ -715,7 +717,11 @@ func (c AppSpec) SetAction() {
 		}
 		images.Set(v)
 	}
-	prev.RuntimeImages = []string(images)
+	if len(images) > 0 {
+		prev.RuntimeImages = []string(images)
+	} else {
+		prev.RuntimeImages = nil
+	}
 
 	prev.Fix()
 

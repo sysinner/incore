@@ -15,7 +15,6 @@
 package v1
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -112,8 +111,6 @@ func (c PodSpec) PlanListAction() {
 			sort.Sort(item.ResComputes)
 
 			ls.Items = append(ls.Items, &item)
-		} else {
-			fmt.Println(err)
 		}
 	}
 

@@ -739,6 +739,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		if boxInspect != nil && boxInspect.ID != "" {
 			inst.ID = boxInspect.ID
 			hlog.Printf("info", "hostlet/box Create %s OK", inst.Name)
+			inst.SetupHosts = extHosts
 			inst.StatusActionSet(0)
 		}
 	}

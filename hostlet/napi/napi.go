@@ -193,6 +193,7 @@ type BoxInstance struct {
 	SpecCpuSets   []int32                    `json:"spec_cpu_sets"`
 	SpecMounts    []*inapi.PodSpecBoundMount `json:"spec_mounts"`
 	PackMounts    []*BoxPackMount            `json:"pack_mounts"`
+	SetupHosts    []string                   `json:"setup_hosts"`
 }
 
 func BoxInstanceName(podId string, repId uint32) string {
@@ -285,6 +286,12 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return false
 	}
 
+	hosts := inst.ExtHosts(false)
+	if inapi.ArrayStringEqual(inst.SetupHosts, hosts) {
+		hlog.Printf("debug", "box/spec miss-desire inst.hosts")
+		return false
+	}
+
 	for _, v := range inst.Replica.Ports {
 
 		mat := false
@@ -369,8 +376,11 @@ func (inst *BoxInstance) OpActionDesired() bool {
 func (inst *BoxInstance) ExtHosts(excludeRep bool) []string {
 
 	hosts := []string{}
-	services := map[uint32]string{}
+	hostMap := map[string]string{
+		PodRepNetworkDomainName(inst.PodID, inst.Replica.RepId): "127.0.0.1",
+	}
 
+	/**
 	for _, v := range inst.Replica.Ports {
 
 		for _, app := range inst.Apps {
@@ -404,6 +414,38 @@ func (inst *BoxInstance) ExtHosts(excludeRep bool) []string {
 		}
 		hosts = append(hosts, fmt.Sprintf("%s:%s", BoxInstanceName(inst.PodID, rep), ip))
 	}
+	*/
+
+	for _, app := range inst.Apps {
+
+		for _, srv := range app.Operate.Services {
+
+			if len(srv.Endpoints) < 1 {
+				continue
+			}
+
+			podId := srv.PodId
+			if podId == "" {
+				podId = inst.PodID
+			}
+
+			for _, ep := range srv.Endpoints {
+
+				domain := PodRepNetworkDomainName(podId, ep.Rep)
+				if _, ok := hostMap[domain]; ok {
+					continue
+				}
+
+				hostMap[domain] = ep.Ip
+			}
+		}
+	}
+
+	for domain, ip := range hostMap {
+		hosts = append(hosts, domain+":"+ip)
+	}
+
+	sort.Strings(hosts)
 
 	return hosts
 }
@@ -764,4 +806,9 @@ func (ls *BoxInstanceSets) OpLockNum() int {
 type RsyncModuleItem struct {
 	User string `json:"user"`
 	Dir  string `json:"dir"`
+}
+
+func PodRepNetworkDomainName(podId string, repId uint32) string {
+	return fmt.Sprintf("%s.%s.%s", BoxInstanceName(podId, repId),
+		config.Config.Zone.ZoneId, config.Config.Zone.NetworkDomainName)
 }

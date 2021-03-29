@@ -186,6 +186,8 @@ func zmWorkerGlobalZoneListRefresh() error {
 		chg := false
 		if pZone == nil {
 			pZone, chg = status.GlobalZoneSync(&zone)
+		} else if zone.Meta.Updated > pZone.Meta.Updated {
+			chg = true
 		}
 
 		//

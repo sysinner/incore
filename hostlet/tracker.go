@@ -113,6 +113,8 @@ func zoneMasterSync() error {
 	}
 
 	// fmt.Println(zms)
+	cfgZoneFlush := false
+
 	if zms.Masters != nil {
 		if chg := status.LocalZoneMasterList.SyncList(zms.Masters); chg {
 			mainNodes := []string{}
@@ -123,10 +125,16 @@ func zoneMasterSync() error {
 			}
 			if len(mainNodes) > 0 && !inapi.ArrayStringEqual(config.Config.Zone.MainNodes, mainNodes) {
 				config.Config.Zone.MainNodes = mainNodes
-				config.Config.Flush()
+				cfgZoneFlush = true
 				hlog.Printf("info", "hostlet/config/masters refreshed")
 			}
 		}
+	}
+
+	//
+	if zms.NetworkDomainName != "" && zms.NetworkDomainName != config.Config.Zone.NetworkDomainName {
+		config.Config.Zone.NetworkDomainName = zms.NetworkDomainName
+		cfgZoneFlush = true
 	}
 
 	//
@@ -168,7 +176,7 @@ func zoneMasterSync() error {
 
 		if chg {
 			config.Config.Zone.ImageServices = zms.ImageServices
-			config.Config.Flush()
+			cfgZoneFlush = true
 			hlog.Printf("info", "hostlet/config refreshed, image-services %d", len(zms.ImageServices))
 		}
 	}
@@ -211,6 +219,10 @@ func zoneMasterSync() error {
 
 	if len(zms.ZoneInpackServiceUrl) > 10 && zms.ZoneInpackServiceUrl != config.Config.Zone.InpackServiceUrl {
 		config.Config.Zone.InpackServiceUrl = zms.ZoneInpackServiceUrl
+		cfgZoneFlush = true
+	}
+
+	if cfgZoneFlush {
 		config.Config.Flush()
 	}
 

@@ -330,6 +330,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 			Masters:              &status.ZoneMasterList,
 			ZoneInpackServiceUrl: config.Config.Zone.InpackServiceUrl,
 			ImageServices:        status.Zone.ImageServices,
+			NetworkDomainName:    status.Zone.NetworkDomainName,
 		}
 	)
 

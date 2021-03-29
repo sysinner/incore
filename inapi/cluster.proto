@@ -125,8 +125,8 @@ message ResHostBound {
 	repeated string exp_box_removes = 8;
 	repeated string exp_box_stops = 9;
 	repeated ResImageService image_services = 10;
+	string network_domain_name = 11;
 }
-
 
 message ResZone {
 	ObjectMeta       meta      = 2;
@@ -138,6 +138,7 @@ message ResZone {
 	repeated Label   options   = 8;
 	string           wan_api   = 9;
 	repeated ResImageService image_services = 10;
+	string network_domain_name = 11;
 }
 
 message ResCell {

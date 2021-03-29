@@ -73,6 +73,7 @@ type ZoneConfig struct {
 	InpanelServiceUrl     string                   `json:"inpanel_service_url,omitempty" toml:"inpanel_service_url,omitempty"`
 	IamServiceUrlFrontend string                   `json:"iam_service_url_frontend,omitempty" toml:"iam_service_url_frontend,omitempty"`
 	IamServiceUrlGlobal   string                   `json:"iam_service_url_global,omitempty" toml:"iam_service_url_global,omitempty"`
+	NetworkDomainName     string                   `json:"network_domain_name,omitempty" toml:"network_domain_name,omitempty"`
 }
 
 type ZoneMainConfig struct {
@@ -218,6 +219,10 @@ func BasicSetup() error {
 		Config.ZoneMain = &ZoneMainConfig{}
 	}
 
+	if !inapi.ResNetworkDomainNameRE.MatchString(Config.Zone.NetworkDomainName) {
+		Config.Zone.NetworkDomainName = "local"
+	}
+
 	/**
 	{
 		if len(Config.Zone.ImageServices) == 0 && len(Config.ImageServices) > 0 {
@@ -304,8 +309,6 @@ func setupUser() error {
 	} else {
 		DefaultUserID = os.Getuid()
 		DefaultGroupID = os.Getgid()
-
-		fmt.Println(DefaultUserID, DefaultGroupID)
 	}
 
 	return nil

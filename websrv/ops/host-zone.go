@@ -38,13 +38,14 @@ func (c Host) ZoneListAction() {
 	for _, v := range status.GlobalZones {
 
 		zone := inapi.ResZone{
-			Meta:          v.Meta,
-			Phase:         v.Phase,
-			WanAddrs:      v.WanAddrs,
-			LanAddrs:      v.LanAddrs,
-			Options:       v.Options,
-			WanApi:        v.WanApi,
-			ImageServices: v.ImageServices,
+			Meta:              v.Meta,
+			Phase:             v.Phase,
+			WanAddrs:          v.WanAddrs,
+			LanAddrs:          v.LanAddrs,
+			Options:           v.Options,
+			WanApi:            v.WanApi,
+			ImageServices:     v.ImageServices,
+			NetworkDomainName: v.NetworkDomainName,
 		}
 
 		if c.Params.Get("fields") == "cells" {
@@ -172,6 +173,12 @@ func (c Host) ZoneSetAction() {
 			set.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid ImageService URL (%s)", v.Url))
 			return
 		}
+	}
+
+	set.NetworkDomainName = strings.TrimSpace(strings.ToLower(set.NetworkDomainName))
+	if set.NetworkDomainName != "" && !inapi.ResNetworkDomainNameRE.MatchString(set.NetworkDomainName) {
+		set.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid Network Domain Name (%s)", set.NetworkDomainName))
+		return
 	}
 
 	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Meta.Id)).Query(); rs.OK() {
