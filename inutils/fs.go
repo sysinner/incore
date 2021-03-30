@@ -36,7 +36,7 @@ func FsMakeDir(path string, uid, gid int, mode os.FileMode) error {
 		return nil
 	}
 
-	if runtime.GOOS == "linux" && (uid < 5000 || gid < 500) {
+	if runtime.GOOS == "linux" && (uid < 500 || gid < 500) {
 		return errors.New("Invalid uid or gid")
 	}
 
