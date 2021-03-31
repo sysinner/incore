@@ -114,7 +114,7 @@ func (it *configMergeCommand) run(cmd *inapi.BaseCommand, args []string) error {
 	hlog.Printf("info", "load config field value %s", field.Value)
 
 	cg := viper.New()
-	cg.SetKeysCaseSensitive(true)
+	// cg.SetKeysCaseSensitive(true)
 
 	switch field.Type {
 	case inapi.AppConfigFieldTypeTextJSON:
