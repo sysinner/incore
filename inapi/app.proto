@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package inapi;
 
-option go_package = ".;inapi";
+option go_package = "./;inapi";
 
 // host
 message AppSpecDepend {
