@@ -37,7 +37,7 @@ var (
 	PodSpecImageTagReg  = regexp.MustCompile("^[a-z0-9\\.\\-\\_]{1,50}$")
 	PodDestroyTTL       = int64(86400)
 	PodPlanChargeCycle  = uint64(3600)
-	OCINameRE           = regexp.MustCompile("^[a-zA-Z0-9\\.\\-\\_\\/]{1,50}:[a-zA-Z0-9\\.\\-\\_]{1,50}$")
+	OCINameRE           = regexp.MustCompile("^[a-zA-Z0-9\\.\\-\\_\\/\\:]{1,50}:[a-zA-Z0-9\\.\\-\\_\\:]{1,50}$")
 	PodSpecMountPathRE  = regexp.MustCompile("^[a-zA-Z0-9\\.\\-\\_\\/\\{\\\\}]{1,100}$")
 )
 
