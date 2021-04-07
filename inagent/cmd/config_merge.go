@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	"github.com/hooto/hlog4g/hlog"
-	"github.com/spf13/viper"
 	"github.com/sysinner/incore/inapi"
+	"github.com/sysinner/viper"
 )
 
 type configMergeCommand struct {
@@ -114,7 +114,7 @@ func (it *configMergeCommand) run(cmd *inapi.BaseCommand, args []string) error {
 	hlog.Printf("info", "load config field value %s", field.Value)
 
 	cg := viper.New()
-	// cg.SetKeysCaseSensitive(true)
+	cg.SetKeysCaseSensitive(true)
 
 	switch field.Type {
 	case inapi.AppConfigFieldTypeTextJSON:
