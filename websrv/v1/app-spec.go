@@ -760,7 +760,6 @@ func (c AppSpec) SetAction() {
 	}
 
 	//
-
 	if prev.ExpDeploy.NetworkMode == inapi.AppSpecExpDeployNetworkModeHost {
 
 		if c.us.UserName != "sysadmin" {
@@ -770,6 +769,11 @@ func (c AppSpec) SetAction() {
 		}
 	} else {
 		prev.ExpDeploy.NetworkMode = inapi.AppSpecExpDeployNetworkModeBridge
+	}
+
+	//
+	if prev.ExpDeploy.NetworkVpcName != inapi.AppSpecExpDeployNetworkVpcNameV1 {
+		prev.ExpDeploy.NetworkVpcName = ""
 	}
 
 	//

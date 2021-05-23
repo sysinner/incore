@@ -46,10 +46,40 @@ func Uint16ToHexString(v uint16) string {
 	return hex.EncodeToString(bs)
 }
 
+func Uint32ToBytes(v uint32) []byte {
+	bs := make([]byte, 4)
+	binary.BigEndian.PutUint32(bs, v)
+	return bs
+}
+
 func Uint32ToHexString(v uint32) string {
 	bs := make([]byte, 4)
 	binary.BigEndian.PutUint32(bs, v)
 	return hex.EncodeToString(bs)
+}
+
+func Uint64ToBytes(v uint64) []byte {
+	bs := make([]byte, 8)
+	binary.BigEndian.PutUint64(bs, v)
+	return bs
+}
+
+func BytesToUint16(bs []byte) uint16 {
+	return binary.BigEndian.Uint16(bs)
+}
+
+func BytesToUint32(bs []byte) uint32 {
+	return binary.BigEndian.Uint32(bs)
+}
+
+func BytesToUint64(bs []byte) uint64 {
+	return binary.BigEndian.Uint64(bs)
+}
+
+func BytesCopy(src []byte) []byte {
+	dst := make([]byte, len(src))
+	copy(dst, src)
+	return dst
 }
 
 func ArrayUint32Has(ar []uint32, v uint32) bool {

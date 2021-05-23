@@ -16,6 +16,7 @@ package ops
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 
@@ -38,14 +39,16 @@ func (c Host) ZoneListAction() {
 	for _, v := range status.GlobalZones {
 
 		zone := inapi.ResZone{
-			Meta:              v.Meta,
-			Phase:             v.Phase,
-			WanAddrs:          v.WanAddrs,
-			LanAddrs:          v.LanAddrs,
-			Options:           v.Options,
-			WanApi:            v.WanApi,
-			ImageServices:     v.ImageServices,
-			NetworkDomainName: v.NetworkDomainName,
+			Meta:               v.Meta,
+			Phase:              v.Phase,
+			WanAddrs:           v.WanAddrs,
+			LanAddrs:           v.LanAddrs,
+			Options:            v.Options,
+			WanApi:             v.WanApi,
+			ImageServices:      v.ImageServices,
+			NetworkDomainName:  v.NetworkDomainName,
+			NetworkVpcInstance: v.NetworkVpcInstance,
+			NetworkVpcBridge:   v.NetworkVpcBridge,
 		}
 
 		if c.Params.Get("fields") == "cells" {
@@ -171,6 +174,35 @@ func (c Host) ZoneSetAction() {
 
 		if _, err := url.ParseRequestURI(v.Url); err != nil {
 			set.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid ImageService URL (%s)", v.Url))
+			return
+		}
+	}
+
+	vpcCheck := func(name, ipnet string, min, max int) error {
+		ipv4Addr, ipv4Net, err := net.ParseCIDR(ipnet)
+		if err != nil {
+			return fmt.Errorf("Invalid Network VPC %s IP (%s)", name, err.Error())
+		}
+		siz, _ := ipv4Net.Mask.Size()
+		if siz < min || siz > max {
+			return fmt.Errorf("Invalid Network VPC %s IP-Net mask size (%d)", name, siz)
+		}
+		if err := inapi.PrivateIPValid(ipv4Addr.String()); err != nil {
+			return fmt.Errorf("Invalid Network VPC %s Private IP (%s)", name, err.Error())
+		}
+		return nil
+	}
+
+	if set.NetworkVpcBridge != "" {
+		if err := vpcCheck("Bridge", set.NetworkVpcBridge, 16, 24); err != nil {
+			set.Error = types.NewErrorMeta("400", err.Error())
+			return
+		}
+	}
+
+	if set.NetworkVpcInstance != "" {
+		if err := vpcCheck("Instance", set.NetworkVpcInstance, 8, 16); err != nil {
+			set.Error = types.NewErrorMeta("400", err.Error())
 			return
 		}
 	}

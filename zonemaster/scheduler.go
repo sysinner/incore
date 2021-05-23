@@ -181,16 +181,9 @@ func schedulePodListRefresh() error {
 
 	for _, v := range rs.Items {
 
-		// hlog.Printf("info", "zm/pod raw key %s", string(v.Key))
-
 		var srcPod inapi.Pod
 		if err := v.Decode(&srcPod); err != nil {
 			hlog.Printf("warn", "zm/pod data/struct err %s", err.Error())
-			continue
-		}
-
-		if srcPod.Meta.ID == "c0b195ff7ecda586" ||
-			srcPod.Meta.ID == "cba3f9e79e3dcca5" {
 			continue
 		}
 
@@ -202,6 +195,27 @@ func schedulePodListRefresh() error {
 			status.ZonePodList.Items.Set(&srcPod)
 			pod = &srcPod
 		}
+
+		for _, rp := range pod.Operate.Replicas {
+
+			if rp.Node == "" {
+				continue
+			}
+
+			if inapi.OpActionAllow(rp.Action, inapi.OpActionDestroy) ||
+				inapi.OpActionAllow(rp.Action, inapi.OpActionMigrate) {
+				continue
+			}
+
+			if err := status.ZoneNetworkManager.InstanceSetup(rp.Node,
+				pod.Meta.ID, rp.RepId, rp.VpcIpv4); err != nil {
+				hlog.Printf("warn", "host %s, instance %s, replica %s, network vpc refresh error %s",
+					rp.Node, pod.Meta.ID, rp.RepId, err.Error())
+			}
+		}
+	}
+
+	for _, pod := range status.ZonePodList.Items {
 
 		// destroy
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
@@ -302,6 +316,7 @@ func schedulePodListRefresh() error {
 
 				hostRes.ports.Set(uint32(rpp.HostPort))
 			}
+
 		}
 
 		// refresh pod's service endpoints
@@ -507,6 +522,27 @@ func scheduleHostListRefresh() error {
 		cellStatus.HostCap += 1
 		if host.Operate.Action == 1 {
 			cellStatus.HostIn += 1
+		}
+
+		if err := status.ZoneNetworkManager.HostAlloc(host.Meta.Id,
+			func(chg bool, brNet, ipNet string) bool {
+				if chg {
+					host.OpPortSort()
+					host.Operate.NetworkVpcBridge = brNet
+					host.Operate.NetworkVpcInstance = ipNet
+					if rs := data.DataZone.NewWriter(
+						inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+						hlog.Printf("warn", "host %s network vpc alloc with bridge %s, ip-net %s, db error %s",
+							host.Meta.Id, brNet, ipNet, rs.Message)
+						return false
+					}
+					hlog.Printf("warn", "host %s network vpc alloc with bridge %s, ip-net %s",
+						host.Meta.Id, brNet, ipNet)
+					sync = false
+				}
+				return true
+			}); err != nil {
+			hlog.Printf("warn", "host %s network vpc refresh error %s", host.Meta.Id, err.Error())
 		}
 
 		if sync {
@@ -1083,10 +1119,10 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 	repId uint32, destRes *destResReplica) *inapi.PbOpLogEntry {
 
 	var (
-		host        *inapi.ResHost
-		hostChanged = false
-		opRep       = podq.Operate.Replicas.Get(repId)
-		opLogKey    = inapi.OpLogNsZoneMasterPodScheduleRep(repId)
+		host     *inapi.ResHost
+		changed  = false
+		opRep    = podq.Operate.Replicas.Get(repId)
+		opLogKey = inapi.OpLogNsZoneMasterPodScheduleRep(repId)
 	)
 
 	if opAction == 0 {
@@ -1157,7 +1193,7 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 			}
 		}
 
-		hostChanged = true
+		changed = true
 
 		// TOTK
 		if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Commit(); !rs.OK() {
@@ -1242,7 +1278,7 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 
 		host.SyncOpCpu(destRes.ResCpu - opRep.ResCpu)
 		host.SyncOpMem(destRes.ResMem - opRep.ResMem)
-		hostChanged = true
+		changed = true
 
 		opRep.ResCpu = destRes.ResCpu
 		opRep.ResMem = destRes.ResMem
@@ -1252,13 +1288,12 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 	}
 
 	if inapi.OpActionAllow(opAction, inapi.OpActionStart) {
-		if ports, chg := schedulePodRepNetPortAlloc(podq, opRep, host); chg {
-			opRep.Ports = ports
-			hostChanged = true
+		if chg := schedulePodRepNetworkAlloc(podq, opRep, host); chg {
+			changed = true
 		}
 	}
 
-	if hostChanged {
+	if changed {
 
 		hlog.Printf("info", "host %s sync changes", host.Meta.Id)
 
@@ -1478,8 +1513,7 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 
 		repNext.VolSysMnt = hit.Volumes[0].Name
 
-		if ports, chg := schedulePodRepNetPortAlloc(podq, repNext, host); chg {
-			repNext.Ports = ports
+		if chg := schedulePodRepNetworkAlloc(podq, repNext, host); chg {
 			host.OpPortSort()
 		}
 
@@ -1534,17 +1568,17 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 	return nil
 }
 
-func schedulePodRepNetPortAlloc(
+func schedulePodRepNetworkAlloc(
 	podq *inapi.Pod,
 	opRep *inapi.PodOperateReplica,
 	host *inapi.ResHost,
-) (inapi.ServicePorts, bool) {
+) bool {
 
 	var (
 		hostPeerLan  = inapi.HostNodeAddress(host.Spec.PeerLanAddr)
 		hostPeerPort = hostPeerLan.Port()
 		ports        = podq.AppServicePorts()
-		hostChanged  = false
+		changed      = false
 	)
 
 	for i, pv := range ports {
@@ -1570,7 +1604,7 @@ func schedulePodRepNetPortAlloc(
 				}
 			} else {
 				host.OpPortAlloc(pv.HostPort)
-				hostChanged = true
+				changed = true
 			}
 
 			continue
@@ -1608,7 +1642,7 @@ func schedulePodRepNetPortAlloc(
 		if portAlloc := host.OpPortAlloc(0); portAlloc > 0 {
 
 			ports[i].HostPort = portAlloc
-			hostChanged = true
+			changed = true
 
 			portsAlloc = append(portsAlloc, portAlloc)
 
@@ -1620,7 +1654,25 @@ func schedulePodRepNetPortAlloc(
 		}
 	}
 
-	return ports, hostChanged
+	if changed {
+		opRep.Ports = ports
+	}
+
+	instanceId := inapi.PodRepInstanceName(podq.Meta.ID, opRep.RepId)
+	if err := status.ZoneNetworkManager.InstanceAlloc(opRep.Node, instanceId,
+		func(chg bool, brNet, ip string) bool {
+			if chg || opRep.VpcIpv4 == "" {
+				opRep.VpcIpv4 = ip
+				changed = true
+				hlog.Printf("warn", "host %s network vpc alloc with ip %s",
+					opRep.Node, ip)
+			}
+			return true
+		}); err != nil {
+		hlog.Printf("warn", "host %s network vpc refresh error %s", opRep.Node, err.Error())
+	}
+
+	return changed
 }
 
 func schedulePodPreChargeValid(podq *inapi.Pod) error {
@@ -1902,8 +1954,7 @@ func schedulePodFailover(podq *inapi.Pod) error {
 		hlog.Printf("info", "zm/pod %s:%d, failover schudele unhit",
 			podq.Meta.ID, rep.RepId)
 
-		if ports, chg := schedulePodRepNetPortAlloc(podq, repNext, host); chg {
-			rep.Ports = ports
+		if chg := schedulePodRepNetworkAlloc(podq, repNext, host); chg {
 			host.OpPortSort()
 		}
 

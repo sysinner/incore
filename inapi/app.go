@@ -293,6 +293,7 @@ const (
 	AppSpecExpDeployRepNumMax         int32 = 32
 	AppSpecExpDeploySysStateful       int32 = 1 // default
 	AppSpecExpDeploySysStateless      int32 = 2
+	AppSpecExpDeployNetworkVpcNameV1        = "v1"
 	AppSpecExpDeployNetworkModeBridge int32 = 1 // default
 	AppSpecExpDeployNetworkModeHost   int32 = 2
 )
@@ -302,10 +303,11 @@ type AppSpecExpDeployRequirements struct {
 	RepMax   int32 `json:"rep_max,omitempty" toml:"rep_max,omitempty"`
 	SysState int32 `json:"sys_state,omitempty" toml:"sys_state,omitempty"`
 	// High-Availability
-	FailoverTime    int32 `json:"failover_time,omitempty" toml:"failover_time,omitempty"`         // in seconds
-	FailoverNumMax  int32 `json:"failover_num_max,omitempty" toml:"failover_num_max,omitempty"`   // [0, RepMax)
-	FailoverRateMax int32 `json:"failover_rate_max,omitempty" toml:"failover_rate_max,omitempty"` // [0, 100) in %
-	NetworkMode     int32 `json:"network_mode" toml:"network_mode"`
+	FailoverTime    int32  `json:"failover_time,omitempty" toml:"failover_time,omitempty"`         // in seconds
+	FailoverNumMax  int32  `json:"failover_num_max,omitempty" toml:"failover_num_max,omitempty"`   // [0, RepMax)
+	FailoverRateMax int32  `json:"failover_rate_max,omitempty" toml:"failover_rate_max,omitempty"` // [0, 100) in %
+	NetworkMode     int32  `json:"network_mode" toml:"network_mode"`
+	NetworkVpcName  string `json:"network_vpc_name,omitempty" toml:"network_vpc_name,omitempty"`
 }
 
 func (it *AppSpecExpDeployRequirements) FailoverEnable() bool {

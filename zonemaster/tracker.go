@@ -223,6 +223,12 @@ func zmWorkerGlobalZoneListRefresh() error {
 
 func zmWorkerZoneHostListRefresh() error {
 
+	if err := status.ZoneNetworkManager.ZoneSetup(
+		status.Zone.NetworkVpcBridge,
+		status.Zone.NetworkVpcInstance); err != nil {
+		return err
+	}
+
 	rs := data.DataZone.NewReader(nil).KeyRangeSet(
 		inapi.NsZoneSysHost(status.ZoneId, ""),
 		inapi.NsZoneSysHost(status.ZoneId, "")).
@@ -248,6 +254,11 @@ func zmWorkerZoneHostListRefresh() error {
 			// o.Operate.PortUsed.Clean()
 		}
 		cellCount[o.Operate.CellId]++
+
+		//
+		{
+
+		}
 
 		status.ZoneHostList.Sync(o)
 
@@ -347,6 +358,28 @@ func zmWorkerZoneHostListRefresh() error {
 	if len(status.ZoneHostList.Items) > 0 {
 		status.ZoneHostListImported = true
 	}
+
+	for _, host := range status.ZoneHostList.Items {
+
+		if host.Operate == nil ||
+			host.Spec == nil || host.Spec.Capacity == nil {
+			continue
+		}
+
+		peerIp := host.Spec.PeerLanAddr
+		if n := strings.IndexByte(peerIp, ':'); n > 0 {
+			peerIp = peerIp[:n]
+		}
+
+		if err := status.ZoneNetworkManager.HostSetup(host.Meta.Id, peerIp,
+			host.Operate.NetworkVpcBridge, host.Operate.NetworkVpcInstance); err != nil {
+			hlog.Printf("warn", "host %s network vpc refresh error %s",
+				host.Meta.Id, err.Error())
+			host.Operate.NetworkVpcBridge = ""
+			host.Operate.NetworkVpcInstance = ""
+		}
+	}
+	status.ZoneNetworkManager.Ready(true)
 
 	// hlog.Printf("info", "zm/host-list %d refreshed", len(status.ZoneHostList.Items))
 	return nil

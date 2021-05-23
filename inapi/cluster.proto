@@ -54,6 +54,8 @@ message ResHostOperate {
 	repeated uint32 port_used = 7;
 	int32           box_num   = 8;
 	uint32          pr        = 9; // Priority
+	string network_vpc_bridge = 10;
+	string network_vpc_instance = 11;
 }
 
 message ResHost {
@@ -62,6 +64,7 @@ message ResHost {
 	ResHostSpec             spec    = 3;
 	ResHostStatus           status  = 4;
 	repeated PbPodRepStatus prs     = 5;
+	uint64 network_map_version = 6;
 }
 
 
@@ -126,6 +129,9 @@ message ResHostBound {
 	repeated string exp_box_stops = 9;
 	repeated ResImageService image_services = 10;
 	string network_domain_name = 11;
+	string network_vpc_bridge = 12;
+	string network_vpc_instance = 13;
+	ZoneNetworkMap zone_network_map = 14;
 }
 
 message ResZone {
@@ -139,6 +145,8 @@ message ResZone {
 	string           wan_api   = 9;
 	repeated ResImageService image_services = 10;
 	string network_domain_name = 11;
+	string network_vpc_bridge = 12;
+	string network_vpc_instance = 13;
 }
 
 message ResCell {
@@ -188,6 +196,17 @@ message ZoneHostConfigReply {
 	string zone_id = 3;
 	string cell_id = 4;
 	repeated string zone_main_nodes = 5;
+}
+
+message ZoneNetworkMapInstance {
+    string id = 1;
+    uint32 rep_cap = 2;
+}
+
+message ZoneNetworkMap {
+	uint64 update_version = 2;
+	bytes vpc_route_data = 3;
+	map<uint32, string> vpc_instance_data = 4;
 }
 
 message ServiceReply {

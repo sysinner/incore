@@ -139,7 +139,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 
 	//
 	host := status.ZoneHostList.Item(req.Meta.Id)
-	if host == nil || host.Meta == nil {
+	if host == nil || host.Meta == nil || host.Operate == nil {
 		return nil, errors.New("BadArgs No Host Found " + req.Meta.Id)
 	}
 
@@ -331,8 +331,14 @@ func (s *ApiZoneMaster) HostStatusSync(
 			ZoneInpackServiceUrl: config.Config.Zone.InpackServiceUrl,
 			ImageServices:        status.Zone.ImageServices,
 			NetworkDomainName:    status.Zone.NetworkDomainName,
+			NetworkVpcBridge:     host.Operate.NetworkVpcBridge,
+			NetworkVpcInstance:   host.Operate.NetworkVpcInstance,
 		}
 	)
+
+	if mp := status.ZoneNetworkManager.ZoneNetworkMap(); req.NetworkMapVersion < mp.UpdateVersion {
+		hostBound.ZoneNetworkMap = mp
+	}
 
 	// Control Replica
 	for _, bpod := range status.ZonePodList.Items {
@@ -390,6 +396,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 					VolSysMnt: ctrRep.Next.VolSysMnt,
 					Ports:     ctrRep.Next.Ports,
 					Options:   ctrRep.Options,
+					VpcIpv4:   ctrRep.VpcIpv4,
 				}
 
 			} else {
@@ -405,6 +412,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 					Ports:     ctrRep.Ports,
 					Options:   ctrRep.Options,
 					Next:      ctrRep.Next,
+					VpcIpv4:   ctrRep.VpcIpv4,
 				}
 			}
 

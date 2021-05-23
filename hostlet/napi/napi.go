@@ -281,13 +281,19 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return false
 	}
 
-	if inst.Apps.NetworkModeHost() &&
-		inst.Status.NetworkMode != inapi.AppSpecExpDeployNetworkModeHost {
-		return false
+	if inst.Apps.NetworkModeHost() {
+		if inst.Status.NetworkMode != inapi.AppSpecExpDeployNetworkModeHost {
+			return false
+		}
+	} else {
+		if inst.Replica.VpcIpv4 != "" &&
+			inst.Replica.VpcIpv4 != inst.Status.NetworkIpv4 {
+			return false
+		}
 	}
 
 	hosts := inst.ExtHosts(false)
-	if inapi.ArrayStringEqual(inst.SetupHosts, hosts) {
+	if !inapi.ArrayStringEqual(inst.SetupHosts, hosts) {
 		hlog.Printf("debug", "box/spec miss-desire inst.hosts")
 		return false
 	}
@@ -809,6 +815,6 @@ type RsyncModuleItem struct {
 }
 
 func PodRepNetworkDomainName(podId string, repId uint32) string {
-	return fmt.Sprintf("%s.%s.%s", BoxInstanceName(podId, repId),
-		config.Config.Zone.ZoneId, config.Config.Zone.NetworkDomainName)
+	return fmt.Sprintf("%s.s", BoxInstanceName(podId, repId),
+		config.Config.Zone.NetworkDomainName)
 }

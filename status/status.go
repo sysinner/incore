@@ -62,6 +62,7 @@ var (
 	ZoneLeaded             int64 = 0
 	ZoneScheduled          int64 = 0
 	ZoneMailManager              = hmsg.NewMailManager()
+	ZoneNetworkManager           = newStatusNetwork()
 
 	// global cluster
 	gmu            sync.RWMutex

@@ -60,3 +60,21 @@ func FsMakeDir(path string, uid, gid int, mode os.FileMode) error {
 
 	return nil
 }
+
+func FsWrite(file string, bs []byte) error {
+
+	fp, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return err
+	}
+	defer fp.Close()
+
+	fp.Seek(0, 0)
+	fp.Truncate(0)
+
+	if _, err = fp.Write(bs); err == nil {
+		err = fp.Sync()
+	}
+
+	return err
+}

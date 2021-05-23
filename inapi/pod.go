@@ -952,6 +952,7 @@ type PodOperateReplica struct {
 	PrevNode  string             `json:"prev_node,omitempty" toml:"prev_node,omitempty"`
 	Updated   uint32             `json:"updated,omitempty" toml:"updated,omitempty"`
 	Scheduled uint32             `json:"scheduled,omitempty" toml:"scheduled,omitempty"`
+	VpcIpv4   string             `json:"vpc_ipv4,omitempty" toml:"vpc_ipv4,omitempty"`
 }
 
 func (it *PodOperateReplica) HostAddress(podId string) string {

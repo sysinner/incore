@@ -74,6 +74,10 @@ func Start() error {
 				continue
 			}
 
+			if err := hostNetworkRefresh(); err != nil {
+				hlog.Printf("warn", "hostlet/network refresh %s", err.Error())
+			}
+
 			podRepListCtrlRefresh()
 		}
 	}()

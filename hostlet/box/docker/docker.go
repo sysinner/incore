@@ -102,6 +102,10 @@ func NewDriver() (napi.BoxDriver, error) {
 	return driver, nil
 }
 
+const (
+	dockerNetworkVPCName = "invpc_docker"
+)
+
 type BoxDriver struct {
 	mu           sync.Mutex
 	mmu          *locker.HashPool
@@ -116,6 +120,8 @@ type BoxDriver struct {
 	createSets   types.KvPairs
 	lxcfsVols    []string
 	imageSets    types.ArrayString
+	vpcSubnet    string
+	vpcNetworID  string
 }
 
 func (tp *BoxDriver) Name() string {
@@ -211,7 +217,56 @@ func (tp *BoxDriver) statusRefresh() {
 	}
 	insta.Host.Spec.ExpDockerVersion = info.ServerVersion
 
-	// refresh current statuses
+	// refresh current network status
+	if true {
+		// ListNetworks() ([]Network, error)
+		nets, err := tp.client.ListNetworks()
+		if err != nil {
+			hlog.Printf("warn", "hostlet/status/refresh, network/list err %v", err)
+			tp.inited = false
+			return
+		}
+
+		for _, v := range nets {
+
+			if v.Name != dockerNetworkVPCName {
+				continue
+			}
+
+			for _, v2 := range v.IPAM.Config {
+				tp.vpcSubnet = v2.Subnet
+				tp.vpcNetworID = v.ID
+				break
+			}
+
+			if tp.vpcSubnet != incfg.Config.Host.NetworkVpcInstance {
+				tp.client.RemoveNetwork(v.ID)
+				time.Sleep(1e9)
+			}
+
+			break
+		}
+
+		if tp.vpcSubnet != incfg.Config.Host.NetworkVpcInstance {
+			if br, err := tp.client.CreateNetwork(drvClient.CreateNetworkOptions{
+				Name:   dockerNetworkVPCName,
+				Driver: "bridge",
+				IPAM: &drvClient.IPAMOptions{
+					Config: []drvClient.IPAMConfig{
+						{
+							Subnet: incfg.Config.Host.NetworkVpcInstance,
+						},
+					},
+				},
+				CheckDuplicate: true,
+			}); err == nil {
+				tp.vpcSubnet = incfg.Config.Host.NetworkVpcInstance
+				tp.vpcNetworID = br.ID
+			}
+		}
+	}
+
+	// refresh current container statuses
 	rsc, err := tp.client.ListContainers(drvClient.ListContainersOptions{
 		All: true,
 	})
@@ -353,6 +408,11 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 
 	if boxInspect.HostConfig.NetworkMode == "host" {
 		inst.Status.NetworkMode = inapi.AppSpecExpDeployNetworkModeHost
+	} else if boxInspect.NetworkSettings != nil &&
+		boxInspect.NetworkSettings.Networks != nil {
+		if n, ok := boxInspect.NetworkSettings.Networks[dockerNetworkVPCName]; ok {
+			inst.Status.NetworkIpv4 = n.IPAddress
+		}
 	}
 
 	//
@@ -639,7 +699,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 			bindPorts[portKey] = append(bindPorts[drvClient.Port(strconv.Itoa(int(port.BoxPort)))], drvClient.PortBinding{
 				HostPort: strconv.Itoa(int(port.HostPort)),
-				// HostIP:   inCfg.Config.Host.LanAddr.IP(),
+				HostIP:   "0.0.0.0", //   incfg.Config.Host.LanAddr.IP(),
 			})
 		}
 
@@ -659,9 +719,19 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		}
 
 		var (
-			netMode  = "bridge"
-			extHosts = inst.ExtHosts(false)
+			netMode    = "bridge"
+			extHosts   = inst.ExtHosts(false)
+			dnsServers = []string{}
 		)
+
+		if inst.Replica.VpcIpv4 != "" {
+			if tp.vpcSubnet == "" {
+				return errors.New("docker network subnet not ready, waiting ...")
+			}
+			dnsServers = []string{
+				inapi.HostNodeAddress(incfg.Config.Host.LanAddr).IP(),
+			}
+		}
 
 		if inst.Apps.NetworkModeHost() {
 			netMode = "host"
@@ -687,11 +757,13 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 					fmt.Sprintf("REP_ID=%d", inst.Replica.RepId),
 				},
 				User: "action",
+				DNS:  dnsServers,
 			},
 			HostConfig: &drvClient.HostConfig{
 				NetworkMode:  netMode,
 				ExtraHosts:   extHosts,
 				PortBindings: bindPorts,
+				DNS:          dnsServers,
 				Binds:        append(inst.VolumeMountsExport(), tp.lxcfsVols...),
 				Memory:       int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
 				MemorySwap:   int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
@@ -709,6 +781,18 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				StorageOpt:    storOpt,
 				RestartPolicy: drvClient.RestartUnlessStopped(),
 			},
+		}
+
+		if netMode == "bridge" && inst.Replica.VpcIpv4 != "" {
+			boxCreateOptions.NetworkingConfig = &drvClient.NetworkingConfig{
+				EndpointsConfig: map[string]*drvClient.EndpointConfig{
+					dockerNetworkVPCName: {
+						IPAMConfig: &drvClient.EndpointIPAMConfig{
+							IPv4Address: inst.Replica.VpcIpv4,
+						},
+					},
+				},
+			}
 		}
 
 		if !strings.HasPrefix(imageName, "sysinner/innerstack-") {

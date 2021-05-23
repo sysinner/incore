@@ -131,10 +131,28 @@ func zoneMasterSync() error {
 		}
 	}
 
+	diffSet := func(v0, v1 string) string {
+		if v1 != "" && v1 != v0 {
+			cfgZoneFlush = true
+			return v1
+		}
+		return v0
+	}
+
 	//
-	if zms.NetworkDomainName != "" && zms.NetworkDomainName != config.Config.Zone.NetworkDomainName {
-		config.Config.Zone.NetworkDomainName = zms.NetworkDomainName
-		cfgZoneFlush = true
+	config.Config.Zone.NetworkDomainName = diffSet(config.Config.Zone.NetworkDomainName, zms.NetworkDomainName)
+	config.Config.Host.NetworkVpcBridge = diffSet(config.Config.Host.NetworkVpcBridge, zms.NetworkVpcBridge)
+	config.Config.Host.NetworkVpcInstance = diffSet(config.Config.Host.NetworkVpcInstance, zms.NetworkVpcInstance)
+
+	if zms.ZoneNetworkMap != nil &&
+		zms.ZoneNetworkMap.UpdateVersion > zoneNetworkMap.UpdateVersion {
+		if len(zms.ZoneNetworkMap.VpcRouteData) > 0 {
+			zoneNetworkMap.VpcRouteData = inutils.BytesCopy(zms.ZoneNetworkMap.VpcRouteData)
+		}
+		if len(zms.ZoneNetworkMap.VpcInstanceData) > 0 {
+			zoneNetworkMap.VpcInstanceData = zms.ZoneNetworkMap.VpcInstanceData
+		}
+		zoneNetworkMap.UpdateVersion = zms.ZoneNetworkMap.UpdateVersion
 	}
 
 	//

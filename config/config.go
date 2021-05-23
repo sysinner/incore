@@ -36,13 +36,15 @@ import (
 )
 
 type HostConfig struct {
-	Id            string `json:"id" toml:"id"`
-	ZoneId        string `json:"zone_id" toml:"zone_id"`
-	CellId        string `json:"cell_id" toml:"cell_id"`
-	LanAddr       string `json:"lan_addr" toml:"lan_addr"`
-	WanAddr       string `json:"wan_addr,omitempty" toml:"wan_addr,omitempty"`
-	SecretKey     string `json:"secret_key" toml:"secret_key"`
-	PprofHttpPort uint16 `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
+	Id                 string `json:"id" toml:"id"`
+	ZoneId             string `json:"zone_id" toml:"zone_id"`
+	CellId             string `json:"cell_id" toml:"cell_id"`
+	LanAddr            string `json:"lan_addr" toml:"lan_addr"`
+	WanAddr            string `json:"wan_addr,omitempty" toml:"wan_addr,omitempty"`
+	SecretKey          string `json:"secret_key" toml:"secret_key"`
+	PprofHttpPort      uint16 `json:"pprof_http_port,omitempty" toml:"pprof_http_port,omitempty"`
+	NetworkVpcBridge   string `json:"network_vpc_bridge,omitempty" toml:"network_vpc_bridge,omitempty"`
+	NetworkVpcInstance string `json:"network_vpc_instance,omitempty" toml:"network_vpc_instance,omitempty"`
 }
 
 type HostJoinRequest struct {

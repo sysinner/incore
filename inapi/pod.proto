@@ -94,6 +94,7 @@ message PbPodBoxStatus {
     uint32                          updated       = 12; // unix time in seconds
     repeated int32                  cpu_sets      = 13;
     int32 network_mode = 14;
+    string network_ipv4 = 15;
 }
 
 message PodOperateFailover {

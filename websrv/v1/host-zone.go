@@ -27,21 +27,24 @@ func (c Host) ZoneListAction() {
 	defer c.RenderJson(&ls)
 
 	//
-	for _, item := range status.GlobalZones {
+	for _, v := range status.GlobalZones {
 
 		zone := inapi.ResZone{
 			Meta: &inapi.ObjectMeta{
-				Id: item.Meta.Id,
+				Id: v.Meta.Id,
 			},
-			Summary:  item.Summary,
-			LanAddrs: item.LanAddrs,
-			WanApi:   item.WanApi,
-			Phase:    item.Phase,
+			Summary:            v.Summary,
+			LanAddrs:           v.LanAddrs,
+			WanApi:             v.WanApi,
+			Phase:              v.Phase,
+			NetworkDomainName:  v.NetworkDomainName,
+			NetworkVpcBridge:   v.NetworkVpcBridge,
+			NetworkVpcInstance: v.NetworkVpcInstance,
 		}
 
 		if c.Params.Get("fields") == "cells" {
 
-			for _, cell := range item.Cells {
+			for _, cell := range v.Cells {
 				zone.Cells = append(zone.Cells, cell)
 			}
 		}
