@@ -815,6 +815,6 @@ type RsyncModuleItem struct {
 }
 
 func PodRepNetworkDomainName(podId string, repId uint32) string {
-	return fmt.Sprintf("%s.s", BoxInstanceName(podId, repId),
+	return fmt.Sprintf("%s.%s", BoxInstanceName(podId, repId),
 		config.Config.Zone.NetworkDomainName)
 }
