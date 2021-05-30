@@ -272,29 +272,31 @@ func (inst *BoxInstance) SpecDesired() bool {
 	//
 	if inst.Spec.Resources.CpuLimit != inst.Status.ResCpuLimit ||
 		inst.Spec.Resources.MemLimit != inst.Status.ResMemLimit {
-		hlog.Printf("debug", "box/spec miss-desire inst.Spec.Resources.Cpu/Mem")
+		hlog.Printf("info", "box/spec miss-desire inst.Spec.Resources.Cpu/Mem")
 		return false
 	}
 
 	if len(inst.Replica.Ports) != len(inst.Status.Ports) {
-		hlog.Printf("debug", "box/spec miss-desire inst.Ports")
+		hlog.Printf("info", "box/spec miss-desire inst.Ports")
 		return false
 	}
 
 	if inst.Apps.NetworkModeHost() {
 		if inst.Status.NetworkMode != inapi.AppSpecExpDeployNetworkModeHost {
+			hlog.Printf("info", "box/spec miss-desire inst.deploy.network.mode")
 			return false
 		}
 	} else {
 		if inst.Replica.VpcIpv4 != "" &&
 			inst.Replica.VpcIpv4 != inst.Status.NetworkIpv4 {
+			hlog.Printf("info", "box/spec miss-desire inst.network.vpc_ipv4")
 			return false
 		}
 	}
 
 	hosts := inst.ExtHosts(false)
 	if !inapi.ArrayStringEqual(inst.SetupHosts, hosts) {
-		hlog.Printf("debug", "box/spec miss-desire inst.hosts")
+		hlog.Printf("info", "box/spec miss-desire inst.hosts")
 		return false
 	}
 
@@ -309,7 +311,7 @@ func (inst *BoxInstance) SpecDesired() bool {
 			}
 
 			if v.HostPort > 0 && uint32(v.HostPort) != vd.HostPort {
-				hlog.Printf("debug", "box/spec miss-desire inst.Ports")
+				hlog.Printf("info", "box/spec miss-desire inst.Ports")
 				return false
 			}
 
@@ -318,7 +320,7 @@ func (inst *BoxInstance) SpecDesired() bool {
 		}
 
 		if !mat {
-			hlog.Printf("debug", "box/spec miss-desire inst.Ports")
+			hlog.Printf("info", "box/spec miss-desire inst.Ports")
 			return false
 		}
 	}
@@ -328,13 +330,13 @@ func (inst *BoxInstance) SpecDesired() bool {
 	case inapi.PbPodSpecBoxImageDriver_Pouch:
 		//
 	default:
-		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
+		hlog.Printf("info", "box/spec miss-desire inst.Status.ImageOptions")
 		return false
 	}
 
 	img2 := inapi.LabelSliceGet(inst.Status.ImageOptions, "image/id")
 	if img2 == nil {
-		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions")
+		hlog.Printf("info", "box/spec miss-desire inst.Status.ImageOptions")
 		return false
 	}
 	img1 := ""
@@ -345,25 +347,25 @@ func (inst *BoxInstance) SpecDesired() bool {
 		}
 	}
 	if img1 != img2.Value {
-		hlog.Printf("debug", "box/spec miss-desire inst.Status.ImageOptions (%s) (%s)",
+		hlog.Printf("info", "box/spec miss-desire inst.Status.ImageOptions (%s) (%s)",
 			img1, img2.Value)
 		return false
 	}
 
 	//
 	if !inapi.PbVolumeMountSliceEqual(inst.Spec.Mounts, inst.Status.Mounts) {
-		hlog.Printf("debug", "box/spec miss-desire inst.Spec.Mounts")
+		hlog.Printf("info", "box/spec miss-desire inst.Spec.Mounts")
 		return false
 	}
 
 	if len(inst.Spec.Command) != len(inst.Status.Command) ||
 		strings.Join(inst.Spec.Command, " ") != strings.Join(inst.Status.Command, " ") {
-		hlog.Printf("debug", "box/spec miss-desire inst.Spec.Command")
+		hlog.Printf("info", "box/spec miss-desire inst.Spec.Command")
 		return false
 	}
 
 	if runtime.GOOS == "linux" && !ArrayInt32Equal(inst.SpecCpuSets, inst.Status.CpuSets) {
-		hlog.Printf("debug", "box/spec miss-desire inst.CpuSets")
+		hlog.Printf("info", "box/spec miss-desire inst.CpuSets")
 		return false
 	}
 

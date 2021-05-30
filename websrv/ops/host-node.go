@@ -15,6 +15,9 @@
 package ops
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/types"
 	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
@@ -192,14 +195,8 @@ func (c Host) NodeNewAction() {
 
 	status.ZoneHostList.Sync(*node)
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", "Server Error")
-		return
-	}
-
-	if rs := data.DataZone.NewWriter(inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", "Server Error")
-		return
+	if err := data.SysHostUpdate(node.Operate.ZoneId, node); err != nil {
+		set.Error = types.NewErrorMeta("500", "Server Error : "+err.Error())
 	}
 
 	data.DataZone.NewWriter(
@@ -229,11 +226,6 @@ func (c Host) NodeSetAction() {
 	}
 	defer c.RenderJson(&set)
 
-	if !status.IsZoneMasterLeader() {
-		set.Error = &types.ErrorMeta{"400", "Invalid ZoneMaster Leader"}
-		return
-	}
-
 	if err := c.Request.JsonDecode(&set.ResHost); err != nil {
 		set.Error = &types.ErrorMeta{"400", err.Error()}
 		return
@@ -249,21 +241,59 @@ func (c Host) NodeSetAction() {
 		return
 	}
 
+	/**
 	if set.Operate.ZoneId != status.ZoneId {
 		set.Error = types.NewErrorMeta("400", "Access Denied : Cross-Zone Console WebUI")
 		return
 	}
+	*/
 
-	prev := status.ZoneHostList.Item(set.Meta.Id)
+	var (
+		prev *inapi.ResHost
+	)
+
+	if !status.IsZoneMasterLeader() {
+
+		var host inapi.ResHost
+		if rs := data.DataGlobal.NewReader(
+			inapi.NsGlobalSysHost(set.Operate.ZoneId, set.Meta.Id)).Query(); rs.OK() {
+			rs.Decode(&host)
+		}
+
+		if host.Meta.Id != set.Meta.Id {
+			set.Error = &types.ErrorMeta{"400", "node not found"}
+			return
+		}
+
+		const ttl uint32 = 86400 * 30
+		tn := uint32(time.Now().Unix())
+		if (host.Status.Updated + ttl) < tn {
+			prev = &host
+		} else {
+			set.Error = &types.ErrorMeta{"400", "Invalid ZoneMaster Leader"}
+			return
+		}
+	}
+
 	if prev == nil {
-		set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
+		if prev = status.ZoneHostList.Item(set.Meta.Id); prev == nil {
+			set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
+			return
+		}
+	}
+
+	if inapi.OpActionAllow(set.Operate.Action, inapi.OpActionDestroy) && prev.Operate.BoxNum > 0 {
+		set.Error = &types.ErrorMeta{"400",
+			fmt.Sprintf("Operation Denied: currently %d instances running on this node", prev.Operate.BoxNum),
+		}
 		return
 	}
 
 	prev.Meta.Updated = uint64(types.MetaTimeNow())
 	if set.Operate.Action != prev.Operate.Action {
-		prev.Operate.Action = set.Operate.Action
+		prev.Operate.Action = inapi.SysHostActionFilter(set.Operate.Action)
 	}
+
 	if set.Meta.Name != prev.Meta.Name {
 		prev.Meta.Name = set.Meta.Name
 	}
@@ -277,13 +307,15 @@ func (c Host) NodeSetAction() {
 		prev.Operate.Pr = inapi.ResSysHostPriorityDefault
 	}
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", "Server Error")
-		return
-	}
+	if inapi.OpActionAllow(set.Operate.Action, inapi.OpActionDestroy) &&
+		inapi.OpActionAllow(set.Operate.Action, inapi.OpActionForce) {
+		if err := data.SysHostDelete(status.ZoneId, prev); err != nil {
+			set.Error = types.NewErrorMeta("500", "Server Error : "+err.Error())
+			return
+		}
 
-	if rs := data.DataZone.NewWriter(inapi.NsZoneSysHost(prev.Operate.ZoneId, prev.Meta.Id), prev).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", "Server Error")
+	} else if err := data.SysHostUpdate(status.ZoneId, prev); err != nil {
+		set.Error = types.NewErrorMeta("500", "Server Error : "+err.Error())
 		return
 	}
 

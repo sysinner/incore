@@ -94,14 +94,8 @@ func (s *ApiZoneMaster) HostConfig(
 			},
 		}
 
-		if rs := data.DataGlobal.NewWriter(
-			inapi.NsGlobalSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
-			return nil, errors.New("Server Error")
-		}
-
-		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysHost(node.Operate.ZoneId, node.Meta.Id), node).Commit(); !rs.OK() {
-			return nil, errors.New("Server Error")
+		if err := data.SysHostUpdate(node.Operate.ZoneId, &node); err != nil {
+			return nil, err
 		}
 
 		if rs := data.DataZone.NewWriter(
@@ -184,13 +178,13 @@ func (s *ApiZoneMaster) HostStatusSync(
 	}
 
 	//
-	if host.SyncStatus(*req) {
-		host.Status.Updated = uint32(time.Now().Unix())
-		data.DataZone.NewWriter(inapi.NsZoneSysHost(status.ZoneId, req.Meta.Id), host).Commit()
+	const ttl uint32 = 600
+	tn := uint32(time.Now().Unix())
+	if (host.Status.Updated+ttl) < tn || host.SyncStatus(*req) {
+		host.Status.Updated = tn
+		data.SysHostUpdate(status.ZoneId, host)
 		// hlog.Printf("info", "zone-master/host %s updated", req.Meta.Id)
 	}
-
-	tn := uint32(time.Now().Unix())
 
 	// PodReplica Status
 	for _, repStatus := range req.Prs {

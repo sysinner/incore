@@ -45,6 +45,24 @@ var (
 	ResNetworkDomainNameRE           = regexp.MustCompile("^[0-9a-z._\\-]{1,100}$")
 )
 
+var (
+	SysHostActionActive    uint32 = OpActionStart
+	SysHostActionSuspended uint32 = OpActionStop
+	SysHostActionDestroy   uint32 = OpActionDestroy
+	SysHostActionForce     uint32 = OpActionForce
+)
+
+func SysHostActionFilter(op uint32) uint32 {
+	if OpActionAllow(op, SysHostActionActive) {
+		return SysHostActionActive
+	} else if OpActionAllow(op, SysHostActionSuspended) {
+		return SysHostActionSuspended
+	} else if OpActionAllow(op, SysHostActionDestroy) {
+		return SysHostActionDestroy
+	}
+	return SysHostActionActive
+}
+
 func (obj *ResZone) Cell(id string) *ResCell {
 
 	resSysMu.RLock()
@@ -252,6 +270,15 @@ func (ls *ResHostList) Item(id string) *ResHost {
 	}
 
 	return nil
+}
+
+func (ls *ResHostList) Del(id string) {
+	for i, v := range ls.Items {
+		if v.Meta.Id == id {
+			ls.Items = append(ls.Items[:i], ls.Items[i+1:]...)
+			return
+		}
+	}
 }
 
 func (ls *ResHostList) Sync(item ResHost) (changed bool) {

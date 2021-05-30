@@ -526,8 +526,11 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		nstatus.PodRepActives.Del(v)
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
 	zms, err := inapi.NewApiZoneMasterClient(conn).HostStatusSync(
-		context.Background(), &status.Host,
+		ctx, &status.Host,
 	)
 	if err == nil {
 		//

@@ -16,6 +16,7 @@ package pod_status_mail
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
@@ -150,7 +151,8 @@ func (it *PodStatusMail) Run(c *injob.Context) error {
 			return err
 		}
 
-		msg := hmsg.NewMsgItem(hmsg.HashSeed(it.Spec().Name + user))
+		msg := hmsg.NewMsgItem(hmsg.HashSeed(
+			fmt.Sprintf("%s.%s.%s", it.Spec().Name, user, t.Format("2006-01-02"))))
 		msg.ToUser = user
 		msg.Title = mail.Title
 		msg.Body = mail.Body
@@ -171,6 +173,5 @@ func (it *PodStatusMail) Run(c *injob.Context) error {
 func NewPodStatusMailJobEntry() *injob.JobEntry {
 	return injob.NewJobEntry(&PodStatusMail{},
 		injob.NewSchedule().EveryTime(injob.Weekday, 1),
-		// injob.NewSchedule().EveryTimeCycle(injob.Second, 60),
 	)
 }

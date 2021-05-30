@@ -19,6 +19,7 @@ import (
 
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/box/docker"
+	modsj "github.com/sysinner/incore/module/sysctl"
 	insta "github.com/sysinner/incore/status"
 	"github.com/sysinner/injob/v1"
 )
@@ -26,6 +27,7 @@ import (
 func JobSetup(jobDaemon *injob.Daemon) {
 	jobDaemon.Commit(NewHostletJob())
 	jobDaemon.Commit(docker.NewBoxImageUpdateJob())
+	jobDaemon.Commit(modsj.NewSysctlJob())
 }
 
 type HostletJob struct {

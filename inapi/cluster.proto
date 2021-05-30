@@ -136,7 +136,7 @@ message ResHostBound {
 
 message ResZone {
 	ObjectMeta       meta      = 2;
-	int32            phase     = 3;
+	uint32           phase     = 3;
 	string           summary   = 4;
 	repeated string  wan_addrs = 5;
 	repeated string  lan_addrs = 6;
@@ -152,7 +152,7 @@ message ResZone {
 message ResCell {
 	ObjectMeta meta        = 2;
 	string     zone_id     = 3;
-	int32      phase       = 4;
+	uint32     phase       = 4;
 	string     description = 5;
 	int32      node_num    = 6;
 	ResCellStatus status = 7;

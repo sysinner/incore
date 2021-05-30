@@ -60,15 +60,27 @@ func NsKeyPathFilter(path string) []byte {
 func NsGlobalSysZone(name string) []byte {
 	return NsKeyPathFilter(fmt.Sprintf("/ing/sys/zone/%s", name))
 }
+func NsKvGlobalSysZoneDestroyed(name string) []byte {
+	return []byte(fmt.Sprintf("ing:sys:zone:%s", name))
+}
 
 // t2
 func NsGlobalSysCell(zoneId, cellId string) []byte {
 	return NsKeyPathFilter(fmt.Sprintf("/ing/sys/cell/%s/%s", zoneId, cellId))
 }
 
+func NsKvGlobalSysCellDestroyed(zoneId, cellId string) []byte {
+	return []byte(fmt.Sprintf("ing:sys:cell:%s:%s", zoneId, cellId))
+}
+
 // t2
 func NsGlobalSysHost(zoneId, hostId string) []byte {
 	return NsKeyPathFilter(fmt.Sprintf("/ing/sys/host/%s/%s", zoneId, hostId))
+}
+
+// t2
+func NsKvGlobalSysHostDestroyed(zoneId, hostId string) []byte {
+	return []byte(fmt.Sprintf("ing:sys:host:rm:%s:%s", zoneId, hostId))
 }
 
 // t2
@@ -154,15 +166,26 @@ func NsKvGlobalSetQueuePod(zoneId, cellId, podId string) []byte {
 func NsZoneSysZone(zoneId string) []byte {
 	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/zone/info", zoneId))
 }
+func NsKvZoneSysZoneDestroyed(zoneId string) []byte {
+	return []byte(fmt.Sprintf("inz:%s:sys:zone:info", zoneId))
+}
 
 // t2
 func NsZoneSysCell(zoneId, cellId string) []byte {
 	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/cell/%s", zoneId, cellId))
 }
+func NsKvZoneSysCellDestroyed(zoneId, cellId string) []byte {
+	return []byte(fmt.Sprintf("inz:%s:sys:cell:%s", zoneId, cellId))
+}
 
 // t2
 func NsZoneSysHost(zoneId, hostId string) []byte {
 	return NsKeyPathFilter(fmt.Sprintf("/inz/%s/sys/host/%s", zoneId, hostId))
+}
+
+// t2
+func NsKvZoneSysHostDestroyed(zoneId, hostId string) []byte {
+	return []byte(fmt.Sprintf("inz:%s:sys:host:rm:%s", zoneId, hostId))
 }
 
 // t2

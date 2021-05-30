@@ -66,7 +66,7 @@ var (
 
 	// global cluster
 	gmu            sync.RWMutex
-	GlobalZones    []*inapi.ResZone
+	GlobalZones    ResZoneList
 	GlobalHostList inapi.ResHostList
 )
 
@@ -97,6 +97,34 @@ func ZoneMasterLeadSeconds() int64 {
 		return ZoneScheduled - ZoneLeaded
 	}
 	return -1
+}
+
+type ResZoneList []*inapi.ResZone
+
+func GlobalZoneDel(zoneId string) {
+	gmu.Lock()
+	defer gmu.Unlock()
+	for i, v := range GlobalZones {
+		if v.Meta.Id == zoneId {
+			GlobalZones = append(GlobalZones[:i], GlobalZones[i+1:]...)
+			return
+		}
+	}
+}
+
+func GlobalCellDel(zoneId, cellId string) {
+	gmu.Lock()
+	defer gmu.Unlock()
+	for i, v := range GlobalZones {
+		if v.Meta.Id == zoneId {
+			for j, v2 := range v.Cells {
+				if v2.Meta.Id == cellId {
+					GlobalZones[i].Cells = append(GlobalZones[i].Cells[:j], GlobalZones[i].Cells[j+1:]...)
+					return
+				}
+			}
+		}
+	}
 }
 
 func GlobalZoneSync(zone *inapi.ResZone) (*inapi.ResZone, bool) {

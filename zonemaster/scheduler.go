@@ -134,6 +134,8 @@ func scheduleAction() error {
 
 	schedulePodListBound()
 
+	scheduleClean()
+
 	return nil
 }
 
@@ -520,7 +522,7 @@ func scheduleHostListRefresh() error {
 		}
 
 		cellStatus.HostCap += 1
-		if host.Operate.Action == 1 {
+		if host.Operate.Action == inapi.SysHostActionActive {
 			cellStatus.HostIn += 1
 		}
 
@@ -530,10 +532,9 @@ func scheduleHostListRefresh() error {
 					host.OpPortSort()
 					host.Operate.NetworkVpcBridge = brNet
 					host.Operate.NetworkVpcInstance = ipNet
-					if rs := data.DataZone.NewWriter(
-						inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+					if err := data.SysHostUpdate(status.ZoneId, host); err != nil {
 						hlog.Printf("warn", "host %s network vpc alloc with bridge %s, ip-net %s, db error %s",
-							host.Meta.Id, brNet, ipNet, rs.Message)
+							host.Meta.Id, brNet, ipNet, err.Error())
 						return false
 					}
 					hlog.Printf("warn", "host %s network vpc alloc with bridge %s, ip-net %s",
@@ -549,9 +550,8 @@ func scheduleHostListRefresh() error {
 
 			host.OpPortSort()
 
-			if rs := data.DataZone.NewWriter(
-				inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
-				return fmt.Errorf("host %s sync changes failed %s", host.Meta.Id, rs.Message)
+			if err := data.SysHostUpdate(status.ZoneId, host); err != nil {
+				return fmt.Errorf("host %s sync changes failed %s", host.Meta.Id, err.Error())
 			}
 		}
 
@@ -1299,11 +1299,10 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 
 		host.OpPortSort()
 
-		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
-			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, rs.Message)
+		if err := data.SysHostUpdate(status.ZoneId, host); err != nil {
+			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, err.Error())
 			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn,
-				fmt.Sprintf("host %s sync changes failed %s", host.Meta.Id, rs.Message))
+				fmt.Sprintf("host %s sync changes failed %s", host.Meta.Id, err.Error()))
 		}
 
 		// TODO
@@ -1544,9 +1543,8 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 
 		// hlog.Printf("info", "host %s sync changes", host.Meta.Id)
 
-		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
-			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, rs.Message)
+		if err := data.SysHostUpdate(status.ZoneId, host); err != nil {
+			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, err.Error())
 			continue
 		}
 
@@ -1976,9 +1974,8 @@ func schedulePodFailover(podq *inapi.Pod) error {
 			}
 		}
 
-		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
-			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, rs.Message)
+		if err := data.SysHostUpdate(status.ZoneId, host); err != nil {
+			hlog.Printf("error", "host %s sync changes failed %s", host.Meta.Id, err.Error())
 			continue
 		}
 
@@ -1997,6 +1994,61 @@ func schedulePodFailover(podq *inapi.Pod) error {
 			inapi.NsOpLogZoneRepMigrateAlloc, inapi.PbOpLogOK,
 			fmt.Sprintf("failover rep from host %s to %s", prevHostId, hit.HostId),
 		)
+	}
+
+	return nil
+}
+
+func scheduleClean() error {
+
+	var (
+		tn   = uint32(time.Now().Unix())
+		ttl  = uint32(86400 * 10)
+		dels = []string{}
+	)
+
+	//
+	for _, host := range status.ZoneHostList.Items {
+
+		if host.Operate == nil || host.Operate.BoxNum > 0 {
+			continue
+		}
+
+		if host.Status == nil || (host.Status.Updated+ttl) > tn {
+			continue
+		}
+
+		hlog.Printf("warn", "destroy node #%s ...", host.Meta.Id)
+
+		if rs := data.DataGlobal.NewWriter(
+			inapi.NsKvGlobalSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+			continue
+		}
+
+		if rs := data.DataZone.NewWriter(
+			inapi.NsKvZoneSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+			continue
+		}
+
+		if rs := data.DataGlobal.NewWriter(
+			inapi.NsGlobalSysHost(host.Operate.ZoneId, host.Meta.Id), nil).
+			ModeDeleteSet(true).Commit(); !rs.OK() {
+			continue
+		}
+
+		if rs := data.DataZone.NewWriter(
+			inapi.NsZoneSysHost(host.Operate.ZoneId, host.Meta.Id), nil).
+			ModeDeleteSet(true).Commit(); !rs.OK() {
+			continue
+		}
+
+		hlog.Printf("warn", "destroy node #%s done", host.Meta.Id)
+
+		dels = append(dels, host.Meta.Id)
+	}
+
+	for _, v := range dels {
+		status.ZoneHostList.Del(v)
 	}
 
 	return nil

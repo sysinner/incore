@@ -70,29 +70,36 @@ func (c Host) ZoneEntryAction() {
 
 	defer c.RenderJson(&set)
 
-	if obj := data.DataGlobal.NewReader(
-		inapi.NsGlobalSysZone(c.Params.Get("id"))).Query(); obj.OK() {
+	var (
+		zoneId = c.Params.Get("id")
+		fields = c.Params.Get("fields")
+	)
 
-		if err := obj.Decode(&set.ResZone); err != nil {
-			set.Error = &types.ErrorMeta{"400", err.Error()}
-		} else {
+	rs := data.DataGlobal.NewReader(
+		inapi.NsGlobalSysZone(zoneId)).Query()
+	if rs.OK() {
+		rs.Decode(&set.ResZone)
+	} else if rs.NotFound() {
+		rs = data.DataGlobal.NewReader(
+			inapi.NsGlobalSysZone(zoneId)).Query()
+		if rs.OK() {
+			rs.Decode(&set.ResZone)
+		}
+	}
 
-			if c.Params.Get("fields") == "cells" {
+	if set.Meta.Id == zoneId && fields == "cells" {
 
-				offset := inapi.NsGlobalSysCell(set.Meta.Id, "")
-				rs2 := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
-					LimitNumSet(100).Query()
+		var (
+			offset = inapi.NsGlobalSysCell(set.Meta.Id, "")
+			rs2    = data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
+				LimitNumSet(100).Query()
+		)
 
-				for _, v2 := range rs2.Items {
-
-					var cell inapi.ResCell
-
-					if err := v2.Decode(&cell); err == nil {
-						set.Cells = append(set.Cells, &cell)
-					}
-				}
+		for _, v2 := range rs2.Items {
+			var cell inapi.ResCell
+			if err := v2.Decode(&cell); err == nil {
+				set.Cells = append(set.Cells, &cell)
 			}
-
 		}
 	}
 
@@ -214,10 +221,8 @@ func (c Host) ZoneSetAction() {
 	}
 
 	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Meta.Id)).Query(); rs.OK() {
-
 		var prev inapi.ResZone
 		if err := rs.Decode(&prev); err == nil {
-
 			if prev.Meta.Created > 0 {
 				set.Meta.Created = prev.Meta.Created
 			}
@@ -231,6 +236,17 @@ func (c Host) ZoneSetAction() {
 	set.Meta.Updated = uint64(types.MetaTimeNow())
 
 	data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone).Commit()
+
+	if inapi.OpActionAllow(set.Phase, inapi.OpActionDestroy) &&
+		inapi.OpActionAllow(set.Phase, inapi.OpActionForce) {
+		if err := data.SysZoneDelete(set.Meta.Id, &set.ResZone); err != nil {
+			set.Error = types.NewErrorMeta("500", "Server Error : "+err.Error())
+		} else {
+			set.Kind = "HostZone"
+		}
+		status.GlobalZoneDel(set.Meta.Id)
+		return
+	}
 
 	set.Kind = "HostZone"
 }

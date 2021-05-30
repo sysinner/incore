@@ -53,9 +53,19 @@ func (c Host) CellEntryAction() {
 	}
 	defer c.RenderJson(&set)
 
+	var (
+		zoneId = c.Params.Get("zoneid")
+		cellId = c.Params.Get("cellid")
+	)
+
 	if rs := data.DataGlobal.NewReader(
-		inapi.NsGlobalSysCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))).Query(); rs.OK() {
+		inapi.NsGlobalSysCell(zoneId, cellId)).Query(); rs.OK() {
 		rs.Decode(&set.ResCell)
+	} else if rs.NotFound() {
+		if rs = data.DataGlobal.NewReader(
+			inapi.NsKvGlobalSysCellDestroyed(zoneId, cellId)).Query(); rs.OK() {
+			rs.Decode(&set.ResCell)
+		}
 	}
 
 	if set.Meta == nil || set.Meta.Id == "" {
@@ -105,6 +115,17 @@ func (c Host) CellSetAction() {
 
 		if pCell.Phase != cell.Phase {
 			pCell.Phase = cell.Phase
+		}
+
+		if inapi.OpActionAllow(pCell.Phase, inapi.OpActionDestroy) &&
+			inapi.OpActionAllow(pCell.Phase, inapi.OpActionForce) {
+			if err := data.SysCellDelete(status.ZoneId, pCell); err != nil {
+				cell.Error = types.NewErrorMeta("500", "Server Error : "+err.Error())
+			} else {
+				cell.Kind = "HostCell"
+			}
+			status.GlobalCellDel(pCell.ZoneId, pCell.Meta.Id)
+			return
 		}
 
 		cell.ResCell = *pCell

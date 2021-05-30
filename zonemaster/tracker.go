@@ -313,11 +313,6 @@ func zmWorkerZoneHostListRefresh() error {
 					continue
 				}
 
-				if pod.Meta.ID == "c0b195ff7ecda586" {
-					data.DataZone.NewWriter(offset, nil).ModeDeleteSet(true).Commit()
-					hlog.Printf("warn", "remove pod %s", pod.Meta.ID)
-					continue
-				}
 				status.ZonePodList.Items.Set(&pod)
 
 				if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
@@ -343,8 +338,7 @@ func zmWorkerZoneHostListRefresh() error {
 
 						hlog.Printf("info", "zm/host:%s.operate.ports refreshed", host.Meta.Id)
 
-						data.DataZone.NewWriter(
-							inapi.NsZoneSysHost(status.ZoneId, host.Meta.Id), host).Commit()
+						data.SysHostUpdate(status.ZoneId, host)
 					}
 				}
 			}

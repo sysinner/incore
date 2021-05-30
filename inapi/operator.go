@@ -36,6 +36,7 @@ var (
 	OpActionResFree   uint32 = 1 << 24
 	OpActionHang      uint32 = 1 << 25
 	OpActionUnbound   uint32 = 1 << 26
+	OpActionForce     uint32 = 1 << 27
 	oplogListMu       sync.RWMutex
 	oplogSetsMu       sync.RWMutex
 
@@ -159,6 +160,10 @@ func OpActionStrings(action uint32) []string {
 
 	if OpActionAllow(action, OpActionHang) {
 		s = append(s, "hang")
+	}
+
+	if OpActionAllow(action, OpActionForce) {
+		s = append(s, "force")
 	}
 
 	return s
