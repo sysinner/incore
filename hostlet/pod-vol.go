@@ -207,7 +207,7 @@ var (
 	err            error
 )
 
-func QuotaKeeperInit() error {
+func quotaKeeperInit() error {
 
 	if quotaInited {
 		return nil
@@ -285,7 +285,7 @@ func QuotaKeeperInit() error {
 
 func podVolQuotaRefresh() error {
 
-	if err := QuotaKeeperInit(); err != nil {
+	if err := quotaKeeperInit(); err != nil {
 		hlog.Printf("warn", "hostlet/vol Failed to Enable Vol Quota : %s", err.Error())
 		return nil
 	}
@@ -403,13 +403,27 @@ func podVolQuotaRefresh() error {
 			"df",
 			quotaMountpoint,
 		}
-		out, _ = exec.Command(quotaCmd, args...).Output()
+		out, _ = exec.Command(quotaCmd, args...).CombinedOutput()
 
 		lines = strings.Split(regMultiSpace.ReplaceAllString(string(out), " "), "\n")
 		for _, v := range lines {
 
-			vs := strings.Split(strings.TrimSpace(v), " ")
+			v = strings.TrimSpace(v)
+			vs := strings.Split(v, " ")
 			if len(vs) != 6 {
+				if len(vs) > 2 && strings.Contains(v, "project quota flag not set") {
+					if name, ok := podBoxFoldMatch(vs[len(vs)-1]); ok {
+						if id, ok := path_gots[name]; ok && id >= 100 {
+							if proj := quotaConfig.FetchById(int(id)); proj != nil {
+								proj.Used = 0
+								proj.Soft = 0
+								proj.Hard = 0
+								proj.Mnt = quotaMountpoint
+								quota_gots.Set(uint32(id))
+							}
+						}
+					}
+				}
 				continue
 			}
 
@@ -460,7 +474,6 @@ func podVolQuotaRefresh() error {
 	if device_ok > 0 {
 		dels := []string{}
 		for _, v := range quotaConfig.Items {
-
 			if !quota_gots.Has(uint32(v.Id)) {
 				dels = append(dels, v.Name)
 			}
@@ -524,7 +537,7 @@ func podVolQuotaRefresh() error {
 		args := []string{
 			"-x",
 			"-c",
-			fmt.Sprintf("project -s %d", proj.Id),
+			fmt.Sprintf("\"project -s %d\"", proj.Id),
 			proj.Mnt,
 		}
 
@@ -533,18 +546,20 @@ func podVolQuotaRefresh() error {
 			hlog.SlotPrint(60, "info", "hostlet/vol quota init %s", err.Error())
 			return
 		}
+		hlog.Printf("info", "hostlet/vol quota init : %s %s", quotaCmd, strings.Join(args, " "))
 
 		//
 		args = []string{
 			"-x",
 			"-c",
-			fmt.Sprintf("limit -p bsoft=%d bhard=%d %d", volSys, volSys, proj.Id),
-			podRep.Replica.VolSysMnt,
+			fmt.Sprintf("\"limit -p bsoft=%d bhard=%d %d\"", volSys, volSys, proj.Id),
+			proj.Mnt,
 		}
 		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {
 			hlog.SlotPrint(60, "info", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
 			return
 		}
+		hlog.Printf("info", "hostlet/vol quota limit : %s %s", quotaCmd, strings.Join(args, " "))
 	})
 
 	if err := quotaConfig.Sync(); err != nil {
@@ -566,7 +581,7 @@ func podVolQuotaRefresh() error {
 		args := []string{
 			"-x",
 			"-c",
-			fmt.Sprintf("limit -p bsoft=0 bhard=0 %d", v.Id),
+			fmt.Sprintf("\"limit -p bsoft=0 bhard=0 %d\"", v.Id),
 			v.Mnt,
 		}
 
@@ -579,7 +594,7 @@ func podVolQuotaRefresh() error {
 		//
 		args = []string{
 			"-xc",
-			fmt.Sprintf("project -C %d", v.Id),
+			fmt.Sprintf("\"project -C %d\"", v.Id),
 			v.Mnt,
 		}
 		_, err = exec.Command(quotaCmd, args...).Output()

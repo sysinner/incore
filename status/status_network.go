@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hooto/hlog4g/hlog"
+
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inutils"
 )
@@ -122,6 +124,8 @@ func (it *StatusNetwork) ZoneSetup(bridgeIpNet, instanceIpNet string) error {
 		it.vpcBridgeIpNet = bridgeIpNet
 		it.vpcBridgeIpv4Addr = ipv4Addr.To4()
 		it.vpcBridgeIpv4Net = ipv4Net
+
+		hlog.Printf("info", "zone vpc bridge %s", bridgeIpNet)
 	}
 
 	//
@@ -136,6 +140,8 @@ func (it *StatusNetwork) ZoneSetup(bridgeIpNet, instanceIpNet string) error {
 		it.vpcInstanceIpNet = instanceIpNet
 		it.vpcInstanceIpv4Addr = ipv4Addr.To4()
 		it.vpcInstanceIpv4Net = ipv4Net
+
+		hlog.Printf("info", "zone vpc instance %s", instanceIpNet)
 	}
 
 	return nil
@@ -199,11 +205,14 @@ func (it *StatusNetwork) HostSetup(hostId, hostPeerIp, bridgeIp, instanceIpNet s
 		copy(host.ips, ips)
 		it.vpcBridgeToHost[inutils.BytesToUint32(ips[4:8])] = hostId
 		it.vpcSubnetToHost[inutils.BytesToUint32(ips[8:12])] = hostId
-		host.ready = true
 		host.updated = time.Now().UnixNano()
 
 		it.routeRefresh()
+
+		hlog.Printf("info", "host %s, vpc bridge %s, instance %s", hostId, bridgeIp, instanceIpNet)
 	}
+
+	host.ready = true
 
 	return nil
 }
@@ -216,6 +225,8 @@ func (it *StatusNetwork) Ready(b bool) {
 	if !b ||
 		(b && it.vpcBridgeIpv4Net != nil && it.vpcInstanceIpv4Net != nil) {
 		it.ready = b
+
+		hlog.Printf("debug", "zone network ready %v", b)
 	}
 }
 
@@ -247,7 +258,7 @@ func (it *StatusNetwork) HostAlloc(hostId string, cb NetworkVPCAlloc) error {
 	copy(ips, host.ips)
 
 	// TODO
-	if ips[4] == 0 && ips[8] == 0 {
+	if ips[4] == 0 || ips[8] == 0 {
 
 		copy(ips[4:8], it.vpcBridgeIpv4Addr)
 		copy(ips[8:11], it.vpcInstanceIpv4Addr)
@@ -280,21 +291,22 @@ func (it *StatusNetwork) HostAlloc(hostId string, cb NetworkVPCAlloc) error {
 		chg = true
 	}
 
-	rs := cb(chg,
-		fmt.Sprintf("%d.%d.%d.%d", ips[4], ips[5], ips[6], ips[7]),
-		fmt.Sprintf("%d.%d.%d.%d/24", ips[8], ips[9], ips[10], ips[11]))
+	var (
+		bridgeIp      = fmt.Sprintf("%d.%d.%d.%d", ips[4], ips[5], ips[6], ips[7])
+		instanceIpNet = fmt.Sprintf("%d.%d.%d.%d/24", ips[8], ips[9], ips[10], ips[11])
+	)
 
-	if chg {
-		if rs {
-			copy(host.ips, ips)
-			host.ready = true
-			host.updated = time.Now().UnixNano()
+	rs := cb(chg, bridgeIp, instanceIpNet)
 
-			it.vpcBridgeToHost[inutils.BytesToUint32(ips[4:8])] = hostId
-			it.vpcSubnetToHost[inutils.BytesToUint32(ips[8:12])] = hostId
-		}
-	} else {
-		host.ready = true
+	if chg && rs {
+		copy(host.ips, ips)
+		host.updated = time.Now().UnixNano()
+
+		it.vpcBridgeToHost[inutils.BytesToUint32(ips[4:8])] = hostId
+		it.vpcSubnetToHost[inutils.BytesToUint32(ips[8:12])] = hostId
+
+		hlog.Printf("info", "zone network host %s alloc ready, bridge %s, instance %s",
+			hostId, bridgeIp, instanceIpNet)
 	}
 
 	return nil
@@ -341,6 +353,7 @@ func (it *StatusNetwork) InstanceSetup(hostId string,
 	if _, ok = it.zoneNetworkMap.VpcInstanceData[ipk]; !ok {
 		it.zoneNetworkMap.VpcInstanceData[ipk] = instanceId
 		it.zoneNetworkMap.UpdateVersion++
+		hlog.Printf("info", "instance %s setup ip %s", instanceId, instanceIp)
 	}
 
 	return nil
@@ -405,8 +418,8 @@ func (it *StatusNetwork) InstanceAlloc(hostId, instanceId string, cb NetworkVPCA
 
 	chg = true
 
-	rs := cb(chg, "",
-		fmt.Sprintf("%d.%d.%d.%d", ips[0], ips[1], ips[2], ips[3]))
+	instanceIp := fmt.Sprintf("%d.%d.%d.%d", ips[0], ips[1], ips[2], ips[3])
+	rs := cb(chg, "", instanceIp)
 
 	if chg && rs {
 
@@ -417,6 +430,8 @@ func (it *StatusNetwork) InstanceAlloc(hostId, instanceId string, cb NetworkVPCA
 		host.updated = time.Now().UnixNano()
 
 		it.zoneNetworkMap.UpdateVersion++
+
+		hlog.Printf("info", "network instance %s alloc, ip %s", instanceId, instanceIp)
 	}
 
 	return nil

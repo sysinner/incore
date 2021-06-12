@@ -194,21 +194,20 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 	dlurl := fmt.Sprintf("%s/ips/v1/pkg/dl/%s/%s/%s",
 		config.Config.Zone.InpackServiceUrl, pkg.Meta.Name, pkg.Version.Version, pfilename)
 
-	hlog.Printf("info", "Download Package From (%s)", dlurl)
 	rsp, err := http.Get(dlurl)
 	if err != nil {
-		hlog.Printf("error", "Download Package `%s` Failed", dlurl)
+		hlog.SlotPrint(600, "error", "Download Package `%s` Failed", dlurl)
 		return err
 	}
 	defer rsp.Body.Close()
 
 	if n, err := io.Copy(fp, rsp.Body); n < 1 || err != nil {
-		hlog.Printf("error", "Download Package `%s` Failed", dlurl)
+		hlog.SlotPrint(600, "error", "Download Package `%s` Failed", dlurl)
 		return errors.New("Download Package Failed")
 	}
 
 	if ipm_entry_sync_sumcheck(tmpfile) != pkg.SumCheck {
-		hlog.Printf("error", "SumCheck Error (%s)", tmpfile)
+		hlog.SlotPrint(600, "error", "SumCheck Error (%s)", tmpfile)
 		return errors.New("Download Package Failed")
 	}
 
@@ -226,6 +225,8 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 	}); rs != nil {
 		inst.PackMounts = rs.([]*napi.BoxPackMount)
 	}
+
+	hlog.Printf("info", "Download Package OK (%s)", dlurl)
 
 	return nil
 }

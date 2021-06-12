@@ -84,8 +84,8 @@ func zmWorkerMasterLeaderRefresh() {
 			status.ZoneMasterList.Leader = hostId
 			status.ZoneMasterList.Version = rs.Items[0].Meta.Version
 
-			hlog.Printf("warn", "zm/zone-master/leader refresh %s, version %d",
-				hostId, status.ZoneMasterList.Version)
+			hlog.Printf("warn", "zm/zone-master/leader refresh %s, version %d, expired %d",
+				hostId, status.ZoneMasterList.Version, rs.Items[0].Meta.Expired)
 		}
 
 		status.ZoneMasterList.Updated = rs.Items[0].Meta.Updated

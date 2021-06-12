@@ -522,7 +522,7 @@ func scheduleHostListRefresh() error {
 		}
 
 		cellStatus.HostCap += 1
-		if host.Operate.Action == inapi.SysHostActionActive {
+		if inapi.OpActionAllow(host.Operate.Action, inapi.SysHostActionActive) {
 			cellStatus.HostIn += 1
 		}
 
