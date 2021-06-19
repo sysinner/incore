@@ -526,6 +526,12 @@ func scheduleHostListRefresh() error {
 			cellStatus.HostIn += 1
 		}
 
+		if host.Operate.NetworkVpcInstance != "" &&
+			strings.IndexByte(host.Operate.NetworkVpcInstance, '/') == -1 {
+			host.Operate.NetworkVpcInstance += "/24"
+			sync = true
+		}
+
 		if err := status.ZoneNetworkManager.HostAlloc(host.Meta.Id,
 			func(chg bool, brNet, ipNet string) bool {
 				if chg {

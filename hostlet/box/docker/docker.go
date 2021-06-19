@@ -262,6 +262,9 @@ func (tp *BoxDriver) statusRefresh() {
 			}); err == nil {
 				tp.vpcSubnet = incfg.Config.Host.NetworkVpcInstance
 				tp.vpcNetworID = br.ID
+			} else {
+				hlog.Printf("warn", "hostlet/status/refresh, network create err %v", err)
+				return
 			}
 		}
 	}
