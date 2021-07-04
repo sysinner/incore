@@ -378,9 +378,10 @@ func schedulePodListRefresh() error {
 						}
 
 						aspRep := &inapi.AppServiceReplica{
-							Rep:  rp.RepId,
-							Port: uint32(rpp.HostPort),
-							Ip:   repIp,
+							Rep:     rp.RepId,
+							Port:    uint32(rpp.HostPort),
+							Ip:      repIp,
+							VpcIpv4: rp.VpcIpv4,
 						}
 						if asp.Endpoints, chg = inapi.AppServiceReplicaSliceSync(asp.Endpoints, aspRep); chg {
 							asp.Updated = inapi.TimeNowMs()
@@ -1163,16 +1164,19 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 
 		if err != nil || hit.Host == nil || len(hit.Volumes) < 1 {
 			// TODO error log
+			msg := "no available resources, waiting for allocation (#01)"
+			if err != nil {
+				msg += " " + err.Error()
+			}
 			return inapi.NewPbOpLogEntry(opLogKey,
-				inapi.PbOpLogWarn,
-				"no available resources, waiting for allocation")
+				inapi.PbOpLogWarn, msg)
 		}
 
 		host = status.ZoneHostList.Item(hit.HostId)
 		if host == nil {
 			return inapi.NewPbOpLogEntry(opLogKey,
 				inapi.PbOpLogWarn,
-				"no available resources, waiting for allocation")
+				"no available resources, waiting for allocation (#02)")
 		}
 
 		opRep.Node = hit.HostId

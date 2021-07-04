@@ -198,8 +198,6 @@ func podRepListCtrlRefresh() error {
 			continue
 		}
 
-		// inapi.ObjPrint("A", pod)
-
 		drv := boxDrivers.Get(instAction.Spec.Image.Driver)
 		if drv == nil {
 			hlog.Printf("info", "hostlet rep %s:%d, driver %s not setup",

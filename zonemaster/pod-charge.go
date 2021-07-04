@@ -158,7 +158,6 @@ func podItemCharge(pod *inapi.Pod) bool {
 			data.DataZone.NewWriter(
 				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
 		}
-		hlog.Printf("info", "no pod spec plan found")
 		return false
 	}
 

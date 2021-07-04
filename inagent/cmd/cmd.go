@@ -100,6 +100,13 @@ func varParams(appCfr *inconf.AppConfigurator) map[string]interface{} {
 			))
 			sets[key+"lan_addr"] = p.Endpoints[0].Ip
 			sets[key+"host_port"] = fmt.Sprintf("%d", p.Endpoints[0].Port)
+
+			key = keyenc(fmt.Sprintf("app/service/%s/vpc_addr", p.Name))
+			if p.Endpoints[0].VpcIpv4 != "" {
+				sets[key] = fmt.Sprintf("%s:%d", p.Endpoints[0].VpcIpv4, p.Port)
+			} else {
+				sets[key] = ""
+			}
 		}
 	}
 

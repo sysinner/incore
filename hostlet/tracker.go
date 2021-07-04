@@ -36,7 +36,6 @@ import (
 	ps_net "github.com/shirou/gopsutil/net"
 
 	"github.com/sysinner/incore/config"
-	// "github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
@@ -374,6 +373,8 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 					)
 
 					mnts.Set(dev.Mountpoint)
+
+					nstatus.BoxActives.DeviceSet(dev.Mountpoint, dev.Device)
 				}
 			}
 		}
@@ -434,7 +435,6 @@ func msgZoneMasterHostStatusSync() (*inapi.ResHostBound, error) {
 		}
 
 		//
-
 		boxInst := nstatus.BoxActives.Get(instName)
 		if boxInst == nil {
 			repStatus.Action = inapi.OpActionPending

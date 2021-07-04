@@ -89,6 +89,8 @@ func boxActionRefreshEntry(
 
 	inst.VolumeMountsRefresh()
 
+	inst.BlkioDeviceRefresh()
+
 	return inst
 }
 

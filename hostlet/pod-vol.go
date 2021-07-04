@@ -217,7 +217,7 @@ func quotaKeeperInit() error {
 		quotaInited = true
 	}()
 
-	_, err := exec.Command(quotaCmd, "-V").Output()
+	_, err := exec.Command(quotaCmd, "-V").CombinedOutput()
 	if err != nil {
 		return errors.New("command " + quotaCmd + " not found")
 	}
@@ -258,7 +258,7 @@ func quotaKeeperInit() error {
 		}
 		*/
 
-		if _, err = exec.Command(quotaCmd, "-x", "-c", "report", d.Mountpoint).Output(); err != nil {
+		if _, err = exec.Command(quotaCmd, "-x", "-c", "report", d.Mountpoint).CombinedOutput(); err != nil {
 			hlog.Printf("warn", "error to get report of prjquota on mountpoint of %s", d.Mountpoint)
 			continue
 		}
@@ -301,7 +301,7 @@ func podVolQuotaRefresh() error {
 	// 	"report",
 	// 	quotaMountpoint,
 	// }
-	// out, err := exec.Command(quotaCmd, args...).Output()
+	// out, err := exec.Command(quotaCmd, args...).CombinedOutput()
 	// if err != nil {
 	// 	return err
 	// }
@@ -365,7 +365,7 @@ func podVolQuotaRefresh() error {
 			quotaMountpoint,
 		}
 
-		out, err := exec.Command(quotaCmd, args...).Output()
+		out, err := exec.Command(quotaCmd, args...).CombinedOutput()
 		if err != nil {
 			return err
 		}
@@ -464,7 +464,7 @@ func podVolQuotaRefresh() error {
 	// 			fmt.Sprintf("project -s %d", id),
 	// 			quotaMountpoint,
 	// 		}
-	// 		exec.Command(quotaCmd, args...).Output()
+	// 		exec.Command(quotaCmd, args...).CombinedOutput()
 	// 		hlog.Printf("info", "project init %d:%s", id, p)
 	// 	}
 	// }
@@ -527,6 +527,7 @@ func podVolQuotaRefresh() error {
 		if quota_gots.Has(uint32(proj.Id)) && proj.Soft == volSys {
 			return
 		}
+		hlog.Printf("error", "hostlet/vol %v, %d, %d, %v", quota_gots.Has(uint32(proj.Id)), proj.Soft, volSys, quota_gots)
 
 		err = quotaConfig.SyncVendor()
 		if err != nil {
@@ -535,31 +536,32 @@ func podVolQuotaRefresh() error {
 		}
 
 		args := []string{
+			quotaCmd,
 			"-x",
 			"-c",
-			fmt.Sprintf("\"project -s %d\"", proj.Id),
+			fmt.Sprintf("\"project -s -p %s %d\"", path, proj.Id),
 			proj.Mnt,
 		}
-
-		_, err = exec.Command(quotaCmd, args...).Output()
-		if err != nil {
-			hlog.SlotPrint(60, "info", "hostlet/vol quota init %s", err.Error())
+		if out, err := exec.Command("bash", "-c", strings.Join(args, " ")+"\nexit 0\n").CombinedOutput(); err != nil {
+			hlog.SlotPrint(60, "info", "hostlet/vol quota init err: %s, output %s", err.Error(), string(out))
 			return
+		} else {
+			hlog.Printf("info", "hostlet/vol quota init : %s, output %s", strings.Join(args, " "), string(out))
 		}
-		hlog.Printf("info", "hostlet/vol quota init : %s %s", quotaCmd, strings.Join(args, " "))
 
 		//
 		args = []string{
+			quotaCmd,
 			"-x",
 			"-c",
 			fmt.Sprintf("\"limit -p bsoft=%d bhard=%d %d\"", volSys, volSys, proj.Id),
 			proj.Mnt,
 		}
-		if out, err := exec.Command(quotaCmd, args...).Output(); err != nil {
+		if out, err := exec.Command("bash", "-c", strings.Join(args, " ")+"\nexit 0\n").CombinedOutput(); err != nil {
 			hlog.SlotPrint(60, "info", "hostlet/vol quota limit %s, {{{%s}}}", err.Error(), string(out))
 			return
 		}
-		hlog.Printf("info", "hostlet/vol quota limit : %s %s", quotaCmd, strings.Join(args, " "))
+		hlog.Printf("info", "hostlet/vol quota limit : %s", strings.Join(args, " "))
 	})
 
 	if err := quotaConfig.Sync(); err != nil {
@@ -585,7 +587,7 @@ func podVolQuotaRefresh() error {
 			v.Mnt,
 		}
 
-		_, err = exec.Command(quotaCmd, args...).Output()
+		_, err = exec.Command(quotaCmd, args...).CombinedOutput()
 		if err != nil {
 			hlog.Printf("warn", "hostlet/vol quota clean project %s, err %s", v.Name, err.Error())
 			return err
@@ -597,7 +599,7 @@ func podVolQuotaRefresh() error {
 			fmt.Sprintf("\"project -C %d\"", v.Id),
 			v.Mnt,
 		}
-		_, err = exec.Command(quotaCmd, args...).Output()
+		_, err = exec.Command(quotaCmd, args...).CombinedOutput()
 		if err != nil {
 			hlog.Printf("warn", "hostlet/vol quota clean project %s, err %s", v.Name, err.Error())
 			return err

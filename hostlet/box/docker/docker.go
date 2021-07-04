@@ -34,6 +34,7 @@ import (
 	incfg "github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/ipm"
 	"github.com/sysinner/incore/hostlet/napi"
+	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
 	insta "github.com/sysinner/incore/status"
 )
@@ -403,10 +404,38 @@ func (tp *BoxDriver) statusEntry(id string) (*napi.BoxInstance, error) {
 					Value: boxInspect.Config.Image,
 				},
 			},
-			Command:     boxInspect.Config.Cmd,
-			CpuSets:     cpuSets,
-			NetworkMode: inapi.AppSpecExpDeployNetworkModeBridge,
+			Command:           boxInspect.Config.Cmd,
+			CpuSets:           cpuSets,
+			NetworkMode:       inapi.AppSpecExpDeployNetworkModeBridge,
+			BlkioDeviceLimits: map[string]*inapi.PodBoxBlockLimit{},
 		},
+	}
+
+	blkioDevice := func(v drvClient.BlockLimit) *inapi.PodBoxBlockLimit {
+		dev, ok := inst.Status.BlkioDeviceLimits[v.Path]
+		if !ok {
+			dev = &inapi.PodBoxBlockLimit{
+				Path: v.Path,
+			}
+			inst.Status.BlkioDeviceLimits[v.Path] = dev
+		}
+		return dev
+	}
+
+	for _, v := range boxInspect.HostConfig.BlkioDeviceReadBps {
+		blkioDevice(v).ReadBps = v.Rate
+	}
+
+	for _, v := range boxInspect.HostConfig.BlkioDeviceReadIOps {
+		blkioDevice(v).ReadIops = v.Rate
+	}
+
+	for _, v := range boxInspect.HostConfig.BlkioDeviceWriteBps {
+		blkioDevice(v).WriteBps = v.Rate
+	}
+
+	for _, v := range boxInspect.HostConfig.BlkioDeviceWriteIOps {
+		blkioDevice(v).WriteIops = v.Rate
 	}
 
 	if boxInspect.HostConfig.NetworkMode == "host" {
@@ -743,9 +772,22 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 		hlog.Printf("info", "hostlet/box Create %s, hosts %s, image %s",
 			inst.Name, strings.Join(extHosts, ","), imageName)
 
-		storOpt := map[string]string{}
+		var (
+			storOpt   = map[string]string{}
+			memLimit  = int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB
+			pidsLimit = int64(100)
+			devLimits = map[string]bool{}
+			mnts      = inst.VolumeMountsExport()
+		)
+
 		if cfgStorageOptSizeEnable {
 			storOpt["size"] = "10G"
+		}
+
+		for _, vm := range mnts {
+			if dev := nstatus.BoxActives.DeviceGet(vm); dev != "" {
+				devLimits[dev] = true
+			}
 		}
 
 		boxCreateOptions := drvClient.CreateContainerOptions{
@@ -767,9 +809,9 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				ExtraHosts:   extHosts,
 				PortBindings: bindPorts,
 				DNS:          dnsServers,
-				Binds:        append(inst.VolumeMountsExport(), tp.lxcfsVols...),
-				Memory:       int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
-				MemorySwap:   int64(inst.Spec.Resources.MemLimit) * inapi.ByteMB,
+				Binds:        append(mnts, tp.lxcfsVols...),
+				Memory:       memLimit,
+				MemorySwap:   memLimit,
 				// MemorySwappiness: 0,
 				CPUPeriod:  1000000,
 				CPUQuota:   int64(inst.Spec.Resources.CpuLimit) * 1e5,
@@ -783,7 +825,31 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				},
 				StorageOpt:    storOpt,
 				RestartPolicy: drvClient.RestartUnlessStopped(),
+				ShmSize:       memLimit / 2,
+				PidsLimit:     &pidsLimit,
 			},
+		}
+
+		// blkio limits
+		devLimit := func(ar []drvClient.BlockLimit, path string, rate int64) []drvClient.BlockLimit {
+			return append(ar, drvClient.BlockLimit{
+				Path: path,
+				Rate: rate,
+			})
+		}
+		for dev, _ := range devLimits {
+
+			boxCreateOptions.HostConfig.BlkioDeviceReadBps = devLimit(
+				boxCreateOptions.HostConfig.BlkioDeviceReadBps, dev, inst.BlkioDeviceBps)
+
+			boxCreateOptions.HostConfig.BlkioDeviceReadIOps = devLimit(
+				boxCreateOptions.HostConfig.BlkioDeviceReadIOps, dev, inst.BlkioDeviceIOps)
+
+			boxCreateOptions.HostConfig.BlkioDeviceWriteBps = devLimit(
+				boxCreateOptions.HostConfig.BlkioDeviceWriteBps, dev, inst.BlkioDeviceBps)
+
+			boxCreateOptions.HostConfig.BlkioDeviceWriteIOps = devLimit(
+				boxCreateOptions.HostConfig.BlkioDeviceWriteIOps, dev, inst.BlkioDeviceIOps)
 		}
 
 		if netMode == "bridge" && inst.Replica.VpcIpv4 != "" {

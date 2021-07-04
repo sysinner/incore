@@ -172,28 +172,43 @@ type BoxPackMount struct {
 	HostPath string `json:"host_path"`
 }
 
+const (
+	blockLimitBpsMin  int64 = 32 << 20
+	blockLimitBpsMax  int64 = 256 << 20
+	blockLimitIOpsMin int64 = 100
+	blockLimitIOpsMax int64 = 10000
+	blockLimitRange   int32 = 1000
+)
+
+var (
+	blockLimitBpsRate  = float64(blockLimitBpsMax-blockLimitBpsMin) / float64(blockLimitRange)
+	blockLimitIOpsRate = float64(blockLimitIOpsMax-blockLimitIOpsMin) / float64(blockLimitRange)
+)
+
 type BoxInstance struct {
-	mu            sync.Mutex
-	statusPending bool
-	opPending     bool
-	ID            string                     `json:"id"`
-	Name          string                     `json:"name"`
-	PodID         string                     `json:"pod_id"`
-	PodOpVersion  uint32                     `json:"pod_op_version"`
-	UpUpdated     uint32                     `json:"up_updated"`
-	Spec          inapi.PodSpecBoxBound      `json:"spec"`
-	Apps          inapi.AppInstances         `json:"apps"`
-	Replica       inapi.PodOperateReplica    `json:"replica"`
-	Retry         int                        `json:"retry"`
-	Env           []inapi.EnvVar             `json:"env"`
-	Status        inapi.PbPodBoxStatus       `json:"status"`
-	HealthStatus  inapi.HealthStatus         `json:"health_status"`
-	Stats         *inapi.PbStatsSampleFeed   `json:"-"`
-	SysVolSynced  int64                      `json:"sys_vol_synced"`
-	SpecCpuSets   []int32                    `json:"spec_cpu_sets"`
-	SpecMounts    []*inapi.PodSpecBoundMount `json:"spec_mounts"`
-	PackMounts    []*BoxPackMount            `json:"pack_mounts"`
-	SetupHosts    []string                   `json:"setup_hosts"`
+	mu              sync.Mutex
+	statusPending   bool
+	opPending       bool
+	ID              string                     `json:"id"`
+	Name            string                     `json:"name"`
+	PodID           string                     `json:"pod_id"`
+	PodOpVersion    uint32                     `json:"pod_op_version"`
+	UpUpdated       uint32                     `json:"up_updated"`
+	Spec            inapi.PodSpecBoxBound      `json:"spec"`
+	Apps            inapi.AppInstances         `json:"apps"`
+	Replica         inapi.PodOperateReplica    `json:"replica"`
+	Retry           int                        `json:"retry"`
+	Env             []inapi.EnvVar             `json:"env"`
+	Status          inapi.PbPodBoxStatus       `json:"status"`
+	HealthStatus    inapi.HealthStatus         `json:"health_status"`
+	Stats           *inapi.PbStatsSampleFeed   `json:"-"`
+	SysVolSynced    int64                      `json:"sys_vol_synced"`
+	SpecCpuSets     []int32                    `json:"spec_cpu_sets"`
+	SpecMounts      []*inapi.PodSpecBoundMount `json:"spec_mounts"`
+	PackMounts      []*BoxPackMount            `json:"pack_mounts"`
+	SetupHosts      []string                   `json:"setup_hosts"`
+	BlkioDeviceBps  int64                      `json:"blkio_device_bps"`  // bytes per second
+	BlkioDeviceIOps int64                      `json:"blkio_device_iops"` // IO per second
 }
 
 func BoxInstanceName(podId string, repId uint32) string {
@@ -358,6 +373,20 @@ func (inst *BoxInstance) SpecDesired() bool {
 		return false
 	}
 
+	//
+	if inst.BlkioDeviceBps > 0 && inst.BlkioDeviceIOps > 0 &&
+		len(inst.Status.BlkioDeviceLimits) > 0 {
+		for _, v := range inst.Status.BlkioDeviceLimits {
+			if v.ReadBps != inst.BlkioDeviceBps ||
+				v.ReadIops != inst.BlkioDeviceIOps ||
+				v.WriteBps != inst.BlkioDeviceBps ||
+				v.WriteIops != inst.BlkioDeviceIOps {
+				hlog.Printf("info", "box/spec miss-desire inst.Spec.BlkioDevice limits")
+				return false
+			}
+		}
+	}
+
 	if len(inst.Spec.Command) != len(inst.Status.Command) ||
 		strings.Join(inst.Spec.Command, " ") != strings.Join(inst.Status.Command, " ") {
 		hlog.Printf("info", "box/spec miss-desire inst.Spec.Command")
@@ -387,42 +416,6 @@ func (inst *BoxInstance) ExtHosts(excludeRep bool) []string {
 	hostMap := map[string]string{
 		PodRepNetworkDomainName(inst.PodID, inst.Replica.RepId): "127.0.0.1",
 	}
-
-	/**
-	for _, v := range inst.Replica.Ports {
-
-		for _, app := range inst.Apps {
-
-			srvPort := app.Operate.Service(app.Spec.Meta.ID, uint32(v.BoxPort), "")
-			if srvPort == nil {
-				continue
-			}
-
-			for _, v2 := range srvPort.Endpoints {
-				services[v2.Rep] = v2.Ip
-			}
-
-			if len(services) > 0 {
-				break
-			}
-		}
-
-		if len(services) > 0 {
-			break
-		}
-	}
-
-	for rep := uint32(0); rep < uint32(len(services)); rep++ {
-		if excludeRep && rep == inst.Replica.RepId {
-			continue
-		}
-		ip, ok := services[rep]
-		if !ok {
-			continue
-		}
-		hosts = append(hosts, fmt.Sprintf("%s:%s", BoxInstanceName(inst.PodID, rep), ip))
-	}
-	*/
 
 	for _, app := range inst.Apps {
 
@@ -493,25 +486,6 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 		})
 	}
 
-	/**
-	for _, app := range inst.Apps {
-
-		if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
-			continue
-		}
-
-		for _, pkg := range app.Spec.Packages {
-
-			ls, _ = inapi.PbVolumeMountSliceSync(ls, &inapi.PbVolumeMount{
-				Name:      "ipm-" + pkg.Name,
-				MountPath: InPackMountPath(pkg.Name, pkg.Version),
-				HostDir:   InPackHostDir(pkg.Name, pkg.Version, pkg.Release, pkg.Dist, pkg.Arch),
-				ReadOnly:  true,
-			})
-		}
-	}
-	*/
-
 	for _, vm := range inst.PackMounts {
 		ls, _ = inapi.PbVolumeMountSliceSync(ls, &inapi.PbVolumeMount{
 			Name:      "ipm-" + vm.Name,
@@ -524,6 +498,20 @@ func (inst *BoxInstance) VolumeMountsRefresh() {
 	if !inapi.PbVolumeMountSliceEqual(inst.Spec.Mounts, ls) {
 		inst.Spec.Mounts = ls
 	}
+}
+
+func (inst *BoxInstance) BlkioDeviceRefresh() {
+
+	if inst.Replica.VolSys < 1 {
+		inst.Replica.VolSys = 1
+	} else if inst.Replica.VolSys > blockLimitRange {
+		inst.Replica.VolSys = blockLimitRange
+	}
+
+	cn := float64(inst.Replica.VolSys - 1)
+
+	inst.BlkioDeviceBps = blockLimitBpsMin + int64(cn*blockLimitBpsRate)
+	inst.BlkioDeviceIOps = blockLimitIOpsMin + int64(cn*blockLimitIOpsRate)
 }
 
 func (inst *BoxInstance) VolumeMountsExport() []string {
@@ -568,12 +556,19 @@ type SysCpuUsage struct {
 	Usage int   `json:"usage"`
 }
 
+type VolumeDeviceEntry struct {
+	Mountpoint string
+	Device     string
+}
+
 var box_sets_mu sync.RWMutex
 
 type BoxInstanceSets struct {
-	Items     []*BoxInstance `json:"items"`
-	CpuUsages []*SysCpuUsage `json:"cpu_usages"`
-	CpuCap    int32          `json:"cpu_cap"`
+	mu         sync.RWMutex
+	Items      []*BoxInstance       `json:"items"`
+	CpuUsages  []*SysCpuUsage       `json:"cpu_usages"`
+	CpuCap     int32                `json:"cpu_cap"`
+	VolDevices []*VolumeDeviceEntry `json:"device_map"`
 }
 
 func (ls *BoxInstanceSets) Fix() bool {
@@ -809,6 +804,45 @@ func (ls *BoxInstanceSets) OpLockNum() int {
 		}
 	}
 	return n
+}
+
+func (ls *BoxInstanceSets) DeviceGet(mnt string) string {
+	ls.mu.RLock()
+	defer ls.mu.RUnlock()
+	for _, v := range ls.VolDevices {
+		if strings.HasPrefix(mnt, v.Mountpoint) {
+			return v.Device
+		}
+	}
+	return ""
+}
+
+func (ls *BoxInstanceSets) DeviceSet(mnt, dev string) string {
+	if mnt == "/" || mnt == "" {
+		return ""
+	}
+	for i := len(dev) - 1; i >= 0; i-- {
+		if dev[i] < '0' || dev[i] > '9' {
+			dev = dev[:i+1]
+			break
+		}
+	}
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+	for _, v := range ls.VolDevices {
+		if mnt == v.Mountpoint {
+			v.Device = dev
+			return v.Device
+		}
+	}
+	ls.VolDevices = append(ls.VolDevices, &VolumeDeviceEntry{
+		Mountpoint: mnt,
+		Device:     dev,
+	})
+	sort.Slice(ls.VolDevices, func(i, j int) bool {
+		return strings.Compare(ls.VolDevices[i].Mountpoint, ls.VolDevices[i].Mountpoint) > 0
+	})
+	return dev
 }
 
 type RsyncModuleItem struct {

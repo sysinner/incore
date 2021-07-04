@@ -77,6 +77,13 @@ message PbPodBoxStatusExecutor {
     string error_message = 5;
 }
 
+message PodBoxBlockLimit {
+   string path = 1;
+   int64 read_bps = 2; 
+   int64 read_iops = 3; 
+   int64 write_bps = 4; 
+   int64 write_iops = 5; 
+}
 
 // PodBoxStatus represents the current information about a box
 message PbPodBoxStatus {
@@ -95,6 +102,7 @@ message PbPodBoxStatus {
     repeated int32                  cpu_sets      = 13;
     int32 network_mode = 14;
     string network_ipv4 = 15;
+	map<string, PodBoxBlockLimit> blkio_device_limits = 16;
 }
 
 message PodOperateFailover {
