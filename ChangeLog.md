@@ -2,8 +2,6 @@
 
 ## p0
 
-* vpc, multi networks management
-* dns
 * service
 
 ## p1
@@ -19,4 +17,7 @@
 # releases
 
 ## 0.10.0
+
+* build-in VPC network
+* built-in DNS service
 
