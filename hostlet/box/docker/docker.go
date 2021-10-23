@@ -94,8 +94,8 @@ func NewDriver() (napi.BoxDriver, error) {
 		driver = &BoxDriver{
 			inited:     false,
 			mmu:        locker.NewHashPool(runtime.NumCPU()),
-			statusSets: make(chan *napi.BoxInstance, activeNumMax+10),
-			statsSets:  make(chan *napi.BoxInstanceStatsFeed, activeNumMax+10),
+			statusSets: map[string]*napi.BoxInstance{},
+			statsSets:  map[string]*napi.BoxInstanceStatsFeed{},
 			lxcfsVols:  vols,
 		}
 	}
@@ -113,10 +113,11 @@ type BoxDriver struct {
 	inited       bool
 	running      bool
 	client       *drvClient.Client
-	statusSets   chan *napi.BoxInstance
+	statusMu             sync.RWMutex
+	statusSets   map[string]*napi.BoxInstance
+	statsSets    map[string]*napi.BoxInstanceStatsFeed
 	statsPending bool
 	actives      types.ArrayString
-	statsSets    chan *napi.BoxInstanceStatsFeed
 	sets         types.ArrayString
 	createSets   types.KvPairs
 	lxcfsVols    []string
@@ -158,18 +159,24 @@ func (tp *BoxDriver) Stop() error {
 	return nil
 }
 
-func (tp *BoxDriver) StatusEntry() *napi.BoxInstance {
-	if len(tp.statusSets) < 1 {
-		return nil
+func (tp *BoxDriver) StatusList() []*napi.BoxInstance {
+	tp.statusMu.Lock()
+	defer tp.statusMu.Unlock()
+	ar := []*napi.BoxInstance {}
+	for _, v := range tp.statusSets {
+		ar = append(ar, v)
 	}
-	return <-tp.statusSets
+	return ar
 }
 
-func (tp *BoxDriver) StatsEntry() *napi.BoxInstanceStatsFeed {
-	if len(tp.statsSets) < 1 {
-		return nil
+func (tp *BoxDriver) StatsList() []*napi.BoxInstanceStatsFeed {
+	tp.statusMu.Lock()
+	defer tp.statusMu.Unlock()
+	ar := []*napi.BoxInstanceStatsFeed {}
+	for _, v := range tp.statsSets {
+		ar = append(ar, v)
 	}
-	return <-tp.statsSets
+	return ar
 }
 
 func (tp *BoxDriver) statusRefresh() {
@@ -296,11 +303,12 @@ func (tp *BoxDriver) statusRefresh() {
 
 		if len(tp.statusSets) > activeNumMax {
 			hlog.Printf("warn", "hostlet/status/refresh, container/list/status, out of capacity %d", activeNumMax)
-			break
 		}
 
 		if sts, err := tp.statusEntry(vc.ID); err == nil {
-			tp.statusSets <- sts
+			tp.statusMu.Lock()
+			tp.statusSets [name] = sts
+			tp.statusMu.Unlock()
 
 			if sts.Status.Action == inapi.OpActionRunning {
 				key := vc.ID + "," + sts.Name
@@ -534,15 +542,16 @@ func (tp *BoxDriver) statsRefresh() {
 
 		if len(tp.statsSets) > activeNumMax {
 			hlog.Printf("warn", "hostlet/status/refresh, container/list/status, out of capacity %d", activeNumMax)
-			break
 		}
 
 		n := strings.IndexByte(key, ',')
 		id, name := key[:n], key[n+1:]
-		if sts, err := tp.statsEntry(id, name); err == nil {
-			tp.statsSets <- sts
+		if sts, err := tp.statsEntry(id, name); err == nil && sts != nil {
+			tp.statusMu.Lock()
+			tp.statsSets[name] = sts
+			tp.statusMu.Unlock()
 		} else {
-			hlog.Printf("error", "box.Stats %s error %s", id, err.Error())
+			hlog.Printf("error", "box.Stats %s error %v", id, err)
 		}
 	}
 }

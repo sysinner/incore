@@ -22,7 +22,7 @@ import (
 	"github.com/lessos/lessgo/net/httpclient"
 
 	"github.com/sysinner/incore/hostlet/box/docker"
-	"github.com/sysinner/incore/hostlet/box/pouch"
+	// "github.com/sysinner/incore/hostlet/box/pouch"
 	"github.com/sysinner/incore/hostlet/napi"
 	"github.com/sysinner/incore/hostlet/nstatus"
 	"github.com/sysinner/incore/inapi"
@@ -52,9 +52,9 @@ func Start() error {
 		hlog.Printf("error", "box.DockerDriver init error %s", err.Error())
 	}
 
-	if dr, err := pouch.NewDriver(); err == nil {
-		boxDrivers.Items = append(boxDrivers.Items, dr)
-	}
+	// if dr, err := pouch.NewDriver(); err == nil {
+	// 	boxDrivers.Items = append(boxDrivers.Items, dr)
+	// }
 
 	for _, dv := range boxDrivers.Items {
 		if err := dv.Start(); err != nil {
@@ -66,7 +66,7 @@ func Start() error {
 
 		for {
 			time.Sleep(3e9)
-
+			// tn := time.Now()
 			boxListRefresh()
 
 			if err := zoneMasterSync(); err != nil {
@@ -79,6 +79,7 @@ func Start() error {
 			}
 
 			podRepListCtrlRefresh()
+			// hlog.Printf("info", "hostlet job refresh in %v", time.Since(tn))
 		}
 	}()
 
@@ -96,19 +97,17 @@ func boxListRefresh() error {
 	}()
 
 	for _, dv := range boxDrivers.Items {
-		for {
-			sts := dv.StatusEntry()
-			if sts == nil {
-				break
+		{
+			ar := dv.StatusList()
+			for _, s := range ar {
+				boxStatusSync(s)
 			}
-			boxStatusSync(sts)
 		}
-		for {
-			sts := dv.StatsEntry()
-			if sts == nil {
-				break
+		{
+			ar := dv.StatsList()
+			for _, s := range ar {
+				boxStatsSync(s)
 			}
-			boxStatsSync(sts)
 		}
 	}
 
