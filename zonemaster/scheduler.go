@@ -523,7 +523,7 @@ func scheduleHostListRefresh() error {
 		}
 
 		cellStatus.HostCap += 1
-		if inapi.OpActionAllow(host.Operate.Action, inapi.SysHostActionActive) {
+		if inapi.OpActionAllow(host.Operate.Action, inapi.HostSetupStart) {
 			cellStatus.HostIn += 1
 		}
 
@@ -664,7 +664,8 @@ func schedulePodListQueue(cellId string) {
 			pod = &podq
 		}
 
-		if podq.Operate.Version > pod.Operate.Version {
+		if podq.Operate.Version > pod.Operate.Version ||
+			inapi.OpActionAllow(podq.Operate.Action, inapi.OpActionDestroy) {
 
 			// User Transfer
 			if podq.Meta.User != pod.Meta.User &&
@@ -2024,7 +2025,7 @@ func scheduleClean() error {
 			continue
 		}
 
-		if host.Status == nil || (host.Status.Updated+ttl) > tn {
+		if host.Status == nil || host.Status.Updated == 0 || (host.Status.Updated+ttl) > tn {
 			continue
 		}
 

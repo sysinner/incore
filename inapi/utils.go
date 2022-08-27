@@ -15,6 +15,7 @@
 package inapi
 
 import (
+	"encoding/json"
 	"reflect"
 )
 
@@ -78,4 +79,24 @@ func ArrayStringUniJoin(ls []string, s string) []string {
 		ls = append(ls, s)
 	}
 	return ls
+}
+
+func JsonEncode(v interface{}) []byte {
+	if v != nil {
+		b, _ := json.Marshal(v)
+		return b
+	}
+	return nil
+}
+
+func AttrAllow(opbase, op uint64) bool {
+	return (op & opbase) == op
+}
+
+func AttrRemove(opbase, op uint64) uint64 {
+	return (opbase | op) - (op)
+}
+
+func AttrAppend(opbase, op uint64) uint64 {
+	return (opbase | op)
 }

@@ -43,24 +43,46 @@ var (
 	ResSysHostPriorityMax     uint32 = ResSysHostPriorityLength - 2
 	ResSysHostPriorityDefault uint32 = ResSysHostPriorityLength / 2
 	ResNetworkDomainNameRE           = regexp.MustCompile("^[0-9a-z._\\-]{1,100}$")
+
+	ZoneGroupIdRX = regexp.MustCompile("^[a-z]{1}[a-z0-9\\-]{1,7}$")
 )
 
-var (
-	SysHostActionActive    uint32 = OpActionStart
-	SysHostActionSuspended uint32 = OpActionStop
-	SysHostActionDestroy   uint32 = OpActionDestroy
-	SysHostActionForce     uint32 = OpActionForce
+const (
+	HostSetupStart   uint32 = 1 << 1  // OpActionStart
+	HostSetupStop    uint32 = 1 << 3  // OpActionStop
+	HostSetupDestroy uint32 = 1 << 5  // OpActionDestroy
+	HostSetupForce   uint32 = 1 << 27 // OpActionForce
+)
+
+const (
+	ZoneGroupSetupIn  uint64 = 1 << 1
+	ZoneGroupSetupOut uint64 = 1 << 2
+)
+
+type ZoneDriver interface {
+	Name() string
+	ConfigSpec() *ConfigSpec
+	ConfigValid(cfg *ConfigInstance) error
+	HostAlloc(cfg *ConfigInstance, host *ResHost) error
+	HostFree(cfg *ConfigInstance, host *ResHost) error
+	HostList(cfg *ConfigInstance) ([]*ResHostCloudProvider, error)
+}
+
+const (
+	ResHostCloudProviderSyncBound  uint64 = 1 << 1
+	ResHostCloudProviderSyncCreate uint64 = 1 << 2
+	ResHostCloudProviderSyncBind   uint64 = 1 << 3
 )
 
 func SysHostActionFilter(op uint32) uint32 {
-	if OpActionAllow(op, SysHostActionActive) {
-		return SysHostActionActive
-	} else if OpActionAllow(op, SysHostActionSuspended) {
-		return SysHostActionSuspended
-	} else if OpActionAllow(op, SysHostActionDestroy) {
-		return SysHostActionDestroy
+	if OpActionAllow(op, HostSetupStart) {
+		return HostSetupStart
+	} else if OpActionAllow(op, HostSetupStop) {
+		return HostSetupStop
+	} else if OpActionAllow(op, HostSetupDestroy) {
+		return HostSetupDestroy
 	}
-	return SysHostActionActive
+	return HostSetupStart
 }
 
 func (obj *ResZone) Cell(id string) *ResCell {
@@ -334,6 +356,10 @@ func (obj *ResHost) Sync(item ResHost) (changed bool) {
 		obj.Status = item.Status
 	}
 
+	if changed = diffchanged(obj.CloudProvider, item.CloudProvider); changed {
+		obj.CloudProvider = item.CloudProvider
+	}
+
 	return
 }
 
@@ -504,6 +530,10 @@ func (obj *ResHost) SyncStatus(item ResHost) (changed bool) {
 	if diffchanged(obj.Status, item.Status) {
 		obj.Status = item.Status
 		changed = true
+	}
+
+	if changed = diffchanged(obj.CloudProvider, item.CloudProvider); changed {
+		obj.CloudProvider = item.CloudProvider
 	}
 
 	return

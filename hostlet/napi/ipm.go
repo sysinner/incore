@@ -16,6 +16,7 @@ package napi
 
 import (
 	"fmt"
+	"runtime"
 )
 
 func InPackMountPath(name, version string) string {
@@ -23,5 +24,9 @@ func InPackMountPath(name, version string) string {
 }
 
 func InPackHostDir(name, version, release, dist, arch string) string {
-	return fmt.Sprintf("/opt/sysinner/ipm/%s/%s/%s.%s.%s", name, version, release, dist, arch)
+	p := fmt.Sprintf("/opt/sysinner/ipm/%s/%s/%s.%s.%s", name, version, release, dist, arch)
+	if runtime.GOOS == "darwin" {
+		return "/Volumes" + p
+	}
+	return p
 }

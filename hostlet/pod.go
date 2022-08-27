@@ -62,11 +62,9 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 		return errors.New("no vol-sys-mnt")
 	}
 
-	/*
-		if runtime.GOOS == "darwin" {
-			pod.Replica.VolSysMnt = "/Volumes/sysinner/pods"
-		}
-	*/
+	if runtime.GOOS == "darwin" {
+		pod.Replica.VolSysMnt = "/Volumes/opt/sysinner/pods"
+	}
 
 	sysdir := napi.VolAgentSysDir(pod.Replica.VolSysMnt, pod.Meta.ID, pod.Replica.RepId)
 
@@ -385,15 +383,17 @@ func podRepVolSetup(inst *napi.BoxInstance, force bool) error {
 	}
 
 	un := "root"
-	if runtime.GOOS != "linux" {
+	gn := "root"
+	if runtime.GOOS == "darwin" {
+		gn = "staff"
 		if u, err := user.Current(); err == nil {
 			un = u.Username
 		}
 	}
 
 	//
-	exec.Command(binInstall, "-m", "755", "-g", un, "-o", un, initSrc, initDst).Output()
-	exec.Command(binInstall, "-m", "755", "-g", un, "-o", un, agentSrc, agentDst).Output()
+	exec.Command(binInstall, "-m", "755", "-g", gn, "-o", un, initSrc, initDst).Output()
+	exec.Command(binInstall, "-m", "755", "-g", gn, "-o", un, agentSrc, agentDst).Output()
 	exec.Command("rsync", bashrcSrc, bashrcDst).Output()
 	exec.Command("rsync", bashpfSrc, bashpfDst).Output()
 

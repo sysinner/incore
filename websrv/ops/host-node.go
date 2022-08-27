@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/hooto/hlog4g/hlog"
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
 	"golang.org/x/net/context"
@@ -27,6 +28,7 @@ import (
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/inrpc"
+	"github.com/sysinner/incore/inutils"
 	"github.com/sysinner/incore/status"
 )
 
@@ -277,7 +279,7 @@ func (c Host) NodeSetAction() {
 
 	if prev == nil {
 		if prev = status.ZoneHostList.Item(set.Meta.Id); prev == nil {
-			set.Error = &types.ErrorMeta{"400", "HostNode Not Found"}
+			set.Error = &types.ErrorMeta{"400", fmt.Sprintf("HostNode Not Found (%d)", len(status.ZoneHostList.Items))}
 			return
 		}
 	}
@@ -359,4 +361,248 @@ func (c Host) NodeSecretKeySetAction() {
 	status.ZoneHostSecretKeys.Set(set.NodeId, set.SecretKey)
 
 	set.Kind = "HostNode"
+}
+
+func (c Host) NodeSyncPullListAction() {
+
+	var (
+		zoneId = c.Params.Get("zone_id")
+		sets   inapi.GeneralObjectList
+	)
+	defer c.RenderJson(&sets)
+
+	if zoneId != status.ZoneId {
+		// sets.Error = types.NewErrorMeta("400", "Access Denied : Cross-Zone Console WebUI")
+		// return
+	}
+
+	zoneEntry := status.GlobalZone(zoneId)
+	if zoneEntry == nil || zoneEntry.Driver == nil {
+		sets.Error = &types.ErrorMeta{"400", "Zone Not Found"}
+		return
+	}
+
+	driver := status.ZoneDriver(zoneEntry.Driver.Name)
+	if driver == nil {
+		sets.Error = &types.ErrorMeta{"400", "ZoneDriver Not Found"}
+		return
+	}
+
+	nodes, err := driver.HostList(zoneEntry.Driver)
+	if err != nil {
+		sets.Error = &types.ErrorMeta{"500", err.Error()}
+		return
+	}
+
+	for _, cn := range nodes {
+
+		nodeEntry := &inapi.ResHostCloudProviderSyncEntry{
+			CloudProvider: cn,
+			ZoneId:        zoneId,
+		}
+
+		for _, n := range status.ZoneHostList.Items {
+
+			if n.CloudProvider == nil {
+				continue
+			}
+
+			if cn.InstanceId == n.CloudProvider.InstanceId {
+				nodeEntry.InstanceId = n.Meta.Id
+				nodeEntry.InstanceName = n.Meta.Name
+				nodeEntry.Action = inapi.ResHostCloudProviderSyncBound
+				break
+			}
+		}
+
+		if nodeEntry.InstanceId == "" {
+
+			for _, n := range status.ZoneHostList.Items {
+
+				if inapi.HostNodeAddress(n.Spec.PeerLanAddr).IP() == cn.PrivateIp {
+					nodeEntry.InstanceId = n.Meta.Id
+					nodeEntry.InstanceName = n.Meta.Name
+					nodeEntry.Action = inapi.ResHostCloudProviderSyncBind
+					break
+				}
+			}
+		}
+
+		// hlog.Printf("info", "ip %s %s %s", n.Spec.PeerLanAddr, inapi.HostNodeAddress(n.Spec.PeerLanAddr).IP(), v.PrivateIp)
+
+		if nodeEntry.InstanceId == "" {
+			nodeEntry.Action = inapi.ResHostCloudProviderSyncCreate
+		}
+
+		sets.Items = append(sets.Items, nodeEntry)
+	}
+
+	sets.Kind = "HostNodeList"
+}
+
+func (c Host) NodeSyncPullSetAction() {
+
+	var set struct {
+		inapi.GeneralObject
+		inapi.ResHostCloudProviderSyncEntry
+	}
+	defer c.RenderJson(&set)
+
+	if !status.IsZoneMasterLeader() {
+		set.Error = &types.ErrorMeta{"400", "Invalid ZoneMaster Leader"}
+		return
+	}
+
+	if err := c.Request.JsonDecode(&set.ResHostCloudProviderSyncEntry); err != nil {
+		set.Error = &types.ErrorMeta{"400", err.Error()}
+		return
+	}
+
+	entry := set.ResHostCloudProviderSyncEntry
+
+	if entry.ZoneId == "" {
+		set.Error = &types.ErrorMeta{"400", "ZoneId Not Setting"}
+		return
+	}
+
+	if entry.CloudProvider == nil {
+		set.Error = &types.ErrorMeta{"400", "CloudProvider Not Setting"}
+		return
+	}
+
+	if !inapi.AttrAllow(entry.Action, inapi.ResHostCloudProviderSyncCreate) &&
+		!inapi.AttrAllow(entry.Action, inapi.ResHostCloudProviderSyncBind) {
+		set.Error = &types.ErrorMeta{"400", "Invalid Action Setting"}
+		return
+	}
+
+	switch entry.Action {
+
+	case inapi.ResHostCloudProviderSyncCreate:
+
+		for _, n := range status.ZoneHostList.Items {
+
+			if n.CloudProvider == nil &&
+				inapi.HostNodeAddress(n.Spec.PeerLanAddr).IP() == entry.CloudProvider.PrivateIp {
+				entry.InstanceId = n.Meta.Id
+				entry.Action = inapi.ResHostCloudProviderSyncBind
+				break
+			}
+
+			if n.CloudProvider != nil &&
+				n.CloudProvider.InstanceId == entry.CloudProvider.InstanceId {
+				set.Error = &types.ErrorMeta{"400",
+					fmt.Sprintf("Instance %s has been bound to %s", n.CloudProvider.InstanceId, n.Meta.Id)}
+				return
+			}
+		}
+
+	case inapi.ResHostCloudProviderSyncBind:
+
+		if !inapi.ResSysHostIdReg.MatchString(entry.InstanceId) {
+			set.Error = types.NewErrorMeta("400", "Invalid Node Instance Id")
+			return
+		}
+
+		hit := false
+
+		for _, n := range status.ZoneHostList.Items {
+
+			if n.CloudProvider != nil &&
+				n.CloudProvider.InstanceId == entry.CloudProvider.InstanceId {
+				if n.Meta.Id != entry.InstanceId {
+					set.Error = &types.ErrorMeta{"400",
+						fmt.Sprintf("Instance %s has been bound to %s", n.CloudProvider.InstanceId, n.Meta.Id)}
+					return
+				}
+				hit = true
+				break
+			}
+		}
+
+		if !hit {
+			set.Error = &types.ErrorMeta{"400",
+				fmt.Sprintf("Instance %s not found", entry.InstanceId)}
+			return
+		}
+
+	default:
+		set.Error = &types.ErrorMeta{"400", "invalid action settting"}
+		return
+	}
+
+	var nodeEntry *inapi.ResHost
+
+	switch entry.Action {
+
+	case inapi.ResHostCloudProviderSyncCreate:
+
+		nodeEntry = &inapi.ResHost{
+			Meta: &inapi.ObjectMeta{
+				Id:      inutils.TimePrefixRandHexString(8, 8),
+				Created: uint64(types.MetaTimeNow()),
+				Name:    entry.CloudProvider.InstanceName,
+			},
+			Operate: &inapi.ResHostOperate{
+				Action: inapi.HostSetupStart,
+				ZoneId: entry.ZoneId,
+				Pr:     inapi.ResSysHostPriorityDefault,
+			},
+			Spec: &inapi.ResHostSpec{
+				PeerLanAddr: entry.CloudProvider.PrivateIp + ":9529",
+			},
+		}
+
+	case inapi.ResHostCloudProviderSyncBind:
+		nodeEntry = status.ZoneHostList.Item(entry.InstanceId)
+		if nodeEntry == nil {
+			set.Error = &types.ErrorMeta{"400",
+				fmt.Sprintf("Instance %s not found", entry.InstanceId)}
+			return
+		}
+		if nodeEntry.Meta.Name == "" {
+			nodeEntry.Meta.Name = entry.CloudProvider.InstanceName
+		}
+		if nodeEntry.Operate.ZoneId != "" && nodeEntry.Operate.ZoneId != entry.ZoneId {
+			set.Error = &types.ErrorMeta{"400",
+				fmt.Sprintf("invalid zone-id %s", entry.ZoneId)}
+			return
+		}
+		nodeEntry.Spec.PeerLanAddr = entry.CloudProvider.PrivateIp + ":9529"
+	}
+
+	if nodeEntry != nil {
+
+		nodeEntry.Meta.Updated = uint64(types.MetaTimeNow())
+
+		nodeEntry.CloudProvider = entry.CloudProvider
+
+		//
+		if nodeEntry.Operate.Pr < inapi.ResSysHostPriorityMin ||
+			nodeEntry.Operate.Pr > inapi.ResSysHostPriorityMax {
+			nodeEntry.Operate.Pr = inapi.ResSysHostPriorityDefault
+		}
+
+		if nodeEntry.Operate.SecretKey == "" {
+			if key := status.ZoneHostSecretKeys.Get(nodeEntry.Meta.Id); len(key) > 20 {
+				nodeEntry.Operate.SecretKey = key.String()
+			} else {
+				nodeEntry.Operate.SecretKey = idhash.RandBase64String(40)
+				data.DataZone.NewWriter(
+					inapi.NsZoneSysHostSecretKey(entry.ZoneId, nodeEntry.Meta.Id),
+					nodeEntry.Operate.SecretKey).Commit()
+			}
+		}
+
+		if true {
+			status.ZoneHostList.Sync(*nodeEntry)
+
+			if err := data.SysHostUpdate(nodeEntry.Operate.ZoneId, nodeEntry); err != nil {
+				set.Error = types.NewErrorMeta("500", "Server Error : "+err.Error())
+				return
+			}
+		}
+	}
+
+	set.Kind = "NodeEntry"
 }

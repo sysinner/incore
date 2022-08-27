@@ -19,23 +19,23 @@ package inapi;
 option go_package = "./;inapi";
 
 message ErrorMeta {
-    string code    = 1;
-    string message = 2;
+  string code = 1;
+  string message = 2;
 }
 
 message TypeMeta {
-    string    kind  = 1;
-    ErrorMeta error = 2;
+  string kind = 1;
+  ErrorMeta error = 2;
 }
 
 message ObjectMeta {
-    string id      = 1;
-    string name    = 2;
-    uint64 created = 3;
-    uint64 updated = 4;
+  string id = 1;
+  string name = 2;
+  uint64 created = 3;
+  uint64 updated = 4;
 }
 
 message Label {
-    string name  = 1; // struct:object_slice_key
-    string value = 2;
+  string name = 1;  // struct:object_slice_key
+  string value = 2;
 }

@@ -80,6 +80,39 @@ func (c Pod) ListAction() {
 		rs = data.DataZone.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
 			inapi.NsZonePodInstance(zone_id, "zzzz"), inapi.NsZonePodInstance(zone_id, "")).
 			LimitNumSet(10000).Query()
+
+		if v := c.Params.Get("recover_zone_to_global"); v == "true" {
+
+			gids := map[string]bool{}
+
+			if grs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
+				inapi.NsGlobalPodInstance("zzzz"), inapi.NsGlobalPodInstance("")).
+				LimitNumSet(10000).Query(); grs.OK() {
+
+				for _, v := range grs.Items {
+					var pod inapi.Pod
+					if err := v.Decode(&pod); err != nil {
+						continue
+					}
+					gids[pod.Meta.ID] = true
+				}
+			}
+
+			for _, v := range rs.Items {
+
+				var pod inapi.Pod
+				if err := v.Decode(&pod); err != nil {
+					continue
+				}
+
+				if _, ok := gids[pod.Meta.ID]; ok {
+					continue
+				}
+
+				data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).ModeCreateSet(true).Commit()
+				hlog.Printf("info", "recover pod %s", pod.Meta.ID)
+			}
+		}
 	} else {
 		rs = data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
 			inapi.NsGlobalPodInstance("zzzz"), inapi.NsGlobalPodInstance("")).

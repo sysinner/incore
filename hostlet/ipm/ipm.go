@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -37,25 +38,31 @@ import (
 )
 
 var (
-	cmd_shasum = "/usr/bin/sha256sum"
-	cmd_tar    = "/bin/tar"
-	cmd_chown  = "/usr/bin/chown"
-	ipm_sets   types.ArrayString
-	ipm_mu     sync.Mutex
+	cmdShaSumPath = "/usr/bin/sha256sum"
+	cmdShaSumArgs []string
+	cmdTarPath    = "/bin/tar"
+	cmdChownPath  = "/usr/bin/chown"
+	ipmSets       types.ArrayString
+	ipm_mu        sync.Mutex
 )
 
 func init() {
 
 	if path, err := exec.LookPath("sha256sum"); err == nil {
-		cmd_shasum = path
+		cmdShaSumPath = path
+	} else if runtime.GOOS == "darwin" {
+		if path, err := exec.LookPath("shasum"); err == nil {
+			cmdShaSumPath = path
+			cmdShaSumArgs = []string{"-a", "256"}
+		}
 	}
 
 	if path, err := exec.LookPath("tar"); err == nil {
-		cmd_tar = path
+		cmdTarPath = path
 	}
 
 	if path, err := exec.LookPath("chown"); err == nil {
-		cmd_chown = path
+		cmdChownPath = path
 	}
 }
 
@@ -96,17 +103,17 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 	tag_name := vp.Name + "." + string(vp.Version)
 
 	ipm_mu.Lock()
-	if ipm_sets.Has(tag_name) {
+	if ipmSets.Has(tag_name) {
 		ipm_mu.Unlock()
 		// hlog.Printf("info", "hostlet/Package Sync %s Command Skip", vp.Name)
 		return nil
 	}
-	ipm_sets.Set(tag_name)
+	ipmSets.Set(tag_name)
 	ipm_mu.Unlock()
 
 	defer func(tag_name string) {
 		ipm_mu.Lock()
-		ipm_sets.Del(tag_name)
+		ipmSets.Del(tag_name)
 		ipm_mu.Unlock()
 	}(tag_name)
 
@@ -233,7 +240,7 @@ func ipm_entry_sync(inst *napi.BoxInstance, app *inapi.AppInstance, vp inapi.Vol
 
 func ipm_entry_sync_sumcheck(filepath string) string {
 
-	rs, err := exec.Command(cmd_shasum, filepath).Output()
+	rs, err := exec.Command(cmdShaSumPath, append(cmdShaSumArgs, filepath)...).Output()
 	if err != nil {
 		hlog.Printf("error", "SumCheck Error %s", err.Error())
 		return ""
@@ -249,12 +256,12 @@ func ipm_entry_sync_sumcheck(filepath string) string {
 
 func ipm_entry_sync_extract(file, dest string) error {
 
-	if _, err := exec.Command(cmd_tar, "-Jxvf", file, "-C", dest).Output(); err != nil {
+	if _, err := exec.Command(cmdTarPath, "-Jxvf", file, "-C", dest).Output(); err != nil {
 		hlog.Printf("error", "Package Extract to `%s` Failed: %s", dest, err.Error())
 		return err
 	}
 
-	exec.Command(cmd_chown, "-R", "action:action", dest).Output()
+	exec.Command(cmdChownPath, "-R", "action:action", dest).Output()
 
 	return nil
 }

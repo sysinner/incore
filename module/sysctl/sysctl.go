@@ -49,10 +49,12 @@ func (it *SysctlJob) Run(ctx *injob.Context) error {
 			for k, v := range map[string]string{
 				"net.ipv4.ip_forward":          "1",
 				"net.ipv4.ip_local_port_range": "32768 60999",
+				/**
 				"net.ipv4.tcp_fin_timeout":     "30",
 				"net.ipv4.tcp_keepalive_time":  "3600",
 				"net.ipv4.tcp_syncookies":      "1",
 				"net.ipv4.tcp_tw_reuse":        "2",
+				*/
 
 				/**
 				// maximum number of file handles that the Linux kernel will allocate

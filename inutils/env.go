@@ -42,6 +42,14 @@ type EnvDocker struct {
 
 func ResSysHostEnvDistArch() (string, string, error) {
 
+	if runtime.GOOS == "darwin" {
+		return runtime.GOOS, runtime.GOARCH, nil
+	}
+
+	if runtime.GOOS != "linux" {
+		return "", "", errors.New("unsupported operating system")
+	}
+
 	cmd, err := exec.LookPath("lsb_release")
 	if err != nil {
 		return "", "", err
@@ -64,7 +72,7 @@ func ResSysHostEnvDistArch() (string, string, error) {
 
 	switch rs2[0] {
 
-	case "CentOS":
+	case "Rocky", "CentOS":
 		dist = "el"
 		if len(ver) >= 1 {
 			dist += ver[0]

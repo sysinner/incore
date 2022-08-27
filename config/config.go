@@ -155,7 +155,7 @@ func BasicSetup() error {
 		Prefix = v
 	}
 
-	if err := htoml.DecodeFromFile(&Config, Prefix+"/etc/config.toml"); err != nil {
+	if err := htoml.DecodeFromFile(Prefix+"/etc/config.toml", &Config); err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}

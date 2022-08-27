@@ -112,7 +112,7 @@ func findHostListThatFit(
 	// }
 
 	for _, v := range hostls.Items {
-		if v.OpAction != inapi.SysHostActionActive ||
+		if v.OpAction != inapi.HostSetupStart ||
 			v.CellId == "" ||
 			v.CellId != spec.CellId ||
 			len(v.Volumes) < 1 {

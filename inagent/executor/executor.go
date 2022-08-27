@@ -244,12 +244,12 @@ func executorInitSSH(pod *inapi.PodRep) error {
 		}
 
 		//
-		if _, err := exec.Command("/bin/sh", "-c", fmt.Sprintf(sshInitStart, port)).CombinedOutput(); err != nil {
+		if _, err := exec.Command("sh", "-c", fmt.Sprintf(sshInitStart, port)).CombinedOutput(); err != nil {
 			return err
 		}
 
 	} else if sshInitVersion > 0 && sshInitVersion < pod.Operate.Version {
-		exec.Command("/bin/sh", "-c", "killall sshd").Output()
+		exec.Command("sh", "-c", "killall sshd").Output()
 	}
 
 	if sshInitVersion != pod.Operate.Version {

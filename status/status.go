@@ -64,6 +64,8 @@ var (
 	ZoneMailManager              = hmsg.NewMailManager()
 	ZoneNetworkManager           = newStatusNetwork()
 
+	ZoneDrivers = []inapi.ZoneDriver{}
+
 	// global cluster
 	gmu            sync.RWMutex
 	GlobalZones    ResZoneList
@@ -97,6 +99,15 @@ func ZoneMasterLeadSeconds() int64 {
 		return ZoneScheduled - ZoneLeaded
 	}
 	return -1
+}
+
+func ZoneDriver(name string) inapi.ZoneDriver {
+	for _, v := range ZoneDrivers {
+		if v.Name() == name {
+			return v
+		}
+	}
+	return nil
 }
 
 type ResZoneList []*inapi.ResZone
@@ -227,7 +238,7 @@ func Setup() error {
 			Id: config.Config.Host.Id,
 		},
 		Operate: &inapi.ResHostOperate{
-			Action: 1,
+			Action: inapi.HostSetupStart,
 			ZoneId: config.Config.Host.ZoneId,
 		},
 		Spec: &inapi.ResHostSpec{

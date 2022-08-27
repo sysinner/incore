@@ -72,8 +72,11 @@ func volMountPoint(mnt string) string {
 	if strings.HasPrefix(mnt, "/data/") ||
 		strings.HasPrefix(mnt, "/opt") {
 		mnt += "/sysinner/pods"
-	} else {
+	} else if mnt == "" {
 		mnt = config.Config.Zone.PodHomeDir
+	}
+	if runtime.GOOS == "darwin" && !strings.HasPrefix(mnt, "/Volumes/") {
+		return "/Volumes" + mnt
 	}
 	return mnt
 }
@@ -302,7 +305,8 @@ func (inst *BoxInstance) SpecDesired() bool {
 			return false
 		}
 	} else {
-		if inst.Replica.VpcIpv4 != "" &&
+		if runtime.GOOS == "linux" &&
+			inst.Replica.VpcIpv4 != "" &&
 			inst.Replica.VpcIpv4 != inst.Status.NetworkIpv4 {
 			hlog.Printf("info", "box/spec miss-desire inst.network.vpc_ipv4")
 			return false
@@ -369,7 +373,8 @@ func (inst *BoxInstance) SpecDesired() bool {
 
 	//
 	if !inapi.PbVolumeMountSliceEqual(inst.Spec.Mounts, inst.Status.Mounts) {
-		hlog.Printf("info", "box/spec miss-desire inst.Spec.Mounts")
+		hlog.Printf("info", "box/spec miss-desire inst.Spec.Mounts %v, %v",
+			inst.Spec.Mounts, inst.Status.Mounts)
 		return false
 	}
 

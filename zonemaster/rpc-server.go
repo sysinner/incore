@@ -134,6 +134,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 	//
 	host := status.ZoneHostList.Item(req.Meta.Id)
 	if host == nil || host.Meta == nil || host.Operate == nil {
+		// fmt.Println(string(inapi.JsonEncode(status.ZoneHostList)))
 		return nil, errors.New("BadArgs No Host Found " + req.Meta.Id)
 	}
 
@@ -175,6 +176,10 @@ func (s *ApiZoneMaster) HostStatusSync(
 			}
 		}
 		req.Status.Stats = nil
+	}
+
+	if host.Status == nil {
+		host.Status = &inapi.ResHostStatus{}
 	}
 
 	//

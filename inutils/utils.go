@@ -19,6 +19,9 @@ import (
 	"encoding/hex"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/lessos/lessgo/crypto/idhash"
 )
 
 var (
@@ -89,4 +92,28 @@ func ArrayUint32Has(ar []uint32, v uint32) bool {
 		}
 	}
 	return false
+}
+
+func TimePrefixRandHexString(tlen, rlen int) string {
+	if m := tlen % 2; m > 0 {
+		tlen += 1
+	}
+	if tlen < 2 {
+		tlen = 2
+	} else if tlen > 8 {
+		tlen = 8
+	}
+	if m := rlen % 2; m > 0 {
+		rlen += 1
+	}
+	if rlen < 2 {
+		rlen = 2
+	} else if rlen > 1204 {
+		rlen = 1024
+	}
+	id := Uint32ToHexString(uint32(time.Now().Unix()))
+	if tlen < 8 {
+		id = id[:tlen]
+	}
+	return id + idhash.RandHexString(rlen)
 }

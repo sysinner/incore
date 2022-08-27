@@ -15,10 +15,13 @@
 package inapi
 
 import (
+	"fmt"
+	"regexp"
+
+	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 )
 
-//
 type SysConfigurator struct {
 	Name      string            `json:"name" toml:"name"`
 	Title     string            `json:"title,omitempty" toml:"title,omitempty"`
@@ -85,4 +88,83 @@ type SysConfigWizard struct {
 type SysConfigWizardList struct {
 	types.TypeMeta `json:",inline" toml:",inline"`
 	Items          []*SysConfigWizard `json:"items,omitempty" toml:"items,omitempty"`
+}
+
+func (it *ConfigInstance) FieldValue(name string) string {
+	for _, v := range it.Fields {
+		if name == v.Name {
+			return v.Value
+		}
+	}
+	return ""
+}
+
+func ConfigInstanceApply(inst *ConfigInstance, spec *ConfigSpec) error {
+
+	if inst == nil || inst.Name == "" {
+		return fmt.Errorf("config instance not found")
+	}
+
+	if spec == nil {
+		return fmt.Errorf("config spec name(%s) not found", inst.Name)
+	}
+
+	instSetup := ConfigInstance{}
+
+	for _, field := range spec.Fields {
+
+		var (
+			value = inst.FieldValue(field.Name)
+		)
+
+		if field.AutoFill != "" {
+
+			switch field.AutoFill {
+
+			case AppConfigFieldAutoFillDefaultValue:
+				if len(field.DefaultValue) < 1 {
+					return fmt.Errorf("field(%s): DefaultValue empty", field.Name)
+				}
+				value = field.DefaultValue
+
+			case AppConfigFieldAutoFillHexString_32:
+				if len(value) < 32 {
+					value = idhash.RandHexString(32)
+				}
+
+			case AppConfigFieldAutoFillBase64_48:
+				if len(value) < 44 {
+					value = idhash.RandBase64String(48)
+				}
+
+			default:
+				return fmt.Errorf("field(%s): Not Dedault Value Type Found", field.Name)
+			}
+		}
+
+		for _, validator := range field.Validates {
+			if re, err := regexp.Compile(validator.Name); err == nil {
+				if !re.MatchString(value) {
+					return fmt.Errorf("field (%s): Invalid Value %s", field.Name, validator.Hint)
+				}
+			}
+		}
+
+		if len(value) > 0 {
+			field := &ConfigFieldValue{
+				Name:  field.Name,
+				Value: value,
+				Type:  field.Type,
+			}
+			if ls, _ := SliceMerge(instSetup.Fields, field, func(i int) bool {
+				return instSetup.Fields[i].Name == field.Name
+			}); ls != nil {
+				instSetup.Fields = ls.([]*ConfigFieldValue)
+			}
+		}
+	}
+
+	inst.Fields = instSetup.Fields
+
+	return nil
 }

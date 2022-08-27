@@ -98,6 +98,10 @@ func NewDriver() (napi.BoxDriver, error) {
 			statsSets:  map[string]*napi.BoxInstanceStatsFeed{},
 			lxcfsVols:  vols,
 		}
+
+		if runtime.GOOS == "darwin" {
+			cfgStorageOptSizeEnable = false
+		}
 	}
 
 	return driver, nil
@@ -113,7 +117,7 @@ type BoxDriver struct {
 	inited       bool
 	running      bool
 	client       *drvClient.Client
-	statusMu             sync.RWMutex
+	statusMu     sync.RWMutex
 	statusSets   map[string]*napi.BoxInstance
 	statsSets    map[string]*napi.BoxInstanceStatsFeed
 	statsPending bool
@@ -162,7 +166,7 @@ func (tp *BoxDriver) Stop() error {
 func (tp *BoxDriver) StatusList() []*napi.BoxInstance {
 	tp.statusMu.Lock()
 	defer tp.statusMu.Unlock()
-	ar := []*napi.BoxInstance {}
+	ar := []*napi.BoxInstance{}
 	for _, v := range tp.statusSets {
 		ar = append(ar, v)
 	}
@@ -172,7 +176,7 @@ func (tp *BoxDriver) StatusList() []*napi.BoxInstance {
 func (tp *BoxDriver) StatsList() []*napi.BoxInstanceStatsFeed {
 	tp.statusMu.Lock()
 	defer tp.statusMu.Unlock()
-	ar := []*napi.BoxInstanceStatsFeed {}
+	ar := []*napi.BoxInstanceStatsFeed{}
 	for _, v := range tp.statsSets {
 		ar = append(ar, v)
 	}
@@ -256,16 +260,26 @@ func (tp *BoxDriver) statusRefresh() {
 		}
 
 		if tp.vpcSubnet != incfg.Config.Host.NetworkVpcInstance {
-			if br, err := tp.client.CreateNetwork(drvClient.CreateNetworkOptions{
-				Name:   dockerNetworkVPCName,
-				Driver: "bridge",
-				IPAM: &drvClient.IPAMOptions{
+
+			var (
+				vpcName = ""
+				ipam    *drvClient.IPAMOptions
+			)
+			if runtime.GOOS == "linux" {
+				vpcName = dockerNetworkVPCName
+				ipam = &drvClient.IPAMOptions{
 					Config: []drvClient.IPAMConfig{
 						{
 							Subnet: incfg.Config.Host.NetworkVpcInstance,
 						},
 					},
-				},
+				}
+			}
+
+			if br, err := tp.client.CreateNetwork(drvClient.CreateNetworkOptions{
+				Name:           vpcName,
+				Driver:         "bridge",
+				IPAM:           ipam,
 				CheckDuplicate: true,
 			}); err == nil {
 				tp.vpcSubnet = incfg.Config.Host.NetworkVpcInstance
@@ -307,7 +321,7 @@ func (tp *BoxDriver) statusRefresh() {
 
 		if sts, err := tp.statusEntry(vc.ID); err == nil {
 			tp.statusMu.Lock()
-			tp.statusSets [name] = sts
+			tp.statusSets[name] = sts
 			tp.statusMu.Unlock()
 
 			if sts.Status.Action == inapi.OpActionRunning {
@@ -765,7 +779,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 			dnsServers = []string{}
 		)
 
-		if inst.Replica.VpcIpv4 != "" {
+		if runtime.GOOS == "linux" && inst.Replica.VpcIpv4 != "" {
 			if tp.vpcSubnet == "" {
 				return errors.New("docker network subnet not ready, waiting ...")
 			}
@@ -861,7 +875,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 				boxCreateOptions.HostConfig.BlkioDeviceWriteIOps, dev, inst.BlkioDeviceIOps)
 		}
 
-		if netMode == "bridge" && inst.Replica.VpcIpv4 != "" {
+		if runtime.GOOS == "linux" && netMode == "bridge" && inst.Replica.VpcIpv4 != "" {
 			boxCreateOptions.NetworkingConfig = &drvClient.NetworkingConfig{
 				EndpointsConfig: map[string]*drvClient.EndpointConfig{
 					dockerNetworkVPCName: {
@@ -900,7 +914,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 		if boxInspect != nil && boxInspect.ID != "" {
 			inst.ID = boxInspect.ID
-			hlog.Printf("info", "hostlet/box Create %s OK", inst.Name)
+			hlog.Printf("info", "hostlet/box create %s, ok %s, OK", inst.Name, inst.ID)
 			inst.SetupHosts = extHosts
 			inst.StatusActionSet(0)
 		}
@@ -920,7 +934,7 @@ func (tp *BoxDriver) BoxStart(inst *napi.BoxInstance) error {
 
 		if err := tp.client.StartContainer(inst.ID, nil); err != nil {
 
-			hlog.Printf("info", "hostlet/box Start %s, Error %v", inst.Name, err)
+			hlog.Printf("warn", "hostlet/box Start %s, Error %v", inst.Name, err)
 
 			if strings.Contains(err.Error(), "OCI runtime create failed") ||
 				strings.Contains(err.Error(), "storage-opt") {

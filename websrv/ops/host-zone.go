@@ -51,6 +51,16 @@ func (c Host) ZoneListAction() {
 			NetworkVpcBridge:   v.NetworkVpcBridge,
 		}
 
+		if v.Driver != nil {
+			zone.Driver = &inapi.ConfigInstance{
+				Name: v.Driver.Name,
+			}
+		} else {
+			zone.Driver = &inapi.ConfigInstance{
+				Name: "private_cloud",
+			}
+		}
+
 		if c.Params.Get("fields") == "cells" {
 			zone.Cells = v.Cells
 		}
@@ -59,6 +69,19 @@ func (c Host) ZoneListAction() {
 	}
 
 	ls.Kind = "HostZoneList"
+}
+
+func (c Host) ZoneDriverSpecListAction() {
+
+	var set inapi.GeneralObjectList
+	defer c.RenderJson(&set)
+
+	set.Kind = "ZoneDriverSpecList"
+	for _, v := range status.ZoneDrivers {
+		if v != nil {
+			set.Items = append(set.Items, v.ConfigSpec())
+		}
+	}
 }
 
 func (c Host) ZoneEntryAction() {
@@ -130,6 +153,39 @@ func (c Host) ZoneSetAction() {
 		set.Error = &types.ErrorMeta{
 			Code:    "400",
 			Message: "Zone Id must consist of letters or numbers, and begin with a letter",
+		}
+		return
+	}
+
+	if set.Driver == nil {
+		set.Error = &types.ErrorMeta{
+			Code:    "400",
+			Message: "driver not setup",
+		}
+		return
+	}
+
+	zoneDriver := status.ZoneDriver(set.Driver.Name)
+	if zoneDriver == nil {
+		set.Error = &types.ErrorMeta{
+			Code:    "400",
+			Message: "driver not found",
+		}
+		return
+	}
+
+	if err := inapi.ConfigInstanceApply(set.Driver, zoneDriver.ConfigSpec()); err != nil {
+		set.Error = &types.ErrorMeta{
+			Code:    "400",
+			Message: err.Error(),
+		}
+		return
+	}
+
+	if err := zoneDriver.ConfigValid(set.Driver); err != nil {
+		set.Error = &types.ErrorMeta{
+			Code:    "400",
+			Message: err.Error(),
 		}
 		return
 	}
@@ -220,11 +276,38 @@ func (c Host) ZoneSetAction() {
 		return
 	}
 
+	//
+	groups, groupms := []*inapi.ZoneGroupSpec{}, map[string]bool{}
+	for _, g := range set.Groups {
+		g.Id = strings.ToLower(g.Id)
+		if !inapi.ZoneGroupIdRX.MatchString(g.Id) {
+			set.Error = types.NewErrorMeta("400", fmt.Sprintf("Invalid Group ID (%s)", g.Id))
+			return
+		}
+		if groupms[g.Id] == true {
+			continue
+		}
+		if g.Action != inapi.ZoneGroupSetupIn {
+			g.Action = inapi.ZoneGroupSetupOut
+		}
+		groups = append(groups, g)
+		groupms[g.Id] = true
+	}
+	set.Groups = groups
+
 	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Meta.Id)).Query(); rs.OK() {
 		var prev inapi.ResZone
 		if err := rs.Decode(&prev); err == nil {
 			if prev.Meta.Created > 0 {
 				set.Meta.Created = prev.Meta.Created
+			}
+			for _, g := range prev.Groups {
+				if groupms[g.Id] == true {
+					continue
+				}
+				g.Action = inapi.ZoneGroupSetupOut
+				set.Groups = append(set.Groups, g)
+				groupms[g.Id] = true
 			}
 		}
 	}

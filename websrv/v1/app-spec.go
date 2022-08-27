@@ -491,7 +491,7 @@ func (c AppSpec) SetAction() {
 	}
 
 	if c.Request.RawBody[0] != '{' {
-		err = htoml.Decode(&req, c.Request.RawBody)
+		err = htoml.Decode(c.Request.RawBody, &req)
 	} else {
 		err = c.Request.JsonDecode(&req)
 	}
