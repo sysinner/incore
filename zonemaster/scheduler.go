@@ -296,7 +296,7 @@ func schedulePodListRefresh() error {
 				hostRes.box += 1
 			}
 
-			if rp.VolSysMnt == "" {
+			if rp.VolSysMnt == "" || rp.VolSysMnt == "/" {
 				rp.VolSysMnt = "/opt"
 			}
 

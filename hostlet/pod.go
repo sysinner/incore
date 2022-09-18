@@ -62,6 +62,10 @@ func podRepCtrlSet(pod *inapi.PodRep) error {
 		return errors.New("no vol-sys-mnt")
 	}
 
+	if pod.Replica.VolSysMnt == "/" {
+		pod.Replica.VolSysMnt = "/opt"
+	}
+
 	if runtime.GOOS == "darwin" {
 		pod.Replica.VolSysMnt = "/Volumes/opt/sysinner/pods"
 	}

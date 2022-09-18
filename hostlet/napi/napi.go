@@ -68,11 +68,11 @@ func ObjPrint(name string, v interface{}) {
 	fmt.Println("\n", name, string(js))
 }
 
-func volMountPoint(mnt string) string {
+func VolMountPoint(mnt string) string {
 	if strings.HasPrefix(mnt, "/data/") ||
 		strings.HasPrefix(mnt, "/opt") {
 		mnt += "/sysinner/pods"
-	} else if mnt == "" {
+	} else if mnt == "" || mnt == "/" {
 		mnt = config.Config.Zone.PodHomeDir
 	}
 	if runtime.GOOS == "darwin" && !strings.HasPrefix(mnt, "/Volumes/") {
@@ -83,34 +83,34 @@ func volMountPoint(mnt string) string {
 
 func AgentBoxStatus(mnt, podId string, repId uint32) string {
 	return filepath.Clean(fmt.Sprintf(AgentBoxStatusFmt,
-		volMountPoint(mnt),
+		VolMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	))
 }
 
 func VolPodPath(mnt string, podId string, repId uint32, path string) string {
 	return filepath.Clean(fmt.Sprintf(PodVolSysFmt,
-		volMountPoint(mnt),
+		VolMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	) + "/" + path)
 }
 
 func VolPodHomeDir(mnt string, podId string, repId uint32) string {
 	return filepath.Clean(fmt.Sprintf(VolPodHomeFmt,
-		volMountPoint(mnt),
+		VolMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId)))
 }
 
 func PodVolSysDir(mnt string, podId string, repId uint32) string {
 	return fmt.Sprintf(PodVolSysFmt,
-		volMountPoint(mnt),
+		VolMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	)
 }
 
 func PodVolSysDirArch(mnt string, podId string, repId uint32) string {
 	return fmt.Sprintf(PodVolSysArchFmt,
-		volMountPoint(mnt),
+		VolMountPoint(mnt),
 		time.Now().UTC().Format("20060102.150405"),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	)
@@ -118,7 +118,7 @@ func PodVolSysDirArch(mnt string, podId string, repId uint32) string {
 
 func VolAgentSysDir(mnt string, podId string, repId uint32) string {
 	return fmt.Sprintf(VolAgentSysDirFmt,
-		volMountPoint(mnt),
+		VolMountPoint(mnt),
 		inapi.NsZonePodOpRepKey(podId, repId),
 	)
 }

@@ -92,6 +92,10 @@ func (it *QuotaConfig) FetchOrCreate(mnt, name string) *QuotaProject {
 	it.mu.Lock()
 	defer it.mu.Unlock()
 
+	if mnt == "" || mnt == "/" {
+		mnt = "/opt" // TODO zone-master -> hostlet
+	}
+
 	for _, v := range it.Items {
 		if name == v.Name {
 			return v

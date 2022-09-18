@@ -112,6 +112,7 @@ func setupZone() error {
 		if !rs.OK() {
 			return rs.Error()
 		}
+		hlog.Printf("info", "db init table setup %s ok", name)
 		return nil
 	}
 

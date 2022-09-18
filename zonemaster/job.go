@@ -168,9 +168,11 @@ func (it *ZoneMainJob) init() error {
 		// init database
 		iam_db.Data = ic_db.DataGlobal
 		if err := iam_db.Setup(); err != nil {
+			hlog.Printf("warn", "zone job init %v", err.Error())
 			return fmt.Errorf("iam.Store.Init error: %s", err.Error())
 		}
 		if err := iam_db.InitData(); err != nil {
+			hlog.Printf("warn", "zone job init")
 			return fmt.Errorf("iam.Store.InitData error: %s", err.Error())
 		}
 		iam_db.SysConfigRefresh()
@@ -322,6 +324,7 @@ func (it *ZoneMainJob) init() error {
 
 	it.hs.Config.HttpPort = incfg.Config.Zone.HttpPort
 	go it.hs.Start()
+	hlog.Printf("warn", "server %d", it.hs.Config.HttpPort)
 
 	return nil
 }
