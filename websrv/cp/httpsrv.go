@@ -20,40 +20,26 @@ import (
 	"github.com/sysinner/incore/config"
 )
 
-func NewModule() httpsrv.Module {
+func NewModule() *httpsrv.Module {
 
-	module := httpsrv.NewModule("in_cp")
+	mod := httpsrv.NewModule()
 
-	module.RouteSet(httpsrv.Route{
-		Type:       httpsrv.RouteTypeStatic,
-		Path:       "~",
-		StaticPath: config.Prefix + "/webui/in",
-	})
+	mod.RegisterFileServer("/~", config.Prefix+"/webui/in", nil)
 
-	module.RouteSet(httpsrv.Route{
-		Type:       httpsrv.RouteTypeStatic,
-		Path:       "-",
-		StaticPath: config.Prefix + "/webui/in/cp/tpl",
-	})
+	mod.RegisterFileServer("/-", config.Prefix+"/webui/in/cp/tpl", nil)
 
-	module.ControllerRegister(new(Index))
-	module.ControllerRegister(new(iamclient.Auth))
+	mod.RegisterController(new(Index), new(iamclient.Auth))
 
-	return module
+	return mod
 }
 
-func NewIndexModule() httpsrv.Module {
+func NewIndexModule() *httpsrv.Module {
 
-	module := httpsrv.NewModule("in_cp_index")
+	mod := httpsrv.NewModule()
 
-	module.RouteSet(httpsrv.Route{
-		Type:       httpsrv.RouteTypeStatic,
-		Path:       "~",
-		StaticPath: config.Prefix + "/webui",
-	})
+	mod.RegisterFileServer("/~", config.Prefix+"/webui", nil)
 
-	module.ControllerRegister(new(Index))
-	module.ControllerRegister(new(iamclient.Auth))
+	mod.RegisterController(new(Index), new(iamclient.Auth))
 
-	return module
+	return mod
 }

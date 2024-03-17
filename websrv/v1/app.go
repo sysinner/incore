@@ -31,7 +31,7 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	iox_utils "github.com/lynkdb/iomix/utils"
-	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
+	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
@@ -76,7 +76,7 @@ func (c App) ListAction() {
 		LimitNumSet(10000).Query()
 
 	var fields types.ArrayPathTree
-	if fns := c.Params.Get("fields"); fns != "" {
+	if fns := c.Params.Value("fields"); fns != "" {
 		fields.Set(fns)
 		fields.Sort()
 	}
@@ -90,7 +90,7 @@ func (c App) ListAction() {
 		}
 
 		// TOPO
-		if c.Params.Get("filter_meta_user") == "all" &&
+		if c.Params.Value("filter_meta_user") == "all" &&
 			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.Zone.InstanceId) {
 			//
 		} else if !c.us.AccessAllow(inst.Meta.User) {
@@ -108,14 +108,14 @@ func (c App) ListAction() {
 			continue
 		}
 
-		if c.Params.Get("spec_id") != "" {
-			if inst.Spec.Meta.ID != c.Params.Get("spec_id") {
+		if c.Params.Value("spec_id") != "" {
+			if inst.Spec.Meta.ID != c.Params.Value("spec_id") {
 				continue
 			}
 		}
 
-		if c.Params.Get("qry_text") != "" &&
-			!strings.Contains(inst.Meta.Name, c.Params.Get("qry_text")) {
+		if c.Params.Value("qry_text") != "" &&
+			!strings.Contains(inst.Meta.Name, c.Params.Value("qry_text")) {
 			continue
 		}
 
@@ -191,7 +191,7 @@ func (c App) ListAction() {
 func (c App) EntryAction() {
 
 	var app inapi.AppInstance
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(c.Params.Get("id"))).Query(); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(c.Params.Value("id"))).Query(); rs.OK() {
 		rs.Decode(&app)
 	}
 
@@ -450,7 +450,7 @@ func (c App) ListOpResAction() {
 	ls := inapi.AppInstanceList{}
 	defer c.RenderJson(&ls)
 
-	if c.Params.Get("res_type") != "domain" {
+	if c.Params.Value("res_type") != "domain" {
 		ls.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
@@ -515,8 +515,8 @@ func (c App) OpActionSetAction() {
 	defer c.RenderJson(&rsp)
 
 	var (
-		app_id    = c.Params.Get("app_id")
-		op_action = uint32(c.Params.Uint64("op_action"))
+		app_id    = c.Params.Value("app_id")
+		op_action = uint32(c.Params.IntValue("op_action"))
 	)
 
 	if !inapi.AppIdRe2.MatchString(app_id) {

@@ -75,7 +75,7 @@ func (c Sys) ConfigWizardAction() {
 	var set inapi.SysConfigWizard
 	defer c.RenderJson(&set)
 
-	name := c.Params.Get("name")
+	name := c.Params.Value("name")
 	if name == "" {
 		set.Error = types.NewErrorMeta("400", "invalid name")
 		return

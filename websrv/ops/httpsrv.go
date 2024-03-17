@@ -20,37 +20,37 @@ import (
 	"github.com/sysinner/incore/config"
 )
 
-func NewModule() httpsrv.Module {
+func NewModule() *httpsrv.Module {
 
-	module := httpsrv.NewModule("in_ops")
+	mod := httpsrv.NewModule()
 
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/zonebound/:zone_id",
-		Params: map[string]string{
+	mod.SetRoute(
+		"/zonebound/:zone_id",
+		map[string]string{
 			"controller": "zonebound",
 			"action":     "index",
 		},
-	})
+	)
 
-	module.RouteSet(httpsrv.Route{
-		Type:       httpsrv.RouteTypeStatic,
-		Path:       "~",
-		StaticPath: config.Prefix + "/webui/in",
-	})
+	mod.RegisterFileServer(
+		"/~",
+		config.Prefix+"/webui/in",
+		nil,
+	)
 
-	module.RouteSet(httpsrv.Route{
-		Type:       httpsrv.RouteTypeStatic,
-		Path:       "-",
-		StaticPath: config.Prefix + "/webui/in/ops/tpl",
-	})
+	mod.RegisterFileServer(
+		"/-",
+		config.Prefix+"/webui/in/ops/tpl",
+		nil,
+	)
 
-	module.ControllerRegister(new(Host))
-	module.ControllerRegister(new(PodSpec))
-	module.ControllerRegister(new(iamclient.Auth))
-	module.ControllerRegister(new(Index))
-	module.ControllerRegister(new(Zonebound))
-	module.ControllerRegister(new(Sys))
+	mod.RegisterController(
+		new(Host),
+		new(PodSpec),
+		new(iamclient.Auth),
+		new(Index),
+		new(Zonebound),
+		new(Sys))
 
-	return module
+	return mod
 }

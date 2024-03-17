@@ -180,7 +180,7 @@ func (c Pod) UserTransferPerformAction() {
 
 	var (
 		rsp inapi.GeneralObject
-		ids = strings.Split(c.Params.Get("pod_ids"), ",")
+		ids = strings.Split(c.Params.Value("pod_ids"), ",")
 		tn  = uint32(time.Now().Unix())
 	)
 	defer c.RenderJson(&rsp)

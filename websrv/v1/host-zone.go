@@ -42,7 +42,7 @@ func (c Host) ZoneListAction() {
 			NetworkVpcInstance: v.NetworkVpcInstance,
 		}
 
-		if c.Params.Get("fields") == "cells" {
+		if c.Params.Value("fields") == "cells" {
 
 			for _, cell := range v.Cells {
 				zone.Cells = append(zone.Cells, cell)
@@ -64,7 +64,7 @@ func (c Host) ZoneEntryAction() {
 
 	defer c.RenderJson(&set)
 
-	item := status.GlobalZone(c.Params.Get("id"))
+	item := status.GlobalZone(c.Params.Value("id"))
 	if item == nil {
 		set.Error = types.NewErrorMeta("400", "Zone Not Found")
 	}
@@ -79,7 +79,7 @@ func (c Host) ZoneEntryAction() {
 		Phase:    item.Phase,
 	}
 
-	if c.Params.Get("fields") == "cells" {
+	if c.Params.Value("fields") == "cells" {
 		for _, cell := range item.Cells {
 			set.Cells = append(set.Cells, cell)
 		}

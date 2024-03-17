@@ -18,20 +18,14 @@ import (
 	"github.com/hooto/httpsrv"
 )
 
-func NewModule() httpsrv.Module {
+func NewModule() *httpsrv.Module {
 
-	module := httpsrv.NewModule("lp-boxlet")
+	mod := httpsrv.NewModule("lp-boxlet")
 
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/podbound/:podid/:controller/:action",
-	})
+	mod.SetRoute("/podbound/:podid/:controller/:action", map[string]string{})
 
-	module.ControllerRegister(new(Fs))
-	module.ControllerRegister(new(App))
-	// module.ControllerRegister(new(Terminal))
-	module.ControllerRegister(new(Pod))
-	module.ControllerRegister(new(Health))
+	mod.RegisterController(new(Fs), new(App), new(Pod), new(Health))
+	// mod.ControllerRegister(new(Terminal))
 
-	return module
+	return mod
 }

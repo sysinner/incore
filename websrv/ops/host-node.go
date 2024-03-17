@@ -21,7 +21,7 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
+	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/config"
@@ -35,8 +35,8 @@ import (
 func (c Host) NodeListAction() {
 
 	var (
-		zoneid = c.Params.Get("zoneid")
-		cellid = c.Params.Get("cellid")
+		zoneid = c.Params.Value("zoneid")
+		cellid = c.Params.Value("cellid")
 		sets   inapi.GeneralObjectList
 		rs     *kv2.ObjectResult
 	)
@@ -73,8 +73,8 @@ func (c Host) NodeListAction() {
 func (c Host) NodeEntryAction() {
 
 	var (
-		zoneid = c.Params.Get("zoneid")
-		nodeid = c.Params.Get("nodeid")
+		zoneid = c.Params.Value("zoneid")
+		nodeid = c.Params.Value("nodeid")
 		node   struct {
 			inapi.GeneralObject
 			inapi.ResHost
@@ -366,7 +366,7 @@ func (c Host) NodeSecretKeySetAction() {
 func (c Host) NodeSyncPullListAction() {
 
 	var (
-		zoneId = c.Params.Get("zone_id")
+		zoneId = c.Params.Value("zone_id")
 		sets   inapi.GeneralObjectList
 	)
 	defer c.RenderJson(&sets)

@@ -84,7 +84,7 @@ func (c AppSpec) ListAction() {
 		LimitNumSet(200).Query()
 
 	var fields types.ArrayPathTree
-	if fns := c.Params.Get("fields"); fns != "" {
+	if fns := c.Params.Value("fields"); fns != "" {
 		fields.Set(fns)
 		fields.Sort()
 	}
@@ -110,8 +110,8 @@ func (c AppSpec) ListAction() {
 			continue
 		}
 
-		if c.Params.Get("qry_text") != "" &&
-			!strings.Contains(spec.Meta.ID, c.Params.Get("qry_text")) {
+		if c.Params.Value("qry_text") != "" &&
+			!strings.Contains(spec.Meta.ID, c.Params.Value("qry_text")) {
 			continue
 		}
 
@@ -242,17 +242,17 @@ func (c AppSpec) VersionListAction() {
 	ls := inapi.AppSpecVersionList{}
 	defer c.RenderJson(&ls)
 
-	if c.Params.Get("id") == "" {
+	if c.Params.Value("id") == "" {
 		ls.Error = types.NewErrorMeta("400", "ID can not be null")
 		return
 	}
 
 	var (
-		version = c.Params.Get("version")
+		version = c.Params.Value("version")
 	)
 
 	var spec inapi.AppSpec
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Value("id"))).Query(); rs.OK() {
 		rs.Decode(&spec)
 	}
 
@@ -311,17 +311,17 @@ func (c AppSpec) ItemDelAction() {
 	set := types.TypeMeta{}
 	defer c.RenderJson(&set)
 
-	if c.Params.Get("id") == "" {
+	if c.Params.Value("id") == "" {
 		set.Error = types.NewErrorMeta("400", "ID can not be null")
 		return
 	}
 
 	var spec inapi.AppSpec
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Value("id"))).Query(); rs.OK() {
 		rs.Decode(&spec)
 	}
 
-	if spec.Meta.ID != c.Params.Get("id") {
+	if spec.Meta.ID != c.Params.Value("id") {
 		set.Error = types.NewErrorMeta("400", "Item Not Found")
 		return
 	}
@@ -371,41 +371,41 @@ func (c AppSpec) EntryAction() {
 		set inapi.AppSpec
 	)
 
-	if c.Params.Get("ct") == "toml" {
+	if c.Params.Value("ct") == "toml" {
 		defer func() {
 			bs, _ := htoml.Encode(&rsp, nil)
 			c.Response.Out.Header().Set("Content-Type", "application/toml")
 			c.RenderString(string(bs))
 		}()
-	} else if c.Params.Get("fmt_json_indent") == "true" {
+	} else if c.Params.Value("fmt_json_indent") == "true" {
 		defer c.RenderJsonIndent(&rsp, "  ")
 	} else {
 		defer c.RenderJson(&rsp)
 	}
 
-	if c.Params.Get("id") == "" {
+	if c.Params.Value("id") == "" {
 		rsp.Error = types.NewErrorMeta("400", "ID can not be null")
 		return
 	}
 
-	version := c.Params.Get("version")
+	version := c.Params.Value("version")
 	if version != "" {
 		if rs := data.DataGlobal.NewReader(
-			inapi.NsKvGlobalAppSpecVersion(c.Params.Get("id"), version)).Query(); rs.OK() {
+			inapi.NsKvGlobalAppSpecVersion(c.Params.Value("id"), version)).Query(); rs.OK() {
 			rs.Decode(&set)
 		}
 	}
 
-	if set.Meta.ID != c.Params.Get("id") {
+	if set.Meta.ID != c.Params.Value("id") {
 		if rs := data.DataGlobal.NewReader(
-			inapi.NsGlobalAppSpec(c.Params.Get("id"))).Query(); rs.OK() {
+			inapi.NsGlobalAppSpec(c.Params.Value("id"))).Query(); rs.OK() {
 			rs.Decode(&set)
 		}
 	}
 
-	if set.Meta.ID != c.Params.Get("id") {
+	if set.Meta.ID != c.Params.Value("id") {
 
-		appId := c.Params.Get("app_id")
+		appId := c.Params.Value("app_id")
 
 		if inapi.AppIdRe2.MatchString(appId) {
 
@@ -413,21 +413,21 @@ func (c AppSpec) EntryAction() {
 				inapi.NsGlobalAppInstance(appId)).Query(); rs.OK() {
 				var app inapi.AppInstance
 				rs.Decode(&app)
-				if app.Meta.ID == appId && app.Spec.Meta.ID == c.Params.Get("id") {
+				if app.Meta.ID == appId && app.Spec.Meta.ID == c.Params.Value("id") {
 					set = app.Spec
 				}
 			}
 		}
 	}
 
-	if set.Meta.ID != c.Params.Get("id") {
+	if set.Meta.ID != c.Params.Value("id") {
 
 		if version != "" {
 			version = ", version " + version
 		}
 
 		rsp.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound,
-			fmt.Sprintf("AppSpec Not Found : %s%s", c.Params.Get("id"), version))
+			fmt.Sprintf("AppSpec Not Found : %s%s", c.Params.Value("id"), version))
 
 		return
 	}
@@ -438,7 +438,7 @@ func (c AppSpec) EntryAction() {
 		return
 	}
 
-	if version != "" && c.Params.Get("last_version") == "true" {
+	if version != "" && c.Params.Value("last_version") == "true" {
 		if rs := data.DataGlobal.NewReader(
 			inapi.NsGlobalAppSpec(set.Meta.ID)).Query(); rs.OK() {
 			var last_spec inapi.AppSpec
@@ -449,12 +449,12 @@ func (c AppSpec) EntryAction() {
 		}
 	}
 
-	if c.Params.Get("download") == "true" {
+	if c.Params.Value("download") == "true" {
 		set.Meta.User = ""
 		set.Meta.Created = 0
 		set.Meta.Updated = 0
 		fileExt := "json"
-		if c.Params.Get("ct") == "toml" {
+		if c.Params.Value("ct") == "toml" {
 			fileExt = "toml"
 		}
 		c.Response.Out.Header().Set("Content-Disposition",
@@ -485,13 +485,13 @@ func (c AppSpec) SetAction() {
 		err error
 	)
 
-	if len(c.Request.RawBody) < 10 {
+	if len(c.Request.RawBody()) < 10 {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
 
-	if c.Request.RawBody[0] != '{' {
-		err = htoml.Decode(c.Request.RawBody, &req)
+	if c.Request.RawBody()[0] != '{' {
+		err = htoml.Decode(c.Request.RawBody(), &req)
 	} else {
 		err = c.Request.JsonDecode(&req)
 	}

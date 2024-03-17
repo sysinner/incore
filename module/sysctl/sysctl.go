@@ -22,7 +22,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 )
 
 type SysctlJob struct {

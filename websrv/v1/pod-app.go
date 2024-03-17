@@ -31,7 +31,7 @@ func (c Pod) AppSyncAction() {
 	set := types.TypeMeta{}
 	defer c.RenderJson(&set)
 
-	app_id := c.Params.Get("app_id")
+	app_id := c.Params.Value("app_id")
 	if app_id == "" {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
 		return
@@ -59,7 +59,7 @@ func (c Pod) AppSyncAction() {
 		set.Error = types.NewErrorMeta("400", "Bad Request")
 		return
 	}
-	if c.Params.Get("operate_action") == "start" {
+	if c.Params.Value("operate_action") == "start" {
 
 		if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionStart) {
 			app.Operate.Action = inapi.OpActionAppend(app.Operate.Action,

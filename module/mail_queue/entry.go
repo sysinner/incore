@@ -25,7 +25,7 @@ import (
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/status"
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 )
 
 type MailQueue struct {

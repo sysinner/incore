@@ -28,7 +28,7 @@ func (c Host) CellListAction() {
 	var sets inapi.GeneralObjectList
 	defer c.RenderJson(&sets)
 
-	zoneid := c.Params.Get("zoneid")
+	zoneid := c.Params.Value("zoneid")
 
 	zone := status.GlobalZone(zoneid)
 	if zone == nil {
@@ -54,8 +54,8 @@ func (c Host) CellEntryAction() {
 	defer c.RenderJson(&set)
 
 	var (
-		zoneId = c.Params.Get("zoneid")
-		cellId = c.Params.Get("cellid")
+		zoneId = c.Params.Value("zoneid")
+		cellId = c.Params.Value("cellid")
 	)
 
 	if rs := data.DataGlobal.NewReader(

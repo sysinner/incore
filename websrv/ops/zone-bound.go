@@ -55,7 +55,7 @@ func (c Zonebound) IndexAction() {
 	c.AutoRender = false
 
 	var (
-		zone_id  = c.Params.Get("zone_id")
+		zone_id  = c.Params.Value("zone_id")
 		zone_api = ""
 	)
 	for _, v := range status.GlobalZones {
@@ -95,7 +95,7 @@ func (c Zonebound) IndexAction() {
 func (c Zonebound) proxyHttpHandler(proxy_endpoint *url.URL, proxy_url *url.URL) {
 
 	req, err := http.NewRequest(c.Request.Method, proxy_url.String(),
-		bytes.NewReader(c.Request.RawBody))
+		bytes.NewReader(c.Request.RawBody()))
 	if err != nil {
 		return
 	}

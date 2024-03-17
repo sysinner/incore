@@ -259,11 +259,11 @@ func (c PodSpec) PlanEntryAction() {
 	}
 
 	// TODO
-	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Get("id"))).Query()
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Value("id"))).Query()
 	if rs.OK() {
 		rs.Decode(&set)
 	}
-	if set.Meta.ID == "" || set.Meta.ID != c.Params.Get("id") {
+	if set.Meta.ID == "" || set.Meta.ID != c.Params.Value("id") {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPlan Not Found")
 		return
 	}
@@ -478,8 +478,8 @@ func (c PodSpec) BoxImageListAction() {
 	}
 
 	var (
-		repo   = c.Params.Get("repo")
-		action = uint32(c.Params.Int64("action"))
+		repo   = c.Params.Value("repo")
+		action = uint32(c.Params.IntValue("action"))
 		offset = inapi.NsGlobalBoxImage(repo, "")
 		cutset = inapi.NsGlobalBoxImage(repo, "")
 	)

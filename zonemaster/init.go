@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/hooto/hlog4g/hlog"
-	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
+	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
 
 	"github.com/sysinner/incore/data"
 )

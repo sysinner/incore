@@ -97,13 +97,13 @@ func (c AppSpec) ListAction() {
 	appSpecRefresh()
 
 	var fields types.ArrayPathTree
-	if fns := c.Params.Get("fields"); fns != "" {
+	if fns := c.Params.Value("fields"); fns != "" {
 		fields.Set(fns)
 		fields.Sort()
 	}
 
 	tags := []string{}
-	if v := c.Params.Get("type_tags"); v != "" {
+	if v := c.Params.Value("type_tags"); v != "" {
 		tags = strings.Split(v, ",")
 	}
 
@@ -113,8 +113,8 @@ func (c AppSpec) ListAction() {
 			continue
 		}
 
-		if c.Params.Get("qry_text") != "" &&
-			!strings.Contains(spec.Meta.ID, c.Params.Get("qry_text")) {
+		if c.Params.Value("qry_text") != "" &&
+			!strings.Contains(spec.Meta.ID, c.Params.Value("qry_text")) {
 			continue
 		}
 
@@ -231,7 +231,7 @@ func (c AppSpec) ListAction() {
 
 	ls.Kind = "AppSpecList"
 
-	if c.Params.Get("type_tag_dicts") == "yes" {
+	if c.Params.Value("type_tag_dicts") == "yes" {
 		ls.TypeTagDicts = inapi.AppSpecTypeTagDicts
 	}
 }
@@ -240,7 +240,7 @@ func (c AppSpec) EntryAction() {
 
 	set := inapi.AppSpec{}
 
-	if c.Params.Get("fmt_json_indent") == "true" {
+	if c.Params.Value("fmt_json_indent") == "true" {
 		defer c.RenderJsonIndent(&set, "  ")
 	} else {
 		defer c.RenderJson(&set)
@@ -248,19 +248,19 @@ func (c AppSpec) EntryAction() {
 
 	appSpecRefresh()
 
-	if c.Params.Get("id") == "" {
+	if c.Params.Value("id") == "" {
 		set.Error = types.NewErrorMeta("400", "ID can not be null")
 		return
 	}
 
 	for _, v := range appSpecItems {
-		if v.Meta.ID == c.Params.Get("id") {
+		if v.Meta.ID == c.Params.Value("id") {
 			set = *v
 			break
 		}
 	}
 
-	if set.Meta.ID != c.Params.Get("id") {
+	if set.Meta.ID != c.Params.Value("id") {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeObjectNotFound, "AppSpec Not Found")
 		return
 	}
@@ -270,7 +270,7 @@ func (c AppSpec) EntryAction() {
 		return
 	}
 
-	if c.Params.Get("download") == "true" {
+	if c.Params.Value("download") == "true" {
 		set.Meta.User = ""
 		set.Meta.Created = 0
 		set.Meta.Updated = 0

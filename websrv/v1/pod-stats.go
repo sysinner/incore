@@ -56,12 +56,12 @@ func (c *PodStats) owner_or_sysadmin_allow(user, privilege string) bool {
 func (c PodStats) FeedAction() {
 
 	var (
-		podId          = c.Params.Get("id")
-		repId          = int32(c.Params.Int64("rep_id"))
-		qry            = c.Params.Get("qry")
-		qry_names      = c.Params.Get("qry_names")
-		qry_time_past  = uint32(c.Params.Uint64("qry_time_past"))
-		qry_time_cycle = uint32(c.Params.Uint64("qry_time_cycle"))
+		podId          = c.Params.Value("id")
+		repId          = int32(c.Params.IntValue("rep_id"))
+		qry            = c.Params.Value("qry")
+		qry_names      = c.Params.Value("qry_names")
+		qry_time_past  = uint32(c.Params.IntValue("qry_time_past"))
+		qry_time_cycle = uint32(c.Params.IntValue("qry_time_cycle"))
 		pod            inapi.Pod
 		fq             inapi.TimeStatsFeedQuerySet
 		reps           = []uint32{}

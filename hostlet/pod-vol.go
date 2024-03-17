@@ -17,7 +17,7 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/encoding/json"
 	"github.com/lessos/lessgo/types"
-	ps_disk "github.com/shirou/gopsutil/disk"
+	ps_disk "github.com/shirou/gopsutil/v3/disk"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/napi"

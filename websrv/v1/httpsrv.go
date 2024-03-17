@@ -18,40 +18,39 @@ import (
 	"github.com/hooto/httpsrv"
 )
 
-func NewModule() httpsrv.Module {
+func NewModule() *httpsrv.Module {
 
-	module := httpsrv.NewModule("in_v1")
+	mod := httpsrv.NewModule()
 
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/podbound/:pod_id/:pod_controller/:pod_action",
-		Params: map[string]string{
+	mod.SetRoute(
+		"/podbound/:pod_id/:pod_controller/:pod_action",
+		map[string]string{
 			"controller": "podbound",
 			"action":     "index",
 		},
-	})
+	)
 
-	module.RouteSet(httpsrv.Route{
-		Type: httpsrv.RouteTypeBasic,
-		Path: "/zonebound/:zone_id",
-		Params: map[string]string{
+	mod.SetRoute(
+		"/zonebound/:zone_id",
+		map[string]string{
 			"controller": "zonebound",
 			"action":     "index",
 		},
-	})
+	)
 
-	module.ControllerRegister(new(Sys))
-	module.ControllerRegister(new(PodSpec))
-	module.ControllerRegister(new(PodRep))
-	module.ControllerRegister(new(Pod))
-	module.ControllerRegister(new(AppSpec))
-	module.ControllerRegister(new(App))
-	module.ControllerRegister(new(Host))
-	module.ControllerRegister(new(Resource))
-	module.ControllerRegister(new(Podbound))
-	module.ControllerRegister(new(PodStats))
-	module.ControllerRegister(new(Charge))
-	module.ControllerRegister(new(Zonebound))
+	mod.RegisterController(
+		new(Sys),
+		new(PodSpec),
+		new(PodRep),
+		new(Pod),
+		new(AppSpec),
+		new(App),
+		new(Host),
+		new(Resource),
+		new(Podbound),
+		new(PodStats),
+		new(Charge),
+		new(Zonebound))
 
-	return module
+	return mod
 }

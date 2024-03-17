@@ -26,7 +26,7 @@ func (c Host) CellListAction() {
 	var sets inapi.GeneralObjectList
 	defer c.RenderJson(&sets)
 
-	if zoneid := c.Params.Get("zoneid"); zoneid != "" {
+	if zoneid := c.Params.Value("zoneid"); zoneid != "" {
 		if zone := status.GlobalZone(zoneid); zone == nil {
 			sets.Error = types.NewErrorMeta("404", "Zone Not Found")
 			return
@@ -55,7 +55,7 @@ func (c Host) CellEntryAction() {
 	}
 	defer c.RenderJson(&set)
 
-	cell := status.GlobalZoneCell(c.Params.Get("zoneid"), c.Params.Get("cellid"))
+	cell := status.GlobalZoneCell(c.Params.Value("zoneid"), c.Params.Value("cellid"))
 	if cell == nil {
 		set.Error = types.NewErrorMeta("404", "Cell Not Found")
 	} else {

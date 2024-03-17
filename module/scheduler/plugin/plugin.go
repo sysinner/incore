@@ -16,7 +16,7 @@ package main
 
 import (
 	typeScheduler "github.com/sysinner/incore/inapi/scheduler"
-	"github.com/sysinner/incore/plugin/scheduler"
+	"github.com/sysinner/incore/module/scheduler"
 )
 
 func NewConnector() (typeScheduler.Scheduler, error) {

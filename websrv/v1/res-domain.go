@@ -71,7 +71,7 @@ func (c Resource) DomainAction() {
 
 	defer c.RenderJson(&set)
 
-	name := domain_name_filter(c.Params.Get("name"))
+	name := domain_name_filter(c.Params.Value("name"))
 
 	if name == "" || len(name) > 50 {
 		set.Error = types.NewErrorMeta("400", "Invalid Domain Name")

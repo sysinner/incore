@@ -3,3 +3,4 @@ pb-refresh
 iam
 test.go
 inagent/daemon/ssh.go
+go.sum

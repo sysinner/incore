@@ -26,7 +26,7 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	iox_utils "github.com/lynkdb/iomix/utils"
-	kv2 "github.com/lynkdb/kvspec/go/kvspec/v2"
+	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
@@ -76,12 +76,12 @@ func (c Pod) ListAction() {
 
 	// TODO pager
 	var rs *kv2.ObjectResult
-	if zone_id := c.Params.Get("zone_id"); zone_id != "" {
+	if zone_id := c.Params.Value("zone_id"); zone_id != "" {
 		rs = data.DataZone.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
 			inapi.NsZonePodInstance(zone_id, "zzzz"), inapi.NsZonePodInstance(zone_id, "")).
 			LimitNumSet(10000).Query()
 
-		if v := c.Params.Get("recover_zone_to_global"); v == "true" {
+		if v := c.Params.Value("recover_zone_to_global"); v == "true" {
 
 			gids := map[string]bool{}
 
@@ -120,18 +120,18 @@ func (c Pod) ListAction() {
 	}
 
 	var fields types.ArrayPathTree
-	if fns := c.Params.Get("fields"); fns != "" {
+	if fns := c.Params.Value("fields"); fns != "" {
 		fields.Set(fns)
 		fields.Sort()
 	}
 
 	var exp_filter_app_notin types.ArrayString
-	if v := c.Params.Get("exp_filter_app_notin"); v != "" {
+	if v := c.Params.Value("exp_filter_app_notin"); v != "" {
 		exp_filter_app_notin = types.ArrayString(strings.Split(v, ","))
 	}
 
 	exp_filter_app_spec_res := &inapi.AppSpecResRequirements{}
-	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
+	if v := c.Params.Value("exp_filter_app_spec_id"); v != "" {
 		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v)).Query(); rs.OK() {
 			var spec inapi.AppSpec
 			rs.Decode(&spec)
@@ -144,11 +144,11 @@ func (c Pod) ListAction() {
 	}
 
 	var exp_filter_host_id string
-	if v := c.Params.Get("exp_filter_host_id"); v != "" {
+	if v := c.Params.Value("exp_filter_host_id"); v != "" {
 		exp_filter_host_id = v
 	}
 
-	action := uint32(c.Params.Uint64("operate_action"))
+	action := uint32(c.Params.IntValue("operate_action"))
 
 	for _, v := range rs.Items {
 
@@ -159,7 +159,7 @@ func (c Pod) ListAction() {
 		}
 
 		// TOPO
-		if c.Params.Get("filter_meta_user") == "all" &&
+		if c.Params.Value("filter_meta_user") == "all" &&
 			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.Zone.InstanceId) {
 			//
 		} else if pod.Meta.User != c.us.UserName &&
@@ -167,7 +167,7 @@ func (c Pod) ListAction() {
 			continue
 		}
 
-		if c.Params.Int64("destroy_enable") != 1 &&
+		if c.Params.IntValue("destroy_enable") != 1 &&
 			inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 			continue
 		}
@@ -319,9 +319,9 @@ func (c Pod) ListAction() {
 func (c Pod) EntryAction() {
 
 	var (
-		id      = c.Params.Get("id")
-		fields  = c.Params.Get("fields")
-		zone_id = c.Params.Get("zone_id")
+		id      = c.Params.Value("id")
+		fields  = c.Params.Value("fields")
+		zone_id = c.Params.Value("zone_id")
 		set     inapi.Pod
 	)
 
@@ -528,7 +528,7 @@ func (c Pod) NewAction() {
 	}
 
 	var appSpec *inapi.AppSpec
-	if v := c.Params.Get("exp_filter_app_spec_id"); v != "" {
+	if v := c.Params.Value("exp_filter_app_spec_id"); v != "" {
 		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(v)).Query(); rs.OK() {
 			var item inapi.AppSpec
 			rs.Decode(&item)
@@ -633,8 +633,8 @@ func (c Pod) OpActionSetAction() {
 	defer c.RenderJson(&set)
 
 	var (
-		pod_id    = c.Params.Get("pod_id")
-		op_action = uint32(c.Params.Uint64("op_action"))
+		pod_id    = c.Params.Value("pod_id")
+		op_action = uint32(c.Params.IntValue("op_action"))
 	)
 
 	if !inapi.PodIdReg.MatchString(pod_id) {
@@ -896,7 +896,7 @@ func (c Pod) DeleteAction() {
 	var (
 		set    types.TypeMeta
 		prev   inapi.Pod
-		pod_id = c.Params.Get("pod_id")
+		pod_id = c.Params.Value("pod_id")
 	)
 
 	defer c.RenderJson(&set)
@@ -994,7 +994,7 @@ func (c Pod) DeleteAction() {
 }
 
 func (c Pod) StatusAction() {
-	set := c.status(inapi.Pod{}, c.Params.Get("id"))
+	set := c.status(inapi.Pod{}, c.Params.Value("id"))
 	c.RenderJson(set)
 }
 

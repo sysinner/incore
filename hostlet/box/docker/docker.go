@@ -119,6 +119,7 @@ type BoxDriver struct {
 	client       *drvClient.Client
 	statusMu     sync.RWMutex
 	statusSets   map[string]*napi.BoxInstance
+	statsMu      sync.RWMutex
 	statsSets    map[string]*napi.BoxInstanceStatsFeed
 	statsPending bool
 	actives      types.ArrayString
@@ -572,7 +573,10 @@ func (tp *BoxDriver) statsRefresh() {
 
 func (tp *BoxDriver) statsEntry(id, name string) (*napi.BoxInstanceStatsFeed, error) {
 
+	tp.statsMu.Lock()
+
 	defer func() {
+		tp.statsMu.Unlock()
 		if r := recover(); r != nil {
 			hlog.Printf("error", "hostlet panic %v", r)
 		}

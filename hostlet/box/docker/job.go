@@ -23,7 +23,7 @@ import (
 
 	"github.com/hooto/hlog4g/hlog"
 
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/inutils/filerender"
@@ -107,7 +107,7 @@ setenforce 0
 				os.Mkdir("/etc/docker", 0755)
 				js := `{
   "bip": "172.18.0.1/16",
-  "graph": "/opt/docker",
+  "data-root": "/opt/docker",
   "registry-mirrors": ["https://registry.docker-cn.com", "https://mirror.ccs.tencentyun.com"]
 }`
 				if err = filerender.RenderString(js, "/etc/docker/daemon.json", 0644, map[string]interface{}{}); err != nil {

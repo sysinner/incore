@@ -28,8 +28,8 @@ import (
 func (c Host) NodeStatsFeedAction() {
 
 	var (
-		host_id = c.Params.Get("id")
-		qry     = c.Params.Get("qry")
+		host_id = c.Params.Value("id")
+		qry     = c.Params.Value("qry")
 		fq      inapi.TimeStatsFeedQuerySet
 	)
 

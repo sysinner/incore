@@ -30,10 +30,10 @@ import (
 	"github.com/lessos/lessgo/types"
 	"golang.org/x/net/context"
 
-	ps_cpu "github.com/shirou/gopsutil/cpu"
-	ps_disk "github.com/shirou/gopsutil/disk"
-	ps_mem "github.com/shirou/gopsutil/mem"
-	ps_net "github.com/shirou/gopsutil/net"
+	ps_cpu "github.com/shirou/gopsutil/v3/cpu"
+	ps_disk "github.com/shirou/gopsutil/v3/disk"
+	ps_mem "github.com/shirou/gopsutil/v3/mem"
+	ps_net "github.com/shirou/gopsutil/v3/net"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/hostlet/napi"

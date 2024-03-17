@@ -60,19 +60,19 @@ func (c Resource) ListAction() {
 
 	defer c.RenderJson(&ls)
 
-	if c.Params.Get("type") != "domain" {
+	if c.Params.Value("type") != "domain" {
 		ls.Error = types.NewErrorMeta("400", "Invalid Resource Type")
 		return
 	}
 
 	var (
-		offset = inapi.NsGlobalResInstance(c.Params.Get("type") + "/")
+		offset = inapi.NsGlobalResInstance(c.Params.Value("type") + "/")
 		rs     = data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
 			LimitNumSet(1000).Query()
 		fields types.ArrayPathTree
 	)
 
-	if fns := c.Params.Get("fields"); fns != "" {
+	if fns := c.Params.Value("fields"); fns != "" {
 		fields.Set(fns)
 		fields.Sort()
 	}
@@ -86,7 +86,7 @@ func (c Resource) ListAction() {
 		}
 
 		// TOPO
-		if c.Params.Get("filter_meta_user") == "all" &&
+		if c.Params.Value("filter_meta_user") == "all" &&
 			iamclient.SessionAccessAllowed(c.Session, "sysinner.admin", config.Config.Zone.InstanceId) {
 			//
 		} else if !c.us.AccessAllow(inst.Meta.User) {

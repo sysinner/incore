@@ -23,7 +23,7 @@ import (
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
 
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 
 	iam_cfg "github.com/hooto/iam/config"
 	iam_db "github.com/hooto/iam/data"
@@ -124,7 +124,8 @@ func (it *ZoneMainJob) init() error {
 	if it.hs == nil {
 
 		it.hs = httpsrv.NewService()
-		it.hs.Config.TemplateFuncRegister("T", hlang.StdLangFeed.Translate)
+		it.hs.SetLogger(httpsrv.NewRawLogger())
+		it.hs.Config.RegisterTemplateFunc("T", hlang.StdLangFeed.Translate)
 
 		hlog.Printf("info", "inPack %s", ip_cfg.Version)
 		hlog.Printf("info", "inPanel %s", ic_ws_ui.Version)
@@ -178,8 +179,8 @@ func (it *ZoneMainJob) init() error {
 		iam_db.SysConfigRefresh()
 
 		//
-		it.hs.ModuleRegister("/iam/v1", iam_v1.NewModule())
-		it.hs.ModuleRegister("/iam", iam_web.NewModule())
+		it.hs.HandleModule("/iam/v1", iam_v1.NewModule())
+		it.hs.HandleModule("/iam", iam_web.NewModule())
 
 		//
 		if aks := is_cfg.InitIamAccessKeyData(); len(aks) > 0 {
@@ -248,9 +249,9 @@ func (it *ZoneMainJob) init() error {
 			return fmt.Errorf("ips.Data.Init error: %s", err.Error())
 		}
 
-		it.hs.ModuleRegister("/ips/v1", ip_v1.NewModule())
-		it.hs.ModuleRegister("/ips/p1", ip_p1.NewModule())
-		it.hs.ModuleRegister("/in/~/ips", httpsrv.NewStaticModule("ip_ui", incfg.Prefix+"/webui/ips/ips"))
+		it.hs.HandleModule("/ips/v1", ip_v1.NewModule())
+		it.hs.HandleModule("/ips/p1", ip_p1.NewModule())
+		it.hs.HandleModule("/in/~/ips", ip_v1.NewStaticModule(incfg.Prefix+"/webui/ips/ips"))
 
 		// TODO
 		incfg.Config.Zone.InpackServiceUrl = fmt.Sprintf(
@@ -269,8 +270,10 @@ func (it *ZoneMainJob) init() error {
 
 	// module/hchart
 	{
-		it.hs.ModuleRegister("/in/~/hchart", httpsrv.NewStaticModule("hchart_ui", incfg.Prefix+"/webui/hchart/webui"))
-		// it.hs.ModuleRegister("/in/ops/hchart/~", httpsrv.NewStaticModule("hchart_ui_ops", incfg.Prefix+"/webui/hchart/webui"))
+		mod := httpsrv.NewModule()
+		mod.RegisterFileServer("/", incfg.Prefix+"/webui/hchart/webui", nil)
+		it.hs.HandleModule("/in/~/hchart", mod)
+		// it.hs.HandleModule("/in/ops/hchart/~", httpsrv.NewStaticModule("hchart_ui_ops", incfg.Prefix+"/webui/hchart/webui"))
 	}
 
 	// incore
@@ -286,25 +289,25 @@ func (it *ZoneMainJob) init() error {
 		// it.hs.HandlerFuncRegister("/in/v1/pb/termws", ic_ws_v1.PodBoundTerminalWsHandlerFunc)
 
 		// Frontend APIs for Users
-		it.hs.ModuleRegister("/in/v1", ic_ws_v1.NewModule())
+		it.hs.HandleModule("/in/v1", ic_ws_v1.NewModule())
 
 		// Frontend UI for Users
 		hlang.StdLangFeed.LoadMessages(incfg.Prefix+"/i18n/en.json", true)
 		hlang.StdLangFeed.LoadMessages(incfg.Prefix+"/i18n/zh-CN.json", true)
 
-		it.hs.Config.TemplateFuncRegister("T", hlang.StdLangFeed.Translate)
+		it.hs.Config.RegisterTemplateFunc("T", hlang.StdLangFeed.Translate)
 
 		ic_ws_m := ic_ws_cp.NewModule()
-		ic_ws_m.ControllerRegister(new(hlang.Langsrv))
+		ic_ws_m.RegisterController(new(hlang.Langsrv))
 
-		it.hs.ModuleRegister("/in/cp", ic_ws_m)
+		it.hs.HandleModule("/in/cp", ic_ws_m)
 
 		// Backend Operating APIs/UI for System Operators
-		it.hs.ModuleRegister("/in/ops", ic_ws_op.NewModule())
+		it.hs.HandleModule("/in/ops", ic_ws_op.NewModule())
 
 		// Frontend UI Index
-		it.hs.ModuleRegister("/in/p1", ic_ws_p1.NewModule())
-		it.hs.ModuleRegister("/in", ic_ws_cp.NewIndexModule())
+		it.hs.HandleModule("/in/p1", ic_ws_p1.NewModule())
+		it.hs.HandleModule("/in", ic_ws_cp.NewIndexModule())
 	}
 
 	// init zonemaster

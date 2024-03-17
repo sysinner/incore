@@ -16,7 +16,7 @@ package data
 
 import (
 	incfg "github.com/sysinner/incore/config"
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 )
 
 type DataJob struct {

@@ -52,7 +52,7 @@ func (c PodSpec) PlanEntryAction() {
 	set := inapi.PodSpecPlan{}
 	defer c.RenderJson(&set)
 
-	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Get("id"))).Query()
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Value("id"))).Query()
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta("404", "No Spec Found")
 		return
@@ -60,7 +60,7 @@ func (c PodSpec) PlanEntryAction() {
 
 	var item inapi.PodSpecPlan
 	rs.Decode(&item)
-	if item.Meta.ID != c.Params.Get("id") {
+	if item.Meta.ID != c.Params.Value("id") {
 		set.Error = types.NewErrorMeta("404", "No Spec Found")
 		return
 	}

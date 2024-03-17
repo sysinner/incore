@@ -61,7 +61,7 @@ func (c Host) ZoneListAction() {
 			}
 		}
 
-		if c.Params.Get("fields") == "cells" {
+		if c.Params.Value("fields") == "cells" {
 			zone.Cells = v.Cells
 		}
 
@@ -94,8 +94,8 @@ func (c Host) ZoneEntryAction() {
 	defer c.RenderJson(&set)
 
 	var (
-		zoneId = c.Params.Get("id")
-		fields = c.Params.Get("fields")
+		zoneId = c.Params.Value("id")
+		fields = c.Params.Value("fields")
 	)
 
 	rs := data.DataGlobal.NewReader(
@@ -340,7 +340,7 @@ func (c Host) ZoneAccChargeKeyRefreshAction() {
 	defer c.RenderJson(&set)
 
 	var (
-		zone_id = c.Params.Get("zone_id")
+		zone_id = c.Params.Value("zone_id")
 		zone    inapi.ResZone
 	)
 

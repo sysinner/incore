@@ -21,7 +21,7 @@ import (
 	"github.com/sysinner/incore/hostlet/box/docker"
 	modsj "github.com/sysinner/incore/module/sysctl"
 	insta "github.com/sysinner/incore/status"
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 )
 
 func JobSetup(jobDaemon *injob.Daemon) {

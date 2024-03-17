@@ -80,12 +80,12 @@ func (c Podbound) IndexAction() {
 
 	c.AutoRender = false
 
-	var pod_id = c.Params.Get("pod_id")
+	var pod_id = c.Params.Value("pod_id")
 	if !inapi.PodIdReg.MatchString(pod_id) {
 		c.Response.Out.WriteHeader(400)
 		return
 	}
-	var rep_id = uint32(c.Params.Uint64("rep_id"))
+	var rep_id = uint32(c.Params.IntValue("rep_id"))
 
 	var pod inapi.Pod
 
@@ -112,7 +112,7 @@ func (c Podbound) IndexAction() {
 	}
 
 	if c.Request.Method == "POST" || c.Request.Method == "PUT" {
-		c.Request.Request.Body = ioutil.NopCloser(bytes.NewReader(c.Request.RawBody))
+		c.Request.Request.Body = ioutil.NopCloser(bytes.NewReader(c.Request.RawBody()))
 	}
 
 	err := pclients.call(pod_id, rep_id, c.Request.Request, c.Response.Out)

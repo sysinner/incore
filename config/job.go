@@ -15,7 +15,7 @@
 package config
 
 import (
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 )
 
 type ConfigJob struct {

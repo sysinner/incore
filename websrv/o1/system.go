@@ -16,7 +16,7 @@ package o1
 
 import (
 	"github.com/hooto/httpsrv"
-	"github.com/sysinner/injob/v1"
+	"github.com/sysinner/injob"
 
 	incfg "github.com/sysinner/incore/config"
 	insts "github.com/sysinner/incore/status"

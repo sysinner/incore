@@ -52,9 +52,9 @@ func (c Charge) PodEstimateAction() {
 		rsp         inapi.PodEstimateList
 		set         inapi.PodCreate
 		spec_plan   inapi.PodSpecPlan
-		fields      = types.ArrayString(strings.Split(c.Params.Get("fields"), ","))
-		cycles_s    = types.ArrayString(strings.Split(c.Params.Get("cycles"), ","))
-		replica_cap = int32(c.Params.Int64("replica_cap"))
+		fields      = types.ArrayString(strings.Split(c.Params.Value("fields"), ","))
+		cycles_s    = types.ArrayString(strings.Split(c.Params.Value("cycles"), ","))
+		replica_cap = int32(c.Params.IntValue("replica_cap"))
 		cycles      = types.ArrayUint64{}
 	)
 
