@@ -90,7 +90,7 @@ func haEmailAction(pod *inapi.Pod, repId uint32) error {
 	msg.Type = mail.BodyType
 
 	if rs := data.DataZone.NewWriter(
-		inapi.NsZoneMailQueue(msg.SentId()), msg).Commit(); !rs.OK() {
+		inapi.NsZoneMailQueue(msg.SentId()), msg).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 

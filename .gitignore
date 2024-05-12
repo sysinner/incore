@@ -4,3 +4,6 @@ iam
 test.go
 inagent/daemon/ssh.go
 go.sum
+todo.md
+*.pb.rs
+*.pb.thunks.cc

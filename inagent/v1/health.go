@@ -31,7 +31,7 @@ type Health struct {
 func (c Health) SyncAction() {
 
 	var (
-		action = strings.ToLower(c.Params.Get("action"))
+		action = strings.ToLower(c.Params.Value("action"))
 	)
 
 	switch action {

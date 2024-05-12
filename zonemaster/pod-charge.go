@@ -49,12 +49,12 @@ func podChargeRefresh() error {
 
 	// TODO
 	pod_specPlans = []*inapi.PodSpecPlan{}
-	if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	if rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("plan", ""), inapi.NsGlobalPodSpec("plan", "")).
-		LimitNumSet(100).Query(); rs.OK() {
+		SetLimit(100).Exec(); rs.OK() {
 		for _, v := range rs.Items {
 			var item inapi.PodSpecPlan
-			if err := v.Decode(&item); err == nil {
+			if err := v.JsonDecode(&item); err == nil {
 				item.ChargeFix()
 				pod_specPlans = append(pod_specPlans, &item)
 			}
@@ -156,7 +156,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 		if inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionDestroy) {
 			pod.Payment.TimeClose = tn
 			data.DataZone.NewWriter(
-				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Exec()
 		}
 		return false
 	}
@@ -230,7 +230,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 			pod.Payment.User = payUser
 
 			data.DataZone.NewWriter(
-				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Exec()
 
 			hlog.Printf("info", "Pod %s AccountChargePrepay %f, time start %d, in %d sec",
 				pod.Meta.ID, payAmount,
@@ -245,7 +245,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 						inapi.NewPbOpLogEntry(inapi.OpLogNsZoneMasterPodScheduleCharge, inapi.PbOpLogWarn, rsp.Error.Message))
 
 					data.DataZone.NewWriter(
-						inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
+						inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Exec()
 				}
 				hlog.Printf("error", "Pod %s AccountChargePrepay %f %s",
 					pod.Meta.ID, pod.Payment.Prepay, rsp.Error.Code+" : "+rsp.Error.Message)
@@ -272,7 +272,7 @@ func podItemCharge(pod *inapi.Pod) bool {
 			pod.Payment.User = ""
 
 			data.DataZone.NewWriter(
-				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
+				inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Exec()
 
 			hlog.Printf("info", "Pod %s AccountChargePayout %f DONE",
 				pod.Meta.ID, pod.Payment.Payout)
@@ -309,11 +309,11 @@ func podEntryChargeOut(pod_id string) {
 	prev.Operate.Version++
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev).Commit()
+	data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, prev.Meta.ID), prev).Exec()
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(prev.Spec.Zone, prev.Spec.Cell, prev.Meta.ID)
-	data.DataGlobal.NewWriter(sqkey, prev).Commit()
+	data.DataGlobal.NewWriter(sqkey, prev).Exec()
 
 	hlog.Printf("info", "Pod %s AccountChargeOut", prev.Meta.ID)
 }

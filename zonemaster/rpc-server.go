@@ -71,7 +71,7 @@ func (s *ApiZoneMaster) HostConfig(
 	}
 
 	dbkey := inapi.NsZoneSysHost(status.ZoneId, req.Id)
-	rs := data.DataZone.NewReader(dbkey).Query()
+	rs := data.DataZone.NewReader(dbkey).Exec()
 	if !rs.OK() {
 		if !rs.NotFound() {
 			return nil, errors.New("Server Error, Try again later")
@@ -99,7 +99,7 @@ func (s *ApiZoneMaster) HostConfig(
 		}
 
 		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysHostSecretKey(node.Operate.ZoneId, node.Meta.Id), req.SecretKey).Commit(); !rs.OK() {
+			inapi.NsZoneSysHostSecretKey(node.Operate.ZoneId, node.Meta.Id), req.SecretKey).Exec(); !rs.OK() {
 			return nil, errors.New("Server Error")
 		}
 	}
@@ -157,8 +157,8 @@ func (s *ApiZoneMaster) HostStatusSync(
 			pk := inapi.NsKvZoneSysHostStats(status.ZoneId, req.Meta.Id, v.Time)
 
 			var statsIndex inapi.PbStatsIndexFeed
-			if rs := data.DataZone.NewReader(pk).Query(); rs.OK() {
-				rs.Decode(&statsIndex)
+			if rs := data.DataZone.NewReader(pk).Exec(); rs.OK() {
+				rs.Item().JsonDecode(&statsIndex)
 				if statsIndex.Time < 1 {
 					continue
 				}
@@ -172,7 +172,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 			}
 
 			if len(statsIndex.Items) > 0 {
-				data.DataZone.NewWriter(pk, statsIndex).ExpireSet(30 * 86400 * 1000).Commit()
+				data.DataZone.NewWriter(pk, statsIndex).SetTTL(30 * 86400 * 1000).Exec()
 			}
 		}
 		req.Status.Stats = nil
@@ -229,8 +229,8 @@ func (s *ApiZoneMaster) HostStatusSync(
 					status.ZoneId, repStatus.PodId, repStatus.RepId, "sys", iv.Time)
 
 				var statsIndex inapi.PbStatsIndexFeed
-				if rs := data.DataZone.NewReader(repStatsKey).Query(); rs.OK() {
-					rs.Decode(&statsIndex)
+				if rs := data.DataZone.NewReader(repStatsKey).Exec(); rs.OK() {
+					rs.Item().JsonDecode(&statsIndex)
 					if statsIndex.Time < 1 {
 						continue
 					}
@@ -244,7 +244,7 @@ func (s *ApiZoneMaster) HostStatusSync(
 				}
 
 				if len(statsIndex.Items) > 0 {
-					data.DataZone.NewWriter(repStatsKey, statsIndex).ExpireSet(30 * 86400 * 1000).Commit()
+					data.DataZone.NewWriter(repStatsKey, statsIndex).SetTTL(30 * 86400 * 1000).Exec()
 				}
 			}
 		}
@@ -528,9 +528,9 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 
 				// TOPO
 				if rs := data.DataGlobal.NewWriter(
-					inapi.NsGlobalSysZone(status.ZoneId), status.Zone).Commit(); rs.OK() {
+					inapi.NsGlobalSysZone(status.ZoneId), status.Zone).Exec(); rs.OK() {
 					data.DataZone.NewWriter(
-						inapi.NsZoneSysZone(status.ZoneId), status.Zone).Commit()
+						inapi.NsZoneSysZone(status.ZoneId), status.Zone).Exec()
 				}
 
 				break
@@ -539,10 +539,10 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 	}
 
 	if rs := data.DataZone.NewReader(
-		inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)).Query(); rs.OK() {
+		inapi.NsZoneSysMasterNode(status.ZoneId, host.Meta.Id)).Exec(); rs.OK() {
 
 		var obj inapi.ResZoneMasterNode
-		if err := rs.Decode(&obj); err == nil {
+		if err := rs.Item().JsonDecode(&obj); err == nil {
 
 			if obj.Addr == addr_prev {
 
@@ -550,7 +550,7 @@ func zmHostAddrChange(host *inapi.ResHost, addr_prev string) {
 					Id:     host.Meta.Id,
 					Addr:   host.Spec.PeerLanAddr,
 					Action: 1,
-				}).Commit()
+				}).Exec()
 
 				hlog.Printf("warn", "zm NsZoneSysMasterNode %s->%s",
 					addr_prev, host.Spec.PeerLanAddr)

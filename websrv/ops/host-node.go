@@ -21,7 +21,7 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
-	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
+	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 	"golang.org/x/net/context"
 
 	"github.com/sysinner/incore/config"
@@ -38,25 +38,25 @@ func (c Host) NodeListAction() {
 		zoneid = c.Params.Value("zoneid")
 		cellid = c.Params.Value("cellid")
 		sets   inapi.GeneralObjectList
-		rs     *kv2.ObjectResult
+		rs     *kvapi.ResultSet
 	)
 	defer c.RenderJson(&sets)
 
 	if zoneid == status.ZoneId {
-		rs = data.DataZone.NewReader(nil).KeyRangeSet(
+		rs = data.DataZone.NewRanger(
 			inapi.NsZoneSysHost(zoneid, ""), inapi.NsZoneSysHost(zoneid, "")).
-			LimitNumSet(1000).Query()
+			SetLimit(1000).Exec()
 	} else {
-		rs = data.DataGlobal.NewReader(nil).KeyRangeSet(
+		rs = data.DataGlobal.NewRanger(
 			inapi.NsGlobalSysHost(zoneid, ""), inapi.NsGlobalSysHost(zoneid, "")).
-			LimitNumSet(1000).Query()
+			SetLimit(1000).Exec()
 	}
 
 	for _, v := range rs.Items {
 
 		var node inapi.ResHost
 
-		if err := v.Decode(&node); err == nil {
+		if err := v.JsonDecode(&node); err == nil {
 
 			// TOPO
 			if cellid != "" && (node.Operate == nil || node.Operate.CellId != cellid) {
@@ -79,17 +79,17 @@ func (c Host) NodeEntryAction() {
 			inapi.GeneralObject
 			inapi.ResHost
 		}
-		rs *kv2.ObjectResult
+		rs *kvapi.ResultSet
 	)
 	defer c.RenderJson(&node)
 
 	if zoneid == status.ZoneId {
-		rs = data.DataZone.NewReader(inapi.NsZoneSysHost(zoneid, nodeid)).Query()
+		rs = data.DataZone.NewReader(inapi.NsZoneSysHost(zoneid, nodeid)).Exec()
 	} else {
-		rs = data.DataGlobal.NewReader(inapi.NsGlobalSysHost(zoneid, nodeid)).Query()
+		rs = data.DataGlobal.NewReader(inapi.NsGlobalSysHost(zoneid, nodeid)).Exec()
 	}
 	if rs.OK() {
-		if err := rs.Decode(&node.ResHost); err != nil {
+		if err := rs.Item().JsonDecode(&node.ResHost); err != nil {
 			node.Error = &types.ErrorMeta{Code: "400", Message: err.Error()}
 			return
 		}
@@ -202,15 +202,15 @@ func (c Host) NodeNewAction() {
 	}
 
 	data.DataZone.NewWriter(
-		inapi.NsZoneSysHostSecretKey(set.ZoneId, node.Meta.Id), set.SecretKey).Commit()
+		inapi.NsZoneSysHostSecretKey(set.ZoneId, node.Meta.Id), set.SecretKey).Exec()
 
 	status.ZoneHostSecretKeys.Set(node.Meta.Id, set.SecretKey)
 
 	// cell.NodeNum++
 
 	/**
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell).Commit(); rs.OK() {
-		data.DataZone.NewWriter(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell).Commit()
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysCell(set.ZoneId, cell.Meta.Id), cell).Exec(); rs.OK() {
+		data.DataZone.NewWriter(inapi.NsZoneSysCell(set.ZoneId, cell.Meta.Id), cell).Exec()
 	} else {
 		set.Error = types.NewErrorMeta("500", "Server Error")
 		return
@@ -258,8 +258,8 @@ func (c Host) NodeSetAction() {
 
 		var host inapi.ResHost
 		if rs := data.DataGlobal.NewReader(
-			inapi.NsGlobalSysHost(set.Operate.ZoneId, set.Meta.Id)).Query(); rs.OK() {
-			rs.Decode(&host)
+			inapi.NsGlobalSysHost(set.Operate.ZoneId, set.Meta.Id)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&host)
 		}
 
 		if host.Meta.Id != set.Meta.Id {
@@ -356,7 +356,7 @@ func (c Host) NodeSecretKeySetAction() {
 	}
 
 	data.DataZone.NewWriter(
-		inapi.NsZoneSysHostSecretKey(prev.Operate.ZoneId, set.NodeId), set.SecretKey).Commit()
+		inapi.NsZoneSysHostSecretKey(prev.Operate.ZoneId, set.NodeId), set.SecretKey).Exec()
 
 	status.ZoneHostSecretKeys.Set(set.NodeId, set.SecretKey)
 
@@ -590,7 +590,7 @@ func (c Host) NodeSyncPullSetAction() {
 				nodeEntry.Operate.SecretKey = idhash.RandBase64String(40)
 				data.DataZone.NewWriter(
 					inapi.NsZoneSysHostSecretKey(entry.ZoneId, nodeEntry.Meta.Id),
-					nodeEntry.Operate.SecretKey).Commit()
+					nodeEntry.Operate.SecretKey).Exec()
 			}
 		}
 

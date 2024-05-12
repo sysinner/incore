@@ -20,7 +20,7 @@ import (
 
 func NewModule() *httpsrv.Module {
 
-	mod := httpsrv.NewModule("lp-boxlet")
+	mod := httpsrv.NewModule()
 
 	mod.SetRoute("/podbound/:podid/:controller/:action", map[string]string{})
 

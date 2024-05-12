@@ -67,8 +67,8 @@ func (c Resource) ListAction() {
 
 	var (
 		offset = inapi.NsGlobalResInstance(c.Params.Value("type") + "/")
-		rs     = data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
-			LimitNumSet(1000).Query()
+		rs     = data.DataGlobal.NewRanger(offset, offset).
+			SetLimit(1000).Exec()
 		fields types.ArrayPathTree
 	)
 
@@ -81,7 +81,7 @@ func (c Resource) ListAction() {
 
 		var inst inapi.Resource
 
-		if err := v.Decode(&inst); err != nil {
+		if err := v.JsonDecode(&inst); err != nil {
 			continue
 		}
 

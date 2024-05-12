@@ -39,44 +39,44 @@ func zmWorkerMasterLeaderRefresh() {
 
 		if rs := data.DataZone.NewWriter(
 			zmLeaderKey, status.Host.Meta.Id).
-			PrevDataCheckSet(status.Host.Meta.Id, nil).
-			ExpireSet(12000).Commit(); rs.OK() {
+			SetPrevChecksum(status.Host.Meta.Id).
+			SetTTL(12000).Exec(); rs.OK() {
 
-			status.ZoneMasterList.Version = rs.Meta.Version
-			status.ZoneMasterList.Updated = rs.Meta.Updated
+			status.ZoneMasterList.Version = rs.Item().Meta.Version
+			status.ZoneMasterList.Updated = uint64(rs.Item().Meta.Updated)
 
-			hlog.Printf("debug", "zm/zone-master/leader refresh %d", rs.Meta.Version)
+			hlog.Printf("debug", "zm/zone-master/leader refresh %d", rs.Item().Meta.Version)
 
 		} else {
-			hlog.Printf("warn", "zm/zone-master/leader refresh failed %s", rs.Message)
+			hlog.Printf("warn", "zm/zone-master/leader refresh failed %s", rs.ErrorMessage())
 		}
 
 		return
 	}
 
-	if rs := data.DataZone.NewReader(zmLeaderKey).Query(); rs.NotFound() {
+	if rs := data.DataZone.NewReader(zmLeaderKey).Exec(); rs.NotFound() {
 
 		if rs2 := data.DataZone.NewWriter(
 			zmLeaderKey, status.Host.Meta.Id).
-			PrevDataCheckSet(status.Host.Meta.Id, nil).
-			ExpireSet(12000).Commit(); rs2.OK() {
+			SetPrevChecksum(status.Host.Meta.Id).
+			SetTTL(12000).Exec(); rs2.OK() {
 
 			status.ZoneMasterList.Leader = status.Host.Meta.Id
-			status.ZoneMasterList.Version = rs2.Meta.Version
-			status.ZoneMasterList.Updated = rs2.Meta.Updated
+			status.ZoneMasterList.Version = rs2.Item().Meta.Version
+			status.ZoneMasterList.Updated = uint64(rs2.Item().Meta.Updated)
 
 			status.ZoneLeaded = time.Now().Unix()
 
 			hlog.Printf("warn", "zm/zone-master/leader new node %s, version %d",
-				status.Host.Meta.Id, rs2.Meta.Version)
+				status.Host.Meta.Id, rs2.Item().Meta.Version)
 
 		} else {
-			hlog.Printf("warn", "zm/zone-master/leader refresh failed %s", rs2.Message)
+			hlog.Printf("warn", "zm/zone-master/leader refresh failed %s", rs2.ErrorMessage())
 		}
 
 	} else if rs.OK() && len(rs.Items) > 0 {
 
-		hostId := rs.DataValue().String()
+		hostId := rs.Item().StringValue()
 		if inapi.ResSysHostIdReg.MatchString(hostId) &&
 			(hostId != status.ZoneMasterList.Leader ||
 				rs.Items[0].Meta.Version > status.ZoneMasterList.Version) {
@@ -88,10 +88,10 @@ func zmWorkerMasterLeaderRefresh() {
 				hostId, status.ZoneMasterList.Version, rs.Items[0].Meta.Expired)
 		}
 
-		status.ZoneMasterList.Updated = rs.Items[0].Meta.Updated
+		status.ZoneMasterList.Updated = uint64(rs.Items[0].Meta.Updated)
 
 	} else {
-		hlog.Printf("warn", "zm/zone-master/leader active refresh failed %s", rs.Message)
+		hlog.Printf("warn", "zm/zone-master/leader active refresh failed %s", rs.ErrorMessage())
 	}
 
 }

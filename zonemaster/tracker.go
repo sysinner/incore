@@ -50,12 +50,12 @@ func zoneTracker() {
 	if len(status.ZoneHostSecretKeys) == 0 {
 
 		offset := inapi.NsZoneSysHostSecretKey(status.ZoneId, "")
-		if rs := data.DataZone.NewReader(nil).KeyRangeSet(offset, offset).
-			LimitNumSet(1000).Query(); rs.OK() {
+		if rs := data.DataZone.NewRanger(offset, offset).
+			SetLimit(1000).Exec(); rs.OK() {
 
 			for _, v := range rs.Items {
 				status.ZoneHostSecretKeys.Set(
-					inapi.NsKeyPathLastName(v.Meta.Key), v.DataValue().String())
+					inapi.NsKeyPathLastName(v.Key), v.StringValue())
 			}
 
 		} else {
@@ -67,8 +67,8 @@ func zoneTracker() {
 	// refresh zone-master leader ttl
 	if rs := data.DataZone.NewWriter(
 		inapi.NsKvZoneSysMasterLeader(status.ZoneId), status.Host.Meta.Id).
-		ExpireSet(12000).Commit(); !rs.OK() {
-		hlog.Printf("warn", "zm/zone-master/leader ttl refresh failed "+rs.Message)
+		SetTTL(12000).Exec(); !rs.OK() {
+		hlog.Printf("warn", "zm/zone-master/leader ttl refresh failed "+rs.ErrorMessage())
 		return
 	}
 	*/
@@ -169,8 +169,8 @@ func zmWorkerZoneAccessKeySetup() error {
 func zmWorkerGlobalZoneListRefresh() error {
 
 	offset := inapi.NsGlobalSysZone("")
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
-		LimitNumSet(50).Query()
+	rs := data.DataGlobal.NewRanger(offset, offset).
+		SetLimit(50).Exec()
 	if !rs.OK() {
 		return errors.New("db/scan error")
 	}
@@ -178,7 +178,7 @@ func zmWorkerGlobalZoneListRefresh() error {
 	for _, v := range rs.Items {
 
 		var zone inapi.ResZone
-		if err := v.Decode(&zone); err != nil {
+		if err := v.JsonDecode(&zone); err != nil {
 			continue
 		}
 
@@ -193,12 +193,12 @@ func zmWorkerGlobalZoneListRefresh() error {
 		//
 		offset := inapi.NsGlobalSysCell(zone.Meta.Id, "")
 
-		if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
-			LimitNumSet(100).Query(); rs.OK() {
+		if rs := data.DataGlobal.NewRanger(offset, offset).
+			SetLimit(100).Exec(); rs.OK() {
 
 			for _, v2 := range rs.Items {
 				var cell inapi.ResCell
-				if err := v2.Decode(&cell); err == nil {
+				if err := v2.JsonDecode(&cell); err == nil {
 					if _, chg2 := pZone.CellSync(&cell); chg2 {
 						chg = true
 					}
@@ -213,7 +213,7 @@ func zmWorkerGlobalZoneListRefresh() error {
 
 		if chg || status.Zone == nil {
 			status.Zone = pZone
-			data.DataZone.NewWriter(inapi.NsZoneSysZone(status.ZoneId), pZone).Commit()
+			data.DataZone.NewWriter(inapi.NsZoneSysZone(status.ZoneId), pZone).Exec()
 			hlog.Printf("info", "zonemaster status/zone refreshed %s", status.ZoneId)
 		}
 	}
@@ -229,10 +229,10 @@ func zmWorkerZoneHostListRefresh() error {
 		return err
 	}
 
-	rs := data.DataZone.NewReader(nil).KeyRangeSet(
+	rs := data.DataZone.NewRanger(
 		inapi.NsZoneSysHost(status.ZoneId, ""),
 		inapi.NsZoneSysHost(status.ZoneId, "")).
-		LimitNumSet(1000).Query()
+		SetLimit(1000).Exec()
 	if !rs.OK() {
 		hlog.Printf("warn", "refresh host list failed")
 		return errors.New("db/scan error")
@@ -243,7 +243,7 @@ func zmWorkerZoneHostListRefresh() error {
 	for _, v := range rs.Items {
 
 		var o inapi.ResHost
-		if err := v.Decode(&o); err != nil {
+		if err := v.JsonDecode(&o); err != nil {
 			hlog.Printf("error", "refresh host list %s", err.Error())
 			continue
 		}
@@ -264,8 +264,8 @@ func zmWorkerZoneHostListRefresh() error {
 
 		//
 		if gn := status.GlobalHostList.Item(o.Meta.Id); gn == nil {
-			if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysHost(o.Operate.ZoneId, o.Meta.Id)).Query(); rs.NotFound() {
-				data.DataGlobal.NewWriter(inapi.NsGlobalSysHost(o.Operate.ZoneId, o.Meta.Id), o).Commit()
+			if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysHost(o.Operate.ZoneId, o.Meta.Id)).Exec(); rs.NotFound() {
+				data.DataGlobal.NewWriter(inapi.NsGlobalSysHost(o.Operate.ZoneId, o.Meta.Id), o).Exec()
 			}
 		}
 		status.GlobalHostList.Sync(o)
@@ -285,9 +285,9 @@ func zmWorkerZoneHostListRefresh() error {
 			pCell.NodeNum = num
 
 			if rs := data.DataGlobal.NewWriter(
-				inapi.NsGlobalSysCell(status.ZoneId, cellId), pCell).Commit(); rs.OK() {
+				inapi.NsGlobalSysCell(status.ZoneId, cellId), pCell).Exec(); rs.OK() {
 				data.DataZone.NewWriter(
-					inapi.NsZoneSysCell(status.ZoneId, cellId), pCell).Commit()
+					inapi.NsZoneSysCell(status.ZoneId, cellId), pCell).Exec()
 
 				// hlog.Printf("info", "cell %s : %s", cellId, pCell.Meta.Name)
 			}
@@ -298,18 +298,18 @@ func zmWorkerZoneHostListRefresh() error {
 
 		offset := inapi.NsZonePodInstance(status.ZoneId, "")
 		for {
-			rs := data.DataZone.NewReader(nil).KeyRangeSet(offset, offset).
-				LimitNumSet(1000).Query()
+			rs := data.DataZone.NewRanger(offset, offset).
+				SetLimit(1000).Exec()
 			if !rs.OK() {
 				break
 			}
 
 			for _, v := range rs.Items {
 
-				offset = v.Meta.Key
+				offset = v.Key
 
 				var pod inapi.Pod
-				if err := v.Decode(&pod); err != nil {
+				if err := v.JsonDecode(&pod); err != nil {
 					continue
 				}
 
@@ -343,7 +343,7 @@ func zmWorkerZoneHostListRefresh() error {
 				}
 			}
 
-			if !rs.Next {
+			if !rs.NextResultSet {
 				break
 			}
 		}
@@ -382,15 +382,15 @@ func zmWorkerZoneHostListRefresh() error {
 func zmWorkerZoneHostKeyListRefresh() error {
 
 	offset := inapi.NsZoneSysHostSecretKey(status.ZoneId, "")
-	rs := data.DataZone.NewReader(nil).KeyRangeSet(offset, offset).
-		LimitNumSet(1000).Query()
+	rs := data.DataZone.NewRanger(offset, offset).
+		SetLimit(1000).Exec()
 	if !rs.OK() {
 		return errors.New("db/scan error")
 	}
 
 	for _, v := range rs.Items {
 		status.ZoneHostSecretKeys.Set(
-			inapi.NsKeyPathLastName(v.Meta.Key), v.DataValue().String())
+			inapi.NsKeyPathLastName(v.Key), v.StringValue())
 	}
 
 	return nil
@@ -399,7 +399,7 @@ func zmWorkerZoneHostKeyListRefresh() error {
 func zmWorkerZoneMasterListRefresh() error {
 
 	offset := inapi.NsZoneSysMasterNode(status.ZoneId, "")
-	rs := data.DataZone.NewReader(nil).KeyRangeSet(offset, offset).LimitNumSet(100).Query()
+	rs := data.DataZone.NewRanger(offset, offset).SetLimit(100).Exec()
 	if !rs.OK() {
 		return errors.New("db/scan error")
 	}
@@ -411,7 +411,7 @@ func zmWorkerZoneMasterListRefresh() error {
 	for _, v := range rs.Items {
 
 		var o inapi.ResZoneMasterNode
-		if err := v.Decode(&o); err == nil {
+		if err := v.JsonDecode(&o); err == nil {
 			zms.Sync(o)
 		}
 	}
@@ -437,9 +437,9 @@ func zmWorkerSysConfigRefresh() {
 	for _, v := range config.SysConfigurators {
 
 		//
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysConfig(v.Name)).Query(); rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysConfig(v.Name)).Exec(); rs.OK() {
 			var item inapi.SysConfigGroup
-			if err := rs.Decode(&item); err == nil {
+			if err := rs.Item().JsonDecode(&item); err == nil {
 				status.ZoneSysConfigGroupList.Sync(&item)
 			}
 		}
@@ -472,9 +472,9 @@ func zmWorkerPodListStatusRefresh() {
 		)
 
 		if podStatus == nil {
-			if rs := data.DataZone.NewReader(podStatusKey).Query(); rs.OK() {
+			if rs := data.DataZone.NewReader(podStatusKey).Exec(); rs.OK() {
 				var item inapi.PodStatus
-				if err := rs.Decode(&item); err == nil {
+				if err := rs.Item().JsonDecode(&item); err == nil {
 
 					podStatus = &item
 				}
@@ -604,16 +604,16 @@ func zmWorkerPodListStatusRefresh() {
 			hlog.Printf("info", "zm/rep %s:%d, status out", pod.Meta.ID, repId)
 		}
 
-		if rs := data.DataZone.NewWriter(podStatusKey, podStatus).Commit(); !rs.OK() {
+		if rs := data.DataZone.NewWriter(podStatusKey, podStatus).Exec(); !rs.OK() {
 			continue
 		}
 
-		if rs := data.DataGlobal.NewWriter(podStatusKeyG, podStatus).Commit(); !rs.OK() {
+		if rs := data.DataGlobal.NewWriter(podStatusKeyG, podStatus).Exec(); !rs.OK() {
 			continue
 		}
 
 		if podSync {
-			data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit()
+			data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Exec()
 			// hlog.Printf("info", "pod %s operate db-sync", pod.Meta.ID)
 		}
 

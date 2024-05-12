@@ -31,7 +31,7 @@ import (
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lessos/lessgo/types"
 	iox_utils "github.com/lynkdb/iomix/utils"
-	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
+	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 
 	"github.com/sysinner/incore/config"
 	"github.com/sysinner/incore/data"
@@ -71,9 +71,8 @@ func (c App) ListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO pager
-	rs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).
-		KeyRangeSet(inapi.NsGlobalAppInstance("zzzzzzzz"), inapi.NsGlobalAppInstance("")).
-		LimitNumSet(10000).Query()
+	rs := data.DataGlobal.NewRanger(inapi.NsGlobalAppInstance("zzzzzzzz"), inapi.NsGlobalAppInstance("")).
+		SetRevert(true).SetLimit(10000).Exec()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Value("fields"); fns != "" {
@@ -85,7 +84,7 @@ func (c App) ListAction() {
 
 		var inst inapi.AppInstance
 
-		if err := v.Decode(&inst); err != nil {
+		if err := v.JsonDecode(&inst); err != nil {
 			continue
 		}
 
@@ -100,9 +99,9 @@ func (c App) ListAction() {
 		// auto fix
 		if inapi.OpActionAllow(inst.Operate.Action, inapi.OpActionDestroy) {
 			if v.Meta == nil || v.Meta.Expired == 0 {
-				if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(inst.Meta.ID), inst).Commit(); rs.OK() {
+				if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(inst.Meta.ID), inst).Exec(); rs.OK() {
 					data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(inst.Meta.ID), inst).
-						ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
+						SetTTL(inapi.PodDestroyTTL * 1000).Exec()
 				}
 			}
 			continue
@@ -191,8 +190,8 @@ func (c App) ListAction() {
 func (c App) EntryAction() {
 
 	var app inapi.AppInstance
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(c.Params.Value("id"))).Query(); rs.OK() {
-		rs.Decode(&app)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(c.Params.Value("id"))).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&app)
 	}
 
 	appOpOptRender(&app, true)
@@ -238,8 +237,8 @@ func (c App) SetAction() {
 
 	} else {
 
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Meta.ID)).Query(); rs.OK() {
-			rs.Decode(&prev)
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Meta.ID)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&prev)
 		}
 
 		if prev.Meta.ID != set.Meta.ID || !c.owner_or_sysadmin_allow(prev.Meta.User, "sysinner.admin") {
@@ -285,7 +284,7 @@ func (c App) SetAction() {
 		prev.Operate.Action = prev.Operate.Action | inapi.OpActionStop
 	}
 
-	var rs *kv2.ObjectResult
+	var rs *kvapi.ResultSet
 
 	if set_new {
 
@@ -295,11 +294,11 @@ func (c App) SetAction() {
 		}
 
 		var pod inapi.Pod
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(prev.Operate.PodId)).Query(); !rs.OK() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(prev.Operate.PodId)).Exec(); !rs.OK() {
 			rsp.Error = types.NewErrorMeta("500", "Server Error")
 			return
 		} else {
-			rs.Decode(&pod)
+			rs.Item().JsonDecode(&pod)
 		}
 
 		if pod.Meta.ID != prev.Operate.PodId {
@@ -317,14 +316,14 @@ func (c App) SetAction() {
 			return
 		}
 
-		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).ModeCreateSet(true).Commit()
+		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).SetCreateOnly(true).Exec()
 	} else {
 
-		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).Commit()
+		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).Exec()
 	}
 
 	if !rs.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 
@@ -335,9 +334,9 @@ func (c App) SetAction() {
 	}
 
 	if inapi.OpActionAllow(prev.Operate.Action, inapi.OpActionDestroy) {
-		if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(prev.Meta.ID), prev).Commit(); rs.OK() {
+		if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(prev.Meta.ID), prev).Exec(); rs.OK() {
 			rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(prev.Meta.ID), prev).
-				ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
+				SetTTL(inapi.PodDestroyTTL * 1000).Exec()
 		}
 	}
 	rsp.Meta.ID = prev.Meta.ID
@@ -456,14 +455,14 @@ func (c App) ListOpResAction() {
 	}
 
 	// TODO pager
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalAppInstance(""), inapi.NsGlobalAppInstance("")).
-		LimitNumSet(1000).Query()
+		SetLimit(1000).Exec()
 	for _, v := range rs.Items {
 
 		var inst inapi.AppInstance
 
-		if err := v.Decode(&inst); err != nil {
+		if err := v.JsonDecode(&inst); err != nil {
 			continue
 		}
 
@@ -534,8 +533,8 @@ func (c App) OpActionSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(app_id)).Query(); rs.OK() {
-		rs.Decode(&app)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(app_id)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&app)
 	}
 	if app.Meta.ID != app_id ||
 		!c.owner_or_sysadmin_allow(app.Meta.User, "sysinner.admin") {
@@ -562,8 +561,8 @@ func (c App) OpActionSetAction() {
 		app.Operate.Action = op_action
 		app.Meta.Updated = types.MetaTimeNow()
 
-		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Exec(); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 			return
 		}
 	}
@@ -573,9 +572,9 @@ func (c App) OpActionSetAction() {
 	}
 
 	if inapi.OpActionAllow(app.Operate.Action, inapi.OpActionDestroy) {
-		if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(app.Meta.ID), app).Commit(); rs.OK() {
+		if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalAppInstanceDestroyed(app.Meta.ID), app).Exec(); rs.OK() {
 			data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).
-				ExpireSet(inapi.PodDestroyTTL * 1000).Commit()
+				SetTTL(inapi.PodDestroyTTL * 1000).Exec()
 		}
 	}
 
@@ -589,10 +588,10 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	}
 
 	var pod inapi.Pod
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(app.Operate.PodId)).Query(); !rs.OK() {
-		return types.NewErrorMeta("500", rs.Message)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(app.Operate.PodId)).Exec(); !rs.OK() {
+		return types.NewErrorMeta("500", rs.ErrorMessage())
 	} else {
-		rs.Decode(&pod)
+		rs.Item().JsonDecode(&pod)
 	}
 
 	if pod.Meta.ID != app.Operate.PodId {
@@ -613,14 +612,14 @@ func appInstDeploy(app inapi.AppInstance) *types.ErrorMeta {
 	pod.Operate.Version++
 	pod.Meta.Updated = types.MetaTimeNow()
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).Commit(); !rs.OK() {
-		return types.NewErrorMeta("500", rs.Message)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).Exec(); !rs.OK() {
+		return types.NewErrorMeta("500", rs.ErrorMessage())
 	}
 
 	// Pod Map to Cell Queue
 	sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-	if rs := data.DataGlobal.NewWriter(sqkey, pod).Commit(); !rs.OK() {
-		return types.NewErrorMeta("500", rs.Message)
+	if rs := data.DataGlobal.NewWriter(sqkey, pod).Exec(); !rs.OK() {
+		return types.NewErrorMeta("500", rs.ErrorMessage())
 	}
 
 	hlog.Printf("info", "deploy app/%s to pod/%s", app.Meta.ID, pod.Meta.ID)
@@ -642,10 +641,10 @@ func (c App) OpResSetAction() {
 
 	//
 	var res inapi.Resource
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(set.Meta.Name)).Query(); !rs.OK() {
-		rsp.Error = types.NewErrorMeta("500", rs.Message)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalResInstance(set.Meta.Name)).Exec(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 		return
-	} else if err := rs.Decode(&res); err != nil {
+	} else if err := rs.Item().JsonDecode(&res); err != nil {
 		rsp.Error = types.NewErrorMeta("400", err.Error())
 		return
 	}
@@ -662,8 +661,8 @@ func (c App) OpResSetAction() {
 
 	//
 	var app inapi.AppInstance
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Operate.AppId)).Query(); rs.OK() {
-		rs.Decode(&app)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Operate.AppId)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&app)
 	}
 	if app.Meta.ID == "" ||
 		(!app.Operate.ResBoundRoles.MatchAny(c.us.Roles) &&
@@ -749,14 +748,14 @@ func (c App) OpResSetAction() {
 		res.Meta.Updated = types.MetaTime(opt.Updated)
 
 		//
-		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(res.Meta.Name), res).Commit(); !rs.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(res.Meta.Name), res).Exec(); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 			return
 		}
 		// }
 
-		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
-			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Exec(); !rs.OK() {
+			rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 			return
 		}
 
@@ -797,8 +796,8 @@ func (c App) ConfigAction() {
 	}
 
 	var app inapi.AppInstance
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Id)).Query(); rs.OK() {
-		rs.Decode(&app)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Id)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&app)
 	}
 
 	if app.Meta.ID != set.Id ||
@@ -925,8 +924,8 @@ func (c App) ConfigAction() {
 	app.Operate.Options.Sync(set_opt)
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Exec(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 
@@ -951,8 +950,8 @@ func (c App) ConfigRepRemotesAction() {
 	}
 
 	var app inapi.AppInstance
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Id)).Query(); rs.OK() {
-		rs.Decode(&app)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(set.Id)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&app)
 	}
 
 	if len(set.DepRemotes) == 0 || len(app.Spec.DepRemotes) == 0 {
@@ -978,8 +977,8 @@ func (c App) ConfigRepRemotesAction() {
 
 		//
 		var refApp inapi.AppInstance
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.AppId)).Query(); rs.OK() {
-			rs.Decode(&refApp)
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.AppId)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&refApp)
 		}
 		if refApp.Meta.ID != v.AppId {
 			rsp.Error = types.NewErrorMeta("400",
@@ -1016,10 +1015,10 @@ func (c App) ConfigRepRemotesAction() {
 			// clean prev settings
 			if optRefCfg != nil && optRefCfg.Ref != nil && (optRefCfg.Ref.AppId != v.AppId || v.Delete) {
 
-				if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(optRefCfg.Ref.AppId)).Query(); rs.OK() {
+				if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(optRefCfg.Ref.AppId)).Exec(); rs.OK() {
 
 					var refAppPrev inapi.AppInstance
-					rs.Decode(&refAppPrev)
+					rs.Item().JsonDecode(&refAppPrev)
 
 					if refAppPrev.Meta.ID == optRefCfg.Ref.AppId {
 
@@ -1028,8 +1027,8 @@ func (c App) ConfigRepRemotesAction() {
 							refAppPrevOpt.Subs.Del(app.Meta.ID)
 							refAppPrev.Operate.Options.Sync(*refAppPrevOpt)
 
-							if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev).Commit(); !rs.OK() {
-								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+							if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refAppPrev.Meta.ID), refAppPrev).Exec(); !rs.OK() {
+								rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 								return
 							}
 						}
@@ -1054,8 +1053,8 @@ func (c App) ConfigRepRemotesAction() {
 			//
 			refAppOpt.Subs.Set(app.Meta.ID)
 			refApp.Operate.Options.Sync(*refAppOpt)
-			if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp).Commit(); !rs.OK() {
-				rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+			if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(refApp.Meta.ID), refApp).Exec(); !rs.OK() {
+				rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 				return
 			}
 
@@ -1099,8 +1098,8 @@ func (c App) ConfigRepRemotesAction() {
 
 	app.Meta.Updated = types.MetaTimeNow()
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Commit(); !rs.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(app.Meta.ID), app).Exec(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 

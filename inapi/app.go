@@ -165,7 +165,6 @@ func (it *AppSpecDepend) Valid() error {
 	return nil
 }
 
-//
 type AppSpec struct {
 	types.TypeMeta `json:",inline" toml:",inline"`
 	Meta           types.InnerObjectMeta         `json:"meta" toml:"meta"`
@@ -216,6 +215,7 @@ func (it *AppSpec) Fix() *AppSpec {
 		it.RuntimeImages = []string{
 			"sysinner/innerstack-g3:el8",
 			"sysinner/innerstack-g2:el7",
+			"sysinner/innerstack-b1:v1.0",
 		}
 	}
 	return it
@@ -374,7 +374,6 @@ func (ls *AppPackages) Remove(name string) {
 	}
 }
 
-//
 type AppVolumeMount struct {
 	Name     string `json:"name" toml:"name"`
 	Path     string `json:"path" toml:"path"`
@@ -383,7 +382,6 @@ type AppVolumeMount struct {
 
 type AppVolumeMounts []AppVolumeMount
 
-//
 type AppConfigurator struct {
 	Name   types.NameIdentifier `json:"name" toml:"name"`
 	Fields AppConfigFields      `json:"fields,omitempty" toml:"fields,omitempty"`
@@ -503,7 +501,6 @@ func (it *AppConfigFieldTypeCA) Valid(field *AppConfigField) error {
 	return nil
 }
 
-//
 type AppOperate struct {
 	Action        uint32            `json:"action,omitempty" toml:"action,omitempty"`
 	Zone          string            `json:"zone,omitempty" toml:"zone,omitempty"`

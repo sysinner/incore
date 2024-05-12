@@ -19,12 +19,11 @@ import (
 	"strings"
 
 	"github.com/hooto/hlog4g/hlog"
-	kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
 
 	"github.com/sysinner/incore/data"
 )
 
-func InitData(items []*kv2.ClientObjectItem) error {
+func InitData(items map[string]interface{}) error {
 
 	if data.DataGlobal == nil {
 		return fmt.Errorf("data.DataGlobal Not Init")
@@ -34,31 +33,35 @@ func InitData(items []*kv2.ClientObjectItem) error {
 		return fmt.Errorf("data.DataZone Not Init")
 	}
 
-	for _, v := range items {
+	if len(items) == 0 {
+		return nil
+	}
 
-		if strings.HasPrefix(string(v.Key), "ing:") ||
-			strings.Contains(string(v.Key), "/ing/") {
+	for key, value := range items {
 
-			if rs := data.DataGlobal.NewWriter(v.Key, v.Value).
-				ModeCreateSet(true).Commit(); !rs.OK() {
-				return fmt.Errorf("gm.initdata error on key : %s", string(v.Key))
-			} else if rs.Meta.Created > 0 {
+		if strings.HasPrefix(key, "ing:") ||
+			strings.Contains(key, "/ing/") {
+
+			if rs := data.DataGlobal.NewWriter([]byte(key), value).
+				SetCreateOnly(true).Exec(); !rs.OK() {
+				return fmt.Errorf("gm.initdata error on key : %s", key)
+			} else if rs.Item().Meta.Updated > 0 {
 				continue
 			}
 		}
 
-		if strings.HasPrefix(string(v.Key), "inz:") ||
-			strings.Contains(string(v.Key), "/inz/") {
+		if strings.HasPrefix(key, "inz:") ||
+			strings.Contains(key, "/inz/") {
 
-			if rs := data.DataZone.NewWriter(v.Key, v.Value).
-				ModeCreateSet(true).Commit(); !rs.OK() {
-				return fmt.Errorf("zm.initdata error on key : %s", string(v.Key))
-			} else if rs.Meta.Created > 0 {
+			if rs := data.DataZone.NewWriter([]byte(key), value).
+				SetCreateOnly(true).Exec(); !rs.OK() {
+				return fmt.Errorf("zm.initdata error on key : %s", key)
+			} else if rs.Item().Meta.Updated > 0 {
 				continue
 			}
 		}
 
-		hlog.Printf("info", "init.data skip key %s", string(v.Key))
+		hlog.Printf("info", "init.data skip key %s", key)
 	}
 
 	return nil

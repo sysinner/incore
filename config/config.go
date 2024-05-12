@@ -30,7 +30,8 @@ import (
 	"github.com/hooto/htoml4g/htoml"
 	iamcfg "github.com/hooto/iam/config"
 	"github.com/lessos/lessgo/crypto/idhash"
-	"github.com/lynkdb/kvgo"
+	// "github.com/lynkdb/kvgo"
+	kvclient "github.com/lynkdb/kvgo/v2/pkg/client"
 
 	"github.com/sysinner/incore/inapi"
 )
@@ -98,7 +99,11 @@ type ConfigCommon struct {
 	Zone       ZoneConfig           `json:"zone" toml:"zone"`
 	ZoneMain   *ZoneMainConfig      `json:"zone_main,omitempty" toml:"zone_main,omitempty"`
 	IamService *iamcfg.ConfigCommon `json:"iam_service,omitempty" toml:"iam_service,omitempty"`
-	ZoneData   *kvgo.Config         `json:"zone_data,omitempty" toml:"zone_data,omitempty"`
+	// ZoneData   *kvgo.Config         `json:"zone_data,omitempty" toml:"zone_data,omitempty"`
+
+	GlobDatabase *kvclient.Config `json:"glob_database,omitempty" toml:"glob_database,omitempty"`
+	ZoneDatabase *kvclient.Config `json:"zone_database,omitempty" toml:"zone_database,omitempty"`
+	PackDatabase *kvclient.Config `json:"pack_database,omitempty" toml:"pack_database,omitempty"`
 
 	/**
 	DelZoneIamAccessKey *hauth.AccessKey         `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`

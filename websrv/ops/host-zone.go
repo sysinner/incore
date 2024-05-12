@@ -99,14 +99,14 @@ func (c Host) ZoneEntryAction() {
 	)
 
 	rs := data.DataGlobal.NewReader(
-		inapi.NsGlobalSysZone(zoneId)).Query()
+		inapi.NsGlobalSysZone(zoneId)).Exec()
 	if rs.OK() {
-		rs.Decode(&set.ResZone)
+		rs.Item().JsonDecode(&set.ResZone)
 	} else if rs.NotFound() {
 		rs = data.DataGlobal.NewReader(
-			inapi.NsGlobalSysZone(zoneId)).Query()
+			inapi.NsGlobalSysZone(zoneId)).Exec()
 		if rs.OK() {
-			rs.Decode(&set.ResZone)
+			rs.Item().JsonDecode(&set.ResZone)
 		}
 	}
 
@@ -114,13 +114,13 @@ func (c Host) ZoneEntryAction() {
 
 		var (
 			offset = inapi.NsGlobalSysCell(set.Meta.Id, "")
-			rs2    = data.DataGlobal.NewReader(nil).KeyRangeSet(offset, offset).
-				LimitNumSet(100).Query()
+			rs2    = data.DataGlobal.NewRanger(offset, offset).
+				SetLimit(100).Exec()
 		)
 
 		for _, v2 := range rs2.Items {
 			var cell inapi.ResCell
-			if err := v2.Decode(&cell); err == nil {
+			if err := v2.JsonDecode(&cell); err == nil {
 				set.Cells = append(set.Cells, &cell)
 			}
 		}
@@ -295,9 +295,9 @@ func (c Host) ZoneSetAction() {
 	}
 	set.Groups = groups
 
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Meta.Id)).Query(); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Meta.Id)).Exec(); rs.OK() {
 		var prev inapi.ResZone
-		if err := rs.Decode(&prev); err == nil {
+		if err := rs.Item().JsonDecode(&prev); err == nil {
 			if prev.Meta.Created > 0 {
 				set.Meta.Created = prev.Meta.Created
 			}
@@ -318,7 +318,7 @@ func (c Host) ZoneSetAction() {
 
 	set.Meta.Updated = uint64(types.MetaTimeNow())
 
-	data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone).Commit()
+	data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(set.Meta.Id), set.ResZone).Exec()
 
 	if inapi.OpActionAllow(set.Phase, inapi.OpActionDestroy) &&
 		inapi.OpActionAllow(set.Phase, inapi.OpActionForce) {
@@ -349,8 +349,8 @@ func (c Host) ZoneAccChargeKeyRefreshAction() {
 		return
 	}
 
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(zone_id)).Query(); rs.OK() {
-		rs.Decode(&zone)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(zone_id)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&zone)
 	}
 
 	if zone.Meta.Id != zone_id {
@@ -379,14 +379,14 @@ func (c Host) ZoneAccChargeKeyRefreshAction() {
 	zone.OptionSet("iam/acc_charge/access_key", init_akacc.Id)
 	zone.OptionSet("iam/acc_charge/secret_key", init_akacc.Secret)
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(zone_id), zone).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", "database/global error "+rs.Message)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalSysZone(zone_id), zone).Exec(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", "database/global error "+rs.ErrorMessage())
 		return
 	}
 
 	if zone_id == status.ZoneId {
-		if rs := data.DataZone.NewWriter(inapi.NsZoneSysZone(zone_id), zone).Commit(); !rs.OK() {
-			set.Error = types.NewErrorMeta("500", "database/zone error "+rs.Message)
+		if rs := data.DataZone.NewWriter(inapi.NsZoneSysZone(zone_id), zone).Exec(); !rs.OK() {
+			set.Error = types.NewErrorMeta("500", "database/zone error "+rs.ErrorMessage())
 			return
 		}
 	}

@@ -106,8 +106,8 @@ func (c PodStats) FeedAction() {
 		return
 	}
 
-	if obj := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(podId)).Query(); obj.OK() {
-		obj.Decode(&pod)
+	if obj := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(podId)).Exec(); obj.OK() {
+		obj.JsonDecode(&pod)
 		if pod.Meta.ID == "" || !c.owner_or_sysadmin_allow(pod.Meta.User, "sysinner.admin") {
 			c.RenderJson(types.NewTypeErrorMeta("400", "Pod Not Found"))
 			return
@@ -137,10 +137,10 @@ func (c PodStats) FeedAction() {
 
 	for _, repId := range reps {
 
-		if rs := data.DataZone.NewReader(nil).KeyRangeSet(
+		if rs := data.DataZone.NewRanger(
 			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeStart-fq.TimeCycle-600),
 			inapi.NsKvZonePodRepStats(pod.Spec.Zone, pod.Meta.ID, repId, "sys", fq.TimeCutset+600)).
-			LimitNumSet(50000).Query(); rs.OK() {
+			SetLimit(50000).Exec(); rs.OK() {
 
 			var (
 				ifeed inapi.PbStatsIndexFeed
@@ -148,7 +148,7 @@ func (c PodStats) FeedAction() {
 			)
 			for _, v := range rs.Items {
 
-				if err := v.Decode(&ifeed); err != nil {
+				if err := v.JsonDecode(&ifeed); err != nil {
 					continue
 				}
 

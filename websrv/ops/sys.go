@@ -94,9 +94,9 @@ func (c Sys) ConfigWizardAction() {
 	}
 
 	//
-	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysConfig(name)).Query(); rs.OK() {
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysConfig(name)).Exec(); rs.OK() {
 		var item inapi.AppOption
-		if err := rs.Decode(&item); err == nil {
+		if err := rs.Item().JsonDecode(&item); err == nil {
 			set.Option = item
 		}
 	}
@@ -141,8 +141,8 @@ func (c Sys) ConfigSetAction() {
 	}
 
 	var prev inapi.SysConfigGroup
-	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysConfig(set.Name)).Query(); rs.OK() {
-		rs.Decode(&prev)
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysConfig(set.Name)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&prev)
 	}
 
 	if prev.Name != set.Name {
@@ -213,8 +213,8 @@ func (c Sys) ConfigSetAction() {
 	hlog.Printf("info", "SysConfig refresh %s", set.Name)
 	set.Updated = uint32(time.Now().Unix())
 
-	if rs := in_db.DataGlobal.NewWriter(inapi.NsGlobalSysConfig(set.Name), set).Commit(); !rs.OK() {
-		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+	if rs := in_db.DataGlobal.NewWriter(inapi.NsGlobalSysConfig(set.Name), set).Exec(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 

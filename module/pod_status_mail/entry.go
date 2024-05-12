@@ -76,15 +76,14 @@ func (it *PodStatusMail) Run(c *injob.Context) error {
 		zkey     = inapi.NsZonePodInstance(ctx.Zone.Meta.Id, "")
 	)
 
-	rs := data.DataZone.NewReader(nil).
-		KeyRangeSet(zkey, zkey).
-		LimitNumSet(10000).
-		Query()
+	rs := data.DataZone.NewRanger(zkey, zkey).
+		SetLimit(10000).
+		Exec()
 
 	for _, v := range rs.Items {
 
 		var pod inapi.Pod
-		if err := v.Decode(&pod); err != nil {
+		if err := v.JsonDecode(&pod); err != nil {
 			continue
 		}
 
@@ -160,7 +159,7 @@ func (it *PodStatusMail) Run(c *injob.Context) error {
 		msg.Created = tn
 
 		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneMailQueue(msg.SentId()), msg).Commit(); !rs.OK() {
+			inapi.NsZoneMailQueue(msg.SentId()), msg).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 	}

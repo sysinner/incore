@@ -22,13 +22,13 @@ func SysHostUpdate(zoneId string, host *inapi.ResHost) error {
 
 	if zoneId == host.Operate.ZoneId {
 		if rs := DataZone.NewWriter(
-			inapi.NsZoneSysHost(zoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+			inapi.NsZoneSysHost(zoneId, host.Meta.Id), host).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 	}
 
 	if rs := DataGlobal.NewWriter(
-		inapi.NsGlobalSysHost(host.Operate.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+		inapi.NsGlobalSysHost(host.Operate.ZoneId, host.Meta.Id), host).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
@@ -40,25 +40,23 @@ func SysHostDelete(zoneId string, host *inapi.ResHost) error {
 	if zoneId == host.Operate.ZoneId {
 
 		if rs := DataZone.NewWriter(
-			inapi.NsKvZoneSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+			inapi.NsKvZoneSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 
-		if rs := DataZone.NewWriter(
-			inapi.NsZoneSysHost(host.Operate.ZoneId, host.Meta.Id), nil).
-			ModeDeleteSet(true).Commit(); !rs.OK() {
+		if rs := DataZone.NewDeleter(
+			inapi.NsZoneSysHost(host.Operate.ZoneId, host.Meta.Id)).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 	}
 
 	if rs := DataGlobal.NewWriter(
-		inapi.NsKvGlobalSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+		inapi.NsKvGlobalSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
-	if rs := DataGlobal.NewWriter(
-		inapi.NsGlobalSysHost(host.Operate.ZoneId, host.Meta.Id), nil).
-		ModeDeleteSet(true).Commit(); !rs.OK() {
+	if rs := DataGlobal.NewDeleter(
+		inapi.NsGlobalSysHost(host.Operate.ZoneId, host.Meta.Id)).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
@@ -69,13 +67,13 @@ func SysCellUpdate(zoneId string, cell *inapi.ResCell) error {
 
 	if zoneId == cell.ZoneId {
 		if rs := DataZone.NewWriter(
-			inapi.NsZoneSysCell(zoneId, cell.Meta.Id), cell).Commit(); !rs.OK() {
+			inapi.NsZoneSysCell(zoneId, cell.Meta.Id), cell).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 	}
 
 	if rs := DataGlobal.NewWriter(
-		inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id), cell).Commit(); !rs.OK() {
+		inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id), cell).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
@@ -89,23 +87,23 @@ func SysCellDelete(zoneId string, cell *inapi.ResCell) error {
 	if zoneId == cell.ZoneId {
 
 		if rs := DataZone.NewWriter(
-			inapi.NsKvZoneSysCellDestroyed(cell.ZoneId, cell.Meta.Id), cell).Commit(); !rs.OK() {
+			inapi.NsKvZoneSysCellDestroyed(cell.ZoneId, cell.Meta.Id), cell).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 
-		if rs := DataZone.NewWriter(
-			inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), nil).ModeDeleteSet(true).Commit(); !rs.OK() {
+		if rs := DataZone.NewDeleter(
+			inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id)).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 	}
 
 	if rs := DataGlobal.NewWriter(
-		inapi.NsKvGlobalSysCellDestroyed(cell.ZoneId, cell.Meta.Id), cell).Commit(); !rs.OK() {
+		inapi.NsKvGlobalSysCellDestroyed(cell.ZoneId, cell.Meta.Id), cell).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
-	if rs := DataGlobal.NewWriter(
-		inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id), nil).ModeDeleteSet(true).Commit(); !rs.OK() {
+	if rs := DataGlobal.NewDeleter(
+		inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
@@ -116,13 +114,13 @@ func SysZoneUpdate(zoneId string, zone *inapi.ResZone) error {
 
 	if zoneId == zone.Meta.Id {
 		if rs := DataZone.NewWriter(
-			inapi.NsZoneSysZone(zone.Meta.Id), zone).Commit(); !rs.OK() {
+			inapi.NsZoneSysZone(zone.Meta.Id), zone).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 	}
 
 	if rs := DataGlobal.NewWriter(
-		inapi.NsGlobalSysZone(zone.Meta.Id), zone).Commit(); !rs.OK() {
+		inapi.NsGlobalSysZone(zone.Meta.Id), zone).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
@@ -135,18 +133,18 @@ func SysZoneDelete(zoneId string, zone *inapi.ResZone) error {
 
 	if zoneId == zone.Meta.Id {
 		if rs := DataZone.NewWriter(
-			inapi.NsZoneSysZone(zone.Meta.Id), zone).Commit(); !rs.OK() {
+			inapi.NsZoneSysZone(zone.Meta.Id), zone).Exec(); !rs.OK() {
 			return rs.Error()
 		}
 	}
 
 	if rs := DataGlobal.NewWriter(
-		inapi.NsKvGlobalSysZoneDestroyed(zone.Meta.Id), zone).Commit(); !rs.OK() {
+		inapi.NsKvGlobalSysZoneDestroyed(zone.Meta.Id), zone).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 
-	if rs := DataGlobal.NewWriter(
-		inapi.NsGlobalSysZone(zone.Meta.Id), nil).ModeDeleteSet(true).Commit(); !rs.OK() {
+	if rs := DataGlobal.NewDeleter(
+		inapi.NsGlobalSysZone(zone.Meta.Id)).Exec(); !rs.OK() {
 		return rs.Error()
 	}
 

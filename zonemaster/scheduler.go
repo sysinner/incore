@@ -141,9 +141,9 @@ func scheduleAction() error {
 
 func schedulePodSpecPlanListRefresh() error {
 
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("plan", ""), inapi.NsGlobalPodSpec("plan", "")).
-		LimitNumSet(1000).Query()
+		SetLimit(1000).Exec()
 	if !rs.OK() {
 		return errors.New("gm/db error")
 	}
@@ -151,7 +151,7 @@ func schedulePodSpecPlanListRefresh() error {
 	zonePodSpecPlans = inapi.PodSpecPlans{}
 	for _, v := range rs.Items {
 		var specPlan inapi.PodSpecPlan
-		if err := v.Decode(&specPlan); err == nil {
+		if err := v.JsonDecode(&specPlan); err == nil {
 			specPlan.ChargeFix()
 			zonePodSpecPlans = append(zonePodSpecPlans, &specPlan)
 		}
@@ -174,9 +174,9 @@ func schedulePodListRefresh() error {
 	)
 
 	// local zone scheduled pods
-	rs := data.DataZone.NewReader(nil).KeyRangeSet(
+	rs := data.DataZone.NewRanger(
 		inapi.NsZonePodInstance(status.ZoneId, ""), inapi.NsZonePodInstance(status.ZoneId, "")).
-		LimitNumSet(10000).Query()
+		SetLimit(10000).Exec()
 	if !rs.OK() {
 		return errors.New("zm/db err")
 	}
@@ -184,7 +184,7 @@ func schedulePodListRefresh() error {
 	for _, v := range rs.Items {
 
 		var srcPod inapi.Pod
-		if err := v.Decode(&srcPod); err != nil {
+		if err := v.JsonDecode(&srcPod); err != nil {
 			hlog.Printf("warn", "zm/pod data/struct err %s", err.Error())
 			continue
 		}
@@ -225,9 +225,8 @@ func schedulePodListRefresh() error {
 			//
 			if (pod.Operate.Operated + uint32(inapi.PodDestroyTTL)) < tn {
 
-				if rs := data.DataZone.NewWriter(inapi.NsKvZonePodInstanceDestroy(status.ZoneId, pod.Meta.ID), pod).Commit(); rs.OK() {
-					rs = data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), nil).
-						ModeDeleteSet(true).Commit()
+				if rs := data.DataZone.NewWriter(inapi.NsKvZonePodInstanceDestroy(status.ZoneId, pod.Meta.ID), pod).Exec(); rs.OK() {
+					rs = data.DataZone.NewDeleter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID)).Exec()
 					//
 					status.ZonePodList.Items.Del(pod.Meta.ID)
 					hlog.Printf("warn", "zm/scheduler pod %s, remove", pod.Meta.ID)
@@ -244,8 +243,8 @@ func schedulePodListRefresh() error {
 
 			pod.Operate.Action = pod.Operate.Action | inapi.OpActionResFree
 			//
-			if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit(); !rs.OK() {
-				hlog.Printf("info", "zm/scheduler pod %s, db err %s", pod.Meta.ID, rs.Message)
+			if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Exec(); !rs.OK() {
+				hlog.Printf("info", "zm/scheduler pod %s, db err %s", pod.Meta.ID, rs.ErrorMessage())
 				continue
 			}
 
@@ -595,9 +594,9 @@ func scheduleHostListRefresh() error {
 		cell.Meta.Updated = uint64(types.MetaTimeNow())
 
 		if rs := data.DataGlobal.NewWriter(
-			inapi.NsGlobalSysCell(status.ZoneId, id), cell).Commit(); rs.OK() {
+			inapi.NsGlobalSysCell(status.ZoneId, id), cell).Exec(); rs.OK() {
 			data.DataZone.NewWriter(
-				inapi.NsZoneSysCell(status.ZoneId, id), cell).Commit()
+				inapi.NsZoneSysCell(status.ZoneId, id), cell).Exec()
 			// hlog.Printf("info", "cell %s : %s", id, cell.Meta.Name)
 		}
 	}
@@ -613,8 +612,8 @@ func schedulePodListQueue(cellId string) {
 		cutset = inapi.NsKvGlobalSetQueuePod(status.ZoneId, cellId, "")
 	)
 
-	rss := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, cutset).
-		LimitNumSet(10000).Query()
+	rss := data.DataGlobal.NewRanger(offset, cutset).
+		SetLimit(10000).Exec()
 	if len(rss.Items) == 0 {
 		return
 	}
@@ -623,7 +622,7 @@ func schedulePodListQueue(cellId string) {
 
 		var podq inapi.Pod
 
-		if err := v.Decode(&podq); err != nil {
+		if err := v.JsonDecode(&podq); err != nil {
 			hlog.Printf("error", "invalid data struct: %s", err.Error())
 			continue
 		}
@@ -638,10 +637,10 @@ func schedulePodListQueue(cellId string) {
 		)
 
 		if rs := data.DataZone.NewReader(
-			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID)).Query(); rs.OK() {
+			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID)).Exec(); rs.OK() {
 
 			var prev inapi.Pod
-			if err := rs.Decode(&prev); err != nil {
+			if err := rs.Item().JsonDecode(&prev); err != nil {
 				hlog.Printf("error", "bad prev podq %s instance, err %s", podq.Meta.ID, err.Error())
 				continue
 			}
@@ -752,14 +751,13 @@ func schedulePodListQueue(cellId string) {
 			hlog.Printf("warn", "Scheduler Pod %s, ER %s", pod.Meta.ID, err.Error())
 		}
 
-		if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Commit(); !rs.OK() {
-			hlog.Printf("error", "zone/podq saved %s, err (%s)", pod.Meta.ID, rs.Message)
+		if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, pod.Meta.ID), pod).Exec(); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", pod.Meta.ID, rs.ErrorMessage())
 			continue
 		}
 
 		if err == nil {
-			data.DataGlobal.NewWriter(inapi.NsKvGlobalSetQueuePod(status.ZoneId, pod.Spec.Cell, pod.Meta.ID), nil).
-				ModeDeleteSet(true).Commit()
+			data.DataGlobal.NewDeleter(inapi.NsKvGlobalSetQueuePod(status.ZoneId, pod.Spec.Cell, pod.Meta.ID)).Exec()
 			hlog.Printf("info", "zone/podq queue/clean %s", pod.Meta.ID)
 			podInQueue.Set(pod.Meta.ID)
 		}
@@ -813,8 +811,8 @@ func schedulePodListBound() {
 			}
 		}
 
-		if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Commit(); !rs.OK() {
-			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Message)
+		if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Exec(); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.ErrorMessage())
 			continue
 		}
 	}
@@ -1207,8 +1205,8 @@ func schedulePodRepItem(podq *inapi.Pod, opAction uint32,
 		changed = true
 
 		// TOTK
-		if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Commit(); !rs.OK() {
-			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Message)
+		if rs := data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Exec(); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.ErrorMessage())
 			return inapi.NewPbOpLogEntry("", inapi.PbOpLogWarn, "Data IO error")
 		}
 
@@ -1393,7 +1391,7 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 					repStatus.Action = 0
 
 					// TODO
-					data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Commit()
+					data.DataZone.NewWriter(inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Exec()
 
 					hlog.Printf("warn", "scheduler rep %s:%d, host %s, set opAction to %s, Migrate DONE",
 						podq.Meta.ID, repId, ctrRep.Node,
@@ -1563,8 +1561,8 @@ func schedulePodMigrate(podq *inapi.Pod) error {
 			podq.Meta.ID, rep.RepId, prevHostId, hit.HostId)
 
 		if rs := data.DataZone.NewWriter(
-			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Commit(); !rs.OK() {
-			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Message)
+			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Exec(); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.ErrorMessage())
 		}
 
 		repStatus.OpLog.LogSet(
@@ -1996,8 +1994,8 @@ func schedulePodFailover(podq *inapi.Pod) error {
 		foRep.ManualChecked = 0
 
 		if rs := data.DataZone.NewWriter(
-			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Commit(); !rs.OK() {
-			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.Message)
+			inapi.NsZonePodInstance(status.ZoneId, podq.Meta.ID), podq).Exec(); !rs.OK() {
+			hlog.Printf("error", "zone/podq saved %s, err (%s)", podq.Meta.ID, rs.ErrorMessage())
 		}
 
 		repStatus.OpLog.LogSet(
@@ -2032,24 +2030,22 @@ func scheduleClean() error {
 		hlog.Printf("warn", "destroy node #%s ...", host.Meta.Id)
 
 		if rs := data.DataGlobal.NewWriter(
-			inapi.NsKvGlobalSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+			inapi.NsKvGlobalSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Exec(); !rs.OK() {
 			continue
 		}
 
 		if rs := data.DataZone.NewWriter(
-			inapi.NsKvZoneSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Commit(); !rs.OK() {
+			inapi.NsKvZoneSysHostDestroyed(host.Operate.ZoneId, host.Meta.Id), host).Exec(); !rs.OK() {
 			continue
 		}
 
-		if rs := data.DataGlobal.NewWriter(
-			inapi.NsGlobalSysHost(host.Operate.ZoneId, host.Meta.Id), nil).
-			ModeDeleteSet(true).Commit(); !rs.OK() {
+		if rs := data.DataGlobal.NewDeleter(
+			inapi.NsGlobalSysHost(host.Operate.ZoneId, host.Meta.Id)).Exec(); !rs.OK() {
 			continue
 		}
 
-		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysHost(host.Operate.ZoneId, host.Meta.Id), nil).
-			ModeDeleteSet(true).Commit(); !rs.OK() {
+		if rs := data.DataZone.NewDeleter(
+			inapi.NsZoneSysHost(host.Operate.ZoneId, host.Meta.Id)).Exec(); !rs.OK() {
 			continue
 		}
 

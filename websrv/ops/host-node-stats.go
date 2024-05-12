@@ -62,15 +62,15 @@ func (c Host) NodeStatsFeedAction() {
 
 	feed := inapi.NewPbStatsSampleFeed(fq.TimeCycle)
 
-	if rs := data.DataZone.NewReader(nil).KeyRangeSet(
+	if rs := data.DataZone.NewRanger(
 		inapi.NsKvZoneSysHostStats(status.ZoneId, host_id, fq.TimeStart),
 		inapi.NsKvZoneSysHostStats(status.ZoneId, host_id, fq.TimeCutset+600)).
-		LimitNumSet(10000).Query(); rs.OK() {
+		SetLimit(10000).Exec(); rs.OK() {
 
 		for _, v := range rs.Items {
 
 			var ifeed inapi.PbStatsIndexFeed
-			if err := v.Decode(&ifeed); err != nil {
+			if err := v.JsonDecode(&ifeed); err != nil {
 				continue
 			}
 

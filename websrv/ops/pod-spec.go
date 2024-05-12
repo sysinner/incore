@@ -69,19 +69,18 @@ func (c PodSpec) ResComputeListAction() {
 	}
 
 	// TODO
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("res/compute", ""), inapi.NsGlobalPodSpec("res/compute", "")).
-		LimitNumSet(100).Query()
+		SetLimit(100).Exec()
 	if rs.OK() {
 		for _, v := range rs.Items {
 
 			var item inapi.PodSpecResCompute
-			if err := v.Decode(&item); err == nil {
+			if err := v.JsonDecode(&item); err == nil {
 
 				// datafix
 				if item.Meta.ID != fmt.Sprintf("c%dm%d", item.CpuLimit, item.MemLimit) {
-					data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", item.Meta.ID), nil).
-						ModeDeleteSet(true).Commit()
+					data.DataGlobal.NewDeleter(inapi.NsGlobalPodSpec("res/compute", item.Meta.ID)).Exec()
 					continue
 				}
 
@@ -141,17 +140,17 @@ func (c PodSpec) ResComputeNewAction() {
 	}
 	set.Status = inapi.SpecStatusActive
 
-	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID)).Query()
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID)).Exec()
 	if rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Spec Already Exists")
 		return
 	}
 
-	rs = data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID), set).Commit()
+	rs = data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID), set).Exec()
 	if rs.OK() {
 		set.Kind = "PodSpecResCompute"
 	} else {
-		set.Error = types.NewErrorMeta("500", rs.Message)
+		set.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 	}
 }
 
@@ -174,12 +173,12 @@ func (c PodSpec) ResComputeSetAction() {
 	}
 
 	var prev inapi.PodSpecResCompute
-	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID)).Query()
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("res/compute", set.Meta.ID)).Exec()
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Spec Not Found")
 		return
 	} else {
-		rs.Decode(&prev)
+		rs.Item().JsonDecode(&prev)
 	}
 	if prev.Meta.ID == "" || prev.Meta.ID != set.Meta.ID {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "Spec Not Found")
@@ -189,11 +188,11 @@ func (c PodSpec) ResComputeSetAction() {
 	prev.Status = set.Status
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	rs = data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", prev.Meta.ID), set).Commit()
+	rs = data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("res/compute", prev.Meta.ID), set).Exec()
 	if !rs.OK() {
 		set.Kind = "PodSpecResCompute"
 	} else {
-		set.Error = types.NewErrorMeta("500", rs.Message)
+		set.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 	}
 }
 
@@ -208,13 +207,13 @@ func (c PodSpec) PlanListAction() {
 	}
 
 	// TODO
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("plan", ""), inapi.NsGlobalPodSpec("plan", "")).
-		LimitNumSet(100).Query()
+		SetLimit(100).Exec()
 	for _, v := range rs.Items {
 
 		var item inapi.PodSpecPlan
-		if err := v.Decode(&item); err == nil {
+		if err := v.JsonDecode(&item); err == nil {
 			item.ChargeFix()
 
 			upgrade := false
@@ -231,7 +230,7 @@ func (c PodSpec) PlanListAction() {
 			}
 
 			if upgrade {
-				data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item).Commit()
+				data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item).Exec()
 				hlog.Printf("warn", "v1 pod/spec/image upgrade %s", item.Meta.ID)
 			}
 
@@ -259,9 +258,9 @@ func (c PodSpec) PlanEntryAction() {
 	}
 
 	// TODO
-	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Value("id"))).Query()
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Value("id"))).Exec()
 	if rs.OK() {
-		rs.Decode(&set)
+		rs.Item().JsonDecode(&set)
 	}
 	if set.Meta.ID == "" || set.Meta.ID != c.Params.Value("id") {
 		set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument, "SpecPlan Not Found")
@@ -293,8 +292,8 @@ func (c PodSpec) PlanSetAction() {
 
 	// TODO
 	var prev inapi.PodSpecPlan
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Meta.ID)).Query(); rs.OK() {
-		rs.Decode(&prev)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Meta.ID)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&prev)
 	}
 	if prev.Meta.ID == "" || prev.Meta.ID != set.Meta.ID {
 		prev.Meta.ID = set.Meta.ID
@@ -343,12 +342,12 @@ func (c PodSpec) PlanSetAction() {
 		offset = inapi.NsGlobalBoxImage("", "")
 		cutset = inapi.NsGlobalBoxImage("", "")
 	)
-	rss := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, cutset).
-		LimitNumSet(100).Query()
+	rss := data.DataGlobal.NewRanger(offset, cutset).
+		SetLimit(100).Exec()
 	for _, v := range rss.Items {
 
 		var item inapi.PodSpecBoxImage
-		if err := v.Decode(&item); err != nil {
+		if err := v.JsonDecode(&item); err != nil {
 			continue
 		}
 
@@ -379,13 +378,13 @@ func (c PodSpec) PlanSetAction() {
 
 	//
 	prev.ResComputes = inapi.PodSpecPlanResComputeBounds{}
-	rss = data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rss = data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("res/compute", ""), inapi.NsGlobalPodSpec("res/compute", "")).
-		LimitNumSet(100).Query()
+		SetLimit(100).Exec()
 	for _, v := range rss.Items {
 
 		var item inapi.PodSpecResCompute
-		if err := v.Decode(&item); err != nil {
+		if err := v.JsonDecode(&item); err != nil {
 			continue
 		}
 
@@ -411,13 +410,13 @@ func (c PodSpec) PlanSetAction() {
 	//
 	prev.ResVolumeDefault = ""
 	prev.ResVolumes = []*inapi.PodSpecPlanResVolumeBound{}
-	rss = data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rss = data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("res/volume", ""), inapi.NsGlobalPodSpec("res/volume", "")).
-		LimitNumSet(100).Query()
+		SetLimit(100).Exec()
 	for _, v := range rss.Items {
 
 		var item inapi.PodSpecResVolume
-		if err := v.Decode(&item); err != nil {
+		if err := v.JsonDecode(&item); err != nil {
 			continue
 		}
 
@@ -460,10 +459,10 @@ func (c PodSpec) PlanSetAction() {
 
 	prev.Meta.Updated = types.MetaTimeNow()
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", prev.Meta.ID), prev).Commit(); rs.OK() {
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", prev.Meta.ID), prev).Exec(); rs.OK() {
 		set.Kind = "PodSpecPlan"
 	} else {
-		set.Error = types.NewErrorMeta("500", rs.Message)
+		set.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 	}
 }
 
@@ -485,11 +484,11 @@ func (c PodSpec) BoxImageListAction() {
 	)
 
 	// TODO
-	rss := data.DataGlobal.NewReader(nil).KeyRangeSet(offset, cutset).
-		LimitNumSet(100).Query()
+	rss := data.DataGlobal.NewRanger(offset, cutset).
+		SetLimit(100).Exec()
 	for _, v := range rss.Items {
 		var item inapi.PodSpecBoxImage
-		if err := v.Decode(&item); err != nil {
+		if err := v.JsonDecode(&item); err != nil {
 			continue
 		}
 		if action > 0 && action != item.Action {
@@ -563,15 +562,15 @@ func (c PodSpec) BoxImageSetAction() {
 		return
 	}
 
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag)).Query(); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag)).Exec(); rs.OK() {
 		var prev inapi.PodSpecBoxImage
-		if err := rs.Decode(&prev); err == nil {
+		if err := rs.Item().JsonDecode(&prev); err == nil {
 			setItem.Meta.Created = prev.Meta.Created
 		}
 	}
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag), setItem).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta("500", rs.Message)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalBoxImage(setItem.Name, setItem.Tag), setItem).Exec(); !rs.OK() {
+		set.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 		return
 	}
 
@@ -589,13 +588,13 @@ func (c PodSpec) ResVolumeListAction() {
 	}
 
 	// TODO
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("res/volume", ""), inapi.NsGlobalPodSpec("res/volume", "")).
-		LimitNumSet(100).Query()
+		SetLimit(100).Exec()
 	for _, v := range rs.Items {
 
 		var item inapi.PodSpecResVolume
-		if err := v.Decode(&item); err == nil {
+		if err := v.JsonDecode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
 		} else {
 			hlog.Printf("info", "%s, %s", err.Error(), v.String())

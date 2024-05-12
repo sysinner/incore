@@ -89,15 +89,15 @@ func (c Podbound) IndexAction() {
 
 	var pod inapi.Pod
 
-	rs := data.DataLocal.NewReader(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id)).Query()
+	rs := data.DataLocal.NewReader(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id)).Exec()
 	if rs.OK() {
-		rs.Decode(&pod)
+		rs.Item().JsonDecode(&pod)
 	} else if rs.NotFound() {
 
 		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.Zone.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.DataLocal.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).ExpireSet(3600000).Commit()
+			data.DataLocal.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).SetTTL(3600000).Exec()
 		}
 	}
 
@@ -182,15 +182,15 @@ func pbPodInstanceSpec(pod_id string, rep_id uint32) *inapi.Pod {
 
 	var pod inapi.Pod
 
-	rs := data.DataLocal.NewReader(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id)).Query()
+	rs := data.DataLocal.NewReader(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id)).Exec()
 	if rs.OK() {
-		rs.Decode(&pod)
+		rs.Item().JsonDecode(&pod)
 	} else if rs.NotFound() {
 
 		json.DecodeFile(fmt.Sprintf(inagent_pod_json, config.Config.Zone.PodHomeDir, pod_id, inutils.Uint16ToHexString(uint16(rep_id))), &pod)
 
 		if pod.Meta.ID == pod_id {
-			data.DataLocal.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).ExpireSet(3600000).Commit()
+			data.DataLocal.NewWriter(inapi.NsKvLocalCacheBoundPod(pod_id, rep_id), pod).SetTTL(3600000).Exec()
 		}
 	}
 

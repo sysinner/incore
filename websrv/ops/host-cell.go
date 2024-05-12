@@ -59,12 +59,12 @@ func (c Host) CellEntryAction() {
 	)
 
 	if rs := data.DataGlobal.NewReader(
-		inapi.NsGlobalSysCell(zoneId, cellId)).Query(); rs.OK() {
-		rs.Decode(&set.ResCell)
+		inapi.NsGlobalSysCell(zoneId, cellId)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&set.ResCell)
 	} else if rs.NotFound() {
 		if rs = data.DataGlobal.NewReader(
-			inapi.NsKvGlobalSysCellDestroyed(zoneId, cellId)).Query(); rs.OK() {
-			rs.Decode(&set.ResCell)
+			inapi.NsKvGlobalSysCellDestroyed(zoneId, cellId)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&set.ResCell)
 		}
 	}
 
@@ -134,8 +134,8 @@ func (c Host) CellSetAction() {
 
 	} else {
 
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(cell.ZoneId)).Query(); rs.OK() {
-			rs.Decode(&zone)
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysZone(cell.ZoneId)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&zone)
 		}
 
 		if zone.Meta.Id == "" {
@@ -144,13 +144,13 @@ func (c Host) CellSetAction() {
 		}
 
 		// global
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)).Query(); rs.NotFound() {
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id)).Exec(); rs.NotFound() {
 
 			cell.Meta.Created = uint64(types.MetaTimeNow())
 		} else if rs.OK() {
 
 			var prev inapi.ResCell
-			if err := rs.Decode(&prev); err != nil {
+			if err := rs.Item().JsonDecode(&prev); err != nil {
 				cell.Error = &types.ErrorMeta{"500", err.Error()}
 				return
 			}
@@ -166,15 +166,15 @@ func (c Host) CellSetAction() {
 	cell.Meta.Updated = uint64(types.MetaTimeNow())
 
 	if rs := data.DataGlobal.NewWriter(
-		inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id), cell.ResCell).Commit(); !rs.OK() {
-		cell.Error = &types.ErrorMeta{"500", rs.Message}
+		inapi.NsGlobalSysCell(cell.ZoneId, cell.Meta.Id), cell.ResCell).Exec(); !rs.OK() {
+		cell.Error = &types.ErrorMeta{"500", rs.ErrorMessage()}
 		return
 	}
 
 	if cell.ZoneId == status.ZoneId {
 		if rs := data.DataZone.NewWriter(
-			inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell.ResCell).Commit(); !rs.OK() {
-			cell.Error = &types.ErrorMeta{"500", rs.Message}
+			inapi.NsZoneSysCell(cell.ZoneId, cell.Meta.Id), cell.ResCell).Exec(); !rs.OK() {
+			cell.Error = &types.ErrorMeta{"500", rs.ErrorMessage()}
 			return
 		}
 	}

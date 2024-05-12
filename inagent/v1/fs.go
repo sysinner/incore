@@ -288,7 +288,7 @@ func (c *Fs) ListAction() {
 
 	//
 	// path := filepath.Clean(req.Path)
-	path := filepath.Clean(c.Params.Get("path"))
+	path := filepath.Clean(c.Params.Value("path"))
 	if !strings.HasPrefix(path, "/home/action") {
 		rsp.Error = &types.ErrorMeta{"403", "Forbidden"}
 		return
@@ -383,7 +383,7 @@ func (c Fs) GetAction() {
 
 	defer c.RenderJson(&rsp)
 
-	path := filepath.Clean(c.Params.Get("path"))
+	path := filepath.Clean(c.Params.Value("path"))
 	if !strings.HasPrefix(path, "/home/action") {
 		rsp.Error = &types.ErrorMeta{"403", "Forbidden"}
 		return

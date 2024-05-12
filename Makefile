@@ -1,6 +1,6 @@
 PROTOC_CMD = protoc
-PROTOC_ARGS = --proto_path=./inapi --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./inapi/*.proto
-PROTOC_RUST_ARGS = --proto_path=./inapi --rust_out=experimental-codegen=enabled,kernel=cpp:./inapi ./inapi/*.proto
+PROTOC_ARGS = --proto_path=./api --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./api/*.proto
+PROTOC_RUST_ARGS = --proto_path=./api --rust_out=experimental-codegen=enabled,kernel=cpp:./inapi ./api/*.proto
 
 HTOML_TAG_FIX_CMD = htoml-tag-fix
 HTOML_TAG_FIX_ARGS = ./inapi
@@ -22,7 +22,7 @@ endif
 .PHONY: api
 api:
 	$(QUIET_BUILD)$(PROTOC_CMD) $(PROTOC_ARGS) $(CCLINK)
-	$(QUIET_BUILD)$(PROTOC_CMD) $(PROTOC_RUST_ARGS) $(CCLINK)
+	# $(QUIET_BUILD)$(PROTOC_CMD) $(PROTOC_RUST_ARGS) $(CCLINK)
 	$(QUIET_BUILD)$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_ARGS) $(CCLINK)
 
 .PHONY: api-in-runc

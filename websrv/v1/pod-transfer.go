@@ -95,11 +95,11 @@ func (c Pod) UserTransferAction() {
 		return
 	}
 
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(set.Id)).Query(); !rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(set.Id)).Exec(); !rs.OK() {
 		rsp.Error = types.NewErrorMeta("400", "Prev Pod Not Found")
 		return
 	} else {
-		rs.Decode(&prev)
+		rs.Item().JsonDecode(&prev)
 	}
 
 	if prev.Meta.ID != set.Id {
@@ -126,9 +126,9 @@ func (c Pod) UserTransferAction() {
 	}
 
 	//
-	if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalPodUserTransfer(prev.Meta.ID)).Query(); rs.OK() {
+	if rs := data.DataGlobal.NewReader(inapi.NsKvGlobalPodUserTransfer(prev.Meta.ID)).Exec(); rs.OK() {
 		var prevTransfer inapi.PodUserTransfer
-		rs.Decode(&prevTransfer)
+		rs.Item().JsonDecode(&prevTransfer)
 		if prevTransfer.UserTo == set.UserTo {
 			rsp.Kind = "PodInstance"
 			return
@@ -141,8 +141,8 @@ func (c Pod) UserTransferAction() {
 
 	//
 	if rs := data.DataGlobal.NewWriter(inapi.NsKvGlobalPodUserTransfer(set.Id), set).
-		ExpireSet(3600 * 1000).Commit(); !rs.OK() {
-		rsp.Error = types.NewErrorMeta("500", rs.Message)
+		SetTTL(3600 * 1000).Exec(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 		return
 	}
 
@@ -168,8 +168,8 @@ func (c Pod) UserTransferAction() {
 	msg.Type = mail.BodyType
 
 	if rs := data.DataZone.NewWriter(
-		inapi.NsZoneMailQueue(msg.SentId()), msg).Commit(); !rs.OK() {
-		rsp.Error = types.NewErrorMeta("500", rs.Message)
+		inapi.NsZoneMailQueue(msg.SentId()), msg).Exec(); !rs.OK() {
+		rsp.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 		return
 	}
 
@@ -198,9 +198,9 @@ func (c Pod) UserTransferPerformAction() {
 			it  inapi.PodUserTransfer
 		)
 
-		if rs := data.DataGlobal.NewReader(utp).Query(); !rs.OK() {
+		if rs := data.DataGlobal.NewReader(utp).Exec(); !rs.OK() {
 			continue
-		} else if err := rs.Decode(&it); err != nil {
+		} else if err := rs.Item().JsonDecode(&it); err != nil {
 			hlog.Printf("warn", "decode err %s", err.Error())
 			continue
 		}
@@ -212,15 +212,15 @@ func (c Pod) UserTransferPerformAction() {
 
 		//
 		var pod inapi.Pod
-		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(podId)).Query(); rs.OK() {
-			rs.Decode(&pod)
+		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodInstance(podId)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&pod)
 		} else {
 			rsp.Error = types.NewErrorMeta(iamapi.ErrCodeAccessDenied, "Access Denied")
 			return
 		}
 
 		if pod.Meta.User == it.UserTo {
-			data.DataGlobal.NewWriter(utp, nil).ModeDeleteSet(true).Commit()
+			data.DataGlobal.NewDeleter(utp).Exec()
 			continue
 		}
 
@@ -236,7 +236,7 @@ func (c Pod) UserTransferPerformAction() {
 		}
 
 		sqkey := inapi.NsKvGlobalSetQueuePod(pod.Spec.Zone, pod.Spec.Cell, pod.Meta.ID)
-		if rs := data.DataGlobal.NewReader(sqkey).Query(); rs.OK() {
+		if rs := data.DataGlobal.NewReader(sqkey).Exec(); rs.OK() {
 			if (pod.Operate.Operated + podActionQueueTimeMin) > tn {
 				rsp.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 					"the previous operation is in processing, please try again later (1)")
@@ -247,8 +247,8 @@ func (c Pod) UserTransferPerformAction() {
 		//
 		var spec_plan inapi.PodSpecPlan
 		if rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan",
-			pod.Spec.Ref.Id)).Query(); rs.OK() {
-			rs.Decode(&spec_plan)
+			pod.Spec.Ref.Id)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&spec_plan)
 		}
 		if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != pod.Spec.Ref.Id {
 			rsp.Error = types.NewErrorMeta("400", "Spec Not Found")
@@ -270,15 +270,15 @@ func (c Pod) UserTransferPerformAction() {
 		pod.Operate.Operated = tn
 
 		//
-		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).Commit(); !rs.OK() {
-			rsp.Error = types.NewErrorMeta("500", rs.Message)
+		if rs := data.DataGlobal.NewWriter(inapi.NsGlobalPodInstance(pod.Meta.ID), pod).Exec(); !rs.OK() {
+			rsp.Error = types.NewErrorMeta("500", rs.ErrorMessage())
 			return
 		}
 
 		//
 		// Pod Map to Cell Queue
-		data.DataGlobal.NewWriter(sqkey, pod).Commit()
-		data.DataGlobal.NewWriter(utp, nil).ModeDeleteSet(true).Commit()
+		data.DataGlobal.NewWriter(sqkey, pod).Exec()
+		data.DataGlobal.NewDeleter(utp).Exec()
 	}
 
 	rsp.Kind = "PodInstance"
@@ -292,7 +292,7 @@ func (c Pod) userTransferPerformApp(set *inapi.Pod) error {
 			continue
 		}
 
-		rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.Meta.ID)).Query()
+		rs := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v.Meta.ID)).Exec()
 		if rs.NotFound() {
 			continue
 		} else if !rs.OK() {
@@ -300,7 +300,7 @@ func (c Pod) userTransferPerformApp(set *inapi.Pod) error {
 		}
 		//
 		var app inapi.AppInstance
-		if err := rs.Decode(&app); err != nil {
+		if err := rs.Item().JsonDecode(&app); err != nil {
 			return err
 		}
 		if app.Meta.ID != v.Meta.ID {
@@ -313,7 +313,7 @@ func (c Pod) userTransferPerformApp(set *inapi.Pod) error {
 				continue
 			}
 
-			rs2 := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v2.AppId)).Query()
+			rs2 := data.DataGlobal.NewReader(inapi.NsGlobalAppInstance(v2.AppId)).Exec()
 			if rs2.NotFound() {
 				continue
 			} else if !rs2.OK() {
@@ -321,7 +321,7 @@ func (c Pod) userTransferPerformApp(set *inapi.Pod) error {
 			}
 
 			var app2 inapi.AppInstance
-			if err := rs2.Decode(&app2); err != nil {
+			if err := rs2.JsonDecode(&app2); err != nil {
 				return err
 			}
 			if app2.Meta.ID != v2.AppId ||
@@ -334,7 +334,7 @@ func (c Pod) userTransferPerformApp(set *inapi.Pod) error {
 
 			app2.Meta.User = set.Meta.User
 			if rs2 = data.DataGlobal.NewWriter(
-				inapi.NsGlobalAppInstance(v2.AppId), app2).Commit(); !rs2.OK() {
+				inapi.NsGlobalAppInstance(v2.AppId), app2).Exec(); !rs2.OK() {
 				return rs2.Error()
 			}
 		}
@@ -347,7 +347,7 @@ func (c Pod) userTransferPerformApp(set *inapi.Pod) error {
 			v.Meta.ID, app.Meta.User, set.Meta.User)
 
 		app.Meta.User = set.Meta.User
-		rs2 := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(v.Meta.ID), app).Commit()
+		rs2 := data.DataGlobal.NewWriter(inapi.NsGlobalAppInstance(v.Meta.ID), app).Exec()
 		if !rs2.OK() {
 			return rs2.Error()
 		}

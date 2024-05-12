@@ -63,6 +63,11 @@ func (it *BoxImageUpdate) Spec() *injob.JobSpec {
 				path: "misc/boximages/docker/g2",
 				tag:  "sysinner/innerstack-g2:el7",
 			},
+			{
+				name: "b1",
+				path: "misc/boximages/docker/b1",
+				tag:  "sysinner/innerstack-b1:v1.0",
+			},
 			/**
 			{
 				name: "bg1",

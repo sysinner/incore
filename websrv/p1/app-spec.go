@@ -58,16 +58,15 @@ func appSpecRefresh() {
 	defer appSpecMu.Unlock()
 
 	var (
-		rs = data.DataGlobal.NewReader(nil).
-			KeyRangeSet(inapi.NsGlobalAppSpec(""), inapi.NsGlobalAppSpec("zzzz")).
-			LimitNumSet(1000).Query()
+		rs = data.DataGlobal.NewRanger(inapi.NsGlobalAppSpec(""), inapi.NsGlobalAppSpec("zzzz")).
+			SetLimit(1000).Exec()
 		items = []*inapi.AppSpec{}
 	)
 
 	for _, v := range rs.Items {
 
 		var item inapi.AppSpec
-		if err := v.Decode(&item); err != nil {
+		if err := v.JsonDecode(&item); err != nil {
 			continue
 		}
 

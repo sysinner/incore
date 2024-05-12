@@ -52,14 +52,14 @@ func (c PodSpec) PlanEntryAction() {
 	set := inapi.PodSpecPlan{}
 	defer c.RenderJson(&set)
 
-	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Value("id"))).Query()
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", c.Params.Value("id"))).Exec()
 	if !rs.OK() {
 		set.Error = types.NewErrorMeta("404", "No Spec Found")
 		return
 	}
 
 	var item inapi.PodSpecPlan
-	rs.Decode(&item)
+	rs.Item().JsonDecode(&item)
 	if item.Meta.ID != c.Params.Value("id") {
 		set.Error = types.NewErrorMeta("404", "No Spec Found")
 		return
@@ -78,12 +78,12 @@ func (c PodSpec) PlanListAction() {
 	defer c.RenderJson(&ls)
 
 	// TODO
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("plan", ""), inapi.NsGlobalPodSpec("plan", "")).
-		LimitNumSet(100).Query()
+		SetLimit(100).Exec()
 	for _, v := range rs.Items {
 		var item inapi.PodSpecPlan
-		if err := v.Decode(&item); err == nil {
+		if err := v.JsonDecode(&item); err == nil {
 
 			if item.Status != inapi.SpecStatusActive {
 				continue
@@ -104,7 +104,7 @@ func (c PodSpec) PlanListAction() {
 			}
 
 			if upgrade {
-				data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item).Commit()
+				data.DataGlobal.NewWriter(inapi.NsGlobalPodSpec("plan", item.Meta.ID), item).Exec()
 				hlog.Printf("warn", "v1 pod/spec/image upgrade %s", item.Meta.ID)
 			}
 
@@ -126,13 +126,13 @@ func (c PodSpec) ResVolumeListAction() {
 	ls := inapi.PodSpecResVolumeList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalPodSpec("res/volume", ""), inapi.NsGlobalPodSpec("res/volume", "")).
-		LimitNumSet(1000).Query()
+		SetLimit(1000).Exec()
 	for _, v := range rs.Items {
 
 		var item inapi.PodSpecResVolume
-		if err := v.Decode(&item); err == nil {
+		if err := v.JsonDecode(&item); err == nil {
 			ls.Items = append(ls.Items, item)
 		}
 	}

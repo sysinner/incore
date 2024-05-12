@@ -91,8 +91,8 @@ func (c Charge) PodEstimateAction() {
 	}
 
 	//
-	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Plan)).Query(); rs.OK() {
-		rs.Decode(&spec_plan)
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalPodSpec("plan", set.Plan)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&spec_plan)
 	}
 	if spec_plan.Meta.ID == "" || spec_plan.Meta.ID != set.Plan {
 		rsp.Error = types.NewErrorMeta("400", "Spec Not Found")
@@ -108,8 +108,8 @@ func (c Charge) PodEstimateAction() {
 
 	//
 	var zone inapi.ResZone
-	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Zone)).Query(); rs.OK() {
-		rs.Decode(&zone)
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysZone(set.Zone)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&zone)
 	}
 	if zone.Meta.Id == "" {
 		rsp.Error = types.NewErrorMeta("400", "Zone Not Found")
@@ -118,8 +118,8 @@ func (c Charge) PodEstimateAction() {
 
 	//
 	var cell inapi.ResCell
-	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysCell(set.Zone, set.Cell)).Query(); rs.OK() {
-		rs.Decode(&cell)
+	if rs := in_db.DataGlobal.NewReader(inapi.NsGlobalSysCell(set.Zone, set.Cell)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&cell)
 	}
 	if cell.Meta.Id == "" {
 		rsp.Error = types.NewErrorMeta("400", "Cell Not Found")

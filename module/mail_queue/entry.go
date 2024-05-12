@@ -60,15 +60,14 @@ func (it *MailQueue) Run(ctx *injob.Context) error {
 		zkey = inapi.NsZoneMailQueue("")
 	)
 
-	rs := data.DataZone.NewReader(nil).
-		KeyRangeSet(zkey, zkey).
-		LimitNumSet(100).
-		Query()
+	rs := data.DataZone.NewRanger(zkey, zkey).
+		SetLimit(100).
+		Exec()
 
 	for _, v := range rs.Items {
 
 		var item hmsg.MsgItem
-		if err := v.Decode(&item); err != nil {
+		if err := v.JsonDecode(&item); err != nil {
 			continue
 		}
 
@@ -76,9 +75,8 @@ func (it *MailQueue) Run(ctx *injob.Context) error {
 
 			it.done += 1
 
-			if rs2 := data.DataZone.NewWriter(v.Meta.Key, nil).
-				ModeDeleteSet(true).Commit(); !rs2.OK() {
-				hlog.Printf("info", "zm/v1 msg post clean err %s", rs2.Message)
+			if rs2 := data.DataZone.NewDeleter(v.Key).Exec(); !rs2.OK() {
+				hlog.Printf("info", "zm/v1 msg post clean err %s", rs2.ErrorMessage())
 			}
 
 			hlog.Printf("info", "zm/v1 msg post %s to %s ok", item.Id, item.ToUser)

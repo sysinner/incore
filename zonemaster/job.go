@@ -89,6 +89,7 @@ func (it *ZoneMainJob) Run(ctx *injob.Context) error {
 
 	if !it.inited {
 		if err := it.init(); err != nil {
+			hlog.Printf("error", "zm/job init err:%s", err.Error())
 			return err
 		}
 		it.inited = true
@@ -167,6 +168,9 @@ func (it *ZoneMainJob) init() error {
 			(iam_cfg.Config.InstanceID + iam_cfg.Version)), 16)
 
 		// init database
+		if ic_db.DataGlobal == nil {
+			return fmt.Errorf("iam.Store.Init error: config not setup")
+		}
 		iam_db.Data = ic_db.DataGlobal
 		if err := iam_db.Setup(); err != nil {
 			hlog.Printf("warn", "zone job init %v", err.Error())
@@ -236,11 +240,10 @@ func (it *ZoneMainJob) init() error {
 		}
 
 		// init inpack database
-		ip_db.Data = ic_db.DataInpack
+		ip_db.Data = ic_db.DataPack
 		if err = ip_db.Setup(); err != nil {
 			return fmt.Errorf("ip_db setup failed:%s", err.Error())
 		}
-		// ic_db.DataInpack = ip_db.Data
 
 		// TODEL
 		ip_cfg.Config.Sync()

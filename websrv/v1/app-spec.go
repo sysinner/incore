@@ -78,10 +78,10 @@ func (c AppSpec) ListAction() {
 	ls := inapi.AppSpecList{}
 	defer c.RenderJson(&ls)
 
-	rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsGlobalAppSpec("zzzzzzzz"), inapi.NsGlobalAppSpec("")).
-		ModeRevRangeSet(true).
-		LimitNumSet(200).Query()
+		SetRevert(true).
+		SetLimit(200).Exec()
 
 	var fields types.ArrayPathTree
 	if fns := c.Params.Value("fields"); fns != "" {
@@ -92,15 +92,15 @@ func (c AppSpec) ListAction() {
 	for _, v := range rs.Items {
 
 		var spec inapi.AppSpec
-		if err := v.Decode(&spec); err != nil {
+		if err := v.JsonDecode(&spec); err != nil {
 			continue
 		}
 
 		//
 		if _, ok := appSpecVersionCaches.Load(spec.Meta.ID + ":" + spec.Meta.Version); !ok {
 			if rs := data.DataGlobal.NewReader(
-				inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)).Query(); !rs.NotFound() {
-				data.DataGlobal.NewWriter(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version), spec).Commit()
+				inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version)).Exec(); !rs.NotFound() {
+				data.DataGlobal.NewWriter(inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, spec.Meta.Version), spec).Exec()
 			}
 			appSpecVersionCaches.Store(spec.Meta.ID+":"+spec.Meta.Version, true)
 		}
@@ -252,8 +252,8 @@ func (c AppSpec) VersionListAction() {
 	)
 
 	var spec inapi.AppSpec
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Value("id"))).Query(); rs.OK() {
-		rs.Decode(&spec)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Value("id"))).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&spec)
 	}
 
 	if spec.Meta.User != c.us.UserName &&
@@ -263,10 +263,10 @@ func (c AppSpec) VersionListAction() {
 	}
 
 	// TODO
-	rs := data.DataGlobal.NewReader(nil).ModeRevRangeSet(true).KeyRangeSet(
+	rs := data.DataGlobal.NewRanger(
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999.0.0"),
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "0")).
-		LimitNumSet(1000).Query()
+		SetRevert(true).SetLimit(1000).Exec()
 	var (
 		prevVersion = ""
 		lastCount   = 0
@@ -275,7 +275,7 @@ func (c AppSpec) VersionListAction() {
 	for _, v := range rs.Items {
 
 		var spec inapi.AppSpec
-		if err := v.Decode(&spec); err != nil {
+		if err := v.JsonDecode(&spec); err != nil {
 			continue
 		}
 
@@ -317,8 +317,8 @@ func (c AppSpec) ItemDelAction() {
 	}
 
 	var spec inapi.AppSpec
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Value("id"))).Query(); rs.OK() {
-		rs.Decode(&spec)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(c.Params.Value("id"))).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&spec)
 	}
 
 	if spec.Meta.ID != c.Params.Value("id") {
@@ -332,17 +332,16 @@ func (c AppSpec) ItemDelAction() {
 		return
 	}
 
-	if rs := data.DataGlobal.NewReader(nil).KeyRangeSet(
+	if rs := data.DataGlobal.NewRanger(
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, ""),
 		inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, "99999999.0.0")).
-		LimitNumSet(10000).Query(); rs.OK() {
+		SetLimit(10000).Exec(); rs.OK() {
 		for _, v := range rs.Items {
 			var item inapi.AppSpec
-			if err := v.Decode(&item); err == nil {
-				if rs := data.DataGlobal.NewWriter(
-					inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, item.Meta.Version), nil).
-					ModeDeleteSet(true).Commit(); !rs.OK() {
-					set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.Message)
+			if err := v.JsonDecode(&item); err == nil {
+				if rs := data.DataGlobal.NewDeleter(
+					inapi.NsKvGlobalAppSpecVersion(spec.Meta.ID, item.Meta.Version)).Exec(); !rs.OK() {
+					set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.ErrorMessage())
 					return
 				}
 			}
@@ -353,9 +352,8 @@ func (c AppSpec) ItemDelAction() {
 		return
 	}
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(spec.Meta.ID), nil).
-		ModeDeleteSet(true).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.Message)
+	if rs := data.DataGlobal.NewDeleter(inapi.NsGlobalAppSpec(spec.Meta.ID)).Exec(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "Server Error "+rs.ErrorMessage())
 		return
 	}
 
@@ -391,15 +389,15 @@ func (c AppSpec) EntryAction() {
 	version := c.Params.Value("version")
 	if version != "" {
 		if rs := data.DataGlobal.NewReader(
-			inapi.NsKvGlobalAppSpecVersion(c.Params.Value("id"), version)).Query(); rs.OK() {
-			rs.Decode(&set)
+			inapi.NsKvGlobalAppSpecVersion(c.Params.Value("id"), version)).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&set)
 		}
 	}
 
 	if set.Meta.ID != c.Params.Value("id") {
 		if rs := data.DataGlobal.NewReader(
-			inapi.NsGlobalAppSpec(c.Params.Value("id"))).Query(); rs.OK() {
-			rs.Decode(&set)
+			inapi.NsGlobalAppSpec(c.Params.Value("id"))).Exec(); rs.OK() {
+			rs.Item().JsonDecode(&set)
 		}
 	}
 
@@ -410,9 +408,9 @@ func (c AppSpec) EntryAction() {
 		if inapi.AppIdRe2.MatchString(appId) {
 
 			if rs := data.DataGlobal.NewReader(
-				inapi.NsGlobalAppInstance(appId)).Query(); rs.OK() {
+				inapi.NsGlobalAppInstance(appId)).Exec(); rs.OK() {
 				var app inapi.AppInstance
-				rs.Decode(&app)
+				rs.Item().JsonDecode(&app)
 				if app.Meta.ID == appId && app.Spec.Meta.ID == c.Params.Value("id") {
 					set = app.Spec
 				}
@@ -440,9 +438,9 @@ func (c AppSpec) EntryAction() {
 
 	if version != "" && c.Params.Value("last_version") == "true" {
 		if rs := data.DataGlobal.NewReader(
-			inapi.NsGlobalAppSpec(set.Meta.ID)).Query(); rs.OK() {
+			inapi.NsGlobalAppSpec(set.Meta.ID)).Exec(); rs.OK() {
 			var last_spec inapi.AppSpec
-			rs.Decode(&last_spec)
+			rs.Item().JsonDecode(&last_spec)
 			if inapi.NewAppSpecVersion(last_spec.Meta.Version).Compare(inapi.NewAppSpecVersion(set.Meta.Version)) == 1 {
 				set.LastVersion = last_spec.Meta.Version
 			}
@@ -508,14 +506,14 @@ func (c AppSpec) SetAction() {
 	}
 
 	var prev inapi.AppSpec
-	rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Query()
+	rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Exec()
 	if !rs.OK() {
 		if !rs.NotFound() {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, "ServerError")
 			return
 		}
 	} else {
-		rs.Decode(&prev)
+		rs.Item().JsonDecode(&prev)
 		if prev.Meta.User != c.us.UserName {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeAccessDenied, "AccessDenied")
 			return
@@ -815,10 +813,10 @@ func (c AppSpec) SetAction() {
 		v.Version = vs.PrefixString()
 		vs.Patch = 99999999
 
-		if rs := data.DataGlobal.NewReader().KeyRangeSet(
+		if rs := data.DataGlobal.NewRanger(
 			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.MajorMinorVersion()),
 			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.FullVersion())).
-			LimitNumSet(1).Query(); !rs.OK() || len(rs.Items) == 0 {
+			SetLimit(1).Exec(); !rs.OK() || len(rs.Items) == 0 {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Internally dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -840,10 +838,10 @@ func (c AppSpec) SetAction() {
 		v.Version = vs.PrefixString()
 		vs.Patch = 99999999
 
-		if rs := data.DataGlobal.NewReader().KeyRangeSet(
+		if rs := data.DataGlobal.NewRanger(
 			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.MajorMinorVersion()),
 			inapi.NsKvGlobalAppSpecVersion(v.Id, vs.FullVersion())).
-			LimitNumSet(1).Query(); !rs.OK() || len(rs.Items) == 0 {
+			SetLimit(1).Exec(); !rs.OK() || len(rs.Items) == 0 {
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				"Remotely dependent AppSpec ("+v.Id+") Not Found")
 			return
@@ -862,10 +860,20 @@ func (c AppSpec) SetAction() {
 			return
 		}
 
-		if rs := data.DataInpack.NewReader().KeyRangeSet(
+		// if rs := data.DataInpack.NewRanger(
+		// 	ipapi.DataPackKey(fmt.Sprintf("%s-%s", v.Name, v.Version)),
+		// 	ipapi.DataPackKey(fmt.Sprintf("%s-%sz", v.Name, v.Version)),
+		// ).SetLimit(1).Exec(); !rs.OK() {
+
+		// 	set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
+		// 		fmt.Sprintf("Package %s/%s Not Found", v.Name, v.Version))
+		// 	return
+		// }
+
+		if rs := data.DataPack.NewRanger(
 			ipapi.DataPackKey(fmt.Sprintf("%s-%s", v.Name, v.Version)),
 			ipapi.DataPackKey(fmt.Sprintf("%s-%sz", v.Name, v.Version)),
-		).LimitNumSet(1).Query(); !rs.OK() {
+		).SetLimit(1).Exec(); !rs.OK() {
 
 			set.Error = types.NewErrorMeta(inapi.ErrCodeBadArgument,
 				fmt.Sprintf("Package %s/%s Not Found", v.Name, v.Version))
@@ -896,20 +904,20 @@ func (c AppSpec) SetAction() {
 	//
 	if setNew {
 		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).
-			ModeCreateSet(true).Commit()
+			SetCreateOnly(true).Exec()
 	} else {
-		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit()
+		rs = data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Exec()
 	}
 
 	if !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 
 	rs = data.DataGlobal.NewWriter(
-		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Commit()
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Exec()
 	if !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 	} else {
 		set.Kind = "AppSpec"
 	}
@@ -949,8 +957,8 @@ func (c AppSpec) CfgSetAction() {
 	}
 
 	var prev inapi.AppSpec
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Query(); rs.OK() {
-		rs.Decode(&prev)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&prev)
 	}
 
 	if prev.Meta.ID == "" {
@@ -1008,14 +1016,14 @@ func (c AppSpec) CfgSetAction() {
 	resVersion.Add(false, false, true)
 	prev.Meta.Version = resVersion.FullVersion()
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Exec(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 
 	if rs := data.DataGlobal.NewWriter(
-		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Exec(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 
@@ -1057,8 +1065,8 @@ func (c AppSpec) CfgFieldDelAction() {
 	}
 
 	var prev inapi.AppSpec
-	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Query(); rs.OK() {
-		rs.Decode(&prev)
+	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(req.Meta.ID)).Exec(); rs.OK() {
+		rs.Item().JsonDecode(&prev)
 	}
 
 	if prev.Meta.ID == "" {
@@ -1088,14 +1096,14 @@ func (c AppSpec) CfgFieldDelAction() {
 	resVersion.Add(false, false, true)
 	prev.Meta.Version = resVersion.FullVersion()
 
-	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+	if rs := data.DataGlobal.NewWriter(inapi.NsGlobalAppSpec(prev.Meta.ID), prev).Exec(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 
 	if rs := data.DataGlobal.NewWriter(
-		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Commit(); !rs.OK() {
-		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.Message)
+		inapi.NsKvGlobalAppSpecVersion(prev.Meta.ID, prev.Meta.Version), prev).Exec(); !rs.OK() {
+		set.Error = types.NewErrorMeta(inapi.ErrCodeServerError, rs.ErrorMessage())
 		return
 	}
 
@@ -1111,19 +1119,19 @@ func appSpecVersionLastPatch(specId, version string) *inapi.AppSpec {
 
 	v.Patch = 99999999
 
-	if rs := data.DataGlobal.NewReader().KeyRangeSet(
+	if rs := data.DataGlobal.NewRanger(
 		inapi.NsKvGlobalAppSpecVersion(specId, v.FullVersion()),
 		inapi.NsKvGlobalAppSpecVersion(specId, v.MajorMinorVersion())).
-		ModeRevRangeSet(true).Query(); rs.OK() && len(rs.Items) > 0 {
-		rs.Items[0].Decode(&spec)
+		SetRevert(true).Exec(); rs.OK() && len(rs.Items) > 0 {
+		rs.Items[0].JsonDecode(&spec)
 		if spec.Meta.ID == specId {
 			return &spec
 		}
 	}
 
 	if rs := data.DataGlobal.NewReader(inapi.NsGlobalAppSpec(specId)).
-		Query(); rs.OK() {
-		rs.Decode(&spec)
+		Exec(); rs.OK() {
+		rs.Item().JsonDecode(&spec)
 		if spec.Meta.ID == specId {
 			return &spec
 		}

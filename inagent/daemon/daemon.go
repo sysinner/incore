@@ -113,17 +113,17 @@ func (it *agentDaemonCommand) run(cmd *inapi.BaseCommand, args []string) error {
 	hlog.Printf("info", "inagent/daemon started")
 
 	//
-	httpsrv.GlobalService.Config.HttpAddr = addr_sock
+	httpsrv.DefaultService.Config.HttpAddr = addr_sock
 
 	/**
-	httpsrv.GlobalService.HandlerRegister(
+	httpsrv.DefaultService.HandlerRegister(
 		"/in/v1/pb/termws",
 		websocket.Handler(v1.TerminalWsOpenAction))
 	*/
 
-	httpsrv.GlobalService.ModuleRegister("/in/v1/", v1.NewModule())
+	httpsrv.DefaultService.HandleModule("/in/v1/", v1.NewModule())
 
-	go httpsrv.GlobalService.Start()
+	go httpsrv.DefaultService.Start()
 	// go sshRun()
 
 	worker()
