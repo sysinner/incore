@@ -6,7 +6,6 @@ replace code.google.com/p/go.image => golang.org/x/image v0.15.0
 
 require (
 	github.com/alibaba/pouch v0.0.0-20230911120100-8680cc4c3a81
-	github.com/fsnotify/fsnotify v1.6.0
 	github.com/fsouza/go-dockerclient v1.11.0
 	github.com/hooto/hauth v0.1.2
 	github.com/hooto/hflag4g v0.10.1
@@ -54,9 +53,10 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/contiv/executor v0.0.0-20180626233236-d263f4daa3ad // indirect
 	github.com/disintegration/imaging v1.6.2 // indirect
-	github.com/docker/docker v25.0.4+incompatible // indirect
+	github.com/docker/docker v25.0.6+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/getsentry/sentry-go v0.26.0 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/go-openapi/analysis v0.22.2 // indirect
