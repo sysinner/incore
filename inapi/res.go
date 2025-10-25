@@ -53,7 +53,8 @@ type ResourceList struct {
 }
 
 type ResOperate struct {
-	AppId string `json:"app_id,omitempty" toml:"app_id,omitempty"`
+	AppId  string `json:"app_id,omitempty" toml:"app_id,omitempty"`
+	ZoneId string `json:"zone_id,omitempty" toml:"zone_id,omitempty"`
 }
 
 type ResourceBound struct {

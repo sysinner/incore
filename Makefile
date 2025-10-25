@@ -2,28 +2,26 @@ PROTOC_CMD = protoc
 PROTOC_ARGS = --proto_path=./api --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./api/*.proto
 PROTOC_RUST_ARGS = --proto_path=./api --rust_out=experimental-codegen=enabled,kernel=cpp:./inapi ./api/*.proto
 
+PROTOC_V2_ARGS = --proto_path=./api/inapi/v2 --go_opt=paths=source_relative --go_out=./v2/inapi --go-grpc_out=./v2/inapi ./api/inapi/v2/*.proto
+
 HTOML_TAG_FIX_CMD = htoml-tag-fix
 HTOML_TAG_FIX_ARGS = ./inapi
 
-BUILDCOLOR="\033[34;1m"
-BINCOLOR="\033[37;1m"
-ENDCOLOR="\033[0m"
+LYNKAPI_FILTER_CMD = lynkapi-fitter
+LYNKAPI_FILTER_V2_ARGS = v2/inapi
 
 ##  RUNC_IMAGE=sysinner/incore-build:0.1
 ##  RUNC_PLATFORM=--platform=linux/amd64
 ##
 ##  RUNC_OK=$(docker images -q "${RUNC_IMAGE}" 2 >/dev/null)
 
-ifndef V
-	QUIET_BUILD = @printf '%b %b\n' $(BUILDCOLOR)BUILD$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
-	QUIET_INSTALL = @printf '%b %b\n' $(BUILDCOLOR)INSTALL$(ENDCOLOR) $(BINCOLOR)$@$(ENDCOLOR) 1>&2;
-endif
-
 .PHONY: api
 api:
-	$(QUIET_BUILD)$(PROTOC_CMD) $(PROTOC_ARGS) $(CCLINK)
-	# $(QUIET_BUILD)$(PROTOC_CMD) $(PROTOC_RUST_ARGS) $(CCLINK)
-	$(QUIET_BUILD)$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_ARGS) $(CCLINK)
+	$(PROTOC_CMD) $(PROTOC_ARGS)
+	$(PROTOC_CMD) $(PROTOC_V2_ARGS)
+	# $(PROTOC_CMD) $(PROTOC_RUST_ARGS)
+	$(HTOML_TAG_FIX_CMD) $(HTOML_TAG_FIX_ARGS)
+	$(LYNKAPI_FILTER_CMD) $(LYNKAPI_FILTER_V2_ARGS)
 
 .PHONY: api-in-runc
 api-in-runc:

@@ -20,11 +20,14 @@ import (
 	"github.com/hooto/hauth/go/hauth/v1"
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/htoml4g/htoml"
+
 	// "github.com/lynkdb/kvgo"
 	kvclient "github.com/lynkdb/kvgo/v2/pkg/client"
 	"github.com/lynkdb/kvgo/v2/pkg/kvapi"
 	"github.com/lynkdb/kvgo/v2/pkg/kvrep"
 	"github.com/lynkdb/kvgo/v2/pkg/storage"
+	"github.com/lynkdb/lynkapi/go/lynkapi"
+
 	// kv2 "github.com/lynkdb/kvspec/v2/go/kvspec"
 
 	"github.com/sysinner/incore/config"
@@ -213,10 +216,11 @@ func setupZone() error {
 		}
 
 		if config.Config.GlobDatabase == nil {
-			if rs := ac.DatabaseCreate(&kvapi.DatabaseCreateRequest{
+			req := lynkapi.NewRequest("Admin", "DatabaseCreate", &kvapi.DatabaseCreateRequest{
 				Name: "inglob",
-			}); !rs.OK() && rs.StatusCode != kvapi.Status_Conflict {
-				return rs.Error()
+			})
+			if rs := ac.Exec(req); !rs.OK() && rs.StatusCode() != lynkapi.StatusCode_Conflict {
+				return rs.Err()
 			}
 			config.Config.GlobDatabase = &kvclient.Config{
 				Database:  "inglob",
@@ -226,10 +230,11 @@ func setupZone() error {
 		}
 
 		if config.Config.ZoneDatabase == nil {
-			if rs := ac.DatabaseCreate(&kvapi.DatabaseCreateRequest{
+			req := lynkapi.NewRequest("Admin", "DatabaseCreate", &kvapi.DatabaseCreateRequest{
 				Name: "inzone",
-			}); !rs.OK() && rs.StatusCode != kvapi.Status_Conflict {
-				return rs.Error()
+			})
+			if rs := ac.Exec(req); !rs.OK() && rs.StatusCode() != lynkapi.StatusCode_Conflict {
+				return rs.Err()
 			}
 			config.Config.ZoneDatabase = &kvclient.Config{
 				Database:  "inzone",
@@ -239,10 +244,11 @@ func setupZone() error {
 		}
 
 		if config.Config.PackDatabase == nil {
-			if rs := ac.DatabaseCreate(&kvapi.DatabaseCreateRequest{
+			req := lynkapi.NewRequest("Admin", "DatabaseCreate", &kvapi.DatabaseCreateRequest{
 				Name: "inpack",
-			}); !rs.OK() && rs.StatusCode != kvapi.Status_Conflict {
-				return rs.Error()
+			})
+			if rs := ac.Exec(req); !rs.OK() && rs.StatusCode() != lynkapi.StatusCode_Conflict {
+				return rs.Err()
 			}
 			config.Config.PackDatabase = &kvclient.Config{
 				Database:  "inpack",

@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -62,8 +63,11 @@ var (
 func zoneMasterSync() error {
 
 	defer func() {
+		// TODO 更新 AppInstance:AppSpec 版本,部署后不生效.
+		// innerstackd 报错:
+		// E 2025-10-18 15:51:35.683323 tracker.go:66] host/zm-sync panic runtime error: invalid memory address or nil pointer dereference
 		if r := recover(); r != nil {
-			hlog.Printf("error", "host/zm-sync panic %v", r)
+			hlog.Printf("error", "host/zm-sync panic %v, stack %s", r, string(debug.Stack()))
 		}
 	}()
 
