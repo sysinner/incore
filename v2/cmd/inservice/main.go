@@ -20,10 +20,11 @@ import (
 	"context"
 	"crypto/tls"
 	_ "embed"
+	"fmt"
 	mrand "math/rand"
 	"net/http"
 	"net/http/httputil"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -87,26 +88,35 @@ func Run() {
 		}
 	}
 
+	if cfg.Server.DebugPprofEnable {
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+		hlog.Printf("info", "debug pprof enable!")
+	}
+
 	{
 		httpServer = &http.Server{
-			Addr: ":80",
-			// Handler: certManager.HTTPHandler(nil),
+			Addr:    fmt.Sprintf(":%d", cfg.Server.HttpPort),
 			Handler: httpRootHandler{},
 		}
 		signals.AddGo(func() {
 			defer signals.DeferDone()
+			hlog.Printf("info", "http server start : %s", httpServer.Addr)
 			if err := httpServer.ListenAndServe(); err != nil {
-				hlog.Printf("error", "http server start failed : %s", err.Error())
+				hlog.Printf("error", "http server quit : %s", err.Error())
 			}
-			hlog.Printf("info", "http server quit")
 		}, func() {
 			httpServer.Shutdown(context.Background())
 		})
 	}
 
-	{
+	if cfg.Server.HttpsPort > 0 {
 		httpsServer = &http.Server{
-			Addr:    ":443",
+			Addr:    fmt.Sprintf(":%d", cfg.Server.HttpsPort),
 			Handler: mux,
 			TLSConfig: &tls.Config{
 				GetCertificate: certManager.GetCertificate,
@@ -114,11 +124,11 @@ func Run() {
 		}
 		signals.AddGo(func() {
 			defer signals.DeferDone()
+			hlog.Printf("info", "https server start : %s", httpsServer.Addr)
 			if err := httpsServer.ListenAndServeTLS("", ""); err != nil {
-				hlog.Printf("error", "https server start failed : %s", err.Error())
+				hlog.Printf("error", "https server quit : %s", err.Error())
 			}
 			tlsDomainCache = nil
-			hlog.Printf("info", "https server quit")
 		}, func() {
 			httpsServer.Shutdown(context.Background())
 		})
@@ -150,6 +160,8 @@ func Run() {
 type Config struct {
 	mu sync.RWMutex
 
+	Server ConfigServer `toml:"server"`
+
 	Zone *ConfigZone `toml:"zone,omitempty"`
 
 	Modules      []*ConfigModule          `toml:"modules"`
@@ -160,6 +172,12 @@ type Config struct {
 
 	lastVersion     uint64
 	lastFullUpdated int64
+}
+
+type ConfigServer struct {
+	HttpPort         int  `toml:"http_port"`
+	HttpsPort        int  `toml:"https_port"`
+	DebugPprofEnable bool `toml:"debug_pprof_enable,omitempty"`
 }
 
 type ConfigZone struct {
@@ -265,6 +283,16 @@ func initSetup() error {
 
 	if err := htoml.DecodeFromFile(prefix+"/etc/config.toml", &cfg); err != nil {
 		return err
+	}
+
+	if cfg.Server.HttpPort == 0 {
+		// required
+		cfg.Server.HttpPort = 80
+
+		if cfg.Server.HttpsPort == 0 {
+			// optional
+			cfg.Server.HttpsPort = 443
+		}
 	}
 
 	cfg.indexDomains = map[string]*DomainEntry{}
@@ -441,7 +469,8 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 		cfg.Domains = newDomains
 	}
 
-	if len(tlsDomainSet) > 0 &&
+	if cfg.Server.HttpsPort > 0 &&
+		len(tlsDomainSet) > 0 &&
 		types.ArrayStringHit(tlsDomainCache, tlsDomainSet) != len(tlsDomainSet) {
 		//
 		certManager.HostPolicy = autocert.HostWhitelist(tlsDomainSet...)
@@ -541,7 +570,7 @@ func (it httpRootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(404)
 			w.Write(builtin_404_HTML)
 		}
-	} else if domain.Domain.LetsencryptEnable {
+	} else if cfg.Server.HttpsPort > 0 && domain.Domain.LetsencryptEnable {
 		certManager.HTTPHandler(nil).ServeHTTP(w, r)
 	} else {
 		rootHandler(w, r)
