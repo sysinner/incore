@@ -19,6 +19,7 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	_ "embed"
 	mrand "math/rand"
 	"net/http"
 	"net/http/httputil"
@@ -40,9 +41,16 @@ import (
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 	"golang.org/x/crypto/acme/autocert"
 
+	"github.com/sysinner/incore/inutils/tplrender"
 	inapi2 "github.com/sysinner/incore/v2/inapi"
 	"github.com/sysinner/incore/v2/pkg/signals"
 )
+
+//go:embed builtin/404.html
+var builtin_404_HTML []byte
+
+//go:embed module/domain-sale.html
+var module_DomainSale_HTML string
 
 func Run() {
 
@@ -81,8 +89,9 @@ func Run() {
 
 	{
 		httpServer = &http.Server{
-			Addr:    ":80",
-			Handler: certManager.HTTPHandler(nil),
+			Addr: ":80",
+			// Handler: certManager.HTTPHandler(nil),
+			Handler: httpRootHandler{},
 		}
 		signals.AddGo(func() {
 			defer signals.DeferDone()
@@ -115,34 +124,75 @@ func Run() {
 		})
 	}
 
-	signals.AddGo(func() {
+	if cfg.Zone != nil {
+		signals.AddGo(func() {
 
-		ticker := time.NewTicker(time.Second * 10)
-		defer ticker.Stop()
+			ticker := time.NewTicker(time.Second * 10)
+			defer ticker.Stop()
 
-		for {
-			select {
-			case <-signals.Done():
-				return
+			for {
+				select {
+				case <-signals.Done():
+					return
 
-			case <-ticker.C:
-				if err := configRefresh(nil); err != nil {
-					hlog.Printf("error", "domains refresh fail : %s", err.Error())
+				case <-ticker.C:
+					if err := configRefresh(nil); err != nil {
+						hlog.Printf("error", "domains refresh fail : %s", err.Error())
+					}
 				}
 			}
-		}
-	}, nil)
+		}, nil)
+	}
 
 	signals.Wait()
 }
 
 type Config struct {
-	ZoneId     string                                `toml:"zone_id"`
-	ZoneClient lynkapi.ClientConfig                  `toml:"zone_client"`
-	Domains    []*inapi2.GatewayService_DomainDeploy `toml:"domains"`
+	mu sync.RWMutex
+
+	Zone *ConfigZone `toml:"zone,omitempty"`
+
+	Modules      []*ConfigModule          `toml:"modules"`
+	indexModules map[string]*ConfigModule `toml:"-"`
+
+	Domains      []*inapi2.GatewayService_DomainDeploy `toml:"domains"`
+	indexDomains map[string]*DomainEntry               `toml:"-"`
 
 	lastVersion     uint64
 	lastFullUpdated int64
+}
+
+type ConfigZone struct {
+	Id     string               `toml:"id"`
+	Client lynkapi.ClientConfig `toml:"client"`
+}
+
+type ConfigModule struct {
+	Module  string            `toml:"module"`
+	Domains []string          `toml:"domains"`
+	Options map[string]string `toml:"options,omitempty"`
+
+	handler ModuleHandler
+}
+
+func (it *Config) Domain(name string) *DomainEntry {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	domain, ok := it.indexDomains[name]
+	if ok {
+		return domain
+	}
+	return nil
+}
+
+func (it *Config) Module(domain string) *ConfigModule {
+	it.mu.RLock()
+	defer it.mu.RUnlock()
+	m, ok := it.indexModules[domain]
+	if ok {
+		return m
+	}
+	return nil
 }
 
 type DomainEntry struct {
@@ -159,31 +209,15 @@ type DomainEntryRoute struct {
 }
 
 var (
-	errBody404 = []byte(`<html>
-<head><title>404 Not Found</title></head>
-<body bgcolor="white">
-  <center><h1>404 Not Found</h1></center>
-  <hr><center>InnerStack PaaS Engine</center>
-</body>
-</html>
-`)
-)
-
-var (
 	prefix = "/opt/sysinner/inservice"
 
 	tlsCacheDir = prefix + "/var/tls_cache"
 
 	tlsDomainSet   = []string{}
 	tlsDomainCache = []string{}
-	tlsConfSets    = map[string]string{}
 
 	httpServer  *http.Server
 	httpsServer *http.Server
-
-	gcfgMut sync.RWMutex
-
-	setupDomains = map[string]*DomainEntry{}
 
 	certManager autocert.Manager
 
@@ -229,13 +263,28 @@ var (
 
 func initSetup() error {
 
-	if lynkClient == nil {
+	if err := htoml.DecodeFromFile(prefix+"/etc/config.toml", &cfg); err != nil {
+		return err
+	}
 
-		if err := htoml.DecodeFromFile(prefix+"/etc/config.toml", &cfg); err != nil {
-			return err
+	cfg.indexDomains = map[string]*DomainEntry{}
+
+	cfg.indexModules = map[string]*ConfigModule{}
+	for _, module := range cfg.Modules {
+		switch module.Module {
+		case "DomainSale":
+			if len(module.Options) > 0 && module.Options["contact_email"] != "" {
+				module.handler = module_DomainSale_Handler
+				for _, d := range module.Domains {
+					cfg.indexModules[strings.ToLower(d)] = module
+					hlog.Printf("info", "module %s domain %s", module.Module, d)
+				}
+			}
 		}
+	}
 
-		if c, err := cfg.ZoneClient.NewClient(); err != nil {
+	if lynkClient == nil && cfg.Zone != nil {
+		if c, err := cfg.Zone.Client.NewClient(); err != nil {
 			return err
 		} else {
 			lynkClient = c
@@ -248,11 +297,11 @@ func initSetup() error {
 func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 
 	tn := time.Now().Unix()
-	req := &inapi2.GatewayService_DomainDeployListRequest{
-		ZoneId: cfg.ZoneId,
-	}
+	req := &inapi2.GatewayService_DomainDeployListRequest{}
 
-	if len(domains) == 0 {
+	if len(domains) == 0 && cfg.Zone != nil {
+
+		req.ZoneId = cfg.Zone.Id
 
 		if cfg.lastFullUpdated+600 < tn {
 			req.Version = 0
@@ -294,13 +343,13 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 		flush        = false
 	)
 
-	gcfgMut.Lock()
-	defer gcfgMut.Unlock()
+	cfg.mu.Lock()
+	defer cfg.mu.Unlock()
 
 	// hlog.Printf("info", "App Options %d", len(appCfr.App.Operate.Options))
 	for _, domain := range domains {
 		//
-		domainEntry, added := setupDomains[domain.Name]
+		domainEntry, added := cfg.indexDomains[domain.Name]
 		if !added {
 			domainEntry = &DomainEntry{
 				Domain: domain,
@@ -366,24 +415,24 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 		}
 
 		if !added {
-			setupDomains[domain.Name] = domainEntry
+			cfg.indexDomains[domain.Name] = domainEntry
 		}
 
 		newDomains = append(newDomains, domain)
 	}
 
 	if req.Version == 0 &&
-		(len(newDomains) != len(setupDomains) ||
+		(len(newDomains) != len(cfg.indexDomains) ||
 			len(newDomains) != len(cfg.Domains)) {
 
 		hlog.Printf("info", "cfg domains %d, new domains %d, setup %d",
-			len(cfg.Domains), len(newDomains), len(setupDomains))
+			len(cfg.Domains), len(newDomains), len(cfg.indexDomains))
 
 		for _, domain := range cfg.Domains {
 			if p := lynkapi.SlicesSearchFunc(newDomains, func(a *inapi2.GatewayService_DomainDeploy) bool {
 				return a.Name == domain.Name
 			}); p == nil {
-				delete(setupDomains, domain.Name)
+				delete(cfg.indexDomains, domain.Name)
 				hlog.Printf("info", "delete domain %s", domain.Name)
 			}
 		}
@@ -478,6 +527,27 @@ func (w *compressWriter) WriteHeader(statusCode int) {
 	}
 }
 
+type httpRootHandler struct{}
+
+func (it httpRootHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	if domain := cfg.Domain(r.Host); domain == nil {
+
+		if module := cfg.Module(r.Host); module != nil {
+			module.handler(&ServiceContext{Options: module.Options}, w, r)
+		} else {
+
+			w.Header().Set("Content-Type", "text/html")
+			w.WriteHeader(404)
+			w.Write(builtin_404_HTML)
+		}
+	} else if domain.Domain.LetsencryptEnable {
+		certManager.HTTPHandler(nil).ServeHTTP(w, r)
+	} else {
+		rootHandler(w, r)
+	}
+}
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 	var (
@@ -510,7 +580,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 
 	handler := func(w2 http.ResponseWriter, r *http.Request) *DomainEntryRoute {
 
-		if domain := getDomain(r.Host); domain != nil {
+		if domain := cfg.Domain(r.Host); domain != nil {
 
 			//
 			urlPath = filepath.Clean(r.URL.Path)
@@ -542,7 +612,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w2.Header().Set("Content-Type", "text/html")
-		w2.Write(errBody404)
+		w2.Write(builtin_404_HTML)
 		w2.WriteHeader(404)
 
 		return nil
@@ -629,7 +699,7 @@ func httpHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("X-Proxy", "InnerStack/"+version)
 
-	if domain := getDomain(r.Host); domain != nil {
+	if domain := cfg.Domain(r.Host); domain != nil {
 		//
 		urlPath := filepath.Clean(r.URL.Path)
 		if runtime.GOOS == "windows" {
@@ -661,16 +731,37 @@ func httpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	w.Write(errBody404)
+	w.Write(builtin_404_HTML)
 	w.WriteHeader(404)
 }
 
-func getDomain(name string) *DomainEntry {
-	gcfgMut.RLock()
-	defer gcfgMut.RUnlock()
-	domain, ok := setupDomains[name]
-	if ok {
-		return domain
+// modules
+
+type ServiceContext struct {
+	Options map[string]string
+}
+
+func (it *ServiceContext) Option(name string) string {
+	if it.Options != nil {
+		return it.Options[name]
 	}
-	return nil
+	return ""
+}
+
+type ModuleHandler func(ctx *ServiceContext, w http.ResponseWriter, r *http.Request)
+
+// module:DomainSale
+
+func module_DomainSale_Handler(ctx *ServiceContext, w http.ResponseWriter, r *http.Request) {
+
+	params := map[string]string{
+		"domain_name":   r.Host,
+		"contact_email": ctx.Option("contact_email"),
+	}
+
+	// data, _ := fs.ReadFile("modules/domain-sale.html")
+	data, _ := tplrender.Render(module_DomainSale_HTML, params)
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(data)
 }
