@@ -15,8 +15,13 @@
 package incore
 
 import (
+	"github.com/sysinner/incore/v2/internal/apiserver"
 	"github.com/sysinner/incore/v2/internal/zonelet"
 )
+
+func NewApiService() *apiserver.ApiService {
+	return &apiserver.ApiService{}
+}
 
 func NewZoneletService() *zonelet.ZoneletService {
 	return &zonelet.ZoneletService{}

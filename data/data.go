@@ -260,29 +260,33 @@ func setupZone() error {
 		flush = true
 	}
 
+	{
+		// upgrade ...
+		if DataGlobal, err = config.Config.GlobDatabase.NewClient(); err != nil {
+			hlog.Printf("info", "glob database new client err %s", err.Error())
+			return err
+		} else {
+			hlog.Printf("info", "glob database client setup ok")
+		}
+
+		if DataZone, err = config.Config.ZoneDatabase.NewClient(); err != nil {
+			hlog.Printf("info", "zone database new client err %s", err.Error())
+			return err
+		} else {
+			hlog.Printf("info", "zone database client setup ok")
+		}
+
+		if DataPack, err = config.Config.PackDatabase.NewClient(); err != nil {
+			hlog.Printf("info", "inpack database new client err %s", err.Error())
+			return err
+		} else {
+			hlog.Printf("info", "inpack database client setup ok")
+		}
+	}
+
 	// upgrade ...
-	if DataGlobal, err = config.Config.GlobDatabase.NewClient(); err != nil {
-		hlog.Printf("info", "glob database new client err %s", err.Error())
-		return err
-	} else {
-		hlog.Printf("info", "glob database client setup ok")
-	}
+	dataUpgrade2()
 
-	if DataZone, err = config.Config.ZoneDatabase.NewClient(); err != nil {
-		hlog.Printf("info", "zone database new client err %s", err.Error())
-		return err
-	} else {
-		hlog.Printf("info", "zone database client setup ok")
-	}
-
-	if DataPack, err = config.Config.PackDatabase.NewClient(); err != nil {
-		hlog.Printf("info", "inpack database new client err %s", err.Error())
-		return err
-	} else {
-		hlog.Printf("info", "inpack database client setup ok")
-	}
-
-	// upgrade ...
 	if true {
 		// dataTransfer(DataGlobal, prevDataGlobal, "inglob")
 	}

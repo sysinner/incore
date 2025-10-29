@@ -22,6 +22,7 @@ import (
 	"github.com/hooto/hlog4g/hlog"
 	"github.com/hooto/httpsrv"
 	"github.com/lessos/lessgo/crypto/idhash"
+	"github.com/lynkdb/lynkapi/go/lynkapi"
 
 	"github.com/sysinner/injob"
 
@@ -56,15 +57,19 @@ type ZoneMainJob struct {
 	inited bool
 	hs     *httpsrv.Service
 	t0     int64
+
+	lynkService *lynkapi.LynkService
 }
 
 var (
 	err error
 )
 
-func NewZoneMainJob() *injob.JobEntry {
+func NewZoneMainJob(ls *lynkapi.LynkService) *injob.JobEntry {
 	return injob.NewJobEntry(
-		&ZoneMainJob{},
+		&ZoneMainJob{
+			lynkService: ls,
+		},
 		injob.NewSchedule().EveryTimeCycle(injob.Second, 3),
 	)
 }
@@ -293,6 +298,10 @@ func (it *ZoneMainJob) init() error {
 
 		// Frontend APIs for Users
 		it.hs.HandleModule("/in/v1", ic_ws_v1.NewModule())
+
+		if it.lynkService != nil {
+			it.hs.HandleFunc("/in/v2", it.lynkService.HttpHandler)
+		}
 
 		// Frontend UI for Users
 		hlang.StdLangFeed.LoadMessages(incfg.Prefix+"/i18n/en.json", true)

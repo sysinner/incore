@@ -2,7 +2,7 @@ PROTOC_CMD = protoc
 PROTOC_ARGS = --proto_path=./api --go_opt=paths=source_relative --go_out=./inapi --go-grpc_out=./inapi ./api/*.proto
 PROTOC_RUST_ARGS = --proto_path=./api --rust_out=experimental-codegen=enabled,kernel=cpp:./inapi ./api/*.proto
 
-PROTOC_V2_ARGS = --proto_path=./api/inapi/v2 --go_opt=paths=source_relative --go_out=./v2/inapi --go-grpc_out=./v2/inapi ./api/inapi/v2/*.proto
+PROTOC_V2_ARGS = --proto_path=./v2/api/inapi --go_opt=paths=source_relative --go_out=./v2/inapi --go-grpc_out=./v2/inapi ./v2/api/inapi/*.proto
 
 HTOML_TAG_FIX_CMD = htoml-tag-fix
 HTOML_TAG_FIX_ARGS = ./inapi

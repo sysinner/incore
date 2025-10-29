@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"net"
 	"net/url"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -54,32 +53,40 @@ func (it *ZoneletService) GatewayDomainDeployList(
 	}
 
 	var (
-		appDomains = map[string][]*inapi.Resource{}
-		domains    = map[string]*inapi.Resource{}
-		pods       = map[string]*inapi.Pod{}
+		domains []*inapi2.GatewayService_Domain
+		pods    = map[string]*inapi.Pod{}
 	)
 
 	{ // load domain list
 		var (
-			offset = inapi.NsGlobalResInstance("domain/")
-			rs2    = data.DataGlobal.NewRanger(offset, offset).
-				SetLimit(1000).Exec() // TODO
+			offset = inapi2.NsGlobalGatewayServiceDomain("")
+			rs     = data.DataGlobal.NewRanger(offset, offset).
+				SetLimit(10000).Exec() // TODO
 		)
 
-		for _, v := range rs2.Items {
-			var inst inapi.Resource
-			if err := v.JsonDecode(&inst); err != nil {
-				continue
-			}
-			if inst.Operate.AppId == "" {
+		for _, v := range rs.Items {
+			var item inapi2.GatewayService_Domain
+			if err := v.JsonDecode(&item); err != nil {
 				continue
 			}
 
-			appDomains[inst.Operate.AppId] = append(appDomains[inst.Operate.AppId], &inst)
+			if item.ZoneId != config.Config.Zone.ZoneId {
+				continue
+			}
+
+			if item.Action != "start" || len(item.Routes) == 0 {
+				continue
+			}
+
+			domains = append(domains, &item)
 		}
 	}
 
-	{ // load pod/app list
+	if len(domains) == 0 {
+		return rsp, nil
+	}
+
+	{ // load pod list
 		rs := data.DataZone.NewRanger(
 			inapi.NsZonePodInstance(config.Config.Zone.ZoneId, ""),
 			inapi.NsZonePodInstance(config.Config.Zone.ZoneId, "")).
@@ -93,28 +100,7 @@ func (it *ZoneletService) GatewayDomainDeployList(
 			}
 
 			if pod.Spec.Zone != config.Config.Zone.ZoneId {
-				// !inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) {
 				continue
-			}
-
-			if app := lynkapi.SlicesSearchFunc(pod.Apps, func(a *inapi.AppInstance) bool {
-				_, ok := appDomains[a.Meta.ID]
-				return ok
-			}); app != nil {
-				for _, domain := range appDomains[app.Meta.ID] {
-					domains[domain.Meta.ID] = domain
-
-					if domain.Operate.ZoneId == "" {
-						domain.Operate.ZoneId = config.Config.Zone.ZoneId
-
-						// next upgrade
-						key := domain.Meta.Name
-						if !strings.HasPrefix(key, "domain/") {
-							key = "domain/" + key
-						}
-						data.DataGlobal.NewWriter(inapi.NsGlobalResInstance(key), domain).Exec()
-					}
-				}
 			}
 
 			pods[pod.Meta.ID] = &pod
@@ -127,68 +113,40 @@ func (it *ZoneletService) GatewayDomainDeployList(
 			continue
 		}
 
-		gatewayInstance := &inapi2.GatewayService_DomainDeploy{
-			Id:      domain.Meta.ID,
+		deploy := &inapi2.GatewayService_DomainDeploy{
 			Name:    domain.Meta.Name,
 			Version: uint64(domain.Meta.Updated),
 		}
 
-		if strings.HasPrefix(gatewayInstance.Name, "domain/") {
-			gatewayInstance.Name = gatewayInstance.Name[len("domain/"):]
-		}
+		for _, route := range domain.Routes {
 
-		for _, b := range domain.Bounds {
-
-			var (
-				typ = ""
-				tgt = ""
-			)
-
-			if i := strings.IndexByte(b.Value, ':'); i > 0 {
-				typ = b.Value[:i]
-				tgt = b.Value[i+1:]
-			} else {
+			if len(route.Targets) == 0 || route.Action != "start" {
 				continue
 			}
 
-			path := b.Name
-			if strings.HasPrefix(path, "domain/basepath") {
-				path = path[len("domain/basepath"):]
-			}
-			if len(path) == 0 {
-				path = "/"
-			} else if path[0] != '/' {
-				path = "/" + path
-			}
-			path = filepath.Clean(path)
-
-			p := lynkapi.SlicesSearchFunc(gatewayInstance.Locations, func(a *inapi2.GatewayService_DomainDeploy_Location) bool {
-				return a.Path == path
+			p := lynkapi.SlicesSearchFunc(deploy.Routes, func(a *inapi2.GatewayService_DomainDeploy_Route) bool {
+				return route.Path == a.Path
 			})
 			add := false
 
 			if p == nil {
-				p = &inapi2.GatewayService_DomainDeploy_Location{
-					Path: path,
+				p = &inapi2.GatewayService_DomainDeploy_Route{
+					Path: route.Path,
 				}
 				add = true
+			} else {
+				p.Targets = nil
 			}
 
-			switch typ {
-
+			switch route.Type {
 			case "pod":
 
-				ar := strings.Split(tgt, ":")
-				if len(ar) != 2 {
-					continue
-				}
-
+				ar := strings.Split(route.Targets[0], ":")
 				pod, ok := pods[ar[0]]
-				if !ok || len(pod.Operate.Replicas) == 0 {
+				if !ok || len(pod.Operate.Replicas) == 0 ||
+					!inapi.OpActionAllow(pod.Operate.Action, inapi.OpActionStart) {
 					continue
 				}
-
-				p.Type = typ
 
 				podPort, err := strconv.Atoi(ar[1])
 				if err != nil || podPort <= 0 || podPort >= 65536 {
@@ -197,9 +155,9 @@ func (it *ZoneletService) GatewayDomainDeployList(
 
 				for _, rep := range pod.Operate.Replicas {
 
-					// if !inapi.OpActionAllow(rep.Action, inapi.OpActionStart) {
-					// 	continue
-					// }
+					if !inapi.OpActionAllow(rep.Action, inapi.OpActionStart) {
+						continue
+					}
 
 					host := status.GlobalHostList.Item(rep.Node)
 					if host == nil {
@@ -232,56 +190,64 @@ func (it *ZoneletService) GatewayDomainDeployList(
 				}
 
 			case "upstream":
-				ar := strings.Split(tgt, ":")
-				if len(ar) != 2 {
-					continue
-				}
-				p.Type = typ
+				for _, tgt := range route.Targets {
+					ar := strings.Split(tgt, ":")
+					if len(ar) != 2 {
+						continue
+					}
 
-				var (
-					hostIp   = ""
-					hostPort = 0
-				)
+					var (
+						hostIp   = ""
+						hostPort = 0
+					)
 
-				if ip := net.ParseIP(ar[0]); len(ip) >= 4 {
-					hostIp = ip.String()
+					if ip := net.ParseIP(ar[0]); len(ip) >= 4 {
+						hostIp = ip.String()
+					}
+					if v, err := strconv.Atoi(ar[1]); err == nil && v > 0 && v < 65536 {
+						hostPort = int(v)
+					} else {
+						continue
+					}
+					addr := fmt.Sprintf("%s:%d", hostIp, hostPort)
+					if !slices.Contains(p.Targets, addr) {
+						p.Targets = append(p.Targets, addr)
+					}
 				}
-				if v, err := strconv.Atoi(ar[1]); err == nil && v > 0 && v < 65536 {
-					hostPort = int(v)
-				} else {
-					continue
-				}
-				addr := fmt.Sprintf("%s:%d", hostIp, hostPort)
-				if !slices.Contains(p.Targets, addr) {
-					p.Targets = append(p.Targets, addr)
-				}
+
 			case "redirect":
-				if u, err := url.Parse(tgt); err == nil {
-					p.Type = typ
-					p.TargetUrl = u.String()
+				for _, tgt := range route.Targets {
+					if u, err := url.Parse(tgt); err == nil {
+						if !slices.Contains(p.Targets, u.String()) {
+							p.Targets = append(p.Targets, u.String())
+						}
+					}
 				}
 			}
 
-			if len(p.Targets) == 0 && p.TargetUrl == "" {
+			if len(p.Targets) == 0 {
 				continue
 			}
 
+			p.Type = route.Type
 			if add {
-				gatewayInstance.Locations = append(gatewayInstance.Locations, p)
+				deploy.Routes = append(deploy.Routes, p)
 			}
 		}
 
-		if len(gatewayInstance.Locations) == 0 {
+		if len(deploy.Routes) == 0 {
 			continue
 		}
 
 		if len(domain.Options) > 0 {
-			if v, ok := domain.Options.Get("letsencrypt_enable"); ok && v.String() == "on" {
-				gatewayInstance.LetsencryptEnable = true
+			if opt := lynkapi.SlicesSearchFunc(domain.Options, func(a *inapi2.Common_Option) bool {
+				return a.Name == "letsencrypt_enable"
+			}); opt != nil && opt.Value == "on" {
+				deploy.LetsencryptEnable = true
 			}
 		}
 
-		rsp.Domains = append(rsp.Domains, gatewayInstance)
+		rsp.Domains = append(rsp.Domains, deploy)
 	}
 
 	return rsp, nil

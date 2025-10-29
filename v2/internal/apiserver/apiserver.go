@@ -12,10 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inapi
+package apiserver
 
-var (
-	ResVolValueAttrOut     uint32 = 1 << 4
-	ResVolValueAttrTypeSSD uint32 = 1 << 5
-	ResVolValueAttrTypeStd uint32 = 1 << 6
+import (
+	"context"
+
+	"github.com/hooto/iam/iamclient"
 )
+
+type ApiService struct {
+}
+
+func (it *ApiService) PreMethod(
+	ctx context.Context,
+) error {
+	return iamclient.IsLogin(ctx)
+}

@@ -14,8 +14,10 @@
 
 package inapi
 
-var (
-	ResVolValueAttrOut     uint32 = 1 << 4
-	ResVolValueAttrTypeSSD uint32 = 1 << 5
-	ResVolValueAttrTypeStd uint32 = 1 << 6
+import (
+	"fmt"
 )
+
+func NsGlobalGatewayServiceDomain(name string) []byte {
+	return []byte(fmt.Sprintf("v2/service/gateway/domain/%s", name))
+}

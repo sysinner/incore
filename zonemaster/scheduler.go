@@ -178,7 +178,10 @@ func schedulePodListRefresh() error {
 		inapi.NsZonePodInstance(status.ZoneId, ""), inapi.NsZonePodInstance(status.ZoneId, "")).
 		SetLimit(10000).Exec()
 	if !rs.OK() {
-		return errors.New("zm/db err")
+		if rs.NotFound() {
+			return nil
+		}
+		return errors.New("zm/db err : " + rs.ErrorMessage())
 	}
 
 	for _, v := range rs.Items {

@@ -12,10 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inapi
+syntax = "proto3";
 
-var (
-	ResVolValueAttrOut     uint32 = 1 << 4
-	ResVolValueAttrTypeSSD uint32 = 1 << 5
-	ResVolValueAttrTypeStd uint32 = 1 << 6
-)
+package inapi;
+
+option optimize_for = LITE_RUNTIME;
+option go_package = "./;inapi";
+
+import "common.proto";
+
+message HostService_Zone {
+  inapi.Common_Meta meta = 2;
+  string action = 3;
+  string description = 4;
+}
+
+message HostService_ZoneListRequest {}
+
+message HostService_ZoneListResponse {
+  repeated HostService_Zone zones = 9;
+}

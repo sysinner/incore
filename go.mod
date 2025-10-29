@@ -9,11 +9,12 @@ replace github.com/lynkdb/lynkapi v0.0.9 => /opt/workspace/src/github.com/lynkdb
 require (
 	github.com/alibaba/pouch v0.0.0-20240822020607-ba854f2ded86
 	github.com/fsouza/go-dockerclient v1.12.2
-	github.com/hooto/hauth v0.1.2
+	github.com/hooto/hauth v0.1.3
 	github.com/hooto/hflag4g v0.10.1
 	github.com/hooto/hini4g v0.1.2
 	github.com/hooto/hlang4g v0.1.1
 	github.com/hooto/hlog4g v0.9.5
+	github.com/hooto/hmetrics v0.0.2
 	github.com/hooto/hmsg v0.1.0
 	github.com/hooto/htoml4g v0.9.5
 	github.com/hooto/httpsrv v0.12.5
@@ -33,6 +34,7 @@ require (
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.1.38
 	github.com/vishvananda/netlink v1.3.1
 	github.com/yhat/wsutil v0.0.0-20170731153501-1d66fa95c997
+	golang.org/x/crypto v0.43.0
 	golang.org/x/net v0.46.0
 	google.golang.org/grpc v1.76.0
 	google.golang.org/protobuf v1.36.10
@@ -89,7 +91,6 @@ require (
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/hooto/hmetrics v0.0.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -137,7 +138,7 @@ require (
 	golang.org/x/image v0.32.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251020155222-88f65dc88635 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

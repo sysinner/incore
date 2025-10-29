@@ -46,7 +46,6 @@ func NewModule() *httpsrv.Module {
 		new(AppSpec),
 		new(App),
 		new(Host),
-		new(Resource),
 		new(Podbound),
 		new(PodStats),
 		new(Charge),

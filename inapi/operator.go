@@ -107,7 +107,69 @@ func OpActionControlFilter(opbase uint32) uint32 {
 	return opbase
 }
 
+func OpActionString(action uint32) string {
+
+	if OpActionAllow(action, OpActionStart) {
+		return "start"
+	}
+
+	if OpActionAllow(action, OpActionRunning) {
+		return "running"
+	}
+
+	if OpActionAllow(action, OpActionStop) {
+		return "stop"
+	}
+
+	if OpActionAllow(action, OpActionStopped) {
+		return "stopped"
+	}
+
+	if OpActionAllow(action, OpActionDestroy) {
+		return "destroy"
+	}
+
+	if OpActionAllow(action, OpActionDestroyed) {
+		return "destroyed"
+	}
+
+	if OpActionAllow(action, OpActionMigrate) {
+		return "migrate"
+	}
+
+	if OpActionAllow(action, OpActionMigrated) {
+		return "migrated"
+	}
+
+	if OpActionAllow(action, OpActionFailover) {
+		return "failover"
+	}
+
+	if OpActionAllow(action, OpActionPending) {
+		return "pending"
+	}
+
+	if OpActionAllow(action, OpActionWarning) {
+		return "warning"
+	}
+
+	if OpActionAllow(action, OpActionResFree) {
+		return "resfree"
+	}
+
+	if OpActionAllow(action, OpActionHang) {
+		return "hang"
+	}
+
+	if OpActionAllow(action, OpActionForce) {
+		return "force"
+	}
+
+	return ""
+}
+
 func OpActionStrings(action uint32) []string {
+
 	s := []string{}
 
 	if OpActionAllow(action, OpActionStart) {
@@ -169,7 +231,6 @@ func OpActionStrings(action uint32) []string {
 	return s
 }
 
-//
 const (
 	PbOpLogOK    = "ok"
 	PbOpLogInfo  = "info"

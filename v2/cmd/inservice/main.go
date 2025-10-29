@@ -382,7 +382,7 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 			domainEntry = &DomainEntry{
 				Domain: domain,
 			}
-			hlog.Printf("info", "add domain %s, routes %d", domain.Name, len(domain.Locations))
+			hlog.Printf("info", "add domain %s, routes %d", domain.Name, len(domain.Routes))
 		}
 
 		cfg.lastVersion = max(cfg.lastVersion, domain.Version)
@@ -393,7 +393,11 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 			domainEntry.Routes = nil
 			domainEntry.setupVersion = domain.Version
 
-			for _, location := range domain.Locations {
+			for _, location := range domain.Routes {
+
+				if len(location.Targets) == 0 {
+					continue
+				}
 
 				switch location.Type {
 				case "pod", "upstream":
@@ -414,7 +418,7 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 
 				case "redirect":
 
-					if u, err := url.Parse(location.TargetUrl); err == nil {
+					if u, err := url.Parse(location.Targets[0]); err == nil {
 
 						domainEntry.Routes = append(domainEntry.Routes, &DomainEntryRoute{
 							Path: location.Path,
@@ -425,7 +429,7 @@ func configRefresh(domains []*inapi2.GatewayService_DomainDeploy) error {
 				}
 			}
 
-			hlog.Printf("info", "updated domain %s, routes %d", domain.Name, len(domain.Locations))
+			hlog.Printf("info", "updated domain %s, routes %d", domain.Name, len(domain.Routes))
 		}
 
 		//
