@@ -26,10 +26,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hooto/hauth/go/hauth/v1"
+	hauth1 "github.com/hooto/hauth/go/hauth/v1"
 	"github.com/hooto/htoml4g/htoml"
 	iamcfg "github.com/hooto/iam/config"
 	"github.com/lessos/lessgo/crypto/idhash"
+
 	// "github.com/lynkdb/kvgo"
 	kvclient "github.com/lynkdb/kvgo/v2/pkg/client"
 
@@ -80,16 +81,16 @@ type ZoneConfig struct {
 }
 
 type ZoneMainConfig struct {
-	DataTableZone      string           `json:"data_table_zone" toml:"data_table_zone"`
-	DataTableGlobal    string           `json:"data_table_global" toml:"data_table_global"`
-	DataTableInpack    string           `json:"data_table_inpack" toml:"data_table_inpack"`
-	MultiZoneEnable    bool             `json:"multi_zone_enable" toml:"multi_zone_enable"`
-	MultiCellEnable    bool             `json:"multi_cell_enable" toml:"multi_cell_enable"`
-	MultiHostEnable    bool             `json:"multi_host_enable" toml:"multi_host_enable"`
-	MultiReplicaEnable bool             `json:"multi_replica_enable" toml:"multi_replica_enable"`
-	SchedulerPlugin    string           `json:"scheduler_plugin,omitempty" toml:"scheduler_plugin,omitempty"`
-	LocaleLang         string           `json:"locale_lang" toml:"locale_lang" desc:"locale language name. default: en"`
-	IamAccessKey       *hauth.AccessKey `json:"iam_access_key,omitempty" toml:"iam_access_key,omitempty"`
+	DataTableZone      string            `json:"data_table_zone" toml:"data_table_zone"`
+	DataTableGlobal    string            `json:"data_table_global" toml:"data_table_global"`
+	DataTableInpack    string            `json:"data_table_inpack" toml:"data_table_inpack"`
+	MultiZoneEnable    bool              `json:"multi_zone_enable" toml:"multi_zone_enable"`
+	MultiCellEnable    bool              `json:"multi_cell_enable" toml:"multi_cell_enable"`
+	MultiHostEnable    bool              `json:"multi_host_enable" toml:"multi_host_enable"`
+	MultiReplicaEnable bool              `json:"multi_replica_enable" toml:"multi_replica_enable"`
+	SchedulerPlugin    string            `json:"scheduler_plugin,omitempty" toml:"scheduler_plugin,omitempty"`
+	LocaleLang         string            `json:"locale_lang" toml:"locale_lang" desc:"locale language name. default: en"`
+	IamAccessKey       *hauth1.AccessKey `json:"iam_access_key,omitempty" toml:"iam_access_key,omitempty"`
 }
 
 type ConfigCommon struct {
@@ -104,16 +105,6 @@ type ConfigCommon struct {
 	GlobDatabase *kvclient.Config `json:"glob_database,omitempty" toml:"glob_database,omitempty"`
 	ZoneDatabase *kvclient.Config `json:"zone_database,omitempty" toml:"zone_database,omitempty"`
 	PackDatabase *kvclient.Config `json:"pack_database,omitempty" toml:"pack_database,omitempty"`
-
-	/**
-	DelZoneIamAccessKey *hauth.AccessKey         `json:"zone_iam_access_key,omitempty" toml:"zone_iam_access_key,omitempty"`
-	ZoneMaster          *ZoneMainConfig          `json:"zone_master,omitempty" toml:"zone_master,omitempty"`
-	ImageServices       []*inapi.ResImageService `json:"image_services,omitempty" toml:"image_services,omitempty"`
-	Masters             []string                 `json:"masters" toml:"masters"`
-	PodHomeDir          string                   `json:"pod_home_dir" toml:"pod_home_dir"`
-	InpackServiceUrl    string                   `json:"inpack_service_url,omitempty" toml:"inpack_service_url,omitempty"`
-	InpanelServiceUrl   string                   `json:"inpanel_service_url,omitempty" toml:"inpanel_service_url,omitempty"`
-	*/
 }
 
 type HostInfoReply struct {
@@ -148,6 +139,8 @@ var (
 	err              error
 	DefaultUserID    = 2048
 	DefaultGroupID   = 2048
+
+	KeyMgr = hauth1.NewAccessKeyManager()
 )
 
 func BasicSetup() error {
@@ -261,6 +254,10 @@ func BasicSetup() error {
 		}
 	}
 	*/
+
+	if KeyMgr.Count() == 0 {
+		KeyMgr.KeySet(hauth1.NewAccessKey())
+	}
 
 	return Config.Flush()
 }

@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hooto/iam/iamclient"
+	hauth2 "github.com/hooto/hauth/v2/hauth"
 	"github.com/lessos/lessgo/crypto/idhash"
 	"github.com/lynkdb/lynkapi/go/lynkapi"
 	"golang.org/x/net/idna"
@@ -52,6 +52,8 @@ func (it *ApiService) GatewayDomainList(
 
 	// load domain list
 	var (
+		session = hauth2.AuthContextSession(ctx)
+
 		offset = inapi2.NsGlobalGatewayServiceDomain("")
 		rs     = data.DataGlobal.NewRanger(offset, offset).
 			SetLimit(1000).Exec() // TODO
@@ -62,7 +64,7 @@ func (it *ApiService) GatewayDomainList(
 		if err := v.JsonDecode(&item); err != nil || item.Meta == nil {
 			continue
 		}
-		if !iamclient.UserAllow(ctx, item.Meta.User, "", "") {
+		if !session.Allow(item.Meta.User) {
 			continue
 		}
 		rsp.Domains = append(rsp.Domains, &item)
@@ -85,6 +87,8 @@ func (it *ApiService) GatewayDomain(
 	}
 
 	var (
+		session = hauth2.AuthContextSession(ctx)
+
 		rsp inapi2.GatewayService_Domain
 		key = inapi2.NsGlobalGatewayServiceDomain(req.Name)
 		rs  = data.DataGlobal.NewReader(key).Exec()
@@ -100,7 +104,7 @@ func (it *ApiService) GatewayDomain(
 		return nil, lynkapi.NewInternalServerError(err.Error())
 	}
 
-	if !iamclient.UserAllow(ctx, rsp.Meta.User, "", "") {
+	if !session.Allow(rsp.Meta.User) {
 		return nil, lynkapi.NewUnAuthError("Access Denied")
 	}
 
@@ -146,6 +150,8 @@ func (it *ApiService) GatewayDomainSet(
 	}
 
 	var (
+		session = hauth2.AuthContextSession(ctx)
+
 		rsp inapi2.GatewayService_Domain
 		key = inapi2.NsGlobalGatewayServiceDomain(req.Meta.Name)
 		rs  = data.DataGlobal.NewReader(key).Exec()
@@ -168,21 +174,19 @@ func (it *ApiService) GatewayDomainSet(
 
 	{
 		if rsp.Meta.User != "" &&
-			!iamclient.UserAllow(ctx, rsp.Meta.User, "", "") {
+			!session.Allow(rsp.Meta.User) {
 			return nil, lynkapi.NewUnAuthError("Access Denied")
 		}
 
 		if req.Meta.User != "" &&
-			!iamclient.UserAllow(ctx, req.Meta.User, "", "") {
+			!session.Allow(req.Meta.User) {
 			return nil, lynkapi.NewUnAuthError("Access Denied to bind owner to " + req.Meta.User)
 		}
 
 		if req.Meta.User != "" {
-			us := iamclient.UserSession(ctx)
-			if us == nil {
-				return nil, lynkapi.NewUnAuthError("Access Denied to fetch session")
-			}
-			rsp.Meta.User = us.UserName
+			rsp.Meta.User = req.Meta.User
+		} else if rsp.Meta.User == "" {
+			rsp.Meta.User = session.Sub
 		}
 	}
 
@@ -218,6 +222,8 @@ func (it *ApiService) GatewayDomainRouteSet(
 	}
 
 	var (
+		session = hauth2.AuthContextSession(ctx)
+
 		rsp inapi2.GatewayService_Domain
 		key = inapi2.NsGlobalGatewayServiceDomain(req.Meta.Name)
 		rs  = data.DataGlobal.NewReader(key).Exec()
@@ -231,7 +237,7 @@ func (it *ApiService) GatewayDomainRouteSet(
 		return nil, lynkapi.NewInternalServerError(err.Error())
 	}
 
-	if !iamclient.UserAllow(ctx, rsp.Meta.User, "", "") {
+	if !session.Allow(rsp.Meta.User) {
 		return nil, lynkapi.NewUnAuthError("Access Denied")
 	}
 

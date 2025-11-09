@@ -16,8 +16,18 @@ package apiserver
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"hash/crc32"
+	"time"
 
+	hauth2 "github.com/hooto/hauth/v2/hauth"
 	"github.com/hooto/iam/iamclient"
+	"github.com/lynkdb/lynkapi/go/lynkapi"
+	"github.com/sysinner/incore/config"
+	"github.com/sysinner/incore/inutils"
+	"github.com/sysinner/incore/status"
+	"github.com/sysinner/incore/v2/states"
 )
 
 type ApiService struct {
@@ -25,6 +35,59 @@ type ApiService struct {
 
 func (it *ApiService) PreMethod(
 	ctx context.Context,
-) error {
-	return iamclient.IsLogin(ctx)
+) (context.Context, error) {
+
+	if !status.IsZoneMaster() {
+		return ctx, lynkapi.NewClientError("Invalid Zone MainNode Address")
+	}
+
+	// hauth1 兼容
+	if v := ctx.Value(iamclient.AccessTokenKey); v != nil {
+		if s, ok := v.(string); ok {
+			us, err := iamclient.Instance(s)
+			if err != nil {
+				return ctx, err
+			}
+			if !us.IsLogin() {
+				return ctx, errors.New("login required")
+			}
+			jti := inutils.Uint32ToHexString(crc32.ChecksumIEEE([]byte(us.UserName)))
+			session := states.SessionTokenManager.Token(jti)
+			if session == nil {
+				if _, err := states.SessionTokenManager.ReSign("", hauth2.IdentityToken{
+					Jti: jti,
+					Iat: time.Now().Unix(),
+					Exp: time.Now().Unix() + 86400,
+					Sub: us.UserName,
+				}); err != nil {
+					return ctx, err
+				}
+				session = states.SessionTokenManager.Token(jti)
+				if session == nil {
+					return ctx, lynkapi.NewClientError("Auth Denied")
+				}
+			}
+			return context.WithValue(ctx, hauth2.AuthContextKey, session), nil
+		}
+	}
+
+	token, err := hauth2.NewAccessTokenWithContext(ctx)
+	if err != nil {
+		return ctx, err
+	}
+
+	if token.IsExpired() {
+		return ctx, lynkapi.NewAuthExpiredError(fmt.Sprintf("kid : %s", token.Header.Kid))
+	}
+
+	if _, err := token.Verify(config.KeyMgr); err != nil {
+		return ctx, err
+	}
+
+	session := states.SessionTokenManager.Token(token.Claims.Jti)
+	if session == nil {
+		return ctx, lynkapi.NewClientError("Auth Denied")
+	}
+
+	return context.WithValue(ctx, hauth2.AuthContextKey, session), nil
 }

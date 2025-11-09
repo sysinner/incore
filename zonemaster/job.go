@@ -31,6 +31,7 @@ import (
 	iam_cli "github.com/hooto/iam/iamclient"
 	iam_web "github.com/hooto/iam/websrv/ctrl"
 	iam_v1 "github.com/hooto/iam/websrv/v1"
+	iam_v2 "github.com/hooto/iam/websrv/v2"
 	iamWorker "github.com/hooto/iam/worker"
 
 	ip_cfg "github.com/sysinner/inpack/server/config"
@@ -150,7 +151,6 @@ func (it *ZoneMainJob) init() error {
 				}
 			}
 		}
-
 	}
 
 	// module/IAM
@@ -189,6 +189,7 @@ func (it *ZoneMainJob) init() error {
 
 		//
 		it.hs.HandleModule("/iam/v1", iam_v1.NewModule())
+		it.hs.HandleModule("/iam/v2", iam_v2.NewModule())
 		it.hs.HandleModule("/iam", iam_web.NewModule())
 
 		//
