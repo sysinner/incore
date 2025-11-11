@@ -64,7 +64,7 @@ func (it *ApiService) GatewayDomainList(
 		if err := v.JsonDecode(&item); err != nil || item.Meta == nil {
 			continue
 		}
-		if !session.Allow(item.Meta.User) {
+		if !session.Allow(item.Meta.User, inapi2.AuthPermSysAll) {
 			continue
 		}
 		rsp.Domains = append(rsp.Domains, &item)
@@ -104,7 +104,7 @@ func (it *ApiService) GatewayDomain(
 		return nil, lynkapi.NewInternalServerError(err.Error())
 	}
 
-	if !session.Allow(rsp.Meta.User) {
+	if !session.Allow(rsp.Meta.User, inapi2.AuthPermSysAll) {
 		return nil, lynkapi.NewUnAuthError("Access Denied")
 	}
 
@@ -174,12 +174,12 @@ func (it *ApiService) GatewayDomainSet(
 
 	{
 		if rsp.Meta.User != "" &&
-			!session.Allow(rsp.Meta.User) {
+			!session.Allow(rsp.Meta.User, inapi2.AuthPermSysAll) {
 			return nil, lynkapi.NewUnAuthError("Access Denied")
 		}
 
 		if req.Meta.User != "" &&
-			!session.Allow(req.Meta.User) {
+			!session.Allow(req.Meta.User, inapi2.AuthPermSysAll) {
 			return nil, lynkapi.NewUnAuthError("Access Denied to bind owner to " + req.Meta.User)
 		}
 
@@ -237,7 +237,7 @@ func (it *ApiService) GatewayDomainRouteSet(
 		return nil, lynkapi.NewInternalServerError(err.Error())
 	}
 
-	if !session.Allow(rsp.Meta.User) {
+	if !session.Allow(rsp.Meta.User, inapi2.AuthPermSysAll) {
 		return nil, lynkapi.NewUnAuthError("Access Denied")
 	}
 

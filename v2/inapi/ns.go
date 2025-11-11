@@ -16,8 +16,18 @@ package inapi
 
 import (
 	"fmt"
+
+	hauth2 "github.com/hooto/hauth/v2/hauth"
+)
+
+var (
+	AuthPermSysAll = hauth2.NewScopeFilter("sys", "*")
 )
 
 func NsGlobalGatewayServiceDomain(name string) []byte {
 	return []byte(fmt.Sprintf("v2/service/gateway/domain/%s", name))
+}
+
+func NsZoneSysAccessKey(zone, kid string) []byte {
+	return []byte(fmt.Sprintf("v2/zone/%s/sys-ak/%s", zone, kid))
 }

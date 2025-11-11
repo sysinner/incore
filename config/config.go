@@ -81,16 +81,17 @@ type ZoneConfig struct {
 }
 
 type ZoneMainConfig struct {
-	DataTableZone      string            `json:"data_table_zone" toml:"data_table_zone"`
-	DataTableGlobal    string            `json:"data_table_global" toml:"data_table_global"`
-	DataTableInpack    string            `json:"data_table_inpack" toml:"data_table_inpack"`
-	MultiZoneEnable    bool              `json:"multi_zone_enable" toml:"multi_zone_enable"`
-	MultiCellEnable    bool              `json:"multi_cell_enable" toml:"multi_cell_enable"`
-	MultiHostEnable    bool              `json:"multi_host_enable" toml:"multi_host_enable"`
-	MultiReplicaEnable bool              `json:"multi_replica_enable" toml:"multi_replica_enable"`
-	SchedulerPlugin    string            `json:"scheduler_plugin,omitempty" toml:"scheduler_plugin,omitempty"`
-	LocaleLang         string            `json:"locale_lang" toml:"locale_lang" desc:"locale language name. default: en"`
-	IamAccessKey       *hauth1.AccessKey `json:"iam_access_key,omitempty" toml:"iam_access_key,omitempty"`
+	DataTableZone      string              `json:"data_table_zone" toml:"data_table_zone"`
+	DataTableGlobal    string              `json:"data_table_global" toml:"data_table_global"`
+	DataTableInpack    string              `json:"data_table_inpack" toml:"data_table_inpack"`
+	MultiZoneEnable    bool                `json:"multi_zone_enable" toml:"multi_zone_enable"`
+	MultiCellEnable    bool                `json:"multi_cell_enable" toml:"multi_cell_enable"`
+	MultiHostEnable    bool                `json:"multi_host_enable" toml:"multi_host_enable"`
+	MultiReplicaEnable bool                `json:"multi_replica_enable" toml:"multi_replica_enable"`
+	SchedulerPlugin    string              `json:"scheduler_plugin,omitempty" toml:"scheduler_plugin,omitempty"`
+	LocaleLang         string              `json:"locale_lang" toml:"locale_lang" desc:"locale language name. default: en"`
+	IamAccessKey       *hauth1.AccessKey   `json:"iam_access_key,omitempty" toml:"iam_access_key,omitempty"`
+	SysAccessKeys      []*hauth1.AccessKey `json:"sys_access_keys,omitempty" toml:"sys_access_keys,omitempty"`
 }
 
 type ConfigCommon struct {
@@ -255,8 +256,13 @@ func BasicSetup() error {
 	}
 	*/
 
-	if KeyMgr.Count() == 0 {
-		KeyMgr.KeySet(hauth1.NewAccessKey())
+	if Config.ZoneMain != nil {
+		for _, ak := range Config.ZoneMain.SysAccessKeys {
+			KeyMgr.KeySet(ak)
+		}
+		if KeyMgr.Count() == 0 {
+			KeyMgr.KeySet(hauth1.NewAccessKey())
+		}
 	}
 
 	return Config.Flush()

@@ -28,9 +28,12 @@ import (
 	"github.com/sysinner/incore/data"
 	"github.com/sysinner/incore/inapi"
 	"github.com/sysinner/incore/status"
+	inapi2 "github.com/sysinner/incore/v2/inapi"
 
-	"github.com/hooto/hauth/go/hauth/v1"
+	hauth1 "github.com/hooto/hauth/go/hauth/v1"
+	hauth2 "github.com/hooto/hauth/v2/hauth"
 	iamdata "github.com/hooto/iam/data"
+	"github.com/lynkdb/lynkapi/go/lynkapi"
 )
 
 var (
@@ -138,12 +141,13 @@ func zmWorkerZoneAccessKeySetup() error {
 
 		if config.Config.ZoneMain.IamAccessKey == nil {
 
-			config.Config.ZoneMain.IamAccessKey = &hauth.AccessKey{
+			config.Config.ZoneMain.IamAccessKey = &hauth1.AccessKey{
 				Id: akId,
 				Secret: idhash.HashToBase64String(
 					idhash.AlgSha256, []byte(config.Config.Host.SecretKey), 40),
 				User: "sysadmin",
-				Scopes: []*hauth.ScopeFilter{
+				Type: "App",
+				Scopes: []*hauth1.ScopeFilter{
 					{
 						Name:  "sys/zm",
 						Value: status.ZoneId,
@@ -158,6 +162,56 @@ func zmWorkerZoneAccessKeySetup() error {
 			iamdata.AccessKeyInitData(config.Config.ZoneMain.IamAccessKey)
 			config.Config.Flush()
 		}
+	}
+
+	configFlush := false
+
+	// config.Config.ZoneMain.SysAccessKeys = nil
+	if len(config.Config.ZoneMain.SysAccessKeys) == 0 {
+
+		offset := inapi2.NsZoneSysAccessKey(status.ZoneId, "")
+		if rs := data.DataZone.NewRanger(offset, offset).
+			SetLimit(1000).Exec(); rs.OK() {
+
+			for _, v := range rs.Items {
+				var ak hauth1.AccessKey
+				if err := v.JsonDecode(&ak); err != nil {
+					continue
+				}
+				if len(ak.Scopes) == 0 {
+					ak.Scopes = append(ak.Scopes, inapi2.AuthPermSysAll)
+					data.DataZone.NewWriter(inapi2.NsZoneSysAccessKey(status.ZoneId, ak.Id), ak).Exec()
+				}
+				if prev := lynkapi.SlicesSearchFunc(config.Config.ZoneMain.SysAccessKeys, func(a *hauth1.AccessKey) bool {
+					return ak.Id == a.Id
+				}); prev == nil {
+					config.Config.ZoneMain.SysAccessKeys = append(config.Config.ZoneMain.SysAccessKeys, &ak)
+					config.KeyMgr.KeySet(&ak)
+					configFlush = true
+				} else if len(prev.Scopes) == 0 {
+					prev.Scopes = ak.Scopes
+					configFlush = true
+				}
+				hlog.Printf("info", "zone sys-access-key %s", ak.Id)
+			}
+		}
+
+		if len(config.Config.ZoneMain.SysAccessKeys) == 0 {
+			ak := hauth2.NewAppAccessKey()
+			ak.User = "sysadmin"
+			ak.Scopes = append(ak.Scopes, inapi2.AuthPermSysAll)
+			rs := data.DataZone.NewWriter(inapi2.NsZoneSysAccessKey(status.ZoneId, ak.Id), ak).Exec()
+			if rs.OK() {
+				config.Config.ZoneMain.SysAccessKeys = append(config.Config.ZoneMain.SysAccessKeys, ak)
+				config.KeyMgr.KeySet(ak)
+				configFlush = true
+				hlog.Printf("info", "zone sys-access-key %s", ak.Id)
+			}
+		}
+	}
+
+	if configFlush {
+		config.Config.Flush()
 	}
 
 	zmAccessKeySetup = true

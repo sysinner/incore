@@ -80,8 +80,25 @@ func (it *ApiService) PreMethod(
 		return ctx, lynkapi.NewAuthExpiredError(fmt.Sprintf("kid : %s", token.Header.Kid))
 	}
 
-	if _, err := token.Verify(config.KeyMgr); err != nil {
+	ak, err := token.Verify(config.KeyMgr)
+	if err != nil {
 		return ctx, err
+	}
+	if ak.Type == "App" {
+		states.SessionTokenManager.RefreshToken(hauth2.IdentityToken{
+			Jti: token.Claims.Jti,
+			Iat: time.Now().Unix(),
+			Exp: time.Now().Unix() + 60,
+			Sub: ak.User,
+
+			Type:   ak.Type,
+			Scopes: ak.Scopes,
+		})
+		session := states.SessionTokenManager.Token(token.Claims.Jti)
+		if session == nil {
+			return ctx, lynkapi.NewClientError("Auth Denied")
+		}
+		return context.WithValue(ctx, hauth2.AuthContextKey, session), nil
 	}
 
 	session := states.SessionTokenManager.Token(token.Claims.Jti)
